@@ -168,8 +168,10 @@ var KanvazMapView = (function() {
 
     /* Pan + node drag */
     container.addEventListener('mousedown', function(e) {
-      if (e.button === 1 || (e.button === 0 && e.target === container)) {
-        /* Pan — middle-click or click empty area */
+      var nodeEl = e.target.closest('.map-node');
+
+      if (e.button === 1 || (e.button === 0 && !nodeEl)) {
+        /* Pan — middle-click or left-click on empty area */
         e.preventDefault();
         isPanning  = true;
         panStartX  = e.clientX;
@@ -177,11 +179,12 @@ var KanvazMapView = (function() {
         panOriginX = tx;
         panOriginY = ty;
         container.style.cursor = 'grabbing';
+        selectNode(null);
+        cancelConnect();
         return;
       }
 
       /* Node click */
-      var nodeEl = e.target.closest('.map-node');
       if (nodeEl && e.button === 0) {
         var refId = nodeEl.dataset.refId;
 
@@ -196,17 +199,11 @@ var KanvazMapView = (function() {
 
         /* Start drag */
         dragNode = refId;
-        var rect = nodeEl.getBoundingClientRect();
-        dragOffsetX = e.clientX - rect.left;
-        dragOffsetY = e.clientY - rect.top;
+        var nRect = nodeEl.getBoundingClientRect();
+        dragOffsetX = (e.clientX - nRect.left) / scale;
+        dragOffsetY = (e.clientY - nRect.top)  / scale;
         e.preventDefault();
         return;
-      }
-
-      /* Click empty — deselect */
-      if (e.button === 0 && !nodeEl) {
-        selectNode(null);
-        cancelConnect();
       }
     });
 
@@ -222,8 +219,8 @@ var KanvazMapView = (function() {
 
       if (dragNode) {
         var rect = container.getBoundingClientRect();
-        var wx = (e.clientX - rect.left - tx - dragOffsetX * scale) / scale;
-        var wy = (e.clientY - rect.top  - ty - dragOffsetY * scale) / scale;
+        var wx = (e.clientX - rect.left - tx) / scale - dragOffsetX;
+        var wy = (e.clientY - rect.top  - ty) / scale - dragOffsetY;
 
         var cards = KanvazCards.getAll();
         var card  = cards[dragNode];
@@ -492,9 +489,8 @@ var KanvazMapView = (function() {
       var dx = x2 - x1;
       var dy = y2 - y1;
       var dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < 1) continue;
-
       var pad = NODE_W / 2 + 4;
+      if (dist < pad * 2) continue;
       var nx = dx / dist;
       var ny = dy / dist;
       var sx = x1 + nx * pad;
@@ -584,6 +580,7 @@ var KanvazMapView = (function() {
         oldEl.style.borderColor = 'var(--color-border-2)';
         oldEl.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
       }
+      unhighlightConnections();
     }
 
     selectedNode = refId;
@@ -847,6 +844,12 @@ var KanvazMapView = (function() {
 
     if (e.key === 'Escape') {
       if (connectFrom) { cancelConnect(); return true; }
+      /* Close inspector and deselect */
+      if (typeof KanvazInspector !== 'undefined' && KanvazInspector.isOpen()) {
+        KanvazInspector.close();
+        return true;
+      }
+      if (selectedNode) { selectNode(null); return true; }
     }
 
     /* 0 — reset map zoom */

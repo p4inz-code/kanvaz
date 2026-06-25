@@ -78,14 +78,11 @@ var KanvazShortcuts = (function() {
       return;
     }
 
-    /* Zoom */
-    if (e.key === '0') { e.preventDefault(); KanvazCanvas.zoomReset(); return; }
-    if (e.key === '=' || e.key === '+') { e.preventDefault(); KanvazCanvas.zoomIn(); return; }
-    if (e.key === '-' || e.key === '_') { e.preventDefault(); KanvazCanvas.zoomOut(); return; }
-    if (e.key === 'f' || e.key === 'F') { e.preventDefault(); KanvazCanvas.zoomFit(); return; }
-
-    /* Always on top */
+    /* Always on top — works in both views */
     if (e.key === 't' || e.key === 'T') { KanvazApp.toggleAlwaysOnTop(); return; }
+
+    /* Help — works in both views */
+    if (e.key === '?') { KanvazUI.showShortcuts(); return; }
 
     /* Map view toggle */
     if (e.key === 'm' || e.key === 'M') {
@@ -93,13 +90,18 @@ var KanvazShortcuts = (function() {
       return;
     }
 
-    /* Delegate to map view if active */
+    /* Delegate to map view if active — blocks all board-specific
+       shortcuts below (zoom, card operations, etc.) while map is shown */
     if (typeof KanvazMapView !== 'undefined' && KanvazMapView.isActive()) {
-      if (KanvazMapView.handleKey(e)) return;
+      KanvazMapView.handleKey(e);
+      return;
     }
 
-    /* Help */
-    if (e.key === '?') { KanvazUI.showShortcuts(); return; }
+    /* Zoom (board canvas only — map view handles its own zoom) */
+    if (e.key === '0') { e.preventDefault(); KanvazCanvas.zoomReset(); return; }
+    if (e.key === '=' || e.key === '+') { e.preventDefault(); KanvazCanvas.zoomIn(); return; }
+    if (e.key === '-' || e.key === '_') { e.preventDefault(); KanvazCanvas.zoomOut(); return; }
+    if (e.key === 'f' || e.key === 'F') { e.preventDefault(); KanvazCanvas.zoomFit(); return; }
 
     /* Escape — deselect, close panels */
     if (e.key === 'Escape') {

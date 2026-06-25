@@ -120,6 +120,11 @@ var KanvazHistory = (function() {
     if (typeof KanvazInspector !== 'undefined' && KanvazInspector.isOpen()) {
       KanvazInspector.refresh();
     }
+
+    /* Re-render map view if active */
+    if (typeof KanvazMapView !== 'undefined' && KanvazMapView.isActive()) {
+      KanvazMapView.render();
+    }
   }
 
   /* ── Clear ── */
