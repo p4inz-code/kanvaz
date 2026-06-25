@@ -90,6 +90,14 @@
       <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M11.5 4.5H6a3.5 3.5 0 000 7H9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.5 2L12 4.5L9.5 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
 
+    <div class="toolbar-sep"></div>
+
+    <button class="toolbar-btn" id="btn-view-toggle" title="Toggle Board / Map view (M)" style="font-size:11px;font-family:var(--font-ui);gap:4px;">
+      <span class="vt-board" style="opacity:1;">Board</span>
+      <span style="opacity:0.3;font-size:10px;">/</span>
+      <span class="vt-map" style="opacity:0.4;">Map</span>
+    </button>
+
     <div class="toolbar-spacer"></div>
 
     <button class="toolbar-btn" id="btn-settings" title="Settings">
@@ -178,6 +186,7 @@
 <script src="annotate.js"></script>
 <script src="boards.js"></script>
 <script src="inspector.js"></script>
+<script src="map-view.js"></script>
 <script src="shortcuts.js"></script>
 <script src="ui.js"></script>
 <script src="app.js"></script>

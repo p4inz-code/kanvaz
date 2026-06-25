@@ -87,6 +87,17 @@ var KanvazShortcuts = (function() {
     /* Always on top */
     if (e.key === 't' || e.key === 'T') { KanvazApp.toggleAlwaysOnTop(); return; }
 
+    /* Map view toggle */
+    if (e.key === 'm' || e.key === 'M') {
+      if (typeof KanvazMapView !== 'undefined') KanvazMapView.toggle();
+      return;
+    }
+
+    /* Delegate to map view if active */
+    if (typeof KanvazMapView !== 'undefined' && KanvazMapView.isActive()) {
+      if (KanvazMapView.handleKey(e)) return;
+    }
+
     /* Help */
     if (e.key === '?') { KanvazUI.showShortcuts(); return; }
 

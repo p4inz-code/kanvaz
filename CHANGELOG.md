@@ -2,8 +2,26 @@
 
 All notable changes to Kanvaz are documented here.
 
-## [3.0.0] — Reference Connection System
+## [3.0.0] — Reference Connection System + Map View
 Kanvaz evolves from a reference board into a Reference Operating System.
+
+### New: Map View
+- Press M (or click the Board/Map toggle in the toolbar) to switch to
+  Map View — a visual graph of all references and their connections.
+- References appear as compact node cards with thumbnail, name, and
+  connection count badge.
+- Connections render as colored SVG lines with directional arrows and
+  relationship type labels.
+- Hover a node to highlight all its connections and dim the rest.
+- Drag nodes to arrange the map layout — positions save per board.
+- Independent pan (click empty space + drag) and scroll-zoom from the
+  board canvas. Press 0 to reset the map view.
+- Right-click a node for map-specific options: "Connect to..." starts
+  connection creation mode, "Go to on board" switches back and selects
+  the reference, "Remove all connections" clears a node's relationships.
+- Create connections directly on the map: right-click → Connect to →
+  click target node → pick relationship type from the type picker.
+- Map view state (pan, zoom) persists per board across saves.
 
 ### New: Connection System
 - References can now be connected to each other with directional

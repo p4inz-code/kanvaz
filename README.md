@@ -88,6 +88,7 @@ Send them the **portable `.exe`** from `/dist/`. No install needed — just run 
 | P | Pin / unpin card |
 | A | Annotate selected card |
 | C | Connections inspector |
+| M | Toggle Board / Map view |
 | H | Hide annotations |
 | Arrow keys | Nudge card 1px |
 | Shift+Arrow | Nudge card 10px |

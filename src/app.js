@@ -20,6 +20,7 @@ var KanvazApp = (function() {
     KanvazHistory.init();
     KanvazShortcuts.init();
     KanvazBoards.init();
+    if (typeof KanvazMapView !== 'undefined') KanvazMapView.init();
     KanvazUI_Extended.init();
 
     KanvazCanvas.initDrop(function(files, worldPos) {
@@ -75,6 +76,9 @@ var KanvazApp = (function() {
     on('zoom-display',  function() { KanvazCanvas.zoomReset(); });
     on('btn-undo',      function() { KanvazHistory.undo(); });
     on('btn-redo',      function() { KanvazHistory.redo(); });
+    on('btn-view-toggle', function() {
+      if (typeof KanvazMapView !== 'undefined') KanvazMapView.toggle();
+    });
     on('btn-settings',  function() { KanvazUI.showSettings(); });
     on('btn-about',     function() { KanvazUI.showAbout(); });
     on('btn-shortcuts', function() { KanvazUI.showShortcuts(); });

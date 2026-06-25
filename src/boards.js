@@ -160,6 +160,14 @@ var KanvazBoards = (function() {
     boards[activeIdx].canvasTx    = KanvazCanvas.getTx();
     boards[activeIdx].canvasTy    = KanvazCanvas.getTy();
     boards[activeIdx].canvasScale = KanvazCanvas.getScale();
+
+    /* v3: save map view state */
+    if (typeof KanvazMapView !== 'undefined') {
+      var ms = KanvazMapView.getState();
+      boards[activeIdx].mapTx    = ms.tx;
+      boards[activeIdx].mapTy    = ms.ty;
+      boards[activeIdx].mapScale = ms.scale;
+    }
   }
 
   /* ── Load board state from boards array ── */
@@ -168,6 +176,17 @@ var KanvazBoards = (function() {
     KanvazCards.deserialise(board.cards || []);
     KanvazCanvas.panTo(board.canvasTx || 0, board.canvasTy || 0);
     KanvazCanvas.setZoom(board.canvasScale || 1.0);
+
+    /* v3: restore map view state */
+    if (typeof KanvazMapView !== 'undefined') {
+      KanvazMapView.setState({
+        tx:    board.mapTx    || 0,
+        ty:    board.mapTy    || 0,
+        scale: board.mapScale || 1.0
+      });
+      if (KanvazMapView.isActive()) KanvazMapView.render();
+    }
+
     KanvazHistory.clear();
   }
 
