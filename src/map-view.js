@@ -1,11 +1,7 @@
-/* map-view.js — relationship map visualization (v3.1)
+/* map-view.js — relationship map visualization (v3.0)
  *
- * Renders references as compact node cards and connections as
- * SVG lines on an infinite pan/zoom canvas. Independent view
- * state from the board canvas.
- *
- * Layout: manual drag-to-place. References without a mapPosition
- * are auto-positioned in a grid on first render.
+ * Node-editor-style view: references as cards with connection ports,
+ * linked by bezier "tube" curves. Drag from a port to connect.
  */
 
 var KanvazMapView = (function() {
@@ -30,22 +26,24 @@ var KanvazMapView = (function() {
   var panOriginX  = 0;
   var panOriginY  = 0;
 
-  var selectedNode = null;   /* ref ID of selected node */
-  var dragNode     = null;   /* ref ID being dragged */
+  var selectedNode = null;
+  var dragNode     = null;
   var dragOffsetX  = 0;
   var dragOffsetY  = 0;
 
-  /* Connection creation state */
-  var connectFrom = null;    /* ref ID of source when creating a connection */
+  /* Wire-drag state (connecting) */
+  var wireFrom     = null;   /* ref ID we're dragging a wire from */
+  var wirePreview  = null;   /* live SVG path element */
 
   /* ── Node sizing ── */
-  var NODE_W      = 160;
-  var NODE_H      = 48;
-  var AUTO_COLS   = 6;
-  var AUTO_GAP_X  = 200;
-  var AUTO_GAP_Y  = 80;
+  var NODE_W      = 172;
+  var NODE_H      = 52;
+  var PORT_R      = 5;
+  var AUTO_COLS   = 5;
+  var AUTO_GAP_X  = 220;
+  var AUTO_GAP_Y  = 90;
 
-  /* ── Connection type colors (match inspector) ── */
+  /* ── Type colors ── */
   var TYPE_COLORS = {
     RelatedTo:     '#6B7280',
     InspiredBy:    '#8B5CF6',
@@ -56,17 +54,41 @@ var KanvazMapView = (function() {
     References:    '#6366F1'
   };
 
-  function typeColor(type) {
-    return TYPE_COLORS[type] || '#6B7280';
+  function typeColor(t) { return TYPE_COLORS[t] || '#6B7280'; }
+  function typeLabel(t) { return t.replace(/([A-Z])/g, ' $1').trim(); }
+
+  /* ══════════════════════════════════════════
+     BEZIER MATH
+     ══════════════════════════════════════════ */
+
+  /* Build a horizontal-biased cubic bezier between two points.
+     Looks like a node-editor cable. */
+  function bezierPath(x1, y1, x2, y2) {
+    var dx = Math.abs(x2 - x1);
+    var tension = Math.max(50, dx * 0.4);
+    return 'M ' + x1 + ' ' + y1
+      + ' C ' + (x1 + tension) + ' ' + y1
+      + ', '  + (x2 - tension) + ' ' + y2
+      + ', '  + x2 + ' ' + y2;
   }
 
-  function typeLabel(type) {
-    return type.replace(/([A-Z])/g, ' $1').trim();
+  /* Port positions: output port on right edge, input port on left edge */
+  function outPort(card) {
+    return {
+      x: card.mapPosition.x + NODE_W,
+      y: card.mapPosition.y + NODE_H / 2
+    };
+  }
+  function inPort(card) {
+    return {
+      x: card.mapPosition.x,
+      y: card.mapPosition.y + NODE_H / 2
+    };
   }
 
-  /* ══════════════════════════════════════════════════════════
-     INIT — build the map container once, inserted into DOM
-     ══════════════════════════════════════════════════════════ */
+  /* ══════════════════════════════════════════
+     INIT
+     ══════════════════════════════════════════ */
 
   function init() {
     if (container) return;
@@ -74,73 +96,71 @@ var KanvazMapView = (function() {
     container = document.createElement('div');
     container.id = 'map-container';
     container.style.cssText = [
-      'position:absolute',
-      'inset:0',
-      'overflow:hidden',
-      'display:none',
-      'background:var(--color-bg)'
+      'position:absolute', 'inset:0', 'overflow:hidden',
+      'display:none', 'background:var(--color-bg)'
     ].join(';');
 
     world = document.createElement('div');
     world.id = 'map-world';
     world.style.cssText = [
-      'position:absolute',
-      'left:0',
-      'top:0',
-      'width:1px',
-      'height:1px',
-      'transform-origin:0 0'
+      'position:absolute', 'left:0', 'top:0',
+      'width:1px', 'height:1px', 'transform-origin:0 0'
     ].join(';');
 
-    /* SVG layer for connection lines (below nodes) */
     svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('id', 'map-svg');
     svg.style.cssText = [
-      'position:absolute',
-      'left:0',
-      'top:0',
-      'width:1px',
-      'height:1px',
-      'overflow:visible',
+      'position:absolute', 'left:0', 'top:0',
+      'width:1px', 'height:1px', 'overflow:visible',
       'pointer-events:none'
     ].join(';');
 
-    /* Arrow marker definition */
+    /* Arrow marker defs */
     var defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-    var defaultColors = ['#6B7280', '#8B5CF6', '#3B82F6', '#F59E0B', '#10B981', '#EF4444', '#6366F1'];
-    for (var ci = 0; ci < defaultColors.length; ci++) {
+    var colors = ['#6B7280', '#8B5CF6', '#3B82F6', '#F59E0B', '#10B981', '#EF4444', '#6366F1', '#4A9EFF'];
+    for (var ci = 0; ci < colors.length; ci++) {
       var marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
-      var safeId = defaultColors[ci].replace('#', '');
+      var safeId = colors[ci].replace('#', '');
       marker.setAttribute('id', 'arrow-' + safeId);
-      marker.setAttribute('viewBox', '0 0 10 10');
-      marker.setAttribute('refX', '10');
-      marker.setAttribute('refY', '5');
-      marker.setAttribute('markerWidth', '8');
-      marker.setAttribute('markerHeight', '8');
-      marker.setAttribute('orient', 'auto-start-reverse');
+      marker.setAttribute('viewBox', '0 0 8 8');
+      marker.setAttribute('refX', '7');
+      marker.setAttribute('refY', '4');
+      marker.setAttribute('markerWidth', '6');
+      marker.setAttribute('markerHeight', '6');
+      marker.setAttribute('orient', 'auto');
       var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d', 'M 0 0 L 10 5 L 0 10 z');
-      path.setAttribute('fill', defaultColors[ci]);
+      path.setAttribute('d', 'M 0 0.5 L 7 4 L 0 7.5 z');
+      path.setAttribute('fill', colors[ci]);
       marker.appendChild(path);
       defs.appendChild(marker);
+
+      /* Glow filter per color */
+      var filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+      filter.setAttribute('id', 'glow-' + safeId);
+      filter.setAttribute('x', '-20%');
+      filter.setAttribute('y', '-20%');
+      filter.setAttribute('width', '140%');
+      filter.setAttribute('height', '140%');
+      var blur = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
+      blur.setAttribute('in', 'SourceGraphic');
+      blur.setAttribute('stdDeviation', '2');
+      filter.appendChild(blur);
+      defs.appendChild(filter);
     }
     svg.appendChild(defs);
 
     world.appendChild(svg);
     container.appendChild(world);
 
-    /* Insert into canvas-container (sibling to canvas-world) */
-    var canvasContainer = document.getElementById('canvas-container');
-    if (canvasContainer) {
-      canvasContainer.appendChild(container);
-    }
+    var cc = document.getElementById('canvas-container');
+    if (cc) cc.appendChild(container);
 
     bindEvents();
   }
 
-  /* ══════════════════════════════════════════════════════════
-     EVENTS — pan, zoom, node interaction
-     ══════════════════════════════════════════════════════════ */
+  /* ══════════════════════════════════════════
+     EVENTS
+     ══════════════════════════════════════════ */
 
   function bindEvents() {
 
@@ -148,30 +168,48 @@ var KanvazMapView = (function() {
     container.addEventListener('wheel', function(e) {
       e.preventDefault();
       var dir = e.deltaY < 0 ? 1 : -1;
-      var newScale = scale + dir * ZOOM_STEP;
-      newScale = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, newScale));
-
+      var newScale = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, scale + dir * ZOOM_STEP));
       var rect = container.getBoundingClientRect();
       var mx = e.clientX - rect.left;
       var my = e.clientY - rect.top;
-
       var wx = (mx - tx) / scale;
       var wy = (my - ty) / scale;
-
       tx = mx - wx * newScale;
       ty = my - wy * newScale;
       scale = newScale;
-
       applyTransform();
       updateZoomDisplay();
     }, { passive: false });
 
-    /* Pan + node drag */
+    /* Mousedown — pan, node drag, port drag */
     container.addEventListener('mousedown', function(e) {
+
+      /* Port click — start or complete a wire */
+      var portEl = e.target.closest('.map-port');
+      if (portEl && e.button === 0) {
+        e.preventDefault();
+        e.stopPropagation();
+        var nodeEl = portEl.closest('.map-node');
+        if (!nodeEl) return;
+        var portRefId = nodeEl.dataset.refId;
+
+        /* If already wiring, complete the connection to this node */
+        if (wireFrom && wireFrom !== portRefId) {
+          completeWire(portRefId);
+          return;
+        }
+
+        /* Only start wires from the output port (right side) */
+        if (portEl.classList.contains('map-port-out') && !wireFrom) {
+          startWire(portRefId);
+        }
+        return;
+      }
+
       var nodeEl = e.target.closest('.map-node');
 
+      /* Pan — middle-click or left-click empty area */
       if (e.button === 1 || (e.button === 0 && !nodeEl)) {
-        /* Pan — middle-click or left-click on empty area */
         e.preventDefault();
         isPanning  = true;
         panStartX  = e.clientX;
@@ -180,7 +218,7 @@ var KanvazMapView = (function() {
         panOriginY = ty;
         container.style.cursor = 'grabbing';
         selectNode(null);
-        cancelConnect();
+        cancelWire();
         return;
       }
 
@@ -188,13 +226,12 @@ var KanvazMapView = (function() {
       if (nodeEl && e.button === 0) {
         var refId = nodeEl.dataset.refId;
 
-        /* If in connect mode, complete the connection */
-        if (connectFrom && connectFrom !== refId) {
-          completeConnection(refId);
+        /* If wiring, complete the connection */
+        if (wireFrom && wireFrom !== refId) {
+          completeWire(refId);
           return;
         }
 
-        /* Select */
         selectNode(refId);
 
         /* Start drag */
@@ -207,6 +244,7 @@ var KanvazMapView = (function() {
       }
     });
 
+    /* Mousemove — pan, drag, wire preview */
     window.addEventListener('mousemove', function(e) {
       if (!active) return;
 
@@ -221,14 +259,12 @@ var KanvazMapView = (function() {
         var rect = container.getBoundingClientRect();
         var wx = (e.clientX - rect.left - tx) / scale - dragOffsetX;
         var wy = (e.clientY - rect.top  - ty) / scale - dragOffsetY;
-
         var cards = KanvazCards.getAll();
         var card  = cards[dragNode];
         if (card) {
           if (!card.mapPosition) card.mapPosition = { x: 0, y: 0 };
           card.mapPosition.x = Math.round(wx);
           card.mapPosition.y = Math.round(wy);
-
           var el = document.querySelector('.map-node[data-ref-id="' + dragNode + '"]');
           if (el) {
             el.style.left = card.mapPosition.x + 'px';
@@ -236,17 +272,30 @@ var KanvazMapView = (function() {
           }
           renderLines();
         }
+        return;
+      }
+
+      /* Wire preview — update bezier to follow cursor */
+      if (wireFrom && wirePreview) {
+        var rect2 = container.getBoundingClientRect();
+        var mx = (e.clientX - rect2.left - tx) / scale;
+        var my = (e.clientY - rect2.top  - ty) / scale;
+        var cards = KanvazCards.getAll();
+        var fromCard = cards[wireFrom];
+        if (fromCard && fromCard.mapPosition) {
+          var op = outPort(fromCard);
+          wirePreview.setAttribute('d', bezierPath(op.x, op.y, mx, my));
+        }
       }
     });
 
+    /* Mouseup */
     window.addEventListener('mouseup', function(e) {
       if (!active) return;
-
       if (isPanning) {
         isPanning = false;
         container.style.cursor = '';
       }
-
       if (dragNode) {
         KanvazApp.markDirty();
         KanvazHistory.push();
@@ -254,19 +303,73 @@ var KanvazMapView = (function() {
       }
     });
 
-    /* Right-click on node — context menu */
+    /* Right-click */
     container.addEventListener('contextmenu', function(e) {
       e.preventDefault();
       var nodeEl = e.target.closest('.map-node');
-      if (nodeEl) {
-        showNodeMenu(nodeEl.dataset.refId, e.clientX, e.clientY);
-      }
+      if (nodeEl) showNodeMenu(nodeEl.dataset.refId, e.clientX, e.clientY);
     });
   }
 
-  /* ══════════════════════════════════════════════════════════
+  /* ══════════════════════════════════════════
+     WIRE DRAGGING (connect by dragging)
+     ══════════════════════════════════════════ */
+
+  function startWire(fromRefId) {
+    wireFrom = fromRefId;
+    container.style.cursor = 'crosshair';
+
+    /* Create preview bezier */
+    wirePreview = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    wirePreview.setAttribute('stroke', '#4A9EFF');
+    wirePreview.setAttribute('stroke-width', '2.5');
+    wirePreview.setAttribute('stroke-dasharray', '6 4');
+    wirePreview.setAttribute('fill', 'none');
+    wirePreview.setAttribute('stroke-linecap', 'round');
+    wirePreview.setAttribute('opacity', '0.8');
+    wirePreview.style.pointerEvents = 'none';
+    svg.appendChild(wirePreview);
+
+    /* Highlight source port */
+    var portEl = document.querySelector('.map-node[data-ref-id="' + fromRefId + '"] .map-port-out');
+    if (portEl) {
+      portEl.style.background = '#4A9EFF';
+      portEl.style.transform = 'scale(1.4)';
+    }
+
+    KanvazUI.toast('Drop on a reference to connect \u00B7 Esc to cancel');
+  }
+
+  function completeWire(toRefId) {
+    if (!wireFrom || wireFrom === toRefId) {
+      cancelWire();
+      return;
+    }
+    var fromId = wireFrom;
+    cancelWire();
+    showTypePicker(fromId, toRefId);
+  }
+
+  function cancelWire() {
+    if (wirePreview && wirePreview.parentNode) {
+      wirePreview.parentNode.removeChild(wirePreview);
+    }
+    wirePreview = null;
+
+    if (wireFrom) {
+      var portEl = document.querySelector('.map-node[data-ref-id="' + wireFrom + '"] .map-port-out');
+      if (portEl) {
+        portEl.style.background = '';
+        portEl.style.transform = '';
+      }
+    }
+    wireFrom = null;
+    if (container) container.style.cursor = '';
+  }
+
+  /* ══════════════════════════════════════════
      TRANSFORM
-     ══════════════════════════════════════════════════════════ */
+     ══════════════════════════════════════════ */
 
   function applyTransform() {
     if (!world) return;
@@ -280,23 +383,20 @@ var KanvazMapView = (function() {
     if (st) st.textContent = Math.round(scale * 100) + '%';
   }
 
-  /* ══════════════════════════════════════════════════════════
+  /* ══════════════════════════════════════════
      SHOW / HIDE
-     ══════════════════════════════════════════════════════════ */
+     ══════════════════════════════════════════ */
 
   function show() {
     init();
     active = true;
     container.style.display = '';
-
-    /* Hide board world + grid + empty state */
     var cw = document.getElementById('canvas-world');
     var cg = document.getElementById('canvas-grid');
     var ce = document.getElementById('canvas-empty');
     if (cw) cw.style.display = 'none';
     if (cg) cg.style.display = 'none';
     if (ce) ce.style.display = 'none';
-
     render();
     applyTransform();
     updateZoomDisplay();
@@ -305,18 +405,13 @@ var KanvazMapView = (function() {
   function hide() {
     active = false;
     if (container) container.style.display = 'none';
-
-    /* Restore board world */
     var cw = document.getElementById('canvas-world');
     var cg = document.getElementById('canvas-grid');
     var ce = document.getElementById('canvas-empty');
     if (cw) cw.style.display = '';
     if (cg) cg.style.display = '';
     if (ce) ce.style.display = '';
-
-    cancelConnect();
-
-    /* Restore board zoom display */
+    cancelWire();
     var boardScale = KanvazCanvas.getScale();
     var el = document.getElementById('zoom-display');
     if (el) el.textContent = Math.round(boardScale * 100) + '%';
@@ -334,49 +429,47 @@ var KanvazMapView = (function() {
   function updateToggleBtn() {
     var btn = document.getElementById('btn-view-toggle');
     if (!btn) return;
-    var boardSpan = btn.querySelector('.vt-board');
-    var mapSpan   = btn.querySelector('.vt-map');
-    if (boardSpan) boardSpan.style.opacity = active ? '0.4' : '1';
-    if (mapSpan)   mapSpan.style.opacity   = active ? '1' : '0.4';
+    var bs = btn.querySelector('.vt-board');
+    var ms = btn.querySelector('.vt-map');
+    if (bs) bs.style.opacity = active ? '0.4' : '1';
+    if (ms) ms.style.opacity = active ? '1' : '0.4';
   }
 
-  /* ══════════════════════════════════════════════════════════
-     RENDER — rebuild all nodes + lines
-     ══════════════════════════════════════════════════════════ */
+  /* ══════════════════════════════════════════
+     RENDER
+     ══════════════════════════════════════════ */
 
   function render() {
     if (!active || !world) return;
 
-    /* Clear old nodes (keep SVG) */
-    var oldNodes = world.querySelectorAll('.map-node');
-    for (var r = 0; r < oldNodes.length; r++) {
-      world.removeChild(oldNodes[r]);
-    }
+    /* Clear old nodes */
+    var old = world.querySelectorAll('.map-node');
+    for (var r = 0; r < old.length; r++) world.removeChild(old[r]);
 
     var cards = KanvazCards.getAll();
     var idx = 0;
 
     for (var id in cards) {
       var card = cards[id];
-
-      /* Auto-position if no mapPosition */
       if (!card.mapPosition) {
         var col = idx % AUTO_COLS;
         var row = Math.floor(idx / AUTO_COLS);
         card.mapPosition = {
-          x: col * AUTO_GAP_X + 40,
-          y: row * AUTO_GAP_Y + 40
+          x: col * AUTO_GAP_X + 60,
+          y: row * AUTO_GAP_Y + 60
         };
       }
-
-      var node = buildNode(card);
-      world.appendChild(node);
+      world.appendChild(buildNode(card));
       idx++;
     }
 
     renderLines();
     updateStatusBar(cards);
   }
+
+  /* ══════════════════════════════════════════
+     NODE BUILDER — with ports
+     ══════════════════════════════════════════ */
 
   function buildNode(card) {
     var el = document.createElement('div');
@@ -390,47 +483,96 @@ var KanvazMapView = (function() {
       'height:' + NODE_H + 'px',
       'background:var(--color-surface)',
       'border:1.5px solid var(--color-border-2)',
-      'border-radius:8px',
+      'border-radius:10px',
       'display:flex',
       'align-items:center',
       'gap:8px',
-      'padding:0 12px',
+      'padding:0 14px',
       'cursor:grab',
       'user-select:none',
-      'box-shadow:0 2px 8px rgba(0,0,0,0.3)',
+      'box-shadow:0 2px 10px rgba(0,0,0,0.35)',
       'transition:border-color 0.15s, box-shadow 0.15s',
-      'overflow:hidden'
+      'overflow:visible'
     ].join(';');
 
-    /* Thumbnail or icon */
-    var thumb = document.createElement('div');
-    thumb.style.cssText = 'width:28px;height:28px;border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px;background:var(--color-surface-2);overflow:hidden;';
+    /* ── Input port (left edge) ── */
+    var portIn = document.createElement('div');
+    portIn.className = 'map-port map-port-in';
+    portIn.style.cssText = [
+      'position:absolute',
+      'left:-' + PORT_R + 'px',
+      'top:50%',
+      'transform:translateY(-50%)',
+      'width:' + (PORT_R * 2) + 'px',
+      'height:' + (PORT_R * 2) + 'px',
+      'border-radius:50%',
+      'background:var(--color-border-2)',
+      'border:1.5px solid var(--color-surface)',
+      'cursor:crosshair',
+      'transition:background 0.15s, transform 0.15s',
+      'z-index:2'
+    ].join(';');
+    portIn.onmouseenter = function() {
+      if (!wireFrom) return;
+      portIn.style.background = '#4A9EFF';
+      portIn.style.transform = 'translateY(-50%) scale(1.5)';
+    };
+    portIn.onmouseleave = function() {
+      portIn.style.background = 'var(--color-border-2)';
+      portIn.style.transform = 'translateY(-50%)';
+    };
+    el.appendChild(portIn);
 
+    /* ── Output port (right edge) ── */
+    var portOut = document.createElement('div');
+    portOut.className = 'map-port map-port-out';
+    portOut.style.cssText = [
+      'position:absolute',
+      'right:-' + PORT_R + 'px',
+      'top:50%',
+      'transform:translateY(-50%)',
+      'width:' + (PORT_R * 2) + 'px',
+      'height:' + (PORT_R * 2) + 'px',
+      'border-radius:50%',
+      'background:var(--color-border-2)',
+      'border:1.5px solid var(--color-surface)',
+      'cursor:crosshair',
+      'transition:background 0.15s, transform 0.15s',
+      'z-index:2'
+    ].join(';');
+    portOut.onmouseenter = function() {
+      portOut.style.background = '#4A9EFF';
+      portOut.style.transform = 'translateY(-50%) scale(1.5)';
+    };
+    portOut.onmouseleave = function() {
+      if (wireFrom === card.id) return;
+      portOut.style.background = 'var(--color-border-2)';
+      portOut.style.transform = 'translateY(-50%)';
+    };
+    el.appendChild(portOut);
+
+    /* ── Thumbnail / icon ── */
+    var thumb = document.createElement('div');
+    thumb.style.cssText = 'width:30px;height:30px;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px;background:var(--color-surface-2);overflow:hidden;';
     if (card.dataUrl && (card.type === 'image' || card.type === 'gif')) {
       var img = document.createElement('img');
       img.src = card.dataUrl;
       img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
       thumb.appendChild(img);
     } else {
-      var icon = '';
-      if (typeof KanvazRefTypes !== 'undefined') {
-        icon = KanvazRefTypes.getIcon(card.type);
-      }
-      thumb.textContent = icon || '\u2753';
+      var icon = (typeof KanvazRefTypes !== 'undefined') ? KanvazRefTypes.getIcon(card.type) : '\u2753';
+      thumb.textContent = icon;
     }
     el.appendChild(thumb);
 
-    /* Name */
+    /* ── Name ── */
     var nameEl = document.createElement('div');
     nameEl.style.cssText = 'flex:1;font-size:11px;font-family:var(--font-ui);color:var(--color-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;';
     nameEl.textContent = card.name || 'Untitled';
     el.appendChild(nameEl);
 
-    /* Connection count badge */
-    var connCount = 0;
-    if (typeof KanvazConnections !== 'undefined') {
-      connCount = KanvazConnections.getAll(card.id).length;
-    }
+    /* ── Connection count ── */
+    var connCount = (typeof KanvazConnections !== 'undefined') ? KanvazConnections.getAll(card.id).length : 0;
     if (connCount > 0) {
       var badge = document.createElement('div');
       badge.style.cssText = 'font-size:9px;color:var(--color-accent);background:var(--color-accent-bg);padding:2px 5px;border-radius:10px;flex-shrink:0;font-weight:600;';
@@ -438,35 +580,32 @@ var KanvazMapView = (function() {
       el.appendChild(badge);
     }
 
-    /* Hover effect */
+    /* ── Hover ── */
     el.onmouseenter = function() {
       if (dragNode) return;
       el.style.borderColor = 'var(--color-accent)';
-      el.style.boxShadow = '0 2px 12px rgba(74,158,255,0.25)';
+      el.style.boxShadow = '0 2px 16px rgba(74,158,255,0.3)';
       highlightConnections(card.id);
     };
     el.onmouseleave = function() {
       if (selectedNode === card.id) return;
       el.style.borderColor = 'var(--color-border-2)';
-      el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+      el.style.boxShadow = '0 2px 10px rgba(0,0,0,0.35)';
       unhighlightConnections();
     };
 
     return el;
   }
 
-  /* ══════════════════════════════════════════════════════════
-     SVG CONNECTION LINES
-     ══════════════════════════════════════════════════════════ */
+  /* ══════════════════════════════════════════
+     BEZIER TUBE LINES
+     ══════════════════════════════════════════ */
 
   function renderLines() {
     if (!svg) return;
 
-    /* Remove old lines (keep defs) */
-    var oldLines = svg.querySelectorAll('.conn-line, .conn-label');
-    for (var i = 0; i < oldLines.length; i++) {
-      svg.removeChild(oldLines[i]);
-    }
+    var oldLines = svg.querySelectorAll('.conn-line, .conn-label, .conn-glow');
+    for (var i = 0; i < oldLines.length; i++) svg.removeChild(oldLines[i]);
 
     if (typeof KanvazConnections === 'undefined') return;
 
@@ -480,53 +619,56 @@ var KanvazMapView = (function() {
       if (!fromCard || !toCard) continue;
       if (!fromCard.mapPosition || !toCard.mapPosition) continue;
 
-      var x1 = fromCard.mapPosition.x + NODE_W / 2;
-      var y1 = fromCard.mapPosition.y + NODE_H / 2;
-      var x2 = toCard.mapPosition.x   + NODE_W / 2;
-      var y2 = toCard.mapPosition.y   + NODE_H / 2;
+      var op = outPort(fromCard);
+      var ip = inPort(toCard);
 
-      /* Shorten line to stop at node edge */
-      var dx = x2 - x1;
-      var dy = y2 - y1;
+      /* Skip if nodes overlap */
+      var dx = ip.x - op.x;
+      var dy = ip.y - op.y;
       var dist = Math.sqrt(dx * dx + dy * dy);
-      var pad = NODE_W / 2 + 4;
-      if (dist < pad * 2) continue;
-      var nx = dx / dist;
-      var ny = dy / dist;
-      var sx = x1 + nx * pad;
-      var sy = y1 + ny * pad;
-      var ex = x2 - nx * pad;
-      var ey = y2 - ny * pad;
+      if (dist < 20) continue;
 
       var color = typeColor(conn.type);
       var safeId = color.replace('#', '');
+      var d = bezierPath(op.x, op.y, ip.x, ip.y);
 
-      /* Line */
-      var line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      /* Glow layer (wider, transparent) */
+      var glow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      glow.setAttribute('class', 'conn-glow');
+      glow.setAttribute('d', d);
+      glow.setAttribute('stroke', color);
+      glow.setAttribute('stroke-width', '6');
+      glow.setAttribute('stroke-opacity', '0.08');
+      glow.setAttribute('fill', 'none');
+      glow.setAttribute('stroke-linecap', 'round');
+      glow.dataset.connId = conn.id;
+      svg.appendChild(glow);
+
+      /* Main tube line */
+      var line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       line.setAttribute('class', 'conn-line');
-      line.setAttribute('x1', sx);
-      line.setAttribute('y1', sy);
-      line.setAttribute('x2', ex);
-      line.setAttribute('y2', ey);
+      line.setAttribute('d', d);
       line.setAttribute('stroke', color);
-      line.setAttribute('stroke-width', '1.5');
-      line.setAttribute('stroke-opacity', '0.6');
+      line.setAttribute('stroke-width', '2.5');
+      line.setAttribute('stroke-opacity', '0.55');
+      line.setAttribute('fill', 'none');
+      line.setAttribute('stroke-linecap', 'round');
       line.setAttribute('marker-end', 'url(#arrow-' + safeId + ')');
       line.dataset.connId = conn.id;
       svg.appendChild(line);
 
-      /* Label at midpoint */
-      var mx = (sx + ex) / 2;
-      var my = (sy + ey) / 2;
+      /* Label at midpoint of bezier (approximate: t=0.5) */
+      var mx = (op.x + ip.x) / 2;
+      var my = (op.y + ip.y) / 2 - 8;
       var label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       label.setAttribute('class', 'conn-label');
       label.setAttribute('x', mx);
-      label.setAttribute('y', my - 6);
+      label.setAttribute('y', my);
       label.setAttribute('text-anchor', 'middle');
       label.setAttribute('fill', color);
       label.setAttribute('font-size', '9');
       label.setAttribute('font-family', 'var(--font-ui)');
-      label.setAttribute('opacity', '0.7');
+      label.setAttribute('opacity', '0.6');
       label.textContent = typeLabel(conn.type);
       svg.appendChild(label);
     }
@@ -535,23 +677,21 @@ var KanvazMapView = (function() {
   function highlightConnections(refId) {
     if (!svg) return;
     var conns = KanvazConnections.getAll(refId);
-    var connIds = {};
-    for (var i = 0; i < conns.length; i++) connIds[conns[i].id] = true;
+    var ids = {};
+    for (var i = 0; i < conns.length; i++) ids[conns[i].id] = true;
 
     var lines = svg.querySelectorAll('.conn-line');
     for (var j = 0; j < lines.length; j++) {
-      if (connIds[lines[j].dataset.connId]) {
-        lines[j].setAttribute('stroke-opacity', '1');
-        lines[j].setAttribute('stroke-width', '2.5');
-      } else {
-        lines[j].setAttribute('stroke-opacity', '0.15');
-      }
+      lines[j].setAttribute('stroke-opacity', ids[lines[j].dataset.connId] ? '1' : '0.1');
+      lines[j].setAttribute('stroke-width',   ids[lines[j].dataset.connId] ? '3.5' : '2.5');
     }
-
+    var glows = svg.querySelectorAll('.conn-glow');
+    for (var g = 0; g < glows.length; g++) {
+      glows[g].setAttribute('stroke-opacity', ids[glows[g].dataset.connId] ? '0.18' : '0.02');
+    }
     var labels = svg.querySelectorAll('.conn-label');
     for (var k = 0; k < labels.length; k++) {
-      /* Labels don't have connId — just dim all non-highlighted */
-      labels[k].setAttribute('opacity', '0.2');
+      labels[k].setAttribute('opacity', '0.15');
     }
   }
 
@@ -559,85 +699,46 @@ var KanvazMapView = (function() {
     if (!svg) return;
     var lines = svg.querySelectorAll('.conn-line');
     for (var j = 0; j < lines.length; j++) {
-      lines[j].setAttribute('stroke-opacity', '0.6');
-      lines[j].setAttribute('stroke-width', '1.5');
+      lines[j].setAttribute('stroke-opacity', '0.55');
+      lines[j].setAttribute('stroke-width', '2.5');
+    }
+    var glows = svg.querySelectorAll('.conn-glow');
+    for (var g = 0; g < glows.length; g++) {
+      glows[g].setAttribute('stroke-opacity', '0.08');
     }
     var labels = svg.querySelectorAll('.conn-label');
     for (var k = 0; k < labels.length; k++) {
-      labels[k].setAttribute('opacity', '0.7');
+      labels[k].setAttribute('opacity', '0.6');
     }
   }
 
-  /* ══════════════════════════════════════════════════════════
-     SELECTION + CONNECT MODE
-     ══════════════════════════════════════════════════════════ */
+  /* ══════════════════════════════════════════
+     SELECTION
+     ══════════════════════════════════════════ */
 
   function selectNode(refId) {
-    /* Deselect old */
     if (selectedNode) {
       var oldEl = document.querySelector('.map-node[data-ref-id="' + selectedNode + '"]');
       if (oldEl) {
         oldEl.style.borderColor = 'var(--color-border-2)';
-        oldEl.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+        oldEl.style.boxShadow = '0 2px 10px rgba(0,0,0,0.35)';
       }
       unhighlightConnections();
     }
-
     selectedNode = refId;
-
-    /* Select new */
     if (refId) {
       var el = document.querySelector('.map-node[data-ref-id="' + refId + '"]');
       if (el) {
         el.style.borderColor = 'var(--color-accent)';
-        el.style.boxShadow = '0 0 0 2px rgba(74,158,255,0.3), 0 2px 12px rgba(74,158,255,0.25)';
+        el.style.boxShadow = '0 0 0 2px rgba(74,158,255,0.3), 0 2px 16px rgba(74,158,255,0.3)';
       }
-      /* Also select on board canvas */
       KanvazCards.selectCard(refId);
     }
   }
 
-  function startConnect(fromRefId) {
-    connectFrom = fromRefId;
-    container.style.cursor = 'crosshair';
-    KanvazUI.toast('Click a reference to connect to (Esc to cancel)');
-
-    /* Highlight source node */
-    var el = document.querySelector('.map-node[data-ref-id="' + fromRefId + '"]');
-    if (el) {
-      el.style.borderColor = '#10B981';
-      el.style.boxShadow = '0 0 0 2px rgba(16,185,129,0.3)';
-    }
-  }
-
-  function completeConnection(toRefId) {
-    if (!connectFrom || connectFrom === toRefId) {
-      cancelConnect();
-      return;
-    }
-
-    /* Show type picker inline */
-    showTypePicker(connectFrom, toRefId);
-    cancelConnect();
-  }
-
-  function cancelConnect() {
-    if (connectFrom) {
-      var el = document.querySelector('.map-node[data-ref-id="' + connectFrom + '"]');
-      if (el) {
-        el.style.borderColor = selectedNode === connectFrom ? 'var(--color-accent)' : 'var(--color-border-2)';
-        el.style.boxShadow = selectedNode === connectFrom
-          ? '0 0 0 2px rgba(74,158,255,0.3), 0 2px 12px rgba(74,158,255,0.25)'
-          : '0 2px 8px rgba(0,0,0,0.3)';
-      }
-    }
-    connectFrom = null;
-    if (container) container.style.cursor = '';
-  }
-
-  /* ══════════════════════════════════════════════════════════
-     CONNECTION TYPE PICKER (inline)
-     ══════════════════════════════════════════════════════════ */
+  /* ══════════════════════════════════════════
+     TYPE PICKER (after wire drop)
+     ══════════════════════════════════════════ */
 
   function showTypePicker(fromId, toId) {
     var overlay = document.createElement('div');
@@ -648,13 +749,13 @@ var KanvazMapView = (function() {
       'background:var(--color-surface)',
       'border:1px solid var(--color-border-2)',
       'border-radius:10px',
-      'padding:16px',
-      'width:240px',
+      'padding:14px',
+      'width:220px',
       'box-shadow:0 12px 40px rgba(0,0,0,0.6)'
     ].join(';');
 
     var title = document.createElement('div');
-    title.style.cssText = 'font-weight:600;font-size:13px;margin-bottom:12px;color:var(--color-text);font-family:var(--font-ui);';
+    title.style.cssText = 'font-weight:600;font-size:12px;margin-bottom:10px;color:var(--color-text);font-family:var(--font-ui);';
     title.textContent = 'Connection type';
     panel.appendChild(title);
 
@@ -663,29 +764,19 @@ var KanvazMapView = (function() {
       (function(type) {
         var btn = document.createElement('button');
         btn.style.cssText = [
-          'display:block',
-          'width:100%',
-          'padding:8px 10px',
-          'margin-bottom:4px',
-          'background:var(--color-surface-2)',
-          'border:1px solid transparent',
-          'border-radius:6px',
-          'color:var(--color-text)',
-          'font-family:var(--font-ui)',
-          'font-size:12px',
-          'cursor:pointer',
-          'text-align:left',
+          'display:block', 'width:100%', 'padding:7px 10px',
+          'margin-bottom:3px', 'background:var(--color-surface-2)',
+          'border:1px solid transparent', 'border-radius:6px',
+          'color:var(--color-text)', 'font-family:var(--font-ui)',
+          'font-size:12px', 'cursor:pointer', 'text-align:left',
           'transition:border-color 0.1s'
         ].join(';');
-
         var dot = document.createElement('span');
         dot.style.cssText = 'display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px;background:' + typeColor(type) + ';';
         btn.appendChild(dot);
         btn.appendChild(document.createTextNode(typeLabel(type)));
-
         btn.onmouseenter = function() { btn.style.borderColor = typeColor(type); };
         btn.onmouseleave = function() { btn.style.borderColor = 'transparent'; };
-
         btn.onclick = function() {
           KanvazConnections.create(fromId, toId, type);
           KanvazHistory.push();
@@ -693,7 +784,6 @@ var KanvazMapView = (function() {
           render();
           KanvazUI.toast('Connected: ' + typeLabel(type));
         };
-
         panel.appendChild(btn);
       })(types[i]);
     }
@@ -705,13 +795,12 @@ var KanvazMapView = (function() {
     document.body.appendChild(overlay);
   }
 
-  /* ══════════════════════════════════════════════════════════
+  /* ══════════════════════════════════════════
      NODE CONTEXT MENU
-     ══════════════════════════════════════════════════════════ */
+     ══════════════════════════════════════════ */
 
   function showNodeMenu(refId, x, y) {
     selectNode(refId);
-
     var menu = document.getElementById('context-menu');
     if (!menu) return;
     menu.innerHTML = '';
@@ -719,8 +808,8 @@ var KanvazMapView = (function() {
 
     var items = [
       {
-        label: 'Connect to\u2026',
-        action: function() { startConnect(refId); }
+        label: 'Connect from here\u2026',
+        action: function() { startWire(refId); }
       },
       {
         label: 'Connections',
@@ -768,25 +857,18 @@ var KanvazMapView = (function() {
       }
       var row = document.createElement('div');
       row.className = 'ctx-item' + (items[i].danger ? ' danger' : '');
-
       var labelSpan = document.createElement('span');
       labelSpan.textContent = items[i].label;
       row.appendChild(labelSpan);
-
       if (items[i].shortcut) {
         var shortcut = document.createElement('span');
         shortcut.className = 'ctx-shortcut';
         shortcut.textContent = items[i].shortcut;
         row.appendChild(shortcut);
       }
-
       (function(action) {
-        row.onclick = function() {
-          menu.className = '';
-          action();
-        };
+        row.onclick = function() { menu.className = ''; action(); };
       })(items[i].action);
-
       menu.appendChild(row);
     }
 
@@ -794,77 +876,57 @@ var KanvazMapView = (function() {
     menu.style.top  = y + 'px';
   }
 
-  /* ══════════════════════════════════════════════════════════
+  /* ══════════════════════════════════════════
      STATUS BAR
-     ══════════════════════════════════════════════════════════ */
+     ══════════════════════════════════════════ */
 
   function updateStatusBar(cards) {
     var refCount = 0;
     for (var k in cards) refCount++;
-    var connCount = 0;
-    if (typeof KanvazConnections !== 'undefined') connCount = KanvazConnections.count();
-
+    var connCount = (typeof KanvazConnections !== 'undefined') ? KanvazConnections.count() : 0;
     var cardsEl = document.getElementById('status-cards');
     if (cardsEl) cardsEl.textContent = refCount + ' refs \u00B7 ' + connCount + ' conn';
   }
 
-  /* ══════════════════════════════════════════════════════════
-     VIEW STATE — save/restore per board
-     ══════════════════════════════════════════════════════════ */
+  /* ══════════════════════════════════════════
+     VIEW STATE
+     ══════════════════════════════════════════ */
 
-  function getState() {
-    return { tx: tx, ty: ty, scale: scale };
+  function getState()  { return { tx: tx, ty: ty, scale: scale }; }
+  function setState(s) {
+    if (!s) return;
+    tx = s.tx || 0; ty = s.ty || 0; scale = s.scale || 1.0;
+    if (active) { applyTransform(); updateZoomDisplay(); }
   }
-
-  function setState(state) {
-    if (!state) return;
-    tx    = state.tx    || 0;
-    ty    = state.ty    || 0;
-    scale = state.scale || 1.0;
-    if (active) {
-      applyTransform();
-      updateZoomDisplay();
-    }
-  }
-
   function resetView() {
-    tx = 0;
-    ty = 0;
-    scale = 1.0;
-    applyTransform();
-    updateZoomDisplay();
+    tx = 0; ty = 0; scale = 1.0;
+    applyTransform(); updateZoomDisplay();
   }
 
-  /* ══════════════════════════════════════════════════════════
-     KEYBOARD — Esc cancels connect mode
-     ══════════════════════════════════════════════════════════ */
+  /* ══════════════════════════════════════════
+     KEYBOARD
+     ══════════════════════════════════════════ */
 
   function handleKey(e) {
     if (!active) return false;
 
     if (e.key === 'Escape') {
-      if (connectFrom) { cancelConnect(); return true; }
-      /* Close inspector and deselect */
+      if (wireFrom) { cancelWire(); return true; }
       if (typeof KanvazInspector !== 'undefined' && KanvazInspector.isOpen()) {
-        KanvazInspector.close();
-        return true;
+        KanvazInspector.close(); return true;
       }
       if (selectedNode) { selectNode(null); return true; }
     }
 
-    /* 0 — reset map zoom */
     if (e.key === '0' && !e.ctrlKey && !e.shiftKey) {
-      resetView();
-      return true;
+      resetView(); return true;
     }
 
-    /* C — open inspector for selected node */
     if ((e.key === 'c' || e.key === 'C') && selectedNode) {
       if (typeof KanvazInspector !== 'undefined') KanvazInspector.open(selectedNode);
       return true;
     }
 
-    /* Delete — remove selected node's connections (not the ref itself) */
     if (e.key === 'Delete' && selectedNode) {
       var removed = KanvazConnections.removeAllFor(selectedNode);
       if (removed > 0) {
@@ -881,17 +943,10 @@ var KanvazMapView = (function() {
   /* ── Public API ── */
 
   return {
-    init:           init,
-    show:           show,
-    hide:           hide,
-    toggle:         toggle,
-    isActive:       isActive,
-    render:         render,
-    getState:       getState,
-    setState:       setState,
-    resetView:      resetView,
-    handleKey:      handleKey,
-    updateToggleBtn: updateToggleBtn
+    init: init, show: show, hide: hide, toggle: toggle,
+    isActive: isActive, render: render,
+    getState: getState, setState: setState, resetView: resetView,
+    handleKey: handleKey, updateToggleBtn: updateToggleBtn
   };
 
 })();
