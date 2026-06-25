@@ -76,6 +76,12 @@ var KanvazApp = (function() {
     on('zoom-display',  function() { KanvazCanvas.zoomReset(); });
     on('btn-undo',      function() { KanvazHistory.undo(); });
     on('btn-redo',      function() { KanvazHistory.redo(); });
+    on('btn-view-board', function() {
+      if (typeof KanvazMapView !== 'undefined' && KanvazMapView.isActive()) KanvazMapView.toggle();
+    });
+    on('btn-view-map', function() {
+      if (typeof KanvazMapView !== 'undefined' && !KanvazMapView.isActive()) KanvazMapView.toggle();
+    });
     on('btn-settings',  function() { KanvazUI.showSettings(); });
     on('btn-about',     function() { KanvazUI.showAbout(); });
     on('btn-shortcuts', function() { KanvazUI.showShortcuts(); });
@@ -382,14 +388,19 @@ var KanvazApp = (function() {
       menu.innerHTML = '';
       menu.className = 'visible';
 
-      var items = [
-        {
+      var items = [];
+
+      /* Annotate — only for media cards, not notes */
+      if (card.type !== 'note') {
+        items.push({
           label: 'Annotate',
           action: function() {
             if (typeof KanvazAnnotate !== 'undefined') KanvazAnnotate.activate(card.id);
           }
-        },
-        {
+        });
+      }
+
+      items.push({
           label: 'Connections',
           shortcut: 'C',
           action: function() {
@@ -415,7 +426,7 @@ var KanvazApp = (function() {
           label: 'Send to back',
           action: function() { KanvazCards.sendToBack(card.id); }
         }
-      ];
+      );
 
       /* Media-only items: flip, reset size */
       if (card.type !== 'note') {
@@ -453,8 +464,6 @@ var KanvazApp = (function() {
           danger: true,
           action: function() { KanvazCards.deleteCard(card.id); }
       });
-
-      var menuItems = items;
 
       for (var i = 0; i < items.length; i++) {
         if (items[i].sep) {

@@ -34,6 +34,7 @@ var KanvazMapView = (function() {
   /* Wire-drag state (connecting) */
   var wireFrom     = null;   /* ref ID we're dragging a wire from */
   var wirePreview  = null;   /* live SVG path element */
+  var hasRenderedOnce = false;
 
   /* ── Node sizing ── */
   var NODE_W      = 176;
@@ -121,40 +122,6 @@ var KanvazMapView = (function() {
       'width:1px', 'height:1px', 'overflow:visible',
       'pointer-events:none'
     ].join(';');
-
-    /* Arrow marker defs */
-    var defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-    var colors = ['#6B7280', '#8B5CF6', '#3B82F6', '#F59E0B', '#10B981', '#EF4444', '#6366F1', '#4A9EFF'];
-    for (var ci = 0; ci < colors.length; ci++) {
-      var marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
-      var safeId = colors[ci].replace('#', '');
-      marker.setAttribute('id', 'arrow-' + safeId);
-      marker.setAttribute('viewBox', '0 0 8 8');
-      marker.setAttribute('refX', '7');
-      marker.setAttribute('refY', '4');
-      marker.setAttribute('markerWidth', '6');
-      marker.setAttribute('markerHeight', '6');
-      marker.setAttribute('orient', 'auto');
-      var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d', 'M 0 0.5 L 7 4 L 0 7.5 z');
-      path.setAttribute('fill', colors[ci]);
-      marker.appendChild(path);
-      defs.appendChild(marker);
-
-      /* Glow filter per color */
-      var filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
-      filter.setAttribute('id', 'glow-' + safeId);
-      filter.setAttribute('x', '-20%');
-      filter.setAttribute('y', '-20%');
-      filter.setAttribute('width', '140%');
-      filter.setAttribute('height', '140%');
-      var blur = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
-      blur.setAttribute('in', 'SourceGraphic');
-      blur.setAttribute('stdDeviation', '2');
-      filter.appendChild(blur);
-      defs.appendChild(filter);
-    }
-    svg.appendChild(defs);
 
     world.appendChild(svg);
     container.appendChild(world);
@@ -307,6 +274,7 @@ var KanvazMapView = (function() {
         KanvazApp.markDirty();
         KanvazHistory.push();
         dragNode = null;
+        container.style.cursor = '';
       }
     });
 
@@ -366,8 +334,8 @@ var KanvazMapView = (function() {
     if (wireFrom) {
       var portEl = document.querySelector('.map-node[data-ref-id="' + wireFrom + '"] .map-port-out');
       if (portEl) {
-        portEl.style.background = '';
-        portEl.style.transform = '';
+        portEl.style.background = '#1A1A28';
+        portEl.style.transform = 'translateY(-50%)';
       }
     }
     wireFrom = null;
@@ -456,8 +424,6 @@ var KanvazMapView = (function() {
   /* ══════════════════════════════════════════
      RENDER
      ══════════════════════════════════════════ */
-
-  var hasRenderedOnce = false;
 
   function render() {
     if (!active || !world) return;

@@ -7,7 +7,7 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '3.1.0';
+  var VERSION       = '3.1.1';
 
   /* ── Init ── */
 
@@ -235,6 +235,13 @@ var KanvazBoards = (function() {
           cls: 'danger',
           action: function() {
             var wasActive = (idx === activeIdx);
+
+            /* Cascade-delete connections for all cards on this board */
+            if (typeof KanvazConnections !== 'undefined' && boards[idx].cards) {
+              for (var ci = 0; ci < boards[idx].cards.length; ci++) {
+                KanvazConnections.removeAllFor(boards[idx].cards[ci].id);
+              }
+            }
 
             boards.splice(idx, 1);
 
@@ -534,6 +541,7 @@ var KanvazBoards = (function() {
                 loadFromJSON(data);
                 currentPath = p;
                 KanvazApp.setCurrentPath(p);
+                KanvazBridge.addRecent(p);
                 KanvazApp.markClean();
                 setTimeout(function() { KanvazCanvas.zoomFit(); }, 100);
                 KanvazUI.toast('Board opened', 'success');

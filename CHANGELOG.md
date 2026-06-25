@@ -2,6 +2,27 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [3.1.1] — Audit Bugfix Pass
+Full cold-read audit of all 16 source files. 10 bugs found and fixed.
+
+### Critical
+- Fixed: Board/Map toggle buttons were completely dead — inline onclick
+  attributes were blocked by Content Security Policy. Rewired CSP-safe.
+
+### Major
+- Fixed: connection port dots flashed to wrong color on wire cancel
+- Fixed: cursor stuck as grab icon after dragging a map node
+- Fixed: deleting a board left orphaned connections for that board's cards
+- Fixed: removeAllFor() deleted object keys during for-in iteration
+  (undefined behavior) — now collects keys first, then deletes
+- Fixed: startup screen file open didn't bump the file to top of recents
+
+### Minor
+- Fixed: Annotate shown in context menu for note cards (hidden now)
+- Removed: dead `var menuItems` variable in context menu builder
+- Moved: hasRenderedOnce variable to module top for clarity
+- Removed: 16 unused SVG arrow marker and glow filter elements from DOM
+
 ## [3.1.0] — Polish + Connection System Completion
 Kanvaz is actively developed. This release addresses video-reported issues
 and completes the v3 connection system polish.

@@ -140,18 +140,20 @@ var KanvazConnections = (function() {
   /* ── Cascade delete — remove all connections referencing a ref ── */
 
   function removeAllFor(refId) {
-    var removed = 0;
+    var toDelete = [];
     for (var k in connections) {
       var c = connections[k];
       if (c.fromRefId === refId || c.toRefId === refId) {
-        delete connections[k];
-        removed++;
+        toDelete.push(k);
       }
     }
-    if (removed > 0 && typeof KanvazApp !== 'undefined') {
+    for (var i = 0; i < toDelete.length; i++) {
+      delete connections[toDelete[i]];
+    }
+    if (toDelete.length > 0 && typeof KanvazApp !== 'undefined') {
       KanvazApp.markDirty();
     }
-    return removed;
+    return toDelete.length;
   }
 
   /* ── Serialise / Deserialise ── */
