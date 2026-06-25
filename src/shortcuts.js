@@ -132,6 +132,13 @@ var KanvazShortcuts = (function() {
       return;
     }
 
+    if (e.key === 'c' || e.key === 'C') {
+      if (typeof KanvazInspector !== 'undefined') {
+        KanvazInspector.open(sel);
+      }
+      return;
+    }
+
     /* Arrow nudge */
     var nudge = shift ? 10 : 1;
     if (e.key === 'ArrowLeft')  { e.preventDefault(); KanvazCards.nudge(sel, -nudge, 0); return; }

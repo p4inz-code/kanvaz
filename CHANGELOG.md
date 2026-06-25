@@ -2,6 +2,53 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [3.0.0] — Reference Connection System
+Kanvaz evolves from a reference board into a Reference Operating System.
+
+### New: Connection System
+- References can now be connected to each other with directional
+  relationships (Related To, Inspired By, Derived From, Alternative To,
+  Supports, Used In, References).
+- Each connection supports an optional note, priority (Low/Medium/High),
+  and automatic timestamps.
+- Deleting a reference automatically removes all its connections.
+- Connections are included in undo/redo — creating, editing, or removing
+  a connection can be undone with Ctrl+Z.
+- Connections persist in the .kanvaz file format (backward compatible —
+  v2.x files load cleanly with zero connections).
+
+### New: Connection Inspector
+- Select any reference and press C (or right-click → Connections) to
+  open the Connection Inspector panel.
+- View all outgoing and incoming connections with type tags, priority
+  indicators, and notes.
+- Create new connections: pick a target reference, choose a relationship
+  type, add an optional note and priority.
+- Edit existing connections: change relationship type, note, or priority.
+- Delete connections individually.
+- Double-click a connection row to jump to the connected reference.
+
+### New: Reference Type System
+- Internal type registry for 10 reference types: Image, GIF, Video,
+  Audio, Note, URL, PDF, Color, File, Outcome.
+- v3.0 ships with the 5 original media types fully functional; the 5
+  new types (URL, PDF, Color, File, Outcome) are registered in the
+  type system and supported in the data model but do not yet have
+  dedicated creation UI — that ships in v3.1.
+
+### New: Reference Metadata
+- References now support tags (array of strings) and custom properties
+  (key-value pairs) in the data model. UI for editing tags/properties
+  ships in v3.1.
+- References have a separate mapPosition field for future Map View
+  positioning (independent of canvas position).
+
+### File Format
+- .kanvaz files now include a top-level `connections` array alongside
+  boards. Version field is "3.0.0".
+- Full backward compatibility: v2.x files load as v3.0 with empty
+  connections, tags, and properties — no data loss.
+
 ## [2.0.2]
 - Fixed: **Undo** could wipe the entire board when undoing back to the
   initial state after loading a file — the undo baseline was incorrectly

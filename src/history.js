@@ -1,4 +1,7 @@
-/* history.js — undo / redo, 50 step limit */
+/* history.js — undo / redo, 50 step limit (v3.0)
+ *
+ * Snapshots now include both references and connections.
+ */
 
 var KanvazHistory = (function() {
 
@@ -14,17 +17,18 @@ var KanvazHistory = (function() {
      MAX=50 steps, a media-heavy board could hold up to 50x copies of all
      embedded media in RAM at once.
 
-     dataUrl/name/path/naturalW/naturalH/type/id are never mutated in
-     place after a card is created (verified across cards.js), so they're
-     safe to share by reference across snapshots. Only the mutable fields
-     (position/size/z/pin/text/opacity/flip/annotations) need deep
-     copying — deserialise() consumes exactly this shape. */
+     dataUrl/name/path/naturalW/naturalH/type/id/url/color/mimeType are
+     never mutated in place after a card is created, so they're safe to
+     share by reference across snapshots. Only the mutable fields
+     (position/size/z/pin/text/opacity/flip/annotations/tags/properties/
+     mapPosition) need deep copying. */
   function snapshot() {
     var src = KanvazCards.serialise();
-    var snap = [];
+    var refs = [];
     for (var i = 0; i < src.length; i++) {
       var c = src[i];
-      snap.push({
+      refs.push({
+        /* Immutable — shared by reference */
         id:       c.id,
         type:     c.type,
         dataUrl:  c.dataUrl,
@@ -32,20 +36,34 @@ var KanvazHistory = (function() {
         path:     c.path,
         naturalW: c.naturalW,
         naturalH: c.naturalH,
-        x:        c.x,
-        y:        c.y,
-        w:        c.w,
-        h:        c.h,
-        z:        c.z,
-        pinned:   c.pinned,
-        text:     c.text,
-        opacity:  c.opacity,
-        flipH:    c.flipH,
-        flipV:    c.flipV,
-        annotations: JSON.parse(JSON.stringify(c.annotations || []))
+        url:      c.url,
+        color:    c.color,
+        mimeType: c.mimeType,
+        /* Mutable — cloned */
+        x:           c.x,
+        y:           c.y,
+        w:           c.w,
+        h:           c.h,
+        z:           c.z,
+        pinned:      c.pinned,
+        text:        c.text,
+        opacity:     c.opacity,
+        flipH:       c.flipH,
+        flipV:       c.flipV,
+        annotations: JSON.parse(JSON.stringify(c.annotations || [])),
+        tags:        c.tags ? c.tags.slice() : [],
+        properties:  c.properties ? JSON.parse(JSON.stringify(c.properties)) : {},
+        mapPosition: c.mapPosition ? { x: c.mapPosition.x, y: c.mapPosition.y } : null
       });
     }
-    return snap;
+
+    /* Snapshot connections (lightweight — no large data) */
+    var conns = [];
+    if (typeof KanvazConnections !== 'undefined') {
+      conns = JSON.parse(JSON.stringify(KanvazConnections.serialise()));
+    }
+
+    return { refs: refs, conns: conns };
   }
 
   /* ── Push after any mutation ── */
@@ -83,9 +101,25 @@ var KanvazHistory = (function() {
 
   function restore(snap) {
     locked = true;
-    KanvazCards.deserialise(snap);
+
+    /* v3 snapshots: { refs, conns }. v2 snapshots: plain array. */
+    if (snap && snap.refs) {
+      KanvazCards.deserialise(snap.refs);
+      if (typeof KanvazConnections !== 'undefined') {
+        KanvazConnections.deserialise(snap.conns || []);
+      }
+    } else {
+      /* Backward compat: v2-style snapshot (plain card array) */
+      KanvazCards.deserialise(snap);
+    }
+
     locked = false;
     KanvazApp.markDirty();
+
+    /* Refresh inspector if open */
+    if (typeof KanvazInspector !== 'undefined' && KanvazInspector.isOpen()) {
+      KanvazInspector.refresh();
+    }
   }
 
   /* ── Clear ── */

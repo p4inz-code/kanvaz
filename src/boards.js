@@ -7,7 +7,7 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '2.0.2';
+  var VERSION       = '3.0.0';
 
   /* ── Init ── */
 
@@ -143,6 +143,10 @@ var KanvazBoards = (function() {
     if (idx === activeIdx) return;
     saveCurrentBoardState();
     activeIdx = idx;
+
+    /* Close inspector — cards will be different on the new board */
+    if (typeof KanvazInspector !== 'undefined') KanvazInspector.close();
+
     loadBoardState(boards[idx]);
     renderTabs();
     updateTitle();
@@ -339,6 +343,11 @@ var KanvazBoards = (function() {
     boards    = data.boards;
     activeIdx = data.activeIdx || 0;
 
+    /* v3: load connections (empty array for v2 files) */
+    if (typeof KanvazConnections !== 'undefined') {
+      KanvazConnections.deserialise(data.connections || []);
+    }
+
     if (!boards.length) {
       newBoard(true);
       return;
@@ -359,12 +368,19 @@ var KanvazBoards = (function() {
 
   function serialise() {
     saveCurrentBoardState();
-    return {
-      version:   VERSION,
-      savedAt:   new Date().toISOString(),
-      activeIdx: activeIdx,
-      boards:    boards
+    var out = {
+      version:     VERSION,
+      savedAt:     new Date().toISOString(),
+      activeIdx:   activeIdx,
+      boards:      boards
     };
+
+    /* v3: include connections */
+    if (typeof KanvazConnections !== 'undefined') {
+      out.connections = KanvazConnections.serialise();
+    }
+
+    return out;
   }
 
   /* ── Autosave ── */

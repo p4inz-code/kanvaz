@@ -388,6 +388,13 @@ var KanvazApp = (function() {
             if (typeof KanvazAnnotate !== 'undefined') KanvazAnnotate.activate(card.id);
           }
         },
+        {
+          label: 'Connections',
+          shortcut: 'C',
+          action: function() {
+            if (typeof KanvazInspector !== 'undefined') KanvazInspector.open(card.id);
+          }
+        },
         { sep: true },
         {
           label: 'Duplicate',

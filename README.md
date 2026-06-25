@@ -43,7 +43,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 2.0.2.exe` and `dist/Kanvaz 2.0.2.exe`
+Output: `dist/Kanvaz Setup 3.0.0.exe` and `dist/Kanvaz 3.0.0.exe`
 
 **macOS:**
 ```bash
@@ -87,6 +87,7 @@ Send them the **portable `.exe`** from `/dist/`. No install needed — just run 
 | Ctrl+D | Duplicate card |
 | P | Pin / unpin card |
 | A | Annotate selected card |
+| C | Connections inspector |
 | H | Hide annotations |
 | Arrow keys | Nudge card 1px |
 | Shift+Arrow | Nudge card 10px |

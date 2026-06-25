@@ -707,6 +707,11 @@ var KanvazCards = (function() {
 
     if (typeof KanvazAnnotate !== 'undefined') KanvazAnnotate.detach(id);
 
+    /* Cascade-remove all connections involving this reference */
+    if (typeof KanvazConnections !== 'undefined') {
+      KanvazConnections.removeAllFor(id);
+    }
+
     delete cards[id];
     if (selectedId === id) selectedId = null;
 
@@ -795,7 +800,14 @@ var KanvazCards = (function() {
         flipV:       c.flipV  || false,
         naturalW:    c.naturalW || c.w,
         naturalH:    c.naturalH || c.h,
-        annotations: strokes
+        annotations: strokes,
+        /* v3 fields */
+        tags:        c.tags        || [],
+        properties:  c.properties  || {},
+        mapPosition: c.mapPosition || null,
+        url:         c.url         || null,
+        color:       c.color       || null,
+        mimeType:    c.mimeType    || null
       });
     }
     return out;
@@ -806,6 +818,15 @@ var KanvazCards = (function() {
     if (!arr) return;
     for (var i = 0; i < arr.length; i++) {
       var c = arr[i];
+
+      /* v3 field defaults — ensures v2.x files load cleanly */
+      if (!c.tags)        c.tags        = [];
+      if (!c.properties)  c.properties  = {};
+      if (!c.mapPosition) c.mapPosition = null;
+      if (!c.url)         c.url         = null;
+      if (!c.color)       c.color       = null;
+      if (!c.mimeType)    c.mimeType    = null;
+
       cards[c.id] = c;
       renderCard(c);
       if (c.z > zCounter) zCounter = c.z;
