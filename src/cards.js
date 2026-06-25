@@ -715,6 +715,11 @@ var KanvazCards = (function() {
     delete cards[id];
     if (selectedId === id) selectedId = null;
 
+    /* Close inspector if it was showing this reference */
+    if (typeof KanvazInspector !== 'undefined' && KanvazInspector.isOpen()) {
+      KanvazInspector.close();
+    }
+
     updateEmptyState();
     updateCount();
     KanvazApp.markDirty();

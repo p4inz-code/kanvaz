@@ -2,6 +2,40 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [3.1.0] — Polish + Connection System Completion
+Kanvaz is actively developed. This release addresses video-reported issues
+and completes the v3 connection system polish.
+
+### Connection System
+- Fixed: connection tubes now attach flush to port dots with zero gap
+  (previous version had a 30–60px gap between tube start and node edge)
+- Improved: Unreal/Maya-style bezier tension — cables pull out of ports
+  horizontally before curving, high tension floor of 90px
+- Improved: tube is now 3px wide with outer glow + inner depth shadow
+- Removed: arrowhead replaced by a filled dot terminator at destination port
+- Fixed: connection tubes correctly loop when target node is to the left
+- Port dots increased to 7px radius, dark fill with colored border on hover
+
+### Map View
+- Added: empty state when no references exist ("Add in Board view first")
+- Added: fit-all on first map open — all nodes centered in view
+- Fixed: map view resets fit on each board visit (not just once)
+
+### UI Polish
+- Fixed: NOTE badge was bright green — now muted/subtle (matches dark theme)
+- Fixed: resize handles are now small round dots instead of square chips
+- Improved: Board/Map view toggle is now a proper segmented control pill
+- Fixed: audio card default size reduced (was 320×140, now 280×100)
+- Fixed: type-aware context menus — Flip H/V and Reset Size hidden on note cards
+
+### Bugs
+- Fixed: autosave now starts after settings load (was starting too early,
+  interval setting had no effect on first run)
+- Fixed: new board now clears connections (was leaking previous connections)
+- Fixed: inspector panel closes when its reference card is deleted
+- Removed: "final release" language from About screen and CHANGELOG
+  (Kanvaz is actively developed, targeting v5.0 long-term)
+
 ## [3.0.0] — Reference Connection System + Map View
 Kanvaz evolves from a reference board into a Reference Operating System.
 

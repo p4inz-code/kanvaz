@@ -36,11 +36,11 @@ var KanvazMapView = (function() {
   var wirePreview  = null;   /* live SVG path element */
 
   /* ── Node sizing ── */
-  var NODE_W      = 172;
+  var NODE_W      = 176;
   var NODE_H      = 52;
-  var PORT_R      = 5;
+  var PORT_R      = 7;   /* Larger port dots */
   var AUTO_COLS   = 5;
-  var AUTO_GAP_X  = 220;
+  var AUTO_GAP_X  = 240;
   var AUTO_GAP_Y  = 90;
 
   /* ── Type colors ── */
@@ -58,30 +58,37 @@ var KanvazMapView = (function() {
   function typeLabel(t) { return t.replace(/([A-Z])/g, ' $1').trim(); }
 
   /* ══════════════════════════════════════════
-     BEZIER MATH
+     BEZIER MATH — Unreal/Maya style
      ══════════════════════════════════════════ */
 
-  /* Build a horizontal-biased cubic bezier between two points.
-     Looks like a node-editor cable. */
+  /* High-tension horizontal bezier — control points pull far out
+     horizontally so the cable "pours" out of the port before curving.
+     Minimum tension of 90px ensures short-distance connections still
+     look like cables not diagonal lines. */
   function bezierPath(x1, y1, x2, y2) {
-    var dx = Math.abs(x2 - x1);
-    var tension = Math.max(50, dx * 0.4);
+    var dx = x2 - x1;
+    /* Tension is distance-proportional but floored at 90 and capped
+       so very long connections don't look too stiff */
+    var tension = Math.max(90, Math.min(Math.abs(dx) * 0.55, 320));
+    /* When target is to the LEFT of source, increase tension further
+       so the cable loops around gracefully */
+    if (dx < 0) tension = Math.max(140, Math.abs(dx) * 0.7);
     return 'M ' + x1 + ' ' + y1
       + ' C ' + (x1 + tension) + ' ' + y1
       + ', '  + (x2 - tension) + ' ' + y2
       + ', '  + x2 + ' ' + y2;
   }
 
-  /* Port positions: output port on right edge, input port on left edge */
+  /* Port centers flush with port dot center (dot extends PORT_R past node edge) */
   function outPort(card) {
     return {
-      x: card.mapPosition.x + NODE_W,
+      x: card.mapPosition.x + NODE_W + PORT_R,
       y: card.mapPosition.y + NODE_H / 2
     };
   }
   function inPort(card) {
     return {
-      x: card.mapPosition.x,
+      x: card.mapPosition.x - PORT_R,
       y: card.mapPosition.y + NODE_H / 2
     };
   }
@@ -404,6 +411,7 @@ var KanvazMapView = (function() {
 
   function hide() {
     active = false;
+    hasRenderedOnce = false;
     if (container) container.style.display = 'none';
     var cw = document.getElementById('canvas-world');
     var cg = document.getElementById('canvas-grid');
@@ -427,17 +435,29 @@ var KanvazMapView = (function() {
   function isActive() { return active; }
 
   function updateToggleBtn() {
-    var btn = document.getElementById('btn-view-toggle');
-    if (!btn) return;
-    var bs = btn.querySelector('.vt-board');
-    var ms = btn.querySelector('.vt-map');
-    if (bs) bs.style.opacity = active ? '0.4' : '1';
-    if (ms) ms.style.opacity = active ? '1' : '0.4';
+    var btnBoard = document.getElementById('btn-view-board');
+    var btnMap   = document.getElementById('btn-view-map');
+    if (btnBoard) {
+      if (active) {
+        btnBoard.classList.remove('view-toggle-active');
+      } else {
+        btnBoard.classList.add('view-toggle-active');
+      }
+    }
+    if (btnMap) {
+      if (active) {
+        btnMap.classList.add('view-toggle-active');
+      } else {
+        btnMap.classList.remove('view-toggle-active');
+      }
+    }
   }
 
   /* ══════════════════════════════════════════
      RENDER
      ══════════════════════════════════════════ */
+
+  var hasRenderedOnce = false;
 
   function render() {
     if (!active || !world) return;
@@ -446,9 +466,33 @@ var KanvazMapView = (function() {
     var old = world.querySelectorAll('.map-node');
     for (var r = 0; r < old.length; r++) world.removeChild(old[r]);
 
-    var cards = KanvazCards.getAll();
-    var idx = 0;
+    /* Clear empty state */
+    var existingEmpty = document.getElementById('map-empty');
+    if (existingEmpty) existingEmpty.parentNode.removeChild(existingEmpty);
 
+    var cards = KanvazCards.getAll();
+    var cardCount = 0;
+    for (var cid in cards) cardCount++;
+
+    /* Empty state */
+    if (cardCount === 0) {
+      var emptyEl = document.createElement('div');
+      emptyEl.id = 'map-empty';
+      emptyEl.style.cssText = [
+        'position:absolute', 'inset:0', 'display:flex',
+        'flex-direction:column', 'align-items:center', 'justify-content:center',
+        'color:var(--color-text-3)', 'font-family:var(--font-ui)',
+        'pointer-events:none'
+      ].join(';');
+      emptyEl.innerHTML = '<div style="font-size:32px;margin-bottom:12px;opacity:0.3;">⬡</div>'
+        + '<div style="font-size:13px;font-weight:500;margin-bottom:6px;">No references yet</div>'
+        + '<div style="font-size:11px;opacity:0.6;">Add images, notes, or media in Board view first</div>';
+      container.appendChild(emptyEl);
+      updateStatusBar(cards);
+      return;
+    }
+
+    var idx = 0;
     for (var id in cards) {
       var card = cards[id];
       if (!card.mapPosition) {
@@ -465,6 +509,40 @@ var KanvazMapView = (function() {
 
     renderLines();
     updateStatusBar(cards);
+
+    /* Fit all nodes into view on first open */
+    if (!hasRenderedOnce) {
+      hasRenderedOnce = true;
+      fitAll(cards);
+    }
+  }
+
+  /* Fit all nodes into viewport */
+  function fitAll(cards) {
+    var minX = Infinity; var minY = Infinity;
+    var maxX = -Infinity; var maxY = -Infinity;
+    var count = 0;
+    for (var id in cards) {
+      var c = cards[id];
+      if (!c.mapPosition) continue;
+      minX = Math.min(minX, c.mapPosition.x);
+      minY = Math.min(minY, c.mapPosition.y);
+      maxX = Math.max(maxX, c.mapPosition.x + NODE_W);
+      maxY = Math.max(maxY, c.mapPosition.y + NODE_H);
+      count++;
+    }
+    if (count === 0) return;
+    var rect = container.getBoundingClientRect();
+    var padX = 80; var padY = 60;
+    var contentW = maxX - minX + padX * 2;
+    var contentH = maxY - minY + padY * 2;
+    var newScale = Math.min(rect.width / contentW, rect.height / contentH, 1.5);
+    newScale = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, newScale));
+    tx = (rect.width  / 2) - ((minX + (maxX - minX) / 2) * newScale);
+    ty = (rect.height / 2) - ((minY + (maxY - minY) / 2) * newScale);
+    scale = newScale;
+    applyTransform();
+    updateZoomDisplay();
   }
 
   /* ══════════════════════════════════════════
@@ -506,19 +584,21 @@ var KanvazMapView = (function() {
       'width:' + (PORT_R * 2) + 'px',
       'height:' + (PORT_R * 2) + 'px',
       'border-radius:50%',
-      'background:var(--color-border-2)',
-      'border:1.5px solid var(--color-surface)',
+      'background:#1A1A28',
+      'border:2px solid var(--color-border-2)',
       'cursor:crosshair',
-      'transition:background 0.15s, transform 0.15s',
+      'transition:background 0.12s, transform 0.12s, border-color 0.12s',
       'z-index:2'
     ].join(';');
     portIn.onmouseenter = function() {
       if (!wireFrom) return;
       portIn.style.background = '#4A9EFF';
-      portIn.style.transform = 'translateY(-50%) scale(1.5)';
+      portIn.style.borderColor = '#4A9EFF';
+      portIn.style.transform = 'translateY(-50%) scale(1.4)';
     };
     portIn.onmouseleave = function() {
-      portIn.style.background = 'var(--color-border-2)';
+      portIn.style.background = '#1A1A28';
+      portIn.style.borderColor = 'var(--color-border-2)';
       portIn.style.transform = 'translateY(-50%)';
     };
     el.appendChild(portIn);
@@ -534,8 +614,8 @@ var KanvazMapView = (function() {
       'width:' + (PORT_R * 2) + 'px',
       'height:' + (PORT_R * 2) + 'px',
       'border-radius:50%',
-      'background:var(--color-border-2)',
-      'border:1.5px solid var(--color-surface)',
+      'background:#1A1A28',
+      'border:2px solid var(--color-border-2)',
       'cursor:crosshair',
       'transition:background 0.15s, transform 0.15s',
       'z-index:2'
@@ -629,46 +709,68 @@ var KanvazMapView = (function() {
       if (dist < 20) continue;
 
       var color = typeColor(conn.type);
-      var safeId = color.replace('#', '');
       var d = bezierPath(op.x, op.y, ip.x, ip.y);
 
-      /* Glow layer (wider, transparent) */
+      /* Outer glow — soft wide halo */
       var glow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       glow.setAttribute('class', 'conn-glow');
       glow.setAttribute('d', d);
       glow.setAttribute('stroke', color);
-      glow.setAttribute('stroke-width', '6');
-      glow.setAttribute('stroke-opacity', '0.08');
+      glow.setAttribute('stroke-width', '10');
+      glow.setAttribute('stroke-opacity', '0.07');
       glow.setAttribute('fill', 'none');
       glow.setAttribute('stroke-linecap', 'round');
       glow.dataset.connId = conn.id;
       svg.appendChild(glow);
 
-      /* Main tube line */
+      /* Inner shadow for depth */
+      var shadow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      shadow.setAttribute('class', 'conn-glow');
+      shadow.setAttribute('d', d);
+      shadow.setAttribute('stroke', '#000');
+      shadow.setAttribute('stroke-width', '4');
+      shadow.setAttribute('stroke-opacity', '0.25');
+      shadow.setAttribute('fill', 'none');
+      shadow.setAttribute('stroke-linecap', 'round');
+      shadow.dataset.connId = conn.id;
+      svg.appendChild(shadow);
+
+      /* Main tube — solid, rounded, no arrowhead */
       var line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       line.setAttribute('class', 'conn-line');
       line.setAttribute('d', d);
       line.setAttribute('stroke', color);
-      line.setAttribute('stroke-width', '2.5');
-      line.setAttribute('stroke-opacity', '0.55');
+      line.setAttribute('stroke-width', '3');
+      line.setAttribute('stroke-opacity', '0.75');
       line.setAttribute('fill', 'none');
       line.setAttribute('stroke-linecap', 'round');
-      line.setAttribute('marker-end', 'url(#arrow-' + safeId + ')');
       line.dataset.connId = conn.id;
       svg.appendChild(line);
 
-      /* Label at midpoint of bezier (approximate: t=0.5) */
+      /* Dot terminator flush with input port */
+      var dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      dot.setAttribute('class', 'conn-glow');
+      dot.setAttribute('cx', ip.x);
+      dot.setAttribute('cy', ip.y);
+      dot.setAttribute('r', '4');
+      dot.setAttribute('fill', color);
+      dot.setAttribute('fill-opacity', '0.9');
+      dot.dataset.connId = conn.id;
+      svg.appendChild(dot);
+
+      /* Label at bezier midpoint */
       var mx = (op.x + ip.x) / 2;
-      var my = (op.y + ip.y) / 2 - 8;
+      var my = (op.y + ip.y) / 2 - 10;
       var label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       label.setAttribute('class', 'conn-label');
       label.setAttribute('x', mx);
       label.setAttribute('y', my);
       label.setAttribute('text-anchor', 'middle');
       label.setAttribute('fill', color);
-      label.setAttribute('font-size', '9');
+      label.setAttribute('font-size', '9.5');
       label.setAttribute('font-family', 'var(--font-ui)');
-      label.setAttribute('opacity', '0.6');
+      label.setAttribute('font-weight', '500');
+      label.setAttribute('opacity', '0.65');
       label.textContent = typeLabel(conn.type);
       svg.appendChild(label);
     }

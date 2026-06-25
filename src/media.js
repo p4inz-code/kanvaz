@@ -8,8 +8,8 @@ var KanvazMedia = (function() {
   var AUDIO_EXTS = ['mp3', 'wav', 'ogg', 'm4a'];
 
   var MAX_DROP_WIDTH = 600;
-  var AUDIO_CARD_W   = 320;
-  var AUDIO_CARD_H   = 140;
+  var AUDIO_CARD_W   = 280;
+  var AUDIO_CARD_H   = 100;
 
   /* ── Type detection ── */
 

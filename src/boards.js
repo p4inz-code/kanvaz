@@ -7,7 +7,7 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '3.0.0';
+  var VERSION       = '3.1.0';
 
   /* ── Init ── */
 
@@ -16,7 +16,9 @@ var KanvazBoards = (function() {
     if (!tabBar) createTabBar();
 
     newBoard(true);
-    startAutosave();
+    /* Note: startAutosave() is called from KanvazUI_Extended.applySettings()
+       after settings have loaded — calling it here would use the wrong
+       interval since settings.autosaveInterval isn't loaded yet. */
     showStartupScreen();
   }
 
@@ -128,6 +130,7 @@ var KanvazBoards = (function() {
     activeIdx = boards.length - 1;
 
     KanvazCards.clearAll();
+    if (typeof KanvazConnections !== 'undefined') KanvazConnections.clear();
     KanvazCanvas.zoomReset();
     KanvazHistory.clear();
 
@@ -413,6 +416,7 @@ var KanvazBoards = (function() {
         intervalMs = s.autosaveInterval * 1000;
       }
     }
+    console.log('[Kanvaz] autosave started, interval=' + (intervalMs / 1000) + 's');
     autosaveTimer = setInterval(function() {
       doAutosave();
     }, intervalMs);

@@ -76,9 +76,6 @@ var KanvazApp = (function() {
     on('zoom-display',  function() { KanvazCanvas.zoomReset(); });
     on('btn-undo',      function() { KanvazHistory.undo(); });
     on('btn-redo',      function() { KanvazHistory.redo(); });
-    on('btn-view-toggle', function() {
-      if (typeof KanvazMapView !== 'undefined') KanvazMapView.toggle();
-    });
     on('btn-settings',  function() { KanvazUI.showSettings(); });
     on('btn-about',     function() { KanvazUI.showAbout(); });
     on('btn-shortcuts', function() { KanvazUI.showShortcuts(); });
@@ -417,40 +414,47 @@ var KanvazApp = (function() {
         {
           label: 'Send to back',
           action: function() { KanvazCards.sendToBack(card.id); }
-        },
-        { sep: true },
-        {
+        }
+      ];
+
+      /* Media-only items: flip, reset size */
+      if (card.type !== 'note') {
+        items.push({ sep: true });
+        items.push({
           label: 'Flip horizontal',
           action: function() { KanvazCards.flipCard(card.id, 'h'); }
-        },
-        {
+        });
+        items.push({
           label: 'Flip vertical',
           action: function() { KanvazCards.flipCard(card.id, 'v'); }
-        },
-        {
+        });
+        items.push({
           label: 'Reset size',
           action: function() { KanvazCards.resetSize(card.id); }
-        },
-        { sep: true },
-        {
-          label: 'Opacity',
-          submenu: true,
-          action: function() { KanvazCards.showOpacityPicker(card.id, x, y); }
-        },
-        {
-          label: 'Clear annotations',
-          action: function() {
-            if (typeof KanvazAnnotate !== 'undefined') KanvazAnnotate.clearAnnotations(card.id);
-          }
-        },
-        { sep: true },
-        {
+        });
+      }
+
+      items.push({ sep: true });
+      items.push({
+        label: 'Opacity',
+        submenu: true,
+        action: function() { KanvazCards.showOpacityPicker(card.id, x, y); }
+      });
+      items.push({
+        label: 'Clear annotations',
+        action: function() {
+          if (typeof KanvazAnnotate !== 'undefined') KanvazAnnotate.clearAnnotations(card.id);
+        }
+      });
+      items.push({ sep: true });
+      items.push({
           label: 'Delete',
           shortcut: 'Del',
           danger: true,
           action: function() { KanvazCards.deleteCard(card.id); }
-        }
-      ];
+      });
+
+      var menuItems = items;
 
       for (var i = 0; i < items.length; i++) {
         if (items[i].sep) {
