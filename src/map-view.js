@@ -80,16 +80,18 @@ var KanvazMapView = (function() {
       + ', '  + x2 + ' ' + y2;
   }
 
-  /* Port centers flush with port dot center (dot extends PORT_R past node edge) */
+  /* Port centers — CSS positions the port dot so its center aligns with
+     the node edge (right:-PORT_R + width:PORT_R*2 = center at NODE_W).
+     The SVG endpoints must match this exactly. */
   function outPort(card) {
     return {
-      x: card.mapPosition.x + NODE_W + PORT_R,
+      x: card.mapPosition.x + NODE_W,
       y: card.mapPosition.y + NODE_H / 2
     };
   }
   function inPort(card) {
     return {
-      x: card.mapPosition.x - PORT_R,
+      x: card.mapPosition.x,
       y: card.mapPosition.y + NODE_H / 2
     };
   }
