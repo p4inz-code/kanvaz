@@ -1,13 +1,13 @@
 # Kanvaz
 
-**Your canvas. Your references.**
+**Reference Operating System**
 
-An infinite canvas for VFX artists, 3D artists, and the people who teach them.  
-Drop images, GIFs, videos, and audio. Annotate. Save. No internet. No telemetry. Your files never leave your machine.
+Collect, organize, connect, and understand your references — all offline.
+Kanvaz is a free, open-source desktop app for VFX artists, 3D artists, and creative professionals who work with visual references.
 
 ### [⬇ Download for Windows](https://github.com/p4inz-code/kanvaz/releases/latest)
 
-Grab the latest installer from the [Releases page](https://github.com/p4inz-code/kanvaz/releases/latest) — no setup or technical knowledge needed.
+Grab the latest installer from the [Releases page](https://github.com/p4inz-code/kanvaz/releases/latest).
 
 > **Note:** Kanvaz isn't code-signed (signing certificates cost money and
 > this app is free). When you run the installer, Windows will likely show
@@ -18,6 +18,39 @@ Grab the latest installer from the [Releases page](https://github.com/p4inz-code
 > from source — see [Build installers](#build-installers) below.
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
+
+---
+
+## What Kanvaz Does
+
+**Board View** — an infinite pan/zoom canvas where you drop images, GIFs, videos, audio, and notes. Arrange freely, annotate on top, organize across multiple boards in one file.
+
+**Connection System** — link any reference to another with typed, directional relationships (Related To, Inspired By, Derived From, Alternative To, Supports, Used In, References). Each connection carries optional notes and priority.
+
+**Map View** — a node-editor-style graph that visualizes all your references and connections. Drag from output ports to input ports to create connections. Bezier tube cables with glow and colored dot terminators. Independent pan/zoom from the board canvas.
+
+**Connection Inspector** — select any reference and press C to see all its incoming and outgoing connections. Create, edit, and delete relationships from a side panel.
+
+**100% Offline** — no accounts, no telemetry, no internet required. Your `.kanvaz` files never leave your machine.
+
+---
+
+## Features
+
+- Infinite pan/zoom canvas (8%–500%)
+- Image, GIF, video, and audio cards with full playback controls
+- Note cards with inline text editing
+- Pen, arrow, and rectangle annotation tools in 6 colors
+- Multiple boards in one file, each with its own cards and view state
+- Reference Connection System with 7 relationship types
+- Map View with node-editor-style bezier tube connections
+- Connection Inspector panel (view, create, edit, delete connections)
+- Undo/redo up to 50 steps (includes connection changes)
+- Autosave crash recovery (writes to recovery file every 30s)
+- Mood lock (Ctrl+Shift+F) — hide all UI for distraction-free presenting
+- Always on top (T) — persists across restarts
+- Board/Map segmented toggle in toolbar
+- Type-aware context menus (note cards hide irrelevant media options)
 
 ---
 
@@ -55,17 +88,6 @@ npm run build:mac
 npm run build:linux
 ```
 
-**All platforms:**
-```bash
-npm run build:all
-```
-
----
-
-## Distributing to a friend
-
-Send them the **portable `.exe`** from `/dist/`. No install needed — just run it.
-
 ---
 
 ## Keyboard shortcuts
@@ -94,25 +116,24 @@ Send them the **portable `.exe`** from `/dist/`. No install needed — just run 
 | Shift+Arrow | Nudge card 10px |
 | Ctrl+Shift+F | Mood lock (fullscreen canvas) |
 | ? | Shortcuts overlay |
-| Esc | Deselect / close panels |
+| Esc | Deselect / close panels / cancel wire |
 
 ---
 
 ## File format
 
-Boards are saved as `.kanvaz` files — plain JSON. Media is embedded as base64 data URLs. Self-contained, portable, no external references.
+Boards are saved as `.kanvaz` files — plain JSON with version `"3.3.0"`. Media is embedded as base64 data URLs. Connections are stored as a top-level `connections` array alongside boards. Files from v2.x load cleanly with zero connections.
 
 ---
 
 ## Known limitations
 
-These are stable, by-design limitations — not bugs, and not currently planned:
-
-- No light/dark theme toggle (dark theme only).
-- No "Tags" feature.
-- The "open on startup" setting currently has no effect.
-- `.kanvaz` files embed media as base64, so files with a lot of video/audio can get large.
+- Dark theme only (no light mode).
+- Tags and custom properties are in the data model but have no editing UI yet (planned for v4).
+- `.kanvaz` files embed media as base64, so files with large video/audio can get large.
+- MKV and AVI video files may not play (Chromium codec limitation) — MP4 (H.264) and WebM recommended.
 - The annotation toolbar doesn't follow the canvas if you pan/zoom while it's open.
+- Autosave writes to a recovery file only — "Unsaved changes" in the status bar clears only on explicit Save (Ctrl+S).
 
 ---
 
@@ -127,5 +148,5 @@ These are stable, by-design limitations — not bugs, and not currently planned:
 
 ## License
 
-MIT — free forever.  
+MIT — free forever.
 Made by **Atharva Patil** — Northbyte Studios, Navi Mumbai, India.
