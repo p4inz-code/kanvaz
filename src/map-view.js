@@ -715,16 +715,27 @@ var KanvazMapView = (function() {
       line.dataset.connId = conn.id;
       svg.appendChild(line);
 
-      /* Dot terminator flush with input port */
-      var dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      dot.setAttribute('class', 'conn-glow');
-      dot.setAttribute('cx', ip.x);
-      dot.setAttribute('cy', ip.y);
-      dot.setAttribute('r', '4');
-      dot.setAttribute('fill', color);
-      dot.setAttribute('fill-opacity', '0.9');
-      dot.dataset.connId = conn.id;
-      svg.appendChild(dot);
+      /* Dot terminator at output port (source ball) */
+      var dotOut = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      dotOut.setAttribute('class', 'conn-glow');
+      dotOut.setAttribute('cx', op.x);
+      dotOut.setAttribute('cy', op.y);
+      dotOut.setAttribute('r', '4');
+      dotOut.setAttribute('fill', color);
+      dotOut.setAttribute('fill-opacity', '0.85');
+      dotOut.dataset.connId = conn.id;
+      svg.appendChild(dotOut);
+
+      /* Dot terminator at input port (destination ball) */
+      var dotIn = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      dotIn.setAttribute('class', 'conn-glow');
+      dotIn.setAttribute('cx', ip.x);
+      dotIn.setAttribute('cy', ip.y);
+      dotIn.setAttribute('r', '4');
+      dotIn.setAttribute('fill', color);
+      dotIn.setAttribute('fill-opacity', '0.9');
+      dotIn.dataset.connId = conn.id;
+      svg.appendChild(dotIn);
 
       /* Label at bezier midpoint */
       var mx = (op.x + ip.x) / 2;
