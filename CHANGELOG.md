@@ -2,6 +2,27 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [3.3.0] — Comprehensive Audit Pass
+Full cold-read audit of all 16 source files + all metadata.
+
+### Bugs Fixed
+- Fixed: video scrub bar stayed visible after video format error (now
+  hidden alongside the video element when onerror fires)
+- Fixed: video play button showed PAUSE icon before video loaded (now
+  shows PLAY, switches to PAUSE on onloadeddata)
+- Fixed: duplicate scrub bar + playBtn variables created in video card
+  builder (leftover from v3.2.0 refactor — one created before vid.src,
+  duplicate re-created after)
+- Fixed: MKV/AVI listed as "supported" in error toast but Chromium can't
+  play them — removed from supported list, added format warning toast
+  when MKV/AVI files are dropped
+
+### Cleanup
+- Updated: CHANGELOG v2.0.x entries — removed "Final release" and "No
+  further development planned" labels (confusing alongside active v3 dev)
+- Updated: package.json description to "Reference Operating System"
+- Updated: About screen reflects v3.3.0
+
 ## [3.2.0] — Performance + Stability
 Ship date: July 1, 2026
 
@@ -187,12 +208,12 @@ Kanvaz evolves from a reference board into a Reference Operating System.
 - Added missing shortcuts to README: A (annotate), Ctrl+A (select all),
   Ctrl+Shift+S (Save As).
 
-## [2.0.1] — Final release
+## [2.0.1]
 - Identity update: now made by Atharva Patil (Northbyte Studios).
-- Updated docs and in-app About screen to reflect final-release status.
+- Updated docs and in-app About screen. Identity update: Atharva Patil (Northbyte Studios).
 
-## [2.0.0] — Final release
-- Declared feature-complete. No further development planned.
+## [2.0.0]
+- First stable release with full feature set.
 - README and overview PDF updated to mention audio card support.
 - Removed leftover debug logging.
 

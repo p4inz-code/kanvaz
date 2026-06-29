@@ -122,7 +122,7 @@ var KanvazApp = (function() {
             if (err === 'FILE_TOO_LARGE') {
               KanvazUI.toast('File too large for Kanvaz (max 500MB). Use a smaller preview or proxy file.', 'error');
             } else if (err === 'FILE_TYPE_INVALID') {
-              KanvazUI.toast('"' + file.name + '" is not supported. Supported: JPG, PNG, GIF, BMP, WEBP, MP4, WEBM, MOV, MKV, AVI, MP3, WAV, OGG, M4A', 'error');
+              KanvazUI.toast('"' + file.name + '" is not supported. Supported: JPG, PNG, GIF, BMP, WEBP, MP4, WEBM, MOV, MP3, WAV, OGG, M4A', 'error');
             } else {
               KanvazUI.toast('Could not load "' + file.name + '"', 'error');
             }
@@ -144,6 +144,11 @@ var KanvazApp = (function() {
           }
 
           KanvazCards.createFromMedia(result, pos);
+
+          /* Warn on formats Chromium may not support */
+          if (result.ext === 'mkv' || result.ext === 'avi') {
+            KanvazUI.toast(file.name + ' may not play — MKV/AVI support is limited. MP4 or WebM recommended.', 'error');
+          }
         });
       })(files[i], i);
     }

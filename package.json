@@ -1,7 +1,7 @@
 {
   "name": "kanvaz",
-  "version": "3.2.0",
-  "description": "Your canvas. Your references.",
+  "version": "3.3.0",
+  "description": "Reference Operating System — collect, organize, connect, and understand your references.",
   "private": true,
   "main": "src/main.js",
   "author": "Atharva Patil (Northbyte Studios)",

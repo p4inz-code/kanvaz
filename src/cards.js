@@ -437,33 +437,35 @@ var KanvazCards = (function() {
     /* 100% height minus scrub bar (20px) minus card bar (24px) */
     vid.style.cssText = 'display:block;width:100%;height:calc(100% - 44px);object-fit:cover;pointer-events:none;';
 
-    /* Error handler — show message instead of black/corrupt frame */
+    /* Scrub bar — built before vid.src so we can reference it in handlers */
+    var scrub = document.createElement('div');
+    scrub.className = 'video-scrub';
+
+    /* Play/pause button */
+    var playBtn = document.createElement('button');
+    playBtn.className = 'media-play-btn';
+    playBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-text-2);padding:0;display:flex;align-items:center;';
+    playBtn.innerHTML = PLAY_ICON; /* starts as play — video plays on loadeddata */
+    playBtn.title = 'Play/Pause';
+
+    /* Error handler — show message, hide scrub bar */
     vid.onerror = function() {
       vid.style.display = 'none';
+      scrub.style.display = 'none';
       var errDiv = document.createElement('div');
-      errDiv.style.cssText = 'display:flex;align-items:center;justify-content:center;width:100%;height:calc(100% - 44px);background:var(--color-surface-2);color:var(--color-text-3);font-size:11px;font-family:var(--font-ui);text-align:center;padding:12px;';
-      errDiv.textContent = 'Video format not supported — try MP4 (H.264) or WebM';
+      errDiv.style.cssText = 'display:flex;align-items:center;justify-content:center;width:100%;height:calc(100% - 24px);background:var(--color-surface-2);color:var(--color-text-3);font-size:11px;font-family:var(--font-ui);text-align:center;padding:12px;';
+      errDiv.textContent = 'Video format not supported \u2014 try MP4 (H.264) or WebM';
       el.insertBefore(errDiv, el.firstChild);
     };
 
-    /* Only autoplay after metadata is loaded to prevent partial/corrupt display */
+    /* Only play after data is loaded — prevents corrupt partial display */
     vid.onloadeddata = function() {
       vid.play();
+      playBtn.innerHTML = PAUSE_ICON;
     };
 
     vid.src = card.dataUrl;
     el.appendChild(vid);
-
-    /* Scrub bar */
-    var scrub = document.createElement('div');
-    scrub.className = 'video-scrub';
-
-    /* Play/pause button — class-based for delegation */
-    var playBtn = document.createElement('button');
-    playBtn.className = 'media-play-btn';
-    playBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-text-2);padding:0;display:flex;align-items:center;';
-    playBtn.innerHTML = PAUSE_ICON; /* autoplay starts playing */
-    playBtn.title = 'Play/Pause';
 
     /* Scrub track */
     var track = document.createElement('div');
@@ -478,7 +480,7 @@ var KanvazCards = (function() {
     timeEl.className = 'scrub-time';
     timeEl.textContent = '0:00';
 
-    /* Mute button — class-based for delegation */
+    /* Mute button */
     var muteBtn = document.createElement('button');
     muteBtn.className = 'media-mute-btn';
     muteBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-text-3);padding:0;display:flex;align-items:center;font-family:var(--font-mono);font-size:9px;';
