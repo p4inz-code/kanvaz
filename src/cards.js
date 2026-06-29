@@ -430,13 +430,28 @@ var KanvazCards = (function() {
 
   function buildVideoCard(el, card) {
     var vid = document.createElement('video');
-    vid.src = card.dataUrl;
-    vid.autoplay = true;
+    vid.preload = 'auto';
     vid.muted = true;
     vid.loop = true;
     vid.playsInline = true;
     /* 100% height minus scrub bar (20px) minus card bar (24px) */
     vid.style.cssText = 'display:block;width:100%;height:calc(100% - 44px);object-fit:cover;pointer-events:none;';
+
+    /* Error handler — show message instead of black/corrupt frame */
+    vid.onerror = function() {
+      vid.style.display = 'none';
+      var errDiv = document.createElement('div');
+      errDiv.style.cssText = 'display:flex;align-items:center;justify-content:center;width:100%;height:calc(100% - 44px);background:var(--color-surface-2);color:var(--color-text-3);font-size:11px;font-family:var(--font-ui);text-align:center;padding:12px;';
+      errDiv.textContent = 'Video format not supported — try MP4 (H.264) or WebM';
+      el.insertBefore(errDiv, el.firstChild);
+    };
+
+    /* Only autoplay after metadata is loaded to prevent partial/corrupt display */
+    vid.onloadeddata = function() {
+      vid.play();
+    };
+
+    vid.src = card.dataUrl;
     el.appendChild(vid);
 
     /* Scrub bar */

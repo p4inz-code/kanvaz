@@ -7,7 +7,7 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '3.1.2';
+  var VERSION       = '3.2.0';
 
   /* ── Init ── */
 
@@ -431,9 +431,24 @@ var KanvazBoards = (function() {
 
   function doAutosave() {
     saveCurrentBoardState();
-    var data = JSON.stringify(serialise());
+    try {
+      var data = JSON.stringify(serialise());
+    } catch (e) {
+      console.warn('[Kanvaz] autosave serialise failed:', e.message);
+      return;
+    }
     KanvazBridge.writeRecovery(data).then(function(r) {
-      if (!r || !r.ok) console.warn('[Kanvaz] autosave recovery write failed');
+      if (!r || !r.ok) {
+        console.warn('[Kanvaz] autosave recovery write failed');
+      } else {
+        /* Brief "recovery saved" indicator so user knows autosave works */
+        var el = document.getElementById('status-autosave');
+        if (el) {
+          el.textContent = '\u2713 Recovery saved';
+          el.style.opacity = '1';
+          setTimeout(function() { el.style.opacity = '0'; }, 2000);
+        }
+      }
     });
 
     /* Note: deliberately does NOT also write to currentPath. Autosave's

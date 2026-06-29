@@ -2,6 +2,41 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [3.2.0] — Performance + Stability
+Ship date: July 1, 2026
+
+### Performance
+- Fixed: scroll zoom lag — grid now draws all dots in a single batched
+  canvas path (was thousands of individual arc+fill calls per frame).
+  Transform updates throttled to one grid redraw per animation frame.
+- Added: grid drawing skips entirely when dot spacing < 4px (extreme
+  zoom-out was drawing invisible sub-pixel dots).
+
+### Stability
+- Fixed: canvas content disappearing on aggressive pan/zoom — tx/ty
+  now clamped to ±5M pixels with NaN/Infinity guard. If transform
+  values exceed safe CSS limits, they're clamped instead of pushing
+  the world div offscreen.
+- Fixed: video corruption on import — added error handler that shows
+  "Video format not supported" message instead of silent black frame.
+  Video now preloads metadata before attempting playback. Autoplay
+  deferred until onloadeddata fires.
+
+### Autosave
+- Fixed: autosave JSON.stringify now wrapped in try-catch (was crashing
+  silently on very large boards).
+- Added: "✓ Recovery saved" indicator flashes briefly in status bar
+  when autosave succeeds, so users can see it's working.
+- Note: autosave writes to a recovery file only (not your .kanvaz file).
+  "Unsaved changes" in the status bar means the file hasn't been
+  explicitly saved — the recovery file is a separate crash safety net.
+
+### Connection System
+- Fixed: tube endpoint now matches port dot center exactly (the PORT_R
+  offset was double-counted — tube terminated 7px past the actual dot).
+- Added: colored dot at BOTH source and destination ports (previously
+  only the destination had a colored dot).
+
 ## [3.1.1] — Audit Bugfix Pass
 Full cold-read audit of all 16 source files. 10 bugs found and fixed.
 

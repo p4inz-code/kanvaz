@@ -45,11 +45,36 @@ var KanvazCanvas = (function() {
     });
   }
 
+  /* Safe-clamp tx/ty to prevent CSS transform overflow.
+     Chromium can handle transforms up to ~16 million px but
+     going past ~5 million causes jank. Also guard NaN/Infinity. */
+  var TX_LIMIT = 5000000;
+
+  function clampTranslate() {
+    if (isNaN(tx) || !isFinite(tx)) tx = 0;
+    if (isNaN(ty) || !isFinite(ty)) ty = 0;
+    if (isNaN(scale) || !isFinite(scale) || scale <= 0) scale = 1.0;
+    if (tx > TX_LIMIT)  tx = TX_LIMIT;
+    if (tx < -TX_LIMIT) tx = -TX_LIMIT;
+    if (ty > TX_LIMIT)  ty = TX_LIMIT;
+    if (ty < -TX_LIMIT) ty = -TX_LIMIT;
+  }
+
+  var gridRafId = null;
+
   /* ── Transform ── */
 
   function applyTransform() {
+    clampTranslate();
     world.style.transform = 'translate(' + tx + 'px, ' + ty + 'px) scale(' + scale + ')';
-    drawGrid();
+
+    /* Throttle grid redraws — one per animation frame */
+    if (!gridRafId) {
+      gridRafId = requestAnimationFrame(function() {
+        gridRafId = null;
+        drawGrid();
+      });
+    }
     updateStatusBar();
     updateZoomBtn();
   }
@@ -158,7 +183,7 @@ var KanvazCanvas = (function() {
     if (scale > 3.0)  alpha = 1.0 - (scale - 3.0) / (ZOOM_MAX - 3.0);
     alpha = Math.max(0, Math.min(1, alpha));
 
-    if (alpha <= 0) return;
+    if (alpha <= 0 || spacing < 4) return;
 
     var dotRadius = Math.max(0.5, Math.min(1.5, scale * 0.8));
 
@@ -168,17 +193,19 @@ var KanvazCanvas = (function() {
 
     gridCtx.fillStyle = 'rgba(255, 255, 255, ' + (0.07 * alpha) + ')';
 
+    /* Single path for ALL dots — massive perf win over individual arc+fill */
+    gridCtx.beginPath();
     var x = ox;
     while (x < w) {
       var y = oy;
       while (y < h) {
-        gridCtx.beginPath();
+        gridCtx.moveTo(x + dotRadius, y);
         gridCtx.arc(x, y, dotRadius, 0, Math.PI * 2);
-        gridCtx.fill();
         y += spacing;
       }
       x += spacing;
     }
+    gridCtx.fill();
   }
 
   /* ── Events ── */
