@@ -85,55 +85,38 @@ var KanvazMapView = (function() {
   }
 
   /* ══════════════════════════════════════════
-     PORT POSITIONS — read from actual DOM
-     Instead of computing from CSS constants (which broke 6 times due
-     to box-sizing assumptions), we query the actual rendered position
-     of each port dot via getBoundingClientRect. This is correct
-     regardless of CSS box model, padding, border, or future changes.
+     PORT POSITIONS — always read from DOM
+     Zero CSS assumptions. Queries the actual rendered port dot center
+     via getBoundingClientRect every time. Math fallback only if DOM
+     element doesn't exist (edge case during initial build).
      ══════════════════════════════════════════ */
 
-  var portCache = {}; /* { cardId: { out: {x,y}, in: {x,y} } } */
-
-  function rebuildPortCache() {
-    portCache = {};
-    if (!container) return;
-    var cRect = container.getBoundingClientRect();
-    var nodes = world.querySelectorAll('.map-node');
-    for (var i = 0; i < nodes.length; i++) {
-      var node = nodes[i];
-      var refId = node.getAttribute('data-ref-id');
-      if (!refId) continue;
-
-      var outDot = node.querySelector('.map-port-out');
-      var inDot  = node.querySelector('.map-port-in');
-      if (!outDot || !inDot) continue;
-
-      var outR = outDot.getBoundingClientRect();
-      var inR  = inDot.getBoundingClientRect();
-
-      portCache[refId] = {
-        out: {
-          x: (outR.left + outR.width / 2 - cRect.left - tx) / scale,
-          y: (outR.top  + outR.height / 2 - cRect.top  - ty) / scale
-        },
-        in: {
-          x: (inR.left + inR.width / 2 - cRect.left - tx) / scale,
-          y: (inR.top  + inR.height / 2 - cRect.top  - ty) / scale
-        }
+  function getPortPos(refId, side) {
+    var cls = (side === 'out') ? '.map-port-out' : '.map-port-in';
+    var dot = document.querySelector('.map-node[data-ref-id="' + refId + '"] ' + cls);
+    if (dot && container) {
+      var dRect = dot.getBoundingClientRect();
+      var cRect = container.getBoundingClientRect();
+      return {
+        x: (dRect.left + dRect.width / 2 - cRect.left - tx) / scale,
+        y: (dRect.top  + dRect.height / 2 - cRect.top  - ty) / scale
       };
     }
+    return null;
   }
 
-  /* Fallback: if port cache miss, use mathematical estimate */
   function outPort(card) {
-    if (portCache[card.id] && portCache[card.id].out) return portCache[card.id].out;
+    var dom = getPortPos(card.id, 'out');
+    if (dom) return dom;
+    /* Last resort math fallback */
     return {
       x: card.mapPosition.x + NODE_W - NODE_BORDER,
       y: card.mapPosition.y + NODE_H / 2
     };
   }
   function inPort(card) {
-    if (portCache[card.id] && portCache[card.id].in) return portCache[card.id].in;
+    var dom = getPortPos(card.id, 'in');
+    if (dom) return dom;
     return {
       x: card.mapPosition.x + NODE_BORDER,
       y: card.mapPosition.y + NODE_H / 2
@@ -290,7 +273,6 @@ var KanvazMapView = (function() {
             el.style.left = card.mapPosition.x + 'px';
             el.style.top  = card.mapPosition.y + 'px';
           }
-          rebuildPortCache();
           renderLines();
         }
         return;
@@ -317,7 +299,6 @@ var KanvazMapView = (function() {
         KanvazHistory.push();
         dragNode = null;
         container.style.cursor = '';
-        rebuildPortCache();
       }
     });
 
@@ -525,7 +506,6 @@ var KanvazMapView = (function() {
       idx++;
     }
 
-    rebuildPortCache();
     renderLines();
     updateStatusBar(cards);
 
@@ -587,7 +567,7 @@ var KanvazMapView = (function() {
       'padding:0 14px',
       'cursor:grab',
       'user-select:none',
-      'box-shadow:0 2px 10px rgba(0,0,0,0.35)',
+      'box-shadow:0 2px 10px var(--color-shadow)',
       'transition:border-color 0.15s, box-shadow 0.15s',
       'overflow:visible'
     ].join(';');
@@ -683,13 +663,13 @@ var KanvazMapView = (function() {
     el.onmouseenter = function() {
       if (dragNode) return;
       el.style.borderColor = 'var(--color-accent)';
-      el.style.boxShadow = '0 2px 16px rgba(74,158,255,0.3)';
+      el.style.boxShadow = '0 0 0 2px var(--color-accent), 0 2px 12px rgba(74,158,255,0.25)';
       highlightConnections(card.id);
     };
     el.onmouseleave = function() {
       if (selectedNode === card.id) return;
       el.style.borderColor = 'var(--color-border-2)';
-      el.style.boxShadow = '0 2px 10px rgba(0,0,0,0.35)';
+      el.style.boxShadow = '0 2px 10px var(--color-shadow)';
       unhighlightConnections();
     };
 
@@ -746,7 +726,7 @@ var KanvazMapView = (function() {
       var shadow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       shadow.setAttribute('class', 'conn-glow');
       shadow.setAttribute('d', d);
-      shadow.setAttribute('stroke', '#000');
+      shadow.setAttribute('stroke', 'var(--color-text-inv)');
       shadow.setAttribute('stroke-width', '4');
       shadow.setAttribute('stroke-opacity', '0.25');
       shadow.setAttribute('fill', 'none');
@@ -853,7 +833,7 @@ var KanvazMapView = (function() {
       var oldEl = document.querySelector('.map-node[data-ref-id="' + selectedNode + '"]');
       if (oldEl) {
         oldEl.style.borderColor = 'var(--color-border-2)';
-        oldEl.style.boxShadow = '0 2px 10px rgba(0,0,0,0.35)';
+        oldEl.style.boxShadow = '0 2px 10px var(--color-shadow)';
       }
       unhighlightConnections();
     }
@@ -862,7 +842,7 @@ var KanvazMapView = (function() {
       var el = document.querySelector('.map-node[data-ref-id="' + refId + '"]');
       if (el) {
         el.style.borderColor = 'var(--color-accent)';
-        el.style.boxShadow = '0 0 0 2px rgba(74,158,255,0.3), 0 2px 16px rgba(74,158,255,0.3)';
+        el.style.boxShadow = '0 0 0 2px var(--color-accent), 0 2px 12px rgba(74,158,255,0.25)';
       }
       KanvazCards.selectCard(refId);
     }
@@ -874,7 +854,7 @@ var KanvazMapView = (function() {
 
   function showTypePicker(fromId, toId) {
     var overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:30000;display:flex;align-items:center;justify-content:center;';
+    overlay.style.cssText = 'position:fixed;inset:0;background:var(--color-overlay);z-index:30000;display:flex;align-items:center;justify-content:center;';
 
     var panel = document.createElement('div');
     panel.style.cssText = [
@@ -883,7 +863,7 @@ var KanvazMapView = (function() {
       'border-radius:10px',
       'padding:14px',
       'width:220px',
-      'box-shadow:0 12px 40px rgba(0,0,0,0.6)'
+      'box-shadow:0 12px 40px var(--color-shadow)'
     ].join(';');
 
     var title = document.createElement('div');

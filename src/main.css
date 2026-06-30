@@ -300,6 +300,46 @@ html, body {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
+/* ── Map View nodes ── */
+.map-node {
+  transition: box-shadow 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.map-node:hover {
+  border-color: var(--color-border-2) !important;
+  box-shadow: 0 4px 16px var(--color-shadow) !important;
+  transform: translateY(-1px);
+}
+
+.map-port {
+  transition: background 0.12s, transform 0.12s, border-color 0.12s;
+}
+
+/* ── Card hover lift ── */
+.card {
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+
+.card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+/* ── Context menu polish ── */
+#context-menu {
+  border-radius: 10px;
+  overflow: hidden;
+  animation: ctx-fade-in 0.1s ease-out;
+}
+
+@keyframes ctx-fade-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.ctx-item.danger {
+  color: var(--color-red) !important;
+}
+
 /* ── Canvas area ── */
 #canvas-container {
   position: relative;

@@ -2,6 +2,33 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [3.5.0] — UI Polish + Port System Rewrite
+Ship date: July 1, 2026
+
+### Port System — Final Rewrite
+- Eliminated: port cache, CSS math, box-sizing assumptions — ALL removed.
+- New: getPortPos() reads port dot center via getBoundingClientRect every
+  call. outPort/inPort delegate to getPortPos with math-only fallback.
+- Wire preview: origin captured from clicked port dot's DOM position at
+  exact click moment (wireOriginPos). Wire starts from the O, period.
+- This approach is correct by construction — reads the rendering engine's
+  own layout output. Cannot break from CSS changes.
+
+### UI Polish
+- Map nodes: hover lift animation (translateY -1px + shadow increase)
+- Map nodes: selection glow uses CSS variable accent, not hardcoded blue
+- Map shadows: all 7 hardcoded rgba() → var(--color-shadow)
+- Map tube inner shadow: theme-aware (var(--color-text-inv))
+- Map dialog overlay: var(--color-overlay)
+- Cards: hover lift shadow transition
+- Context menu: border-radius 10px, fade-in animation, danger items red
+- Light theme: card selected accent border + shadow, toolbar/statusbar
+  separators, context menu border + shadow + hover
+
+### Recovery Dialog
+- clearRecovery() now in all 4 paths: Save, Save As, Open, startup open
+- No more phantom restore dialogs on saved files
+
 ## [3.4.2] — Recovery Fix + DOM-Based Port Alignment
 Ship date: July 1, 2026
 
