@@ -2,6 +2,14 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [3.5.1] — Docs Polish
+- Fixed: "Light and dark themes" was listed under Known Limitations
+  instead of Features — moved to Features section.
+- Added: Light / dark theme to Features list.
+- All docs verified: README, PRIVACY.md, THIRD_PARTY_NOTICES.md,
+  TECHNICAL_OVERVIEW.md, CHANGELOG.md, LICENSE — all current and
+  consistent with v3.5.1.
+
 ## [3.5.0] — UI Polish + Port System Rewrite
 Ship date: July 1, 2026
 

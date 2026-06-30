@@ -48,7 +48,7 @@ of the whole app. The pin avoids "working build today, broken build after
 
 ```json
 {
-  "version": "3.3.0",
+  "version": "3.5.1",
   "savedAt": "ISO timestamp",
   "activeIdx": 0,
   "boards": [

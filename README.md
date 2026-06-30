@@ -2,7 +2,7 @@
 
 **Reference Operating System**
 
-> **v3.5.0** — Board View, Connection System, and Inspector are stable and shipping.
+> **v3.5.1** — Board View, Connection System, and Inspector are stable and shipping.
 > Map View (node-editor graph) is under active development — functional but receiving polish updates.
 
 Collect, organize, connect, and understand your references — all offline.
@@ -53,6 +53,7 @@ See [CHANGELOG.md](CHANGELOG.md) for version history.
 - Mood lock (Ctrl+Shift+F) — hide all UI for distraction-free presenting
 - Always on top (T) — persists across restarts
 - Board/Map segmented toggle in toolbar
+- Light / dark theme (press L or change in Settings)
 - Type-aware context menus (note cards hide irrelevant media options)
 
 ---
@@ -79,7 +80,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 3.5.0.exe` and `dist/Kanvaz 3.5.0.exe`
+Output: `dist/Kanvaz Setup 3.5.1.exe` and `dist/Kanvaz 3.5.1.exe`
 
 **macOS:**
 ```bash
@@ -126,13 +127,12 @@ npm run build:linux
 
 ## File format
 
-Boards are saved as `.kanvaz` files — plain JSON with version `"3.5.0"`. Media is embedded as base64 data URLs. Connections are stored as a top-level `connections` array alongside boards. Files from v2.x load cleanly with zero connections.
+Boards are saved as `.kanvaz` files — plain JSON with version `"3.5.1"`. Media is embedded as base64 data URLs. Connections are stored as a top-level `connections` array alongside boards. Files from v2.x load cleanly with zero connections.
 
 ---
 
 ## Known limitations
 
-- Light and dark themes (press L to toggle, or change in Settings).
 - Tags and custom properties are in the data model but have no editing UI yet (planned for v4).
 - `.kanvaz` files embed media as base64, so files with large video/audio can get large.
 - MKV and AVI video files may not play (Chromium codec limitation) — MP4 (H.264) and WebM recommended.
