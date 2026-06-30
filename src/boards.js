@@ -7,7 +7,7 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '3.4.1';
+  var VERSION       = '3.4.2';
 
   /* ── Init ── */
 
@@ -324,6 +324,7 @@ var KanvazBoards = (function() {
         if (result.ok) {
           KanvazBridge.addRecent(p);
           KanvazApp.markClean();
+          KanvazBridge.clearRecovery();
           KanvazUI.toast('Board saved as ' + p.split(/[\/]/).pop(), 'success');
         } else {
           KanvazUI.toast('Save failed', 'error');
@@ -354,6 +355,7 @@ var KanvazBoards = (function() {
           KanvazApp.setCurrentPath(p);
           KanvazBridge.addRecent(p);
           KanvazApp.markClean();
+          KanvazBridge.clearRecovery();
           /* Zoom to fit so cards are always visible */
           setTimeout(function() { KanvazCanvas.zoomFit(); }, 100);
           KanvazUI.toast('Board opened', 'success');
@@ -558,6 +560,7 @@ var KanvazBoards = (function() {
                 KanvazApp.setCurrentPath(p);
                 KanvazBridge.addRecent(p);
                 KanvazApp.markClean();
+                KanvazBridge.clearRecovery();
                 setTimeout(function() { KanvazCanvas.zoomFit(); }, 100);
                 KanvazUI.toast('Board opened', 'success');
               } catch (e) {

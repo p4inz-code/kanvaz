@@ -84,19 +84,56 @@ var KanvazMapView = (function() {
       + ', '  + x2 + ' ' + y2;
   }
 
-  /* Port centers — CRITICAL: global CSS sets box-sizing:border-box.
-     width:176px IS the full border-box width (border+padding+content).
-     Padding box right edge = NODE_W - NODE_BORDER = 174.5px from left.
-     Port CSS right:-PORT_R centers the dot at the padding-box edge.
-     Port CSS left:-PORT_R centers the dot at the padding-box left edge.
-     Y: top:50% = 50% of padding-box height = NODE_H/2. */
+  /* ══════════════════════════════════════════
+     PORT POSITIONS — read from actual DOM
+     Instead of computing from CSS constants (which broke 6 times due
+     to box-sizing assumptions), we query the actual rendered position
+     of each port dot via getBoundingClientRect. This is correct
+     regardless of CSS box model, padding, border, or future changes.
+     ══════════════════════════════════════════ */
+
+  var portCache = {}; /* { cardId: { out: {x,y}, in: {x,y} } } */
+
+  function rebuildPortCache() {
+    portCache = {};
+    if (!container) return;
+    var cRect = container.getBoundingClientRect();
+    var nodes = world.querySelectorAll('.map-node');
+    for (var i = 0; i < nodes.length; i++) {
+      var node = nodes[i];
+      var refId = node.getAttribute('data-ref-id');
+      if (!refId) continue;
+
+      var outDot = node.querySelector('.map-port-out');
+      var inDot  = node.querySelector('.map-port-in');
+      if (!outDot || !inDot) continue;
+
+      var outR = outDot.getBoundingClientRect();
+      var inR  = inDot.getBoundingClientRect();
+
+      portCache[refId] = {
+        out: {
+          x: (outR.left + outR.width / 2 - cRect.left - tx) / scale,
+          y: (outR.top  + outR.height / 2 - cRect.top  - ty) / scale
+        },
+        in: {
+          x: (inR.left + inR.width / 2 - cRect.left - tx) / scale,
+          y: (inR.top  + inR.height / 2 - cRect.top  - ty) / scale
+        }
+      };
+    }
+  }
+
+  /* Fallback: if port cache miss, use mathematical estimate */
   function outPort(card) {
+    if (portCache[card.id] && portCache[card.id].out) return portCache[card.id].out;
     return {
       x: card.mapPosition.x + NODE_W - NODE_BORDER,
       y: card.mapPosition.y + NODE_H / 2
     };
   }
   function inPort(card) {
+    if (portCache[card.id] && portCache[card.id].in) return portCache[card.id].in;
     return {
       x: card.mapPosition.x + NODE_BORDER,
       y: card.mapPosition.y + NODE_H / 2
@@ -253,6 +290,7 @@ var KanvazMapView = (function() {
             el.style.left = card.mapPosition.x + 'px';
             el.style.top  = card.mapPosition.y + 'px';
           }
+          rebuildPortCache();
           renderLines();
         }
         return;
@@ -284,6 +322,7 @@ var KanvazMapView = (function() {
         KanvazHistory.push();
         dragNode = null;
         container.style.cursor = '';
+        rebuildPortCache();
       }
     });
 
@@ -485,8 +524,11 @@ var KanvazMapView = (function() {
     renderLines();
     updateStatusBar(cards);
 
-    /* Verify port alignment — logs warning if SVG vs DOM drift detected */
-    setTimeout(function() { verifyPortAlignment(); }, 50);
+    /* Build port position cache from actual DOM after layout settles */
+    setTimeout(function() {
+      rebuildPortCache();
+      renderLines();
+    }, 0);
 
     /* Fit all nodes into view on first open */
     if (!hasRenderedOnce) {

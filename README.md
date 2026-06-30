@@ -2,6 +2,9 @@
 
 **Reference Operating System**
 
+> **v3.4.2** — Board View, Connection System, and Inspector are stable and shipping.
+> Map View (node-editor graph) is under active development — functional but receiving polish updates.
+
 Collect, organize, connect, and understand your references — all offline.
 Kanvaz is a free, open-source desktop app for VFX artists, 3D artists, and creative professionals who work with visual references.
 
@@ -27,7 +30,7 @@ See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 **Connection System** — link any reference to another with typed, directional relationships (Related To, Inspired By, Derived From, Alternative To, Supports, Used In, References). Each connection carries optional notes and priority.
 
-**Map View** — a node-editor-style graph that visualizes all your references and connections. Drag from output ports to input ports to create connections. Bezier tube cables with glow and colored dot terminators. Independent pan/zoom from the board canvas.
+**Map View** *(under active development)* — a node-editor-style graph that visualizes all your references and connections. Drag from output ports to input ports to create connections. Bezier tube cables with glow and colored dot terminators. Independent pan/zoom from the board canvas.
 
 **Connection Inspector** — select any reference and press C to see all its incoming and outgoing connections. Create, edit, and delete relationships from a side panel.
 
@@ -76,7 +79,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 3.4.1.exe` and `dist/Kanvaz 3.4.1.exe`
+Output: `dist/Kanvaz Setup 3.4.2.exe` and `dist/Kanvaz 3.4.2.exe`
 
 **macOS:**
 ```bash
@@ -123,7 +126,7 @@ npm run build:linux
 
 ## File format
 
-Boards are saved as `.kanvaz` files — plain JSON with version `"3.4.1"`. Media is embedded as base64 data URLs. Connections are stored as a top-level `connections` array alongside boards. Files from v2.x load cleanly with zero connections.
+Boards are saved as `.kanvaz` files — plain JSON with version `"3.4.2"`. Media is embedded as base64 data URLs. Connections are stored as a top-level `connections` array alongside boards. Files from v2.x load cleanly with zero connections.
 
 ---
 

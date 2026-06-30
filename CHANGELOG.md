@@ -2,6 +2,30 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [3.4.2] — Recovery Fix + DOM-Based Port Alignment
+Ship date: July 1, 2026
+
+### Critical Fix: Recovery Dialog
+- Fixed: restore dialog appeared on EVERY launch even after the file was
+  already saved. Root cause: clearRecovery() was only called in saveBoard()
+  but NOT in saveBoardAs(), openBoard (Ctrl+O), or startup screen file open.
+  Now called in all 4 save/open paths.
+
+### Critical Fix: Port Alignment (attempt 7 — correct by construction)
+- Replaced: all CSS-math-based port position computation with DOM-based
+  reading via getBoundingClientRect(). Previous attempts failed 6 times
+  due to box-sizing assumptions. The new approach queries the ACTUAL
+  rendered position of each port dot from the browser's layout engine,
+  converts to world coordinates, and caches them. This is correct
+  regardless of CSS box model, padding, border, or future style changes.
+- Port cache rebuilt: after initial render, after node drag, and during
+  live drag for accurate real-time connection lines.
+- Mathematical fallback retained for edge cases where DOM isn't ready.
+
+### README
+- Added: development status banner (Map View under active development)
+- Added: Map View marked as "under active development" in features
+
 ## [3.4.1] — Bugfix Patch
 Correct port math for border-box + final bug sweep.
 
