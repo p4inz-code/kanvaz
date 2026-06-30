@@ -2,6 +2,29 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [3.4.1] — Bugfix Patch
+Correct port math for border-box + final bug sweep.
+
+### Critical
+- Fixed: connection tube endpoints were 31px off — port math assumed
+  content-box but global CSS uses border-box. With border-box,
+  width:176px IS the total width. Correct formula:
+  outPort.x = mapPos + NODE_W - BORDER (174.5), not mapPos + 205.5.
+
+### Fixes
+- Fixed: pressing L (theme toggle) didn't redraw grid dots — dots stayed
+  wrong color until next zoom. Now calls drawGrid() immediately.
+- Fixed: Annotate showed in context menu and A shortcut for audio cards
+  (drawing on a scrub bar is useless). Now hidden for note + audio.
+- Fixed: NODE_FULL_W/H were wrong (used content-box formula). Now equal
+  NODE_W/NODE_H since border-box means width IS the full width.
+
+### UI
+- Light theme: accent borders on selected cards, toolbar/statusbar
+  separators, context menu border + shadow, hover highlight.
+- Shortcuts overlay: 3-column layout with Cards section.
+- About screen: updated tagline.
+
 ## [3.4.0] — Connection Tube Alignment Fix + Light Theme
 Major bug fix + new light/dark theme system.
 

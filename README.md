@@ -76,7 +76,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 3.4.0.exe` and `dist/Kanvaz 3.4.0.exe`
+Output: `dist/Kanvaz Setup 3.4.1.exe` and `dist/Kanvaz 3.4.1.exe`
 
 **macOS:**
 ```bash
@@ -123,7 +123,7 @@ npm run build:linux
 
 ## File format
 
-Boards are saved as `.kanvaz` files — plain JSON with version `"3.4.0"`. Media is embedded as base64 data URLs. Connections are stored as a top-level `connections` array alongside boards. Files from v2.x load cleanly with zero connections.
+Boards are saved as `.kanvaz` files — plain JSON with version `"3.4.1"`. Media is embedded as base64 data URLs. Connections are stored as a top-level `connections` array alongside boards. Files from v2.x load cleanly with zero connections.
 
 ---
 

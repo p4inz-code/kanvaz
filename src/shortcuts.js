@@ -89,6 +89,7 @@ var KanvazShortcuts = (function() {
           s.theme = s.theme === 'light' ? 'dark' : 'light';
           document.documentElement.setAttribute('data-theme', s.theme);
           KanvazBridge.writeSettings(JSON.stringify(s));
+          KanvazCanvas.drawGrid();
           KanvazUI.toast('Theme: ' + s.theme);
         }
       }
@@ -147,7 +148,10 @@ var KanvazShortcuts = (function() {
 
     if (e.key === 'a' || e.key === 'A') {
       if (typeof KanvazAnnotate !== 'undefined') {
-        KanvazAnnotate.activate(sel);
+        var selCard = KanvazCards.getAll()[sel];
+        if (selCard && selCard.type !== 'note' && selCard.type !== 'audio') {
+          KanvazAnnotate.activate(sel);
+        }
       }
       return;
     }

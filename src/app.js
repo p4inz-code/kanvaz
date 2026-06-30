@@ -395,8 +395,8 @@ var KanvazApp = (function() {
 
       var items = [];
 
-      /* Annotate — only for media cards, not notes */
-      if (card.type !== 'note') {
+      /* Annotate — only for visual media cards, not notes or audio */
+      if (card.type !== 'note' && card.type !== 'audio') {
         items.push({
           label: 'Annotate',
           action: function() {

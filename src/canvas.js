@@ -425,7 +425,8 @@ var KanvazCanvas = (function() {
     getViewport:    getViewport,
     getScale:       function() { return scale; },
     getTx:          function() { return tx; },
-    getTy:          function() { return ty; }
+    getTy:          function() { return ty; },
+    drawGrid:       drawGrid
   };
 
 })();
