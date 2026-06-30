@@ -343,7 +343,7 @@ var KanvazMapView = (function() {
     if (wireFrom) {
       var portEl = document.querySelector('.map-node[data-ref-id="' + wireFrom + '"] .map-port-out');
       if (portEl) {
-        portEl.style.background = '#1A1A28';
+        portEl.style.background = 'var(--color-port)';
         portEl.style.transform = 'translateY(-50%)';
       }
     }
@@ -562,7 +562,7 @@ var KanvazMapView = (function() {
       'width:' + (PORT_R * 2) + 'px',
       'height:' + (PORT_R * 2) + 'px',
       'border-radius:50%',
-      'background:#1A1A28',
+      'background:var(--color-port)',
       'border:2px solid var(--color-border-2)',
       'cursor:crosshair',
       'transition:background 0.12s, transform 0.12s, border-color 0.12s',
@@ -575,7 +575,7 @@ var KanvazMapView = (function() {
       portIn.style.transform = 'translateY(-50%) scale(1.4)';
     };
     portIn.onmouseleave = function() {
-      portIn.style.background = '#1A1A28';
+      portIn.style.background = 'var(--color-port)';
       portIn.style.borderColor = 'var(--color-border-2)';
       portIn.style.transform = 'translateY(-50%)';
     };
@@ -592,7 +592,7 @@ var KanvazMapView = (function() {
       'width:' + (PORT_R * 2) + 'px',
       'height:' + (PORT_R * 2) + 'px',
       'border-radius:50%',
-      'background:#1A1A28',
+      'background:var(--color-port)',
       'border:2px solid var(--color-border-2)',
       'cursor:crosshair',
       'transition:background 0.15s, transform 0.15s',

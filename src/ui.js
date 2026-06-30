@@ -129,6 +129,7 @@ var KanvazUI_Extended = (function() {
   var settingsOpen = false;
 
   var SETTINGS_DEFAULTS = {
+    theme:            'dark',
     autosaveInterval: 30,
     showMinimap:      true,
     cardShadows:      true,
@@ -210,6 +211,10 @@ var KanvazUI_Extended = (function() {
       KanvazBridge.setAlwaysOnTop(!!settings.alwaysOnTop);
     }
 
+    /* Theme — apply to root element */
+    var theme = settings.theme || 'dark';
+    document.documentElement.setAttribute('data-theme', theme);
+
     /* Restart autosave timer with current interval setting */
     if (typeof KanvazBoards !== 'undefined' && KanvazBoards.startAutosave) {
       KanvazBoards.startAutosave();
@@ -252,6 +257,7 @@ var KanvazUI_Extended = (function() {
     panel.appendChild(title);
 
     var rows = [
+      { key: 'theme',           label: 'Theme',                 type: 'select', options: [['dark','Dark'],['light','Light']] },
       { key: 'showMinimap',     label: 'Show minimap',          type: 'toggle' },
       { key: 'dotGridVisible',  label: 'Dot grid',              type: 'toggle' },
       { key: 'cardShadows',     label: 'Card shadows',          type: 'toggle' },
@@ -307,6 +313,22 @@ var KanvazUI_Extended = (function() {
             }
           };
           el.appendChild(inp);
+
+        } else if (row.type === 'select') {
+          var sel = document.createElement('select');
+          sel.style.cssText = 'width:90px;background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:4px;color:var(--color-text);padding:3px 6px;font-size:12px;font-family:var(--font-ui);outline:none;';
+          for (var oi = 0; oi < row.options.length; oi++) {
+            var opt = document.createElement('option');
+            opt.value = row.options[oi][0];
+            opt.textContent = row.options[oi][1];
+            if (settings[row.key] === row.options[oi][0]) opt.selected = true;
+            sel.appendChild(opt);
+          }
+          sel.onchange = function() {
+            settings[row.key] = sel.value;
+            saveSettings();
+          };
+          el.appendChild(sel);
         }
 
         panel.appendChild(el);

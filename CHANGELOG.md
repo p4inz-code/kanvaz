@@ -2,8 +2,17 @@
 
 All notable changes to Kanvaz are documented here.
 
-## [3.4.0] — Connection Tube Alignment Fix
-Major bug fix: connection tubes now terminate exactly at port dot centers.
+## [3.4.0] — Connection Tube Alignment Fix + Light Theme
+Major bug fix + new light/dark theme system.
+
+### New: Light / Dark Theme
+- Press L to toggle between light and dark themes instantly.
+- Theme persists in settings (also available in Settings → Theme dropdown).
+- Light theme: clean white surfaces, darker text, blue accents, subtle shadows.
+- Grid dots adapt automatically (dark on light, white on dark).
+- Map View port dots, node cards, bezier tubes, and inspector all theme-aware.
+- CSS custom properties: --color-port, --color-shadow, --color-overlay added
+  for consistent theming across JS-generated elements.
 
 ### Critical Fix
 - Fixed: connection tube bezier endpoints were 30px left and 2px above

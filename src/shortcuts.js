@@ -81,6 +81,20 @@ var KanvazShortcuts = (function() {
     /* Always on top — works in both views */
     if (e.key === 't' || e.key === 'T') { KanvazApp.toggleAlwaysOnTop(); return; }
 
+    /* Theme toggle — works in both views */
+    if (e.key === 'l' || e.key === 'L') {
+      if (typeof KanvazUI_Extended !== 'undefined') {
+        var s = KanvazUI_Extended.getSettings();
+        if (s) {
+          s.theme = s.theme === 'light' ? 'dark' : 'light';
+          document.documentElement.setAttribute('data-theme', s.theme);
+          KanvazBridge.writeSettings(JSON.stringify(s));
+          KanvazUI.toast('Theme: ' + s.theme);
+        }
+      }
+      return;
+    }
+
     /* Help — works in both views */
     if (e.key === '?') { KanvazUI.showShortcuts(); return; }
 

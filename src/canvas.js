@@ -191,7 +191,10 @@ var KanvazCanvas = (function() {
     var ox = ((tx % spacing) + spacing) % spacing;
     var oy = ((ty % spacing) + spacing) % spacing;
 
-    gridCtx.fillStyle = 'rgba(255, 255, 255, ' + (0.07 * alpha) + ')';
+    var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    var dotColor = isLight ? '0, 0, 0' : '255, 255, 255';
+    var dotAlpha = isLight ? 0.10 : 0.07;
+    gridCtx.fillStyle = 'rgba(' + dotColor + ', ' + (dotAlpha * alpha) + ')';
 
     /* Single path for ALL dots — massive perf win over individual arc+fill */
     gridCtx.beginPath();

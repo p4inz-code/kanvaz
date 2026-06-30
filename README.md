@@ -100,6 +100,7 @@ npm run build:linux
 | 0 | Reset zoom |
 | F | Fit all cards |
 | T | Always on top |
+| L | Toggle light / dark theme |
 | Ctrl+S | Save board |
 | Ctrl+Shift+S | Save board as new file |
 | Ctrl+O | Open board |
@@ -128,7 +129,7 @@ Boards are saved as `.kanvaz` files — plain JSON with version `"3.4.0"`. Media
 
 ## Known limitations
 
-- Dark theme only (no light mode).
+- Light and dark themes (press L to toggle, or change in Settings).
 - Tags and custom properties are in the data model but have no editing UI yet (planned for v4).
 - `.kanvaz` files embed media as base64, so files with large video/audio can get large.
 - MKV and AVI video files may not play (Chromium codec limitation) — MP4 (H.264) and WebM recommended.

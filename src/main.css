@@ -9,6 +9,7 @@
   --color-surface-3: #2A2A35;
   --color-border:    #2E2E3A;
   --color-border-2:  #3A3A48;
+  --color-port:      #1A1A28;
 
   --color-accent:    #4A9EFF;
   --color-accent-dim:#2A7EDF;
@@ -24,8 +25,42 @@
   --color-text-3:    #6A6A8A;
   --color-text-inv:  #0E0E10;
 
+  --color-shadow:    rgba(0, 0, 0, 0.5);
+  --color-overlay:   rgba(0, 0, 0, 0.6);
+  --color-bg:        var(--color-canvas);
+
   --font-ui:   system-ui, 'Segoe UI', Arial, sans-serif;
   --font-mono: Consolas, 'Courier New', monospace;
+}
+
+/* ── Light theme ── */
+:root[data-theme="light"] {
+  --color-canvas:    #F0F0F4;
+  --color-chrome:    #E8E8EE;
+  --color-surface:   #FFFFFF;
+  --color-surface-2: #F5F5F8;
+  --color-surface-3: #ECECF0;
+  --color-border:    #D4D4DC;
+  --color-border-2:  #C0C0CC;
+  --color-port:      #DCDCE4;
+
+  --color-accent:    #2B7FD4;
+  --color-accent-dim:#1F6AB8;
+  --color-accent-bg: rgba(43, 127, 212, 0.10);
+  --color-amber:     #D08F00;
+  --color-amber-bg:  rgba(208, 143, 0, 0.10);
+  --color-red:       #D93636;
+  --color-red-bg:    rgba(217, 54, 54, 0.10);
+  --color-green:     #2E8B5E;
+
+  --color-text:      #1A1A2E;
+  --color-text-2:    #4A4A64;
+  --color-text-3:    #7A7A94;
+  --color-text-inv:  #FFFFFF;
+
+  --color-shadow:    rgba(0, 0, 0, 0.12);
+  --color-overlay:   rgba(0, 0, 0, 0.25);
+}
 
   --radius-sm: 4px;
   --radius-md: 6px;
@@ -429,7 +464,7 @@ html, body {
   left: 0;
   right: 0;
   height: 24px;
-  background: rgba(13, 13, 16, 0.88);
+  background: var(--color-surface);
   display: flex;
   align-items: center;
   padding: 0 8px;
@@ -515,7 +550,7 @@ html, body {
   height: 10px;
   border-radius: 50%;
   background: var(--color-amber);
-  border: 1.5px solid rgba(14, 14, 16, 0.6);
+  border: 1.5px solid var(--color-border);
   box-shadow: 0 0 8px rgba(240, 165, 0, 0.7);
   display: none;
   z-index: 5;
@@ -568,7 +603,7 @@ html, body {
   align-items: center;
   padding: 0 8px;
   gap: 6px;
-  background: rgba(13, 13, 16, 0.7);
+  background: var(--color-chrome);
   opacity: 0;
   transition: opacity 0.15s;
 }
@@ -598,7 +633,7 @@ html, body {
   align-items: center;
   padding: 0 8px;
   gap: 6px;
-  background: rgba(13, 13, 16, 0.7);
+  background: var(--color-chrome);
   /* Always visible — there's no preview frame to reveal it on hover */
   opacity: 1;
 }
@@ -639,7 +674,7 @@ html, body {
   min-width: 160px;
   z-index: 70000;
   pointer-events: auto;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  box-shadow: 0 8px 24px var(--color-shadow);
   display: none;
 }
 
@@ -706,7 +741,7 @@ html, body {
   font-size: 13px;
   color: var(--color-text);
   white-space: nowrap;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  box-shadow: 0 4px 16px var(--color-shadow);
   animation: toast-in 0.2s ease;
 }
 
@@ -744,7 +779,7 @@ html, body {
 #dialog-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--color-overlay);
   z-index: 50000;
   display: flex;
   align-items: center;
