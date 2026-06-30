@@ -37,9 +37,13 @@ var KanvazMapView = (function() {
   var hasRenderedOnce = false;
 
   /* ── Node sizing ── */
-  var NODE_W      = 176;
-  var NODE_H      = 52;
-  var PORT_R      = 7;   /* Larger port dots */
+  var NODE_W      = 176;   /* content-box width */
+  var NODE_H      = 52;    /* content-box height */
+  var NODE_BORDER = 1.5;
+  var NODE_PAD    = 14;    /* padding: 0 14px */
+  var NODE_FULL_W = NODE_BORDER + NODE_PAD + NODE_W + NODE_PAD + NODE_BORDER; /* 207 */
+  var NODE_FULL_H = NODE_BORDER + NODE_H + NODE_BORDER;                       /* 55 */
+  var PORT_R      = 7;   /* port dot radius */
   var AUTO_COLS   = 5;
   var AUTO_GAP_X  = 240;
   var AUTO_GAP_Y  = 90;
@@ -80,19 +84,22 @@ var KanvazMapView = (function() {
       + ', '  + x2 + ' ' + y2;
   }
 
-  /* Port centers — CSS positions the port dot so its center aligns with
-     the node edge (right:-PORT_R + width:PORT_R*2 = center at NODE_W).
-     The SVG endpoints must match this exactly. */
+  /* Port centers — CSS right:-PORT_R positions the dot relative to the
+     PADDING BOX edge, not the content edge. The padding box includes
+     border + padding + content + padding, so we must add those offsets.
+     
+     Output dot center: paddingBox right edge = mapPos + border + pad + contentW + pad
+     Input dot center:  paddingBox left edge  = mapPos + border */
   function outPort(card) {
     return {
-      x: card.mapPosition.x + NODE_W,
-      y: card.mapPosition.y + NODE_H / 2
+      x: card.mapPosition.x + NODE_BORDER + NODE_PAD + NODE_W + NODE_PAD,
+      y: card.mapPosition.y + NODE_BORDER + NODE_H / 2
     };
   }
   function inPort(card) {
     return {
-      x: card.mapPosition.x,
-      y: card.mapPosition.y + NODE_H / 2
+      x: card.mapPosition.x + NODE_BORDER,
+      y: card.mapPosition.y + NODE_BORDER + NODE_H / 2
     };
   }
 
@@ -478,6 +485,9 @@ var KanvazMapView = (function() {
     renderLines();
     updateStatusBar(cards);
 
+    /* Verify port alignment — logs warning if SVG vs DOM drift detected */
+    setTimeout(function() { verifyPortAlignment(); }, 50);
+
     /* Fit all nodes into view on first open */
     if (!hasRenderedOnce) {
       hasRenderedOnce = true;
@@ -495,8 +505,8 @@ var KanvazMapView = (function() {
       if (!c.mapPosition) continue;
       minX = Math.min(minX, c.mapPosition.x);
       minY = Math.min(minY, c.mapPosition.y);
-      maxX = Math.max(maxX, c.mapPosition.x + NODE_W);
-      maxY = Math.max(maxY, c.mapPosition.y + NODE_H);
+      maxX = Math.max(maxX, c.mapPosition.x + NODE_FULL_W);
+      maxY = Math.max(maxY, c.mapPosition.y + NODE_FULL_H);
       count++;
     }
     if (count === 0) return;
@@ -958,6 +968,66 @@ var KanvazMapView = (function() {
   }
 
   /* ══════════════════════════════════════════
+     DEBUG: PORT ALIGNMENT VERIFICATION
+     Runs after every render — compares SVG port math against actual
+     DOM port dot positions. Warns in console if they drift.
+     ══════════════════════════════════════════ */
+
+  function verifyPortAlignment() {
+    if (!active || !container) return;
+    var cards = KanvazCards.getAll();
+    var issues = 0;
+
+    for (var id in cards) {
+      var card = cards[id];
+      if (!card.mapPosition) continue;
+
+      var nodeEl = document.querySelector('.map-node[data-ref-id="' + id + '"]');
+      if (!nodeEl) continue;
+
+      var outDot = nodeEl.querySelector('.map-port-out');
+      var inDot  = nodeEl.querySelector('.map-port-in');
+      if (!outDot || !inDot) continue;
+
+      /* Get actual DOM positions (in world coords via container offset) */
+      var cRect = container.getBoundingClientRect();
+      var outRect = outDot.getBoundingClientRect();
+      var inRect  = inDot.getBoundingClientRect();
+
+      /* DOM dot center in world coords */
+      var domOutX = (outRect.left + outRect.width / 2 - cRect.left - tx) / scale;
+      var domOutY = (outRect.top  + outRect.height / 2 - cRect.top  - ty) / scale;
+      var domInX  = (inRect.left  + inRect.width / 2  - cRect.left - tx) / scale;
+      var domInY  = (inRect.top   + inRect.height / 2  - cRect.top  - ty) / scale;
+
+      /* SVG computed positions */
+      var svgOut = outPort(card);
+      var svgIn  = inPort(card);
+
+      /* Check alignment (allow 2px tolerance for rounding) */
+      var threshold = 2;
+      if (Math.abs(domOutX - svgOut.x) > threshold || Math.abs(domOutY - svgOut.y) > threshold) {
+        console.warn('[Kanvaz] PORT MISALIGN — outPort for "' + (card.name || id) + '": DOM=(' +
+          Math.round(domOutX) + ',' + Math.round(domOutY) + ') SVG=(' +
+          Math.round(svgOut.x) + ',' + Math.round(svgOut.y) + ') delta=(' +
+          Math.round(domOutX - svgOut.x) + ',' + Math.round(domOutY - svgOut.y) + ')');
+        issues++;
+      }
+      if (Math.abs(domInX - svgIn.x) > threshold || Math.abs(domInY - svgIn.y) > threshold) {
+        console.warn('[Kanvaz] PORT MISALIGN — inPort for "' + (card.name || id) + '": DOM=(' +
+          Math.round(domInX) + ',' + Math.round(domInY) + ') SVG=(' +
+          Math.round(svgIn.x) + ',' + Math.round(svgIn.y) + ') delta=(' +
+          Math.round(domInX - svgIn.x) + ',' + Math.round(domInY - svgIn.y) + ')');
+        issues++;
+      }
+    }
+
+    if (issues === 0) {
+      console.log('[Kanvaz] port alignment OK (' + Object.keys(cards).length + ' nodes checked)');
+    }
+  }
+
+  /* ══════════════════════════════════════════
      STATUS BAR
      ══════════════════════════════════════════ */
 
@@ -1027,7 +1097,8 @@ var KanvazMapView = (function() {
     init: init, show: show, hide: hide, toggle: toggle,
     isActive: isActive, render: render,
     getState: getState, setState: setState, resetView: resetView,
-    handleKey: handleKey, updateToggleBtn: updateToggleBtn
+    handleKey: handleKey, updateToggleBtn: updateToggleBtn,
+    verifyPortAlignment: verifyPortAlignment
   };
 
 })();

@@ -2,6 +2,32 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [3.4.0] — Connection Tube Alignment Fix
+Major bug fix: connection tubes now terminate exactly at port dot centers.
+
+### Critical Fix
+- Fixed: connection tube bezier endpoints were 30px left and 2px above
+  the actual port dot positions. Root cause: outPort()/inPort() used
+  NODE_W (content-box width = 176px) but the node has CSS padding (14px
+  each side) and border (1.5px). The port dots are positioned relative to
+  the PADDING BOX (204px wide), not the content box. The SVG endpoint was
+  at mapPos+176 but the DOM dot was at mapPos+205.5 — a 29.5px offset.
+  Fix: added NODE_BORDER and NODE_PAD constants, port math now computes
+  from the padding box edges: outPort.x = mapPos + border + pad + W + pad,
+  inPort.x = mapPos + border.
+
+### Debug Infrastructure
+- Added: verifyPortAlignment() — runs after every map render, compares
+  SVG endpoint coordinates against actual DOM port dot positions via
+  getBoundingClientRect(). Logs "[Kanvaz] port alignment OK" on success,
+  or warns with exact delta values if any coordinate drifts more than
+  2px. Can also be called manually from DevTools console via
+  KanvazMapView.verifyPortAlignment().
+- Added: NODE_FULL_W / NODE_FULL_H constants (207px / 55px) — the actual
+  visual dimensions including border and padding.
+- Fixed: fitAll() was using NODE_W/NODE_H (content-box) for bounding box,
+  now uses NODE_FULL_W/NODE_FULL_H for accurate framing.
+
 ## [3.3.0] — Comprehensive Audit Pass
 Full cold-read audit of all 16 source files + all metadata.
 
