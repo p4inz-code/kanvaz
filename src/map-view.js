@@ -41,8 +41,8 @@ var KanvazMapView = (function() {
   var NODE_H      = 52;    /* content-box height */
   var NODE_BORDER = 1.5;
   var NODE_PAD    = 14;    /* padding: 0 14px */
-  var NODE_FULL_W = NODE_BORDER + NODE_PAD + NODE_W + NODE_PAD + NODE_BORDER; /* 207 */
-  var NODE_FULL_H = NODE_BORDER + NODE_H + NODE_BORDER;                       /* 55 */
+  var NODE_FULL_W = NODE_W;  /* border-box: width already includes border+padding */
+  var NODE_FULL_H = NODE_H;  /* border-box: height already includes border */
   var PORT_R      = 7;   /* port dot radius */
   var AUTO_COLS   = 5;
   var AUTO_GAP_X  = 240;
@@ -84,22 +84,22 @@ var KanvazMapView = (function() {
       + ', '  + x2 + ' ' + y2;
   }
 
-  /* Port centers — CSS right:-PORT_R positions the dot relative to the
-     PADDING BOX edge, not the content edge. The padding box includes
-     border + padding + content + padding, so we must add those offsets.
-     
-     Output dot center: paddingBox right edge = mapPos + border + pad + contentW + pad
-     Input dot center:  paddingBox left edge  = mapPos + border */
+  /* Port centers — CRITICAL: global CSS sets box-sizing:border-box.
+     width:176px IS the full border-box width (border+padding+content).
+     Padding box right edge = NODE_W - NODE_BORDER = 174.5px from left.
+     Port CSS right:-PORT_R centers the dot at the padding-box edge.
+     Port CSS left:-PORT_R centers the dot at the padding-box left edge.
+     Y: top:50% = 50% of padding-box height = NODE_H/2. */
   function outPort(card) {
     return {
-      x: card.mapPosition.x + NODE_BORDER + NODE_PAD + NODE_W + NODE_PAD,
-      y: card.mapPosition.y + NODE_BORDER + NODE_H / 2
+      x: card.mapPosition.x + NODE_W - NODE_BORDER,
+      y: card.mapPosition.y + NODE_H / 2
     };
   }
   function inPort(card) {
     return {
       x: card.mapPosition.x + NODE_BORDER,
-      y: card.mapPosition.y + NODE_BORDER + NODE_H / 2
+      y: card.mapPosition.y + NODE_H / 2
     };
   }
 

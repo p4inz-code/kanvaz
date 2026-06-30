@@ -479,25 +479,40 @@ var KanvazUI_Extended = (function() {
       {
         name: 'File',
         items: [
-          ['Ctrl+S', 'Save board'],
-          ['Ctrl+O', 'Open board'],
-          ['Ctrl+Z', 'Undo'],
-          ['Ctrl+Y', 'Redo']
+          ['Ctrl+S',       'Save board'],
+          ['Ctrl+Shift+S', 'Save as'],
+          ['Ctrl+O',       'Open board'],
+          ['Ctrl+Z',       'Undo'],
+          ['Ctrl+Y',       'Redo']
         ]
       },
       {
         name: 'View',
         items: [
+          ['M',           'Board \u2194 Map view'],
+          ['L',           'Light \u2194 Dark theme'],
           ['T',           'Always on top'],
           ['Ctrl+Shift+F','Mood lock'],
           ['?',           'This screen'],
           ['Esc',         'Deselect / close']
         ]
+      },
+      {
+        name: 'Cards',
+        items: [
+          ['Delete',  'Delete card'],
+          ['Ctrl+D',  'Duplicate'],
+          ['P',       'Pin / unpin'],
+          ['A',       'Annotate'],
+          ['C',       'Connections'],
+          ['H',       'Hide annotations'],
+          ['Ctrl+A',  'Select all']
+        ]
       }
     ];
 
     var cols = document.createElement('div');
-    cols.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:16px 24px;';
+    cols.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px 24px;';
 
     for (var g = 0; g < groups.length; g++) {
       var group = groups[g];
@@ -588,7 +603,7 @@ var KanvazUI_Extended = (function() {
         '<circle cx="14" cy="3" r="2" fill="#4A9EFF"/>',
       '</svg>',
       '<div style="font-size:24px;font-weight:700;color:var(--color-text);margin-bottom:6px;">Welcome to Kanvaz</div>',
-      '<div style="font-size:14px;color:var(--color-text-3);margin-bottom:28px;line-height:1.6;">Your infinite canvas for VFX references, mood boards, and creative notes.</div>',
+      '<div style="font-size:14px;color:var(--color-text-3);margin-bottom:28px;line-height:1.6;">Collect, connect, and understand your references — all offline.</div>',
       '<div style="text-align:left;margin-bottom:24px;">',
         '<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;">',
           '<div style="width:28px;height:28px;border-radius:6px;background:var(--color-accent-bg);border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;">⬇</div>',
