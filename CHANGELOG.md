@@ -18,8 +18,12 @@ Ship date: July 1, 2026
   rendered position of each port dot from the browser's layout engine,
   converts to world coordinates, and caches them. This is correct
   regardless of CSS box model, padding, border, or future style changes.
-- Port cache rebuilt: after initial render, after node drag, and during
-  live drag for accurate real-time connection lines.
+- Wire preview: origin captured from the clicked port dot's DOM position
+  at the exact moment of click — stored as wireOriginPos. Preview bezier
+  now starts from the exact center of the O the user clicked.
+- Port cache: rebuilt SYNCHRONOUSLY before every renderLines() call
+  (was async setTimeout — caused stale positions on first render).
+- Port cache also rebuilt: during live node drag, after drag end.
 - Mathematical fallback retained for edge cases where DOM isn't ready.
 
 ### README

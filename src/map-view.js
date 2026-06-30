@@ -296,17 +296,12 @@ var KanvazMapView = (function() {
         return;
       }
 
-      /* Wire preview — update bezier to follow cursor */
-      if (wireFrom && wirePreview) {
+      /* Wire preview — follow cursor from captured origin */
+      if (wireFrom && wirePreview && wireOriginPos) {
         var rect2 = container.getBoundingClientRect();
         var mx = (e.clientX - rect2.left - tx) / scale;
         var my = (e.clientY - rect2.top  - ty) / scale;
-        var cards = KanvazCards.getAll();
-        var fromCard = cards[wireFrom];
-        if (fromCard && fromCard.mapPosition) {
-          var op = outPort(fromCard);
-          wirePreview.setAttribute('d', bezierPath(op.x, op.y, mx, my));
-        }
+        wirePreview.setAttribute('d', bezierPath(wireOriginPos.x, wireOriginPos.y, mx, my));
       }
     });
 
@@ -338,9 +333,24 @@ var KanvazMapView = (function() {
      WIRE DRAGGING (connect by dragging)
      ══════════════════════════════════════════ */
 
+  var wireOriginPos = null;
+
   function startWire(fromRefId) {
     wireFrom = fromRefId;
     container.style.cursor = 'crosshair';
+
+    /* Read ACTUAL port dot position from DOM at this exact moment */
+    var portEl = document.querySelector('.map-node[data-ref-id="' + fromRefId + '"] .map-port-out');
+    if (portEl) {
+      var dotRect = portEl.getBoundingClientRect();
+      var cRect = container.getBoundingClientRect();
+      wireOriginPos = {
+        x: (dotRect.left + dotRect.width / 2 - cRect.left - tx) / scale,
+        y: (dotRect.top  + dotRect.height / 2 - cRect.top  - ty) / scale
+      };
+      portEl.style.background = '#4A9EFF';
+      portEl.style.transform = 'translateY(-50%) scale(1.4)';
+    }
 
     /* Create preview bezier */
     wirePreview = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -352,13 +362,6 @@ var KanvazMapView = (function() {
     wirePreview.setAttribute('opacity', '0.8');
     wirePreview.style.pointerEvents = 'none';
     svg.appendChild(wirePreview);
-
-    /* Highlight source port */
-    var portEl = document.querySelector('.map-node[data-ref-id="' + fromRefId + '"] .map-port-out');
-    if (portEl) {
-      portEl.style.background = '#4A9EFF';
-      portEl.style.transform = 'scale(1.4)';
-    }
 
     KanvazUI.toast('Drop on a reference to connect \u00B7 Esc to cancel');
   }
@@ -387,6 +390,7 @@ var KanvazMapView = (function() {
       }
     }
     wireFrom = null;
+    wireOriginPos = null;
     if (container) container.style.cursor = '';
   }
 
@@ -521,14 +525,9 @@ var KanvazMapView = (function() {
       idx++;
     }
 
+    rebuildPortCache();
     renderLines();
     updateStatusBar(cards);
-
-    /* Build port position cache from actual DOM after layout settles */
-    setTimeout(function() {
-      rebuildPortCache();
-      renderLines();
-    }, 0);
 
     /* Fit all nodes into view on first open */
     if (!hasRenderedOnce) {
