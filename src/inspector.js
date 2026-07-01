@@ -343,7 +343,7 @@ var KanvazInspector = (function() {
 
   function showAddDialog(fromRefId) {
     var overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:30000;display:flex;align-items:center;justify-content:center;';
+    overlay.style.cssText = 'position:fixed;inset:0;background:var(--color-overlay);z-index:30000;display:flex;align-items:center;justify-content:center;';
 
     var dialog = document.createElement('div');
     dialog.style.cssText = [
@@ -485,7 +485,7 @@ var KanvazInspector = (function() {
 
   function showEditDialog(conn) {
     var overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:30000;display:flex;align-items:center;justify-content:center;';
+    overlay.style.cssText = 'position:fixed;inset:0;background:var(--color-overlay);z-index:30000;display:flex;align-items:center;justify-content:center;';
 
     var dialog = document.createElement('div');
     dialog.style.cssText = [

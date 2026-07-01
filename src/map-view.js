@@ -499,8 +499,8 @@ var KanvazMapView = (function() {
     renderLines();
     updateStatusBar(cards);
 
-    /* Dev safety net — logs to console if math drifts from DOM */
-    setTimeout(function() { verifyPortAlignment(); }, 30);
+    /* Dev safety net — full self-diagnostic after each render */
+    setTimeout(function() { diagnose(); }, 30);
 
     /* Fit all nodes into view on first open */
     if (!hasRenderedOnce) {
@@ -1043,6 +1043,91 @@ var KanvazMapView = (function() {
   }
 
   /* ══════════════════════════════════════════
+     RUNTIME SELF-DIAGNOSTIC
+     Advanced health check. Runs on Map View open + on demand via
+     KanvazMapView.diagnose(). Catches the bug classes that have hit
+     this project: port drift, orphan connections, NaN transforms,
+     connections pointing at missing cards, duplicate connections.
+     ══════════════════════════════════════════ */
+
+  function diagnose() {
+    var report = { ok: true, issues: [] };
+    function flag(sev, msg) {
+      report.issues.push({ severity: sev, message: msg });
+      if (sev === 'error') report.ok = false;
+    }
+
+    var cards = KanvazCards.getAll();
+
+    /* 1. Transform sanity — NaN/Infinity would blank the canvas */
+    if (isNaN(tx) || !isFinite(tx)) flag('error', 'map tx is NaN/Infinity: ' + tx);
+    if (isNaN(ty) || !isFinite(ty)) flag('error', 'map ty is NaN/Infinity: ' + ty);
+    if (isNaN(scale) || !isFinite(scale) || scale <= 0) flag('error', 'map scale invalid: ' + scale);
+
+    /* 2. Connections referencing missing cards (orphans) */
+    if (typeof KanvazConnections !== 'undefined') {
+      var conns = KanvazConnections.serialise();
+      for (var i = 0; i < conns.length; i++) {
+        var c = conns[i];
+        if (!cards[c.fromRefId]) flag('warn', 'connection ' + c.id + ' fromRefId "' + c.fromRefId + '" has no card');
+        if (!cards[c.toRefId])   flag('warn', 'connection ' + c.id + ' toRefId "' + c.toRefId + '" has no card');
+      }
+
+      /* 3. Duplicate connections (same from+to+type) */
+      var seen = {};
+      for (var d = 0; d < conns.length; d++) {
+        var key = conns[d].fromRefId + '|' + conns[d].toRefId + '|' + conns[d].type;
+        if (seen[key]) flag('warn', 'duplicate connection: ' + key);
+        seen[key] = true;
+      }
+    }
+
+    /* 4. Port alignment — compare math vs real DOM for every node */
+    if (active && container) {
+      var wRect = world.getBoundingClientRect();
+      var portIssues = 0;
+      for (var id in cards) {
+        if (!cards[id].mapPosition) continue;
+        var nodeEl = document.querySelector('.map-node[data-ref-id="' + id + '"]');
+        if (!nodeEl) continue;
+        var outDot = nodeEl.querySelector('.map-port-out');
+        var inDot  = nodeEl.querySelector('.map-port-in');
+        if (!outDot || !inDot) { flag('error', 'node "' + id + '" missing port dots'); continue; }
+
+        var oR = outDot.getBoundingClientRect();
+        var iR = inDot.getBoundingClientRect();
+        var domOutX = (oR.left + oR.width / 2 - wRect.left) / scale;
+        var domInX  = (iR.left + iR.width / 2 - wRect.left) / scale;
+        var mOut = outPort(cards[id]);
+        var mIn  = inPort(cards[id]);
+        if (Math.abs(domOutX - mOut.x) > 1.5) { portIssues++;
+          flag('error', 'outPort drift on "' + id + '": DOM=' + Math.round(domOutX) + ' math=' + Math.round(mOut.x)); }
+        if (Math.abs(domInX - mIn.x) > 1.5) { portIssues++;
+          flag('error', 'inPort drift on "' + id + '": DOM=' + Math.round(domInX) + ' math=' + Math.round(mIn.x)); }
+      }
+      if (portIssues === 0) report.portAlignment = 'OK';
+    }
+
+    /* Report */
+    if (report.ok && report.issues.length === 0) {
+      console.log('%c[Kanvaz] ✓ Self-diagnostic passed — no issues', 'color:#4CAF82');
+    } else {
+      var errCount = 0; var warnCount = 0; var wi;
+      for (wi = 0; wi < report.issues.length; wi++) {
+        if (report.issues[wi].severity === 'error') errCount++;
+        else warnCount++;
+      }
+      console.log('%c[Kanvaz] Self-diagnostic: ' + errCount + ' errors, ' + warnCount + ' warnings',
+        errCount ? 'color:#FF5A5A;font-weight:bold' : 'color:#F0A500');
+      var ri;
+      for (ri = 0; ri < report.issues.length; ri++) {
+        console.log('  [' + report.issues[ri].severity + '] ' + report.issues[ri].message);
+      }
+    }
+    return report;
+  }
+
+  /* ══════════════════════════════════════════
      STATUS BAR
      ══════════════════════════════════════════ */
 
@@ -1113,7 +1198,8 @@ var KanvazMapView = (function() {
     isActive: isActive, render: render,
     getState: getState, setState: setState, resetView: resetView,
     handleKey: handleKey, updateToggleBtn: updateToggleBtn,
-    verifyPortAlignment: verifyPortAlignment
+    verifyPortAlignment: verifyPortAlignment,
+    diagnose: diagnose
   };
 
 })();

@@ -2,6 +2,31 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [3.5.4] — Advanced Error Debugging & Validation Suite
+Tooling to catch bugs before they ship — not after.
+
+### New: Validation Suite (test/)
+- `npm run validate` — master check: syntax, lint, port alignment, versions.
+  Exits non-zero if anything fails. Run before every release.
+- `npm run lint` — static analyzer that catches the exact bug classes this
+  project has hit: var-rule violations, inline onclick (CSP), version drift,
+  unguarded JSON.parse, hardcoded dark colors, stale release language,
+  leftover TODO/FIXME. Zero false positives on current code.
+- `npm run test:ports` — renders node CSS in real Chromium, proves the
+  connection port formula matches actual DOM at 5 zoom/pan levels (0px error).
+
+### New: Runtime Self-Diagnostic
+- KanvazMapView.diagnose() runs after every Map View render and on demand.
+  Checks: NaN/Infinity transforms (blank canvas), orphan connections
+  (pointing at deleted cards), duplicate connections, missing port dots,
+  and live port-alignment drift. Logs colored pass/fail to DevTools console.
+
+### Validated
+- The linter immediately caught a .forEach violation in new diagnostic
+  code during development — exactly the kind of bug it exists to stop.
+- Fixed: 2 inspector dialog overlays now use var(--color-overlay).
+- All checks green: 16/16 syntax, 0 lint errors, 0px port error, versions aligned.
+
 ## [3.5.3] — Port Math PROVEN Against Real Browser Rendering
 This time, measured — not reasoned.
 

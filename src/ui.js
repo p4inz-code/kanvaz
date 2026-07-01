@@ -388,12 +388,12 @@ var KanvazUI_Extended = (function() {
       '</svg>',
       '<div style="font-size:22px;font-weight:700;color:var(--color-text);margin-bottom:4px;">Kanvaz</div>',
       '<div style="font-size:13px;color:var(--color-text-3);margin-bottom:20px;">Your canvas. Your references.</div>',
-      '<div style="font-size:12px;color:var(--color-text-3);margin-bottom:16px;font-family:var(--font-mono);">Version 3.5.3</div>',
+      '<div style="font-size:12px;color:var(--color-text-3);margin-bottom:16px;font-family:var(--font-mono);">Version 3.5.4</div>',
       '<div style="font-size:13px;color:var(--color-text-2);margin-bottom:6px;">Made by <span style="color:var(--color-text);">Atharva Patil</span> — Northbyte Studios</div>',
       '<div style="font-size:12px;color:var(--color-text-3);margin-bottom:20px;">Navi Mumbai, India</div>',
       '<div style="font-size:12px;color:var(--color-text-3);line-height:1.7;margin-bottom:20px;">Built for VFX artists, 3D artists,<br>and the people who teach them.</div>',
       '<div style="font-size:11px;color:var(--color-text-3);line-height:1.8;margin-bottom:16px;">Free forever. MIT License.<br>No telemetry. No internet.<br>Your files never leave your machine.</div>',
-      '<div style="font-size:11px;color:var(--color-accent);line-height:1.7;margin-bottom:24px;">Reference Operating System<br>Actively developed — v3.5.3</div>'
+      '<div style="font-size:11px;color:var(--color-accent);line-height:1.7;margin-bottom:24px;">Reference Operating System<br>Actively developed — v3.5.4</div>'
     ].join('');
 
     var closeBtn = document.createElement('button');

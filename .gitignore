@@ -21,3 +21,4 @@ npm-debug.log*
 
 # Internal development notes — not for public repo
 SESSION_MEMORY.md
+test/node_modules/

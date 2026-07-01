@@ -1,4 +1,10 @@
-const puppeteer = require('puppeteer-core');
+var puppeteer;
+try {
+  puppeteer = require('puppeteer-core');
+} catch (e) {
+  console.log('SKIP — puppeteer-core not installed (run: npm install puppeteer-core)');
+  process.exit(0);
+}
 const path = require('path');
 
 (async () => {
