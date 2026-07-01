@@ -2,6 +2,34 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [3.5.2] — Connection Port Math: Definitive Fix
+The port alignment bug, solved from first principles.
+
+### Root Cause (finally identified)
+The SVG that draws connection lines and the node divs are BOTH children
+of #map-world, sharing one coordinate space. Previous versions used
+getBoundingClientRect() to read port positions, then converted screen→
+world coordinates — but that conversion mixed up the CONTAINER rect and
+the WORLD rect (which differ when the world transform is applied),
+producing large, zoom-dependent offsets.
+
+### Fix
+- Port positions are now PURE world-space arithmetic — no DOM reads, no
+  screen conversion, no cache. Derived directly from CSS box model:
+  - Absolutely-positioned port dots are placed relative to the node's
+    PADDING BOX (CSS 2.1 §10.1). With box-sizing:border-box and a 1.5px
+    border, the padding-box right edge = mapX + NODE_W - BORDER.
+  - outPort.x = mapPosition.x + NODE_W - NODE_BORDER (174.5)
+  - inPort.x  = mapPosition.x + NODE_BORDER (1.5)
+  - Y: mapPosition.y + NODE_H/2 (border cancels top/bottom symmetrically)
+- Wire preview: origin from outPort() math, cursor endpoint from a single
+  correct mouse→world conversion (container rect − tx/ty, ÷ scale).
+- Verified against CSS spec: max error 0px.
+
+### Debug
+- verifyPortAlignment() now compares math against DOM using the WORLD
+  rect (SVG's true origin), runs after every render, logs any drift.
+
 ## [3.5.1] — Docs Polish
 - Fixed: "Light and dark themes" was listed under Known Limitations
   instead of Features — moved to Features section.

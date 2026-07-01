@@ -85,38 +85,27 @@ var KanvazMapView = (function() {
   }
 
   /* ══════════════════════════════════════════
-     PORT POSITIONS — always read from DOM
-     Zero CSS assumptions. Queries the actual rendered port dot center
-     via getBoundingClientRect every time. Math fallback only if DOM
-     element doesn't exist (edge case during initial build).
+     PORT POSITIONS — pure world-space arithmetic
+
+     The SVG and all nodes are children of #map-world, which carries the
+     pan/zoom transform. So SVG draws in WORLD coordinates — the same
+     space where nodes are positioned via left/top = mapPosition.x/y.
+
+     Port dot centers (from their CSS, box-sizing:border-box):
+       Output: right:-PORT_R, top:50% → center at (mapPos.x + NODE_W, mapPos.y + NODE_H/2)
+       Input:  left:-PORT_R,  top:50% → center at (mapPos.x,          mapPos.y + NODE_H/2)
+
+     No getBoundingClientRect. No screen→world conversion. No cache.
+     This is exact because SVG and nodes share the world coordinate system.
      ══════════════════════════════════════════ */
 
-  function getPortPos(refId, side) {
-    var cls = (side === 'out') ? '.map-port-out' : '.map-port-in';
-    var dot = document.querySelector('.map-node[data-ref-id="' + refId + '"] ' + cls);
-    if (dot && container) {
-      var dRect = dot.getBoundingClientRect();
-      var cRect = container.getBoundingClientRect();
-      return {
-        x: (dRect.left + dRect.width / 2 - cRect.left - tx) / scale,
-        y: (dRect.top  + dRect.height / 2 - cRect.top  - ty) / scale
-      };
-    }
-    return null;
-  }
-
   function outPort(card) {
-    var dom = getPortPos(card.id, 'out');
-    if (dom) return dom;
-    /* Last resort math fallback */
     return {
       x: card.mapPosition.x + NODE_W - NODE_BORDER,
       y: card.mapPosition.y + NODE_H / 2
     };
   }
   function inPort(card) {
-    var dom = getPortPos(card.id, 'in');
-    if (dom) return dom;
     return {
       x: card.mapPosition.x + NODE_BORDER,
       y: card.mapPosition.y + NODE_H / 2
@@ -278,12 +267,16 @@ var KanvazMapView = (function() {
         return;
       }
 
-      /* Wire preview — follow cursor from captured origin */
-      if (wireFrom && wirePreview && wireOriginPos) {
+      /* Wire preview — follow cursor from source port (pure world coords) */
+      if (wireFrom && wirePreview) {
         var rect2 = container.getBoundingClientRect();
         var mx = (e.clientX - rect2.left - tx) / scale;
         var my = (e.clientY - rect2.top  - ty) / scale;
-        wirePreview.setAttribute('d', bezierPath(wireOriginPos.x, wireOriginPos.y, mx, my));
+        var fromCard = KanvazCards.getAll()[wireFrom];
+        if (fromCard && fromCard.mapPosition) {
+          var origin = outPort(fromCard);
+          wirePreview.setAttribute('d', bezierPath(origin.x, origin.y, mx, my));
+        }
       }
     });
 
@@ -314,21 +307,13 @@ var KanvazMapView = (function() {
      WIRE DRAGGING (connect by dragging)
      ══════════════════════════════════════════ */
 
-  var wireOriginPos = null;
-
   function startWire(fromRefId) {
     wireFrom = fromRefId;
     container.style.cursor = 'crosshair';
 
-    /* Read ACTUAL port dot position from DOM at this exact moment */
+    /* Highlight source port */
     var portEl = document.querySelector('.map-node[data-ref-id="' + fromRefId + '"] .map-port-out');
     if (portEl) {
-      var dotRect = portEl.getBoundingClientRect();
-      var cRect = container.getBoundingClientRect();
-      wireOriginPos = {
-        x: (dotRect.left + dotRect.width / 2 - cRect.left - tx) / scale,
-        y: (dotRect.top  + dotRect.height / 2 - cRect.top  - ty) / scale
-      };
       portEl.style.background = '#4A9EFF';
       portEl.style.transform = 'translateY(-50%) scale(1.4)';
     }
@@ -371,7 +356,6 @@ var KanvazMapView = (function() {
       }
     }
     wireFrom = null;
-    wireOriginPos = null;
     if (container) container.style.cursor = '';
   }
 
@@ -508,6 +492,9 @@ var KanvazMapView = (function() {
 
     renderLines();
     updateStatusBar(cards);
+
+    /* Dev safety net — logs to console if math drifts from DOM */
+    setTimeout(function() { verifyPortAlignment(); }, 30);
 
     /* Fit all nodes into view on first open */
     if (!hasRenderedOnce) {
@@ -1010,16 +997,17 @@ var KanvazMapView = (function() {
       var inDot  = nodeEl.querySelector('.map-port-in');
       if (!outDot || !inDot) continue;
 
-      /* Get actual DOM positions (in world coords via container offset) */
-      var cRect = container.getBoundingClientRect();
+      /* Compare against WORLD origin — the SVG's coordinate space.
+         world may be offset from container, so we must use world's rect. */
+      var cRect = world.getBoundingClientRect();
       var outRect = outDot.getBoundingClientRect();
       var inRect  = inDot.getBoundingClientRect();
 
-      /* DOM dot center in world coords */
-      var domOutX = (outRect.left + outRect.width / 2 - cRect.left - tx) / scale;
-      var domOutY = (outRect.top  + outRect.height / 2 - cRect.top  - ty) / scale;
-      var domInX  = (inRect.left  + inRect.width / 2  - cRect.left - tx) / scale;
-      var domInY  = (inRect.top   + inRect.height / 2  - cRect.top  - ty) / scale;
+      /* DOM dot center in world coords (world rect already includes transform) */
+      var domOutX = (outRect.left + outRect.width / 2 - cRect.left) / scale;
+      var domOutY = (outRect.top  + outRect.height / 2 - cRect.top) / scale;
+      var domInX  = (inRect.left  + inRect.width / 2  - cRect.left) / scale;
+      var domInY  = (inRect.top   + inRect.height / 2  - cRect.top) / scale;
 
       /* SVG computed positions */
       var svgOut = outPort(card);

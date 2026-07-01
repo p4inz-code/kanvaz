@@ -2,7 +2,7 @@
 
 **Reference Operating System**
 
-> **v3.5.1** — Board View, Connection System, and Inspector are stable and shipping.
+> **v3.5.2** — Board View, Connection System, and Inspector are stable and shipping.
 > Map View (node-editor graph) is under active development — functional but receiving polish updates.
 
 Collect, organize, connect, and understand your references — all offline.
@@ -80,7 +80,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 3.5.1.exe` and `dist/Kanvaz 3.5.1.exe`
+Output: `dist/Kanvaz Setup 3.5.2.exe` and `dist/Kanvaz 3.5.2.exe`
 
 **macOS:**
 ```bash
@@ -127,7 +127,7 @@ npm run build:linux
 
 ## File format
 
-Boards are saved as `.kanvaz` files — plain JSON with version `"3.5.1"`. Media is embedded as base64 data URLs. Connections are stored as a top-level `connections` array alongside boards. Files from v2.x load cleanly with zero connections.
+Boards are saved as `.kanvaz` files — plain JSON with version `"3.5.2"`. Media is embedded as base64 data URLs. Connections are stored as a top-level `connections` array alongside boards. Files from v2.x load cleanly with zero connections.
 
 ---
 
