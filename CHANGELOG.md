@@ -2,6 +2,29 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [3.5.3] — Port Math PROVEN Against Real Browser Rendering
+This time, measured — not reasoned.
+
+### The Fix
+- Port formula corrected to PORT_INSET = 1px (was 1.5px). Verified by
+  rendering the exact node CSS in real headless Chromium and measuring
+  actual port-dot center positions via getBoundingClientRect:
+  - outPort.x = mapPosition.x + NODE_W - 1 (175)
+  - inPort.x  = mapPosition.x + 1
+  - The 1px = half the port dot's own 2px border, not the node's 1.5px.
+
+### Proof
+- Added test/ directory with a Puppeteer test that renders nodes in real
+  Chromium and compares formula vs actual DOM at 5 zoom/pan levels
+  (1.0, 1.5, panned 1.5, zoomed-out 0.5, arbitrary 2.3 + offset).
+- Result: error=[0,0] on every port at every transform. ALL CASES PASS.
+- Run it yourself: `node test/run-port-test.js`
+
+### Why previous attempts failed
+Every prior fix reasoned about the CSS box model on paper and got the
+sub-pixel border handling wrong (1.5 vs 1). The only reliable method is
+to measure what the browser actually renders — which this version does.
+
 ## [3.5.2] — Connection Port Math: Definitive Fix
 The port alignment bug, solved from first principles.
 

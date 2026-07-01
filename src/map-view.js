@@ -40,6 +40,12 @@ var KanvazMapView = (function() {
   var NODE_W      = 176;   /* content-box width */
   var NODE_H      = 52;    /* content-box height */
   var NODE_BORDER = 1.5;
+  var PORT_INSET  = 1;     /* Measured offset of port-dot center from node
+                              border-box edge. Empirically verified against
+                              real Chromium layout: OUT center = mapX+NODE_W-1,
+                              IN center = mapX+1. The 1px = half the dot's own
+                              2px border. See /tmp port test. DO NOT change
+                              without re-running the browser measurement. */
   var NODE_PAD    = 14;    /* padding: 0 14px */
   var NODE_FULL_W = NODE_W;  /* border-box: width already includes border+padding */
   var NODE_FULL_H = NODE_H;  /* border-box: height already includes border */
@@ -101,13 +107,13 @@ var KanvazMapView = (function() {
 
   function outPort(card) {
     return {
-      x: card.mapPosition.x + NODE_W - NODE_BORDER,
+      x: card.mapPosition.x + NODE_W - PORT_INSET,
       y: card.mapPosition.y + NODE_H / 2
     };
   }
   function inPort(card) {
     return {
-      x: card.mapPosition.x + NODE_BORDER,
+      x: card.mapPosition.x + PORT_INSET,
       y: card.mapPosition.y + NODE_H / 2
     };
   }

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html><head><style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width:100%; height:100%; overflow:hidden; }
+#container { position:absolute; inset:0; overflow:hidden; }
+#world { position:absolute; left:0; top:0; width:1px; height:1px; transform-origin:0 0; }
+#svg { position:absolute; left:0; top:0; width:1px; height:1px; overflow:visible; pointer-events:none; }
+</style></head>
+<body>
+<div id="container"><div id="world">
+<svg id="svg" xmlns="http://www.w3.org/2000/svg"></svg>
+</div></div>
+<script>
+// EXACT constants from map-view.js
+var NODE_W = 176, NODE_H = 52, NODE_BORDER = 1.5, PORT_R = 7;
+
+var world = document.getElementById('world');
+var svg = document.getElementById('svg');
+
+// Build a node EXACTLY like buildNode() does
+function buildNode(id, mapX, mapY) {
+  var el = document.createElement('div');
+  el.className = 'map-node';
+  el.setAttribute('data-ref-id', id);
+  el.style.cssText = [
+    'position:absolute',
+    'left:' + mapX + 'px',
+    'top:'  + mapY + 'px',
+    'width:' + NODE_W + 'px',
+    'height:' + NODE_H + 'px',
+    'border:1.5px solid #3A3A48',
+    'border-radius:10px',
+    'display:flex',
+    'align-items:center',
+    'gap:8px',
+    'padding:0 14px',
+    'overflow:visible'
+  ].join(';');
+
+  var portIn = document.createElement('div');
+  portIn.className = 'map-port map-port-in';
+  portIn.style.cssText = [
+    'position:absolute','left:-' + PORT_R + 'px','top:50%',
+    'transform:translateY(-50%)','width:' + (PORT_R*2) + 'px',
+    'height:' + (PORT_R*2) + 'px','border-radius:50%',
+    'background:#1A1A28','border:2px solid #3A3A48','z-index:2'
+  ].join(';');
+  el.appendChild(portIn);
+
+  var portOut = document.createElement('div');
+  portOut.className = 'map-port map-port-out';
+  portOut.style.cssText = [
+    'position:absolute','right:-' + PORT_R + 'px','top:50%',
+    'transform:translateY(-50%)','width:' + (PORT_R*2) + 'px',
+    'height:' + (PORT_R*2) + 'px','border-radius:50%',
+    'background:#1A1A28','border:2px solid #3A3A48','z-index:2'
+  ].join(';');
+  el.appendChild(portOut);
+
+  world.appendChild(el);
+  return el;
+}
+
+// MY FORMULA under test
+function outPort(mapX, mapY) {
+  return { x: mapX + NODE_W - 1, y: mapY + NODE_H/2 };
+}
+function inPort(mapX, mapY) {
+  return { x: mapX + 1, y: mapY + NODE_H/2 };
+}
+
+window.runTest = function(tx, ty, scale) {
+  // Apply world transform like the real app
+  world.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + scale + ')';
+
+  // Two nodes at different positions
+  var nodes = [
+    { id: 'A', x: 100, y: 200 },
+    { id: 'B', x: 600, y: 450 }
+  ];
+  // clear
+  var old = world.querySelectorAll('.map-node');
+  for (var i=0;i<old.length;i++) world.removeChild(old[i]);
+
+  var results = [];
+  for (var n=0; n<nodes.length; n++) {
+    buildNode(nodes[n].id, nodes[n].x, nodes[n].y);
+  }
+
+  // Draw an SVG line using MY formula, from A.out to B.in
+  var op = outPort(nodes[0].x, nodes[0].y);
+  var ip = inPort(nodes[1].x, nodes[1].y);
+  var line = document.createElementNS('http://www.w3.org/2000/svg','path');
+  line.setAttribute('d', 'M '+op.x+' '+op.y+' L '+ip.x+' '+ip.y);
+  line.setAttribute('stroke','red');
+  line.setAttribute('stroke-width','2');
+  line.setAttribute('id','testline');
+  svg.appendChild(line);
+
+  // Now measure ACTUAL rendered positions
+  var wRect = world.getBoundingClientRect();
+
+  for (var n=0; n<nodes.length; n++) {
+    var el = world.querySelector('.map-node[data-ref-id="'+nodes[n].id+'"]');
+    var outDot = el.querySelector('.map-port-out');
+    var inDot = el.querySelector('.map-port-in');
+    var oR = outDot.getBoundingClientRect();
+    var iR = inDot.getBoundingClientRect();
+
+    // Actual dot centers in WORLD coords (undo transform)
+    var actualOut = {
+      x: (oR.left + oR.width/2 - wRect.left) / scale,
+      y: (oR.top + oR.height/2 - wRect.top) / scale
+    };
+    var actualIn = {
+      x: (iR.left + iR.width/2 - wRect.left) / scale,
+      y: (iR.top + iR.height/2 - wRect.top) / scale
+    };
+
+    var myOut = outPort(nodes[n].x, nodes[n].y);
+    var myIn = inPort(nodes[n].x, nodes[n].y);
+
+    results.push({
+      node: nodes[n].id,
+      out_actual: [Math.round(actualOut.x*100)/100, Math.round(actualOut.y*100)/100],
+      out_formula: [myOut.x, myOut.y],
+      out_error: [Math.round((actualOut.x-myOut.x)*100)/100, Math.round((actualOut.y-myOut.y)*100)/100],
+      in_actual: [Math.round(actualIn.x*100)/100, Math.round(actualIn.y*100)/100],
+      in_formula: [myIn.x, myIn.y],
+      in_error: [Math.round((actualIn.x-myIn.x)*100)/100, Math.round((actualIn.y-myIn.y)*100)/100]
+    });
+  }
+
+  // Also measure where the SVG LINE endpoints actually render on screen
+  // vs where the port dots actually render on screen
+  var lineEl = document.getElementById('testline');
+  var lineRect = lineEl.getBoundingClientRect();
+  var elA = world.querySelector('.map-node[data-ref-id="A"] .map-port-out');
+  var elB = world.querySelector('.map-node[data-ref-id="B"] .map-port-in');
+  var aR = elA.getBoundingClientRect();
+  var bR = elB.getBoundingClientRect();
+
+  return {
+    transform: { tx: tx, ty: ty, scale: scale },
+    ports: results,
+    // Screen-space: does line START land on dot A, END land on dot B?
+    lineStart_screen: [Math.round(lineRect.left*10)/10, /* approx */ 0],
+    dotA_screen_center: [Math.round((aR.left+aR.width/2)*10)/10, Math.round((aR.top+aR.height/2)*10)/10],
+    dotB_screen_center: [Math.round((bR.left+bR.width/2)*10)/10, Math.round((bR.top+bR.height/2)*10)/10]
+  };
+};
+</script>
+</body></html>
