@@ -39,8 +39,8 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
-    minWidth: 640,
-    minHeight: 480,
+    minWidth: 320,
+    minHeight: 240,
     frame: false,
     transparent: false,
     backgroundColor: '#0E0E10',
@@ -131,6 +131,28 @@ function registerIPC() {
 
   ipcMain.on('window-set-always-on-top', function(event, flag) {
     if (mainWindow) mainWindow.setAlwaysOnTop(flag);
+  });
+
+  /* Top Mode (and the persistent Auto-hide toolbar setting) remove all
+     toolbar/titlebar chrome, so the 320x240 unconditional floor no
+     longer applies — relax it further to a real reference-viewing
+     floor while either is active, and restore the standard floor
+     immediately on exit. */
+  ipcMain.on('window-set-moodlock-size', function(event, active) {
+    if (!mainWindow) return;
+    if (active) {
+      mainWindow.setMinimumSize(220, 160);
+    } else {
+      mainWindow.setMinimumSize(320, 240);
+      var b = mainWindow.getBounds();
+      if (b.width < 320 || b.height < 240) {
+        mainWindow.setBounds({
+          x: b.x, y: b.y,
+          width: Math.max(b.width, 320),
+          height: Math.max(b.height, 240)
+        });
+      }
+    }
   });
 
   /* ── IPC: File dialogs ── */

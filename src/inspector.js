@@ -171,7 +171,7 @@ var KanvazInspector = (function() {
       'cursor:pointer',
       'transition:background 0.1s'
     ].join(';');
-    addBtn.onmouseenter = function() { addBtn.style.background = 'rgba(74,158,255,0.2)'; };
+    addBtn.onmouseenter = function() { addBtn.style.background = 'rgba(var(--color-accent-rgb),0.2)'; };
     addBtn.onmouseleave = function() { addBtn.style.background = 'var(--color-accent-bg)'; };
     addBtn.onclick = function() { showAddDialog(refId); };
     footer.appendChild(addBtn);

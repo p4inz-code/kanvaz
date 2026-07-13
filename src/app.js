@@ -109,10 +109,59 @@ var KanvazApp = (function() {
 
   /* ── File drop ── */
 
+  /* Shared by drag-drop and clipboard paste — grid-arranges N new items
+     from a base point in drop/paste order, left-to-right top-to-bottom,
+     so a batch of any size never stacks on top of itself.
+     Spacing is sized off the real defaultCardW setting (default 600,
+     user-configurable up to 1200) plus margin — a fixed 220px spacing
+     looked fixed but cards could still overlap since real dropped/
+     pasted images are routinely 400-600px wide, wider than the gap. */
+  function gridArrangePos(baseX, baseY, idx, total) {
+    var cardW = 600, cardH = 450;
+    if (typeof KanvazUI_Extended !== 'undefined') {
+      var s = KanvazUI_Extended.getSettings();
+      if (s && s.defaultCardW && s.defaultCardW >= 80) {
+        cardW = s.defaultCardW;
+        cardH = Math.round(cardW * 0.75); /* reasonable 4:3-ish assumption for spacing purposes only */
+      }
+    }
+    var gapX = cardW + 40;
+    var gapY = cardH + 40;
+    var cols = Math.max(1, Math.ceil(Math.sqrt(total)));
+    var col = idx % cols;
+    var row = Math.floor(idx / cols);
+    return { x: baseX + col * gapX, y: baseY + row * gapY };
+  }
+
+  /* Shared by both context menus below — flips to the opposite side if
+     the natural position would overflow, then clamps the final result
+     within the viewport. The flip alone wasn't enough at small window
+     sizes: if the menu is wider/taller than the available space even
+     after flipping, it still clipped off the *other* edge. */
+  function positionMenuInViewport(menu, x, y) {
+    menu.style.left = x + 'px';
+    menu.style.top  = y + 'px';
+    menu.style.display = 'block';
+
+    var rect = menu.getBoundingClientRect();
+    var left = x, top = y;
+    if (rect.right  > window.innerWidth)  left = x - rect.width;
+    if (rect.bottom > window.innerHeight) top  = y - rect.height;
+    left = Math.max(4, Math.min(left, window.innerWidth  - rect.width  - 4));
+    top  = Math.max(4, Math.min(top,  window.innerHeight - rect.height - 4));
+    menu.style.left = left + 'px';
+    menu.style.top  = top + 'px';
+  }
+
   function handleDroppedFiles(files, worldPos) {
+    /* Grid-arrange the drop instead of a small diagonal cascade — a
+       24px-per-file offset barely separates cards that are ~200-300px,
+       so any real batch drop (10-20 files) visually stacked on top of
+       each other. Cards keep drop order (left-to-right, top-to-bottom)
+       so "in sequence" is preserved, they just no longer overlap. */
     for (var i = 0; i < files.length; i++) {
       (function(file, idx) {
-        var pos = { x: worldPos.x + idx * 24, y: worldPos.y + idx * 24 };
+        var pos = gridArrangePos(worldPos.x, worldPos.y, idx, files.length);
         if (!file.path) {
           KanvazErrors.handle('FILE_NOT_FOUND', file.name);
           return;
@@ -159,25 +208,34 @@ var KanvazApp = (function() {
   function handlePaste(e) {
     var items = e.clipboardData && e.clipboardData.items;
     if (!items) return;
+
+    /* Collect image items first so we know the real count up front —
+       the previous approach read document.querySelectorAll('.card').length
+       inside each async FileReader callback, which is both racy (async
+       completion order isn't guaranteed to match paste order) and used
+       the same too-small 24px cascade that stacked drag-dropped files. */
+    var imageItems = [];
     for (var i = 0; i < items.length; i++) {
       if (items[i].type.indexOf('image') !== -1) {
         var blob = items[i].getAsFile();
-        if (!blob) continue;
-        (function(b) {
-          var reader = new FileReader();
-          reader.onload = function(ev) {
-            var scale = KanvazCanvas.getScale();
-            var pasteCount = document.querySelectorAll('.card').length;
-            var offset = (pasteCount % 8) * 24;
-            var pos = {
-              x: (-KanvazCanvas.getTx() / scale) + 80 + offset,
-              y: (-KanvazCanvas.getTy() / scale) + 80 + offset
-            };
-            KanvazCards.createFromDataUrl(ev.target.result, 'pasted-image.png', pos);
-          };
-          reader.readAsDataURL(b);
-        })(blob);
+        if (blob) imageItems.push(blob);
       }
+    }
+    if (!imageItems.length) return;
+
+    var scale = KanvazCanvas.getScale();
+    var baseX = (-KanvazCanvas.getTx() / scale) + 80;
+    var baseY = (-KanvazCanvas.getTy() / scale) + 80;
+
+    for (var j = 0; j < imageItems.length; j++) {
+      (function(b, idx) {
+        var pos = gridArrangePos(baseX, baseY, idx, imageItems.length);
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+          KanvazCards.createFromDataUrl(ev.target.result, 'pasted-image.png', pos);
+        };
+        reader.readAsDataURL(b);
+      })(imageItems[j], j);
     }
   }
 
@@ -243,6 +301,7 @@ var KanvazApp = (function() {
 
   function handleCloseRequest() {
     if (!boardDirty) {
+      KanvazBridge.clearRecovery();
       KanvazBridge.forceClose();
       return;
     }
@@ -257,6 +316,7 @@ var KanvazApp = (function() {
           action: function() {
             KanvazBoards.saveBoard(function(ok) {
               if (ok) {
+                KanvazBridge.clearRecovery();
                 KanvazBridge.forceClose();
               }
               /* if save failed/was cancelled, saveBoard already toasted —
@@ -268,6 +328,7 @@ var KanvazApp = (function() {
           label: "Don't Save",
           cls: 'danger',
           action: function() {
+            KanvazBridge.clearRecovery();
             KanvazBridge.forceClose();
           }
         },
@@ -495,13 +556,7 @@ var KanvazApp = (function() {
         })(items[i]);
       }
 
-      menu.style.left = x + 'px';
-      menu.style.top  = y + 'px';
-      menu.style.display = 'block';
-
-      var rect = menu.getBoundingClientRect();
-      if (rect.right  > window.innerWidth)  menu.style.left = (x - rect.width)  + 'px';
-      if (rect.bottom > window.innerHeight) menu.style.top  = (y - rect.height) + 'px';
+      positionMenuInViewport(menu, x, y);
     }
 
     function showContextMenu(x, y, type, target) {
@@ -549,13 +604,7 @@ var KanvazApp = (function() {
       }
 
       /* Position — keep within viewport */
-      menu.style.left = x + 'px';
-      menu.style.top  = y + 'px';
-      menu.style.display = 'block';
-
-      var rect = menu.getBoundingClientRect();
-      if (rect.right > window.innerWidth)  menu.style.left = (x - rect.width) + 'px';
-      if (rect.bottom > window.innerHeight) menu.style.top = (y - rect.height) + 'px';
+      positionMenuInViewport(menu, x, y);
     }
 
     function hideContextMenu() {
@@ -570,34 +619,134 @@ var KanvazApp = (function() {
       closeDialog();
       hideContextMenu();
       if (typeof KanvazAnnotate !== 'undefined') KanvazAnnotate.deactivate();
-      /* Exit mood lock on Escape */
+      /* Exit Top Mode on Escape */
       var app = document.getElementById('app');
       if (app && app.dataset.moodlock === '1') toggleMoodLock();
+    }
+
+    var moodlockOn         = false;
+    var chromeAutoHideOn   = false;
+    var chromeHoverZone    = null;
+    var chromeRevealTimer  = null;
+    var moodlockBadge      = null;
+
+    function chromeAutoHideActive() {
+      return moodlockOn || chromeAutoHideOn;
+    }
+
+    function chromeShow() {
+      if (chromeRevealTimer) { clearTimeout(chromeRevealTimer); chromeRevealTimer = null; }
+      var app = document.getElementById('app');
+      if (app) app.classList.add('moodlock-reveal');
+    }
+
+    function chromeScheduleHide() {
+      if (chromeRevealTimer) clearTimeout(chromeRevealTimer);
+      /* Short grace delay so moving from the hover zone straight into
+         the toolbar/titlebar doesn't immediately hide it again. */
+      chromeRevealTimer = setTimeout(function() {
+        var app = document.getElementById('app');
+        if (app) app.classList.remove('moodlock-reveal');
+        chromeRevealTimer = null;
+      }, 450);
+    }
+
+    /* Top Mode's reveal is intentionally more minimal than the general
+       Auto-hide toolbar setting's reveal: only app name + project title
+       + window controls (minimize/maximize/close) — not the full
+       toolbar/tabs, and not export/always-on-top either. The Auto-hide
+       *setting* (no Top Mode) still reveals the full toolbar, since
+       that one's a standing convenience preference, not a presentation
+       mode. Driven by a separate class so the two don't have to share
+       exactly the same visual treatment. */
+    function syncMinimalClass() {
+      var app = document.getElementById('app');
+      if (!app) return;
+      if (moodlockOn) app.classList.add('moodlock-minimal');
+      else app.classList.remove('moodlock-minimal');
+    }
+
+    /* Small persistent reminder that Top Mode is active — independent
+       of the hover-reveal state, since the whole point of Top Mode is
+       that the chrome is normally hidden; without this there was no
+       way to tell it was on (or how to get out) without already
+       knowing the shortcut. */
+    function syncMoodlockBadge() {
+      if (moodlockOn && !moodlockBadge) {
+        moodlockBadge = document.createElement('div');
+        moodlockBadge.id = 'moodlock-badge';
+        moodlockBadge.textContent = 'Top Mode — Tab to exit';
+        document.body.appendChild(moodlockBadge);
+      } else if (!moodlockOn && moodlockBadge) {
+        moodlockBadge.remove();
+        moodlockBadge = null;
+      }
+    }
+
+    /* Turns the hover-reveal chrome mechanic on/off at the DOM level.
+       Called whenever moodlockOn or chromeAutoHideOn changes — only
+       actually enables/disables when the *combined* state flips, so
+       toggling one off while the other is still on doesn't tear down
+       the shared hover machinery out from under it. */
+    function syncChromeAutoHide(wasActive) {
+      var app = document.getElementById('app');
+      if (!app) return;
+      var isActive = chromeAutoHideActive();
+      if (isActive === wasActive) return;
+
+      var topChrome = document.getElementById('top-chrome');
+
+      if (isActive) {
+        app.classList.add('moodlock-active');
+        chromeHoverZone = document.createElement('div');
+        chromeHoverZone.id = 'moodlock-hover-zone';
+        chromeHoverZone.addEventListener('mouseenter', chromeShow);
+        chromeHoverZone.addEventListener('mouseleave', chromeScheduleHide);
+        document.body.appendChild(chromeHoverZone);
+        if (topChrome) {
+          topChrome.addEventListener('mouseenter', chromeShow);
+          topChrome.addEventListener('mouseleave', chromeScheduleHide);
+        }
+        KanvazBridge.setMoodLockSize(true);
+      } else {
+        app.classList.remove('moodlock-active', 'moodlock-reveal');
+        if (chromeHoverZone) { chromeHoverZone.remove(); chromeHoverZone = null; }
+        if (chromeRevealTimer) { clearTimeout(chromeRevealTimer); chromeRevealTimer = null; }
+        if (topChrome) {
+          topChrome.removeEventListener('mouseenter', chromeShow);
+          topChrome.removeEventListener('mouseleave', chromeScheduleHide);
+        }
+        KanvazBridge.setMoodLockSize(false);
+      }
     }
 
     function toggleMoodLock() {
       var app = document.getElementById('app');
       if (!app) return;
-      var active = app.dataset.moodlock === '1';
-      var toolbar   = document.getElementById('toolbar');
-      var tabs      = document.getElementById('board-tabs');
+      var wasActive = chromeAutoHideActive();
       var statusbar = document.getElementById('statusbar');
-      var titlebar  = document.getElementById('titlebar');
-      if (active) {
-        app.dataset.moodlock = '0';
-        if (toolbar)   toolbar.style.display   = '';
-        if (tabs)      tabs.style.display      = '';
-        if (statusbar) statusbar.style.display = '';
-        if (titlebar)  titlebar.style.display  = '';
-        KanvazUI.toast('Mood lock off');
-      } else {
-        app.dataset.moodlock = '1';
-        if (toolbar)   toolbar.style.display   = 'none';
-        if (tabs)      tabs.style.display      = 'none';
-        if (statusbar) statusbar.style.display = 'none';
-        if (titlebar)  titlebar.style.display  = 'none';
-        KanvazUI.toast('Mood lock — Esc to exit');
-      }
+
+      moodlockOn = !moodlockOn;
+      app.dataset.moodlock = moodlockOn ? '1' : '0';
+      if (statusbar) statusbar.style.display = moodlockOn ? 'none' : '';
+      syncChromeAutoHide(wasActive);
+      syncMinimalClass();
+      syncMoodlockBadge();
+
+      KanvazUI.toast(moodlockOn
+        ? 'Top Mode — hover the top edge to bring back the toolbar, Esc or Tab to exit'
+        : 'Top Mode off');
+    }
+
+    /* Called by ui.js when the persistent "Auto-hide toolbar" setting
+       changes. Unlike Top Mode, this never touches the statusbar —
+       it's a standing preference, not a presentation mode. */
+    function setChromeAutoHide(enabled) {
+      var app = document.getElementById('app');
+      if (!app) return;
+      var wasActive = chromeAutoHideActive();
+      chromeAutoHideOn = !!enabled;
+      syncChromeAutoHide(wasActive);
     }
 
     function showSettings() {
@@ -624,6 +773,7 @@ var KanvazApp = (function() {
       showContextMenu:     showContextMenu,
       hideContextMenu:     hideContextMenu,
       toggleMoodLock:      toggleMoodLock,
+      setChromeAutoHide:   setChromeAutoHide,
       closeAll:            closeAll,
       showSettings:        showSettings,
       closeSettings:       function() { KanvazUI_Extended.closeSettings(); },

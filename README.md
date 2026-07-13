@@ -2,7 +2,7 @@
 
 **Reference Operating System**
 
-> **v3.5.4** — Board View, Connection System, and Inspector are stable and shipping.
+> **v3.6.9** — Board View, Connection System, and Inspector are stable and shipping.
 > Map View (node-editor graph) is under active development — functional but receiving polish updates.
 
 Collect, organize, connect, and understand your references — all offline.
@@ -50,7 +50,10 @@ See [CHANGELOG.md](CHANGELOG.md) for version history.
 - Connection Inspector panel (view, create, edit, delete connections)
 - Undo/redo up to 50 steps (includes connection changes)
 - Autosave crash recovery (writes to recovery file every 30s)
-- Mood lock (Ctrl+Shift+F) — hide all UI for distraction-free presenting
+- Top Mode (Tab, or Ctrl+Shift+F) — hide all UI for distraction-free presenting; hover the top edge to briefly bring back the title/toolbar without exiting, Esc or Tab to fully exit
+- Auto-hide toolbar (Settings → Behavior, off by default) — same hover-to-reveal chrome as Top Mode, but as a standing preference instead of a shortcut-gated mode; also relaxes the minimum window size for a PureRef-style compact footprint
+- Grid snap on resize (Settings → Behavior, off by default) — snaps card width/height/position to the grid, choice of Minor (24px) or Major (120px) increment
+- Developer settings (Settings → Developer) — FPS/render-time overlay, card/connection ID overlay, manual diagnostics trigger, bulk test-card generator, one-click debug-info export for bug reports
 - Always on top (T) — persists across restarts
 - Board/Map segmented toggle in toolbar
 - Light / dark theme (press L or change in Settings)
@@ -80,7 +83,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 3.5.4.exe` and `dist/Kanvaz 3.5.4.exe`
+Output: `dist/Kanvaz Setup 3.6.9.exe` and `dist/Kanvaz 3.6.9.exe`
 
 **macOS:**
 ```bash
@@ -119,15 +122,17 @@ npm run build:linux
 | H | Hide annotations |
 | Arrow keys | Nudge card 1px |
 | Shift+Arrow | Nudge card 10px |
-| Ctrl+Shift+F | Mood lock (fullscreen canvas) |
-| ? | Shortcuts overlay |
-| Esc | Deselect / close panels / cancel wire |
+| Tab | Top Mode — hide all UI (also Ctrl+Shift+F) |
+| S | Settings (toggle open/close) |
+| I | About (toggle open/close) |
+| ? | Shortcuts overlay (toggle open/close) |
+| Esc | Deselect / close panels / cancel wire / exit Top Mode |
 
 ---
 
 ## File format
 
-Boards are saved as `.kanvaz` files — plain JSON with version `"3.5.4"`. Media is embedded as base64 data URLs. Connections are stored as a top-level `connections` array alongside boards. Files from v2.x load cleanly with zero connections.
+Boards are saved as `.kanvaz` files — plain JSON with version `"3.6.9"`. Media is embedded as base64 data URLs. Connections are stored as a top-level `connections` array alongside boards. Files from v2.x load cleanly with zero connections.
 
 ---
 
@@ -137,7 +142,8 @@ Boards are saved as `.kanvaz` files — plain JSON with version `"3.5.4"`. Media
 - `.kanvaz` files embed media as base64, so files with large video/audio can get large.
 - MKV and AVI video files may not play (Chromium codec limitation) — MP4 (H.264) and WebM recommended.
 - The annotation toolbar doesn't follow the canvas if you pan/zoom while it's open.
-- Autosave writes to a recovery file only — "Unsaved changes" in the status bar clears only on explicit Save (Ctrl+S).
+- Autosave writes to a recovery file only — "Unsaved changes" in the status bar clears only on explicit Save (Ctrl+S). The recovery file is now cleared on every clean close (v3.6.5) so the "Recover unsaved board?" prompt only appears after an actual crash, not on every launch.
+- **Map View: connection wires sometimes start from a slightly different point than the actual output port.** Reported by users; reproduction and root-cause investigation pending. Tracked for a future patch — not fixed yet.
 
 ---
 

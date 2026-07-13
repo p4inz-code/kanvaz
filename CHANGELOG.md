@@ -2,6 +2,333 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [3.6.9] — Grid Snap, Dev Mode
+- **Add: grid snap on resize.** New Settings toggle ("Snap to grid on
+  resize") plus an increment selector — Minor (24px) or Major (120px),
+  user's choice, as requested. Snaps width, height, and position
+  during a resize drag. Uses world-space units, so it stays correct
+  regardless of current zoom level (the grid's on-screen size changes
+  with zoom; its logical spacing never does).
+- **Add: Developer settings section**, 5 tools:
+  - *FPS / render-time overlay* — small always-on-top HUD showing
+    current FPS and last-frame time, updated twice a second.
+  - *Show card/connection IDs* — overlays each card's and Map View
+    node's real ID (small corner label), plus appends the connection
+    ID to its type label in Map View. Useful for correlating what's
+    on screen with what's in a saved `.kanvaz` file or a bug report.
+  - *Run diagnostics now* — manually triggers Map View's runtime
+    self-check on demand instead of only running on browser idle.
+  - *Generate 50 test cards* — bulk-creates 50 synthetic note cards
+    in a grid layout for stress-testing render/scroll/zoom
+    performance. Deliberately bypasses the normal single-card creation
+    path (which selects and focuses each card) since doing that 50
+    times in a row would thrash badly — one history entry, one
+    render pass, for the whole batch.
+  - *Export debug info* — copies version, platform, theme, card/
+    connection counts, window size, and full settings JSON to the
+    clipboard in one click, ready to paste into a bug report.
+- Added a `button` row type to the Settings panel renderer (previously
+  only toggle/number/select existed) to support the three action-based
+  Dev Mode tools above.
+
+## [3.6.8] — Grid White-Out, Drop Sizing, Top Mode Polish
+- **Fix: grid genuinely went white zooming out — confirmed and fixed
+  empirically, not by inspection alone.** Rendered the exact grid
+  algorithm headlessly at every zoom level and measured actual pixel
+  brightness: it climbed from 21 (correct) to 155 (visibly washed out)
+  well before the old cutoff logic engaged. Root cause: lines packed
+  closer than ~12px apart have overlapping anti-aliased edges that
+  visually merge. Replaced the abrupt spacing cutoff with a smooth
+  per-line-type density fade (minor lines fade out 20px→12px, major
+  lines 40px→24px) — verified the fix the same way, brightness now
+  peaks at 60 and smoothly returns to 0, never climbing toward white.
+  Applied identically to both Board View and Map View.
+- **Fix: dropped/pasted images still overlapped despite the v3.6.6/6.7
+  grid-arrange fix.** That fix technically worked (different
+  coordinates per item) but used a fixed 220×180px spacing constant —
+  while real cards default to 600px wide (user-configurable up to
+  1200px via `defaultCardW`). Any photo wider than 220px still
+  overlapped its neighbor. Now sizes grid spacing off the actual
+  `defaultCardW` setting instead of a guessed constant.
+- **Fix: right-click menu could clip off-screen at small window
+  sizes.** The existing flip-if-overflowing logic had no final clamp —
+  if the menu didn't fit even after flipping to the other side, it
+  just clipped off the *opposite* edge instead. Extracted the
+  duplicated positioning logic (canvas menu + card menu) into one
+  shared, properly-clamped helper.
+- **Fix: Settings panel could overflow off-screen with no way to
+  scroll** at small window heights (window now floors at 240px tall
+  since v3.6.7). Added `max-height` + scroll.
+- **Add: `S` toggles Settings, `I` toggles About** (matching `?`'s
+  existing open/close toggle behavior, which About didn't have until
+  now — it always created a fresh overlay instead of checking for one
+  already open). Both verified gated behind the same text-input guard
+  as board shortcuts — typing "s" or "i" in a note or filename field
+  still types normally, confirmed programmatically by checking their
+  position in the shortcut-handling code relative to the guard, not
+  just by inspection.
+- **Top Mode's hover-reveal is now genuinely minimal**, not just the
+  full toolbar in miniature: only app name, project title, and
+  minimize/maximize/close — export and always-on-top are hidden too.
+  The separate "Auto-hide toolbar" *setting* still reveals the full
+  toolbar as before; only Top Mode itself got the minimal treatment,
+  since it's a presentation mode, not a toolbar-access convenience.
+- **Add: persistent "Top Mode — Tab to exit" indicator** — a small,
+  low-opacity badge shown the entire time Top Mode is active,
+  independent of hover-reveal state. Previously there was no way to
+  tell Top Mode was on (or how to get out) without already knowing the
+  shortcut.
+- **Widened the Top Mode hover-zone hitbox** from 10px to 16px — easier
+  to trigger reliably.
+
+## [3.6.7] — Grid, Resize, and Top Mode (formerly Mood Lock)
+Follow-up round from continued real-world testing of v3.6.6.
+
+- **Board View grid changed from dots to lines too.** The original
+  "graphs with lines" request was mainly about Board View, not Map
+  View — v3.6.6 only fixed Map View. Both views now use the identical
+  major/minor line-grid algorithm (bold line every 5th cell), so the
+  whole app is visually consistent.
+- **Grid visibility increased in both themes.** The line alpha values
+  were quite subtle (5-14%) — bumped to 9-22% (theme-specific) for a
+  clearly visible but still subordinate grid, verified by computing the
+  actual blended pixel delta against each theme's canvas color rather
+  than eyeballing it.
+- **Window can now resize much smaller, unconditionally.** Previously
+  the small ~220×160 floor only applied while Top Mode or the
+  Auto-hide toolbar setting was active — normal (chrome-visible) mode
+  was still floored at 640×480. The unconditional floor is now
+  320×240, always, regardless of mode. The toolbar now scrolls
+  horizontally instead of breaking if there isn't room for every
+  button, and the titlebar title truncates with an ellipsis instead of
+  potentially pushing the minimize/maximize/close buttons out of reach
+  — verified those buttons have a non-negotiable `flex-shrink: 0` so
+  that can never happen at any window size.
+- **Mood Lock renamed to Top Mode, with an easier shortcut.**
+  `Ctrl+Shift+F` (a 3-key chord) still works for muscle memory, but
+  `Tab` is now the primary trigger — deliberately chosen to match the
+  "hide all panels" convention VFX/3D artists already know from
+  Blender and Photoshop. `Tab` is gated behind the same text-input
+  guard as board-shortcuts (not an "always fire" binding), since Tab
+  has a native meaning inside form fields; `Ctrl+Shift+F` stays in the
+  always-fire group as before.
+
+## [3.6.6] — Real-World Testing Fixes
+Everything below came from actually testing v3.6.5, not internal review —
+thank you to whoever put it through its paces.
+
+- **Fix: clipboard paste (Ctrl+V) still had the old stacking bug.** v3.6.5
+  fixed drag-drop's cascade-offset stacking but missed that paste had the
+  *exact same* bug independently (`(pasteCount % 8) * 24` — same
+  too-small offset, plus it read a racy global card count from inside an
+  async callback instead of the paste batch's own index). Extracted a
+  single shared `gridArrangePos()` helper used by both drag-drop and
+  paste now, so this class of bug can't drift out of sync between the
+  two paths again.
+- **Map View grid changed from dots to lines.** The original ask
+  ("graphs with lines") was misread as a request for a dot-grid
+  matching Board View's — it meant actual grid lines. Replaced with a
+  major/minor line grid (bold line every 5th cell) — the node-editor
+  "blueprint" look from Blender/UE/Houdini, which also visually
+  differentiates Map View from Board View's dot grid instead of
+  duplicating it.
+- **Fix: perceptible lag when switching into Map View / zooming.**
+  Root cause: `diagnose()` (the runtime self-check) ran on a flat 30ms
+  delay after every render, forcing synchronous layout
+  (`getBoundingClientRect` per node) — which landed squarely inside the
+  ~480ms eased camera tween and staggered entrance animations added in
+  v3.6.3, causing layout thrashing exactly when opening/zooming Map
+  View. Now uses `requestIdleCallback` (falls back to a 600ms
+  `setTimeout`) so it only runs once the browser is actually idle.
+  Also added a redundant-redraw guard on the grid so unchanged
+  tx/ty/scale between frames skips a full canvas repaint.
+- **Generalized Mood Lock's hover-reveal into its own setting.**
+  v3.6.5 added hover-to-reveal chrome, but only inside Mood Lock
+  (`Ctrl+Shift+F`) — a tester using the app normally never found it,
+  couldn't shrink the window small, and went back to PureRef over it.
+  Added a new persistent **"Auto-hide toolbar"** setting
+  (Settings → Behavior, default off) that turns on the same
+  hover-reveal mechanic and the relaxed window-size floor as a standing
+  preference, independent of Mood Lock. The two can be on
+  simultaneously without fighting each other — turning either off only
+  disables the shared hover machinery once *both* are off. Mood Lock
+  itself is unchanged (still also hides the statusbar, still a
+  shortcut-gated presentation mode) — this is additive, not a
+  replacement.
+  Default is **off** — flagging this as a real product call, not an
+  obvious one: defaulting a first-time user straight into
+  hidden-toolbar mode risks hurting discoverability of New/Open/Save
+  for anyone not already coming from PureRef. Easy to flip to
+  default-on if that's the wrong call for the target audience.
+
+## [3.6.5] — Bug Fixes from User Reports
+Several real bugs reported by users, root-caused and fixed:
+
+- **Recovery dialog firing on nearly every launch.** `handleCloseRequest()`
+  never cleared the crash-recovery file on a clean close — only after the
+  user answered the recovery-restore dialog. Since autosave writes that
+  file every ~30s during any session, a routine tick before a perfectly
+  normal close left it behind, so "Recover unsaved board?" appeared on
+  the next launch even with nothing actually lost. Now cleared on every
+  clean-close path (no-changes, Save, Don't Save).
+- **Old files silently loading empty.** `loadFromJSON` has required
+  `data.boards` to exist since the very first public commit (v2.0.1),
+  with a silent no-op otherwise. Any file predating the `boards[]`
+  wrapper appeared to load as a completely empty board with zero
+  explanation. Added `migrateLegacyShape()` — auto-detects a flat
+  legacy shape (`cards` at the top level) and wraps it into a synthetic
+  board, with an explicit "migrated automatically" toast. A file
+  matching neither shape now gets a clear "File format not recognised"
+  error instead of doing nothing.
+- **Mass file drops stacking cards on top of each other.** Drop
+  placement used a fixed 24px diagonal cascade per file — fine for 2-3
+  files, but cards are ~200-300px, so batch drops of 10+ files visually
+  overlapped almost entirely. Replaced with a proper `ceil(sqrt(n))`-
+  column grid layout, still placed in drop order.
+- **Near-invisible muted text.** `--color-text-3` measured 3.3–3.7:1
+  contrast in both themes — failing WCAG AA (4.5:1) for body text.
+  Brightened in both dark (`#6A6A8A` → `#8A8AAC`) and light
+  (`#7A7A94` → `#5C5C78`) themes; both now clear 5:1+.
+- **Map View had no background grid.** It hid Board View's grid canvas
+  entirely and showed a blank field. Added an equivalent dot-grid,
+  independent implementation tied to Map View's own pan/zoom state.
+
+### Mood lock hover-reveal + smaller window floor
+- Mood lock (Ctrl+Shift+F) no longer needs Esc as the *only* way back
+  to the toolbar — hovering the top edge (or the toolbar itself while
+  it's showing) now briefly reveals title/toolbar/tabs as a floating
+  overlay, without exiting mood lock or resizing the canvas underneath.
+  Move away and it hides again after a short delay.
+- Window minimum size now relaxes from 640×480 to 220×160 while mood
+  lock is active (that floor exists so the ~10-button toolbar doesn't
+  overlap/clip — mood lock has no toolbar, so it doesn't need the
+  space). Restores to 640×480 immediately on exit, growing the window
+  back up if it had been shrunk smaller.
+
+### Known issue (not fixed yet)
+- Map View: connection wires sometimes start from a slightly different
+  point than the actual output port. Reported by users; reproduction
+  and root-cause investigation pending.
+
+## [3.6.4] — Post-Polish Audit
+- Fixed: `hide()` didn't cancel an in-flight eased camera tween
+  (fit-all/reset) — switching out of Map View mid-animation left a
+  `requestAnimationFrame` loop running against a hidden element until
+  it finished. No visible symptom (self-healed on next open since
+  `fitAll` re-cancels), but wasted work. Now cancelled on `hide()`.
+
+## [3.6.3] — Portfolio Polish Pass
+Visual polish pass with no functional changes, aimed at clean
+screenshots/GIFs:
+
+- **Eased camera moves** — fit-all (board open) and the `0`-key reset
+  now tween with `easeOutCubic` instead of snapping instantly.
+  Deliberately kept separate from wheel-zoom/drag-pan, which stay
+  instant (already tuned jank-free in an earlier fix) — any real user
+  input cancels an in-flight tween immediately.
+- **Entrance choreography** — cards fade+lift in staggered, connections
+  draw on with a bezier stroke reveal + fade-in halo. Only on first
+  board open, never on normal editing re-renders.
+- **Wire-drag glow** — active port + preview line now have a soft
+  accent-colored glow instead of a flat color.
+- **Accent color (dark theme)**: blue `#4A9EFF` → violet `#9D7FFF`.
+  Fixed 8 additional hardcoded-hex instances that had drifted from the
+  project's own "use CSS vars for theme support" rule (toolbar active
+  state, drop overlay, gif badge, resize handle, 2 button hovers,
+  minimap viewport box, node-hover glow) — all now route through a new
+  `--color-accent-rgb` var so future accent changes propagate
+  everywhere automatically.
+- Fixed: `portOut`'s mouseleave was restoring to `--color-border-2`
+  instead of its actual idle color `--color-port`.
+- Added `demo/Kanvaz-Portfolio-Demo.kanvaz` — a curated 9-card demo
+  board for portfolio screenshots, no real media required.
+
+## [3.6.2] — Port-Alignment Test Safety Net
+The port math itself was already correct (verified 0px error across 5
+zoom/pan cases) — the safety net around it had two real holes:
+
+- `diagnose()`'s runtime self-check only ever compared the X-axis for
+  both ports — any Y-axis drift was invisible to it. Now checks both
+  axes.
+- `test/run-port-test.js` hardcoded a Chrome path from one prior
+  development machine and loaded a `/tmp` file nothing ever generated
+  — it had never actually run correctly outside that one session,
+  silently skipping or crashing everywhere else. Rewritten to
+  auto-detect a Chrome/Chromium install (env var → per-OS common paths
+  → puppeteer's own cache) and regenerate its test fixture into a real
+  temp file on every run.
+
+## [3.6.1] — 20-Level Audit Cleanup
+Passed a 20-level audit (each check run and verified twice). One fix:
+
+- Removed dead code: verifyPortAlignment() (~55 lines) was superseded by
+  diagnose() in v3.5.4 but left defined and exported. Removed the function
+  and its export. diagnose() remains the single runtime health check.
+
+Audit confirmed clean across: syntax (16/16), var-rule, CSP, versions,
+port alignment (0px, real Chromium), guarded JSON.parse (7/7), theme
+coverage, NaN/transform guards, orphan-connection cascade, event-listener
+cleanup, media error handling, backward compat, and full validation suite.
+
+## [3.6.0] — UI Polish Pass
+Elevating what exists — no new features, just a more premium feel.
+
+### Toolbar
+- Buttons: press-scale feedback (0.96) on click, disabled state styling
+- Icons: stroke-width standardized to 1.5 across all toolbar/titlebar icons
+  (was a mix of 1.3 / 1.5 / 1.6 — looked uneven)
+
+### Map View
+- Nodes: smoother 0.18s ease transitions on hover
+- Ports: soft accent-colored glow ring on hover (0 0 0 4px accent-bg)
+- Port transitions eased for a more tactile feel
+
+### Context Menu
+- Consolidated duplicate CSS rules from the v3.5.0 polish pass
+- Larger radius (10px), roomier padding, deeper shadow
+- Keyboard shortcut hints now render as subtle kbd-style badges
+- Danger items (Delete) show red on hover
+
+### Settings Panel
+- Grouped into sections: Appearance, Behavior, Files
+- Section headers in uppercase micro-labels
+- Theme-aware panel shadow
+
+### Dialogs
+- Buttons: press-scale feedback
+- Theme-aware shadows
+
+### Theme Consistency
+- Replaced remaining hardcoded rgba shadows with var(--color-shadow)
+  in settings panel and dialogs (better light-theme rendering)
+
+## [3.5.5] — Connection Tubes Anchor to Live DOM Ports
+The real root cause, found by end-to-end audit.
+
+### Root Cause
+The port MATH was correct (proven 0px in v3.5.3/4). The bug: renderLines
+computed tube endpoints from stored card.mapPosition, but that value can
+go stale relative to where the node actually renders — from the hover
+transform (translateY -1px), Math.round drift on drag, or board/map
+position desync in saved files. Result: tubes anchored to where the card
+USED to be, floating in empty space while the real port O sat unconnected
+(exactly what the screenshots showed).
+
+### Fix
+- New domPort(refId, side): reads the ACTUAL rendered port-dot center
+  from the DOM via getBoundingClientRect, converted to world coords.
+- renderLines and wire-preview now use resolveOut/resolveIn, which return
+  DOM truth when available and fall back to math only if the node isn't
+  in the DOM yet. This is how real node editors (Blender, Unreal, n8n)
+  anchor wires — to the DOM handle, never to stored coordinates.
+- Removed .map-node:hover translateY(-1px) — it shifted the port O away
+  from the tube anchor on hover.
+
+### Proven
+- Test with STALE mapPosition (node renders at 300,300 but stored says
+  100,200): old math → tube at 275,226 (floating). New domPort → 475,326
+  (exactly on the port O). Verified in real Chromium.
+
 ## [3.5.4] — Advanced Error Debugging & Validation Suite
 Tooling to catch bugs before they ship — not after.
 

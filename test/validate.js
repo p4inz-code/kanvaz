@@ -43,19 +43,21 @@ try {
   console.log(e.stdout || e.message);
 }
 
-/* 3. Port alignment (real browser) — only if chrome present */
+/* 3. Port alignment (real browser) — only if a Chrome/Chromium binary can be found.
+   Never hardcode one path/version — that silently breaks on every other machine. */
 section('3. Port alignment (real Chromium)');
-var chromePath = '/home/claude/.cache/puppeteer/chrome/linux-131.0.6778.204/chrome-linux64/chrome';
-if (fs.existsSync(chromePath) && fs.existsSync(path.join(__dirname, 'run-port-test.js'))) {
+if (fs.existsSync(path.join(__dirname, 'run-port-test.js'))) {
   try {
     var portOut = cp.execSync('node "' + path.join(__dirname, 'run-port-test.js') + '"', { encoding: 'utf8', timeout: 60000 });
     if (/ALL CASES PASS/.test(portOut)) ok('formula matches DOM, 0px error at all zoom/pan');
+    else if (/^SKIP/m.test(portOut)) console.log('  ' + portOut.trim().split('\n').join('\n  '));
     else { bad('port alignment test failed'); console.log(portOut); }
   } catch (e) {
-    console.log('  (skipped — ' + (e.message.split('\n')[0]) + ')');
+    bad('port alignment test crashed');
+    console.log(e.stdout || e.message);
   }
 } else {
-  console.log('  (skipped — no Chromium binary; run in CI/local with puppeteer-core)');
+  console.log('  (skipped — test/run-port-test.js missing)');
 }
 
 /* 4. Version consistency */

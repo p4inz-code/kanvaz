@@ -60,6 +60,17 @@ var KanvazShortcuts = (function() {
        native textarea meaning, so those stay above as "always fire". */
     if (inText) return;
 
+    /* Top Mode — easier single-key trigger than Ctrl+Shift+F (kept
+       above for backward compat/muscle memory). Tab has a native
+       meaning inside text inputs (focus navigation), which is exactly
+       why it's gated behind the inText check above rather than being
+       an "always fire" shortcut. */
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      KanvazUI.toggleMoodLock();
+      return;
+    }
+
     if (ctrl && !shift && e.key === 'z') {
       e.preventDefault();
       KanvazHistory.undo();
@@ -98,6 +109,18 @@ var KanvazShortcuts = (function() {
 
     /* Help — works in both views */
     if (e.key === '?') { KanvazUI.showShortcuts(); return; }
+
+    /* Settings — toggle open/close */
+    if (e.key === 's' || e.key === 'S') {
+      if (typeof KanvazUI_Extended !== 'undefined') KanvazUI_Extended.showSettings();
+      return;
+    }
+
+    /* About — toggle open/close */
+    if (e.key === 'i' || e.key === 'I') {
+      if (typeof KanvazUI_Extended !== 'undefined') KanvazUI_Extended.showAbout();
+      return;
+    }
 
     /* Map view toggle */
     if (e.key === 'm' || e.key === 'M') {

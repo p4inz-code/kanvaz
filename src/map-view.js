@@ -11,6 +11,12 @@ var KanvazMapView = (function() {
   var world     = null;
   var svg       = null;
   var active    = false;
+  var gridCanvas = null;
+  var gridCtx    = null;
+  var gridRafId  = null;
+  var lastGridTx = null;
+  var lastGridTy = null;
+  var lastGridScale = null;
 
   var tx    = 0;
   var ty    = 0;
@@ -37,7 +43,7 @@ var KanvazMapView = (function() {
   var hasRenderedOnce = false;
 
   /* ── Node sizing ── */
-  var NODE_W      = 176;   /* content-box width */
+  var NODE_W      = 176;   /* border-box width (global * reset forces box-sizing:border-box) */
   var NODE_H      = 52;    /* content-box height */
   var NODE_BORDER = 1.5;
   var PORT_INSET  = 1;     /* Measured offset of port-dot center from node
@@ -105,6 +111,25 @@ var KanvazMapView = (function() {
      This is exact because SVG and nodes share the world coordinate system.
      ══════════════════════════════════════════ */
 
+  /* ══════════════════════════════════════════
+     PORT POSITIONS
+
+     TWO sources, used in different contexts:
+
+     1. outPort/inPort — MATH from mapPosition. Fast, used for the
+        bezier PATH shape (control points, midpoint labels) where a
+        1px difference is invisible.
+
+     2. domPort — reads the ACTUAL rendered port-dot center from the
+        DOM via getBoundingClientRect, converted to world coords. This
+        is the SINGLE SOURCE OF TRUTH for tube ENDPOINTS and terminator
+        dots, because it reflects hover transforms, sub-pixel rounding,
+        and any node shift that stored mapPosition doesn't capture.
+
+     Real node editors anchor wires to the DOM handle, not to stored
+     coordinates. That's what domPort does.
+     ══════════════════════════════════════════ */
+
   function outPort(card) {
     return {
       x: card.mapPosition.x + NODE_W - PORT_INSET,
@@ -116,6 +141,32 @@ var KanvazMapView = (function() {
       x: card.mapPosition.x + PORT_INSET,
       y: card.mapPosition.y + NODE_H / 2
     };
+  }
+
+  /* Read the live rendered port-dot center in WORLD coordinates.
+     Returns null if the node/port isn't in the DOM yet (caller falls
+     back to math). */
+  function domPort(refId, side) {
+    if (!world) return null;
+    var cls = (side === 'out') ? '.map-port-out' : '.map-port-in';
+    var dot = document.querySelector('.map-node[data-ref-id="' + refId + '"] ' + cls);
+    if (!dot) return null;
+    var wRect = world.getBoundingClientRect();
+    var dRect = dot.getBoundingClientRect();
+    return {
+      x: (dRect.left + dRect.width / 2 - wRect.left) / scale,
+      y: (dRect.top  + dRect.height / 2 - wRect.top) / scale
+    };
+  }
+
+  /* Resolved endpoint: DOM truth if available, else math fallback. */
+  function resolveOut(card) {
+    var dom = domPort(card.id, 'out');
+    return dom || outPort(card);
+  }
+  function resolveIn(card) {
+    var dom = domPort(card.id, 'in');
+    return dom || inPort(card);
   }
 
   /* ══════════════════════════════════════════
@@ -131,6 +182,12 @@ var KanvazMapView = (function() {
       'position:absolute', 'inset:0', 'overflow:hidden',
       'display:none', 'background:var(--color-bg)'
     ].join(';');
+
+    gridCanvas = document.createElement('canvas');
+    gridCanvas.id = 'map-grid';
+    gridCanvas.style.cssText = ['position:absolute', 'left:0', 'top:0'].join(';');
+    gridCtx = gridCanvas.getContext('2d');
+    container.appendChild(gridCanvas);
 
     world = document.createElement('div');
     world.id = 'map-world';
@@ -153,6 +210,12 @@ var KanvazMapView = (function() {
     var cc = document.getElementById('canvas-container');
     if (cc) cc.appendChild(container);
 
+    resizeMapGrid();
+    window.addEventListener('resize', function() {
+      resizeMapGrid();
+      if (active) drawMapGrid();
+    });
+
     bindEvents();
   }
 
@@ -165,6 +228,7 @@ var KanvazMapView = (function() {
     /* Scroll zoom */
     container.addEventListener('wheel', function(e) {
       e.preventDefault();
+      cancelCameraAnim();
       var dir = e.deltaY < 0 ? 1 : -1;
       var newScale = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, scale + dir * ZOOM_STEP));
       var rect = container.getBoundingClientRect();
@@ -209,6 +273,7 @@ var KanvazMapView = (function() {
       /* Pan — middle-click or left-click empty area */
       if (e.button === 1 || (e.button === 0 && !nodeEl)) {
         e.preventDefault();
+        cancelCameraAnim();
         isPanning  = true;
         panStartX  = e.clientX;
         panStartY  = e.clientY;
@@ -280,7 +345,7 @@ var KanvazMapView = (function() {
         var my = (e.clientY - rect2.top  - ty) / scale;
         var fromCard = KanvazCards.getAll()[wireFrom];
         if (fromCard && fromCard.mapPosition) {
-          var origin = outPort(fromCard);
+          var origin = resolveOut(fromCard);
           wirePreview.setAttribute('d', bezierPath(origin.x, origin.y, mx, my));
         }
       }
@@ -320,18 +385,20 @@ var KanvazMapView = (function() {
     /* Highlight source port */
     var portEl = document.querySelector('.map-node[data-ref-id="' + fromRefId + '"] .map-port-out');
     if (portEl) {
-      portEl.style.background = '#4A9EFF';
+      portEl.style.background = 'var(--color-accent)';
       portEl.style.transform = 'translateY(-50%) scale(1.4)';
+      portEl.style.boxShadow = '0 0 0 6px var(--color-accent-bg)';
     }
 
     /* Create preview bezier */
     wirePreview = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    wirePreview.setAttribute('stroke', '#4A9EFF');
+    wirePreview.setAttribute('stroke', 'var(--color-accent)');
     wirePreview.setAttribute('stroke-width', '2.5');
     wirePreview.setAttribute('stroke-dasharray', '6 4');
     wirePreview.setAttribute('fill', 'none');
     wirePreview.setAttribute('stroke-linecap', 'round');
-    wirePreview.setAttribute('opacity', '0.8');
+    wirePreview.setAttribute('opacity', '0.9');
+    wirePreview.style.filter = 'drop-shadow(0 0 6px var(--color-accent))';
     wirePreview.style.pointerEvents = 'none';
     svg.appendChild(wirePreview);
 
@@ -359,6 +426,7 @@ var KanvazMapView = (function() {
       if (portEl) {
         portEl.style.background = 'var(--color-port)';
         portEl.style.transform = 'translateY(-50%)';
+        portEl.style.boxShadow = '';
       }
     }
     wireFrom = null;
@@ -372,6 +440,154 @@ var KanvazMapView = (function() {
   function applyTransform() {
     if (!world) return;
     world.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + scale + ')';
+    if (!gridRafId) {
+      gridRafId = requestAnimationFrame(function() {
+        gridRafId = null;
+        if (tx === lastGridTx && ty === lastGridTy && scale === lastGridScale) return;
+        lastGridTx = tx; lastGridTy = ty; lastGridScale = scale;
+        drawMapGrid();
+      });
+    }
+  }
+
+  function resizeMapGrid() {
+    if (!gridCanvas || !container) return;
+    gridCanvas.width  = container.clientWidth;
+    gridCanvas.height = container.clientHeight;
+  }
+
+  /* Same dot-grid visual language as Board View (canvas.js) — kept as a
+     separate copy rather than a cross-module call, since Map View has
+     its own independent tx/ty/scale state and the two views' grids
+     need to stay visually identical without coupling the two modules. */
+  function drawMapGrid() {
+    if (!gridCtx || !gridCanvas) return;
+    var w = gridCanvas.width;
+    var h = gridCanvas.height;
+    gridCtx.clearRect(0, 0, w, h);
+
+    var baseSpacing = 24;
+    var spacing = baseSpacing * scale;
+
+    var alpha = 1.0;
+    if (scale < 0.25) alpha = (scale - ZOOM_MIN) / (0.25 - ZOOM_MIN);
+    if (scale > 3.0)  alpha = 1.0 - (scale - 3.0) / (ZOOM_MAX - 3.0);
+    alpha = Math.max(0, Math.min(1, alpha));
+    if (alpha <= 0) return;
+
+    var ox = ((tx % spacing) + spacing) % spacing;
+    var oy = ((ty % spacing) + spacing) % spacing;
+
+    var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    var lineColor = isLight ? '0, 0, 0' : '255, 255, 255';
+    var minorAlpha = (isLight ? 0.10 : 0.09) * alpha;
+    var majorAlpha = (isLight ? 0.22 : 0.20) * alpha;
+
+    /* Node-editor "blueprint" grid — minor lines every cell, a bolder
+       major line every 5th, matching the graph-editor look artists
+       already know from Blender/UE/Houdini rather than a dot field. */
+    var MAJOR_EVERY = 5;
+    var majorSpacing = spacing * MAJOR_EVERY;
+    var majorOx = ((tx % majorSpacing) + majorSpacing) % majorSpacing;
+    var majorOy = ((ty % majorSpacing) + majorSpacing) % majorSpacing;
+
+    /* Density fade — lines packed closer than ~12-24px apart visually
+       merge into a wash (this was the "grid goes white zooming out"
+       bug — empirically measured, not guessed: pixel brightness
+       climbed 21→155 well before the old fixed cutoff kicked in).
+       Fade each line type out smoothly as its own spacing approaches
+       the merge threshold instead of an abrupt cutoff. */
+    var minorFade = 1.0;
+    if (spacing < 20) minorFade = Math.max(0, (spacing - 12) / (20 - 12));
+    minorAlpha *= minorFade;
+
+    var majorFade = 1.0;
+    if (majorSpacing < 40) majorFade = Math.max(0, (majorSpacing - 24) / (40 - 24));
+    majorAlpha *= majorFade;
+
+    gridCtx.lineWidth = 1;
+
+    /* Minor lines — single path for all of them (one fill/stroke call) */
+    if (minorFade > 0.01) {
+      gridCtx.strokeStyle = 'rgba(' + lineColor + ', ' + minorAlpha + ')';
+      gridCtx.beginPath();
+      var x = ox;
+      while (x < w) {
+        gridCtx.moveTo(x + 0.5, 0);
+        gridCtx.lineTo(x + 0.5, h);
+        x += spacing;
+      }
+      var y = oy;
+      while (y < h) {
+        gridCtx.moveTo(0, y + 0.5);
+        gridCtx.lineTo(w, y + 0.5);
+        y += spacing;
+      }
+      gridCtx.stroke();
+    }
+
+    /* Major lines on top, bolder */
+    if (majorFade > 0.01) {
+      gridCtx.strokeStyle = 'rgba(' + lineColor + ', ' + majorAlpha + ')';
+      gridCtx.beginPath();
+      var mx = majorOx;
+      while (mx < w) {
+        gridCtx.moveTo(mx + 0.5, 0);
+        gridCtx.lineTo(mx + 0.5, h);
+        mx += majorSpacing;
+      }
+      var my = majorOy;
+      while (my < h) {
+        gridCtx.moveTo(0, my + 0.5);
+        gridCtx.lineTo(w, my + 0.5);
+        my += majorSpacing;
+      }
+      gridCtx.stroke();
+    }
+  }
+
+  /* ══════════════════════════════════════════
+     EASED CAMERA MOVES (fitAll / resetView only)
+     Deliberately NOT used for wheel-zoom or drag-pan — those are
+     already tuned jank-free via rAF-throttled direct assignment
+     (v3.5.x lag fix). This is only for one-shot, discrete camera
+     jumps, where a short eased tween reads as "premium" instead
+     of "polling". Any user interaction cancels it immediately so
+     it never fights real input.
+     ══════════════════════════════════════════ */
+  var camAnimFrame = null;
+
+  function cancelCameraAnim() {
+    if (camAnimFrame) { cancelAnimationFrame(camAnimFrame); camAnimFrame = null; }
+  }
+
+  function animateCameraTo(targetTx, targetTy, targetScale, durationMs) {
+    cancelCameraAnim();
+    var fromTx = tx, fromTy = ty, fromScale = scale;
+    var startTime = null;
+
+    function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+
+    function step(now) {
+      if (startTime === null) startTime = now;
+      var elapsed = now - startTime;
+      var t = Math.min(1, elapsed / durationMs);
+      var e = easeOutCubic(t);
+      tx    = fromTx    + (targetTx    - fromTx)    * e;
+      ty    = fromTy    + (targetTy    - fromTy)    * e;
+      scale = fromScale + (targetScale - fromScale) * e;
+      applyTransform();
+      updateZoomDisplay();
+      if (t < 1) {
+        camAnimFrame = requestAnimationFrame(step);
+      } else {
+        tx = targetTx; ty = targetTy; scale = targetScale;
+        applyTransform();
+        updateZoomDisplay();
+        camAnimFrame = null;
+      }
+    }
+    camAnimFrame = requestAnimationFrame(step);
   }
 
   function updateZoomDisplay() {
@@ -395,14 +611,17 @@ var KanvazMapView = (function() {
     if (cw) cw.style.display = 'none';
     if (cg) cg.style.display = 'none';
     if (ce) ce.style.display = 'none';
+    resizeMapGrid();
     render();
     applyTransform();
+    drawMapGrid();
     updateZoomDisplay();
   }
 
   function hide() {
     active = false;
     hasRenderedOnce = false;
+    cancelCameraAnim();
     if (container) container.style.display = 'none';
     var cw = document.getElementById('canvas-world');
     var cg = document.getElementById('canvas-grid');
@@ -481,6 +700,8 @@ var KanvazMapView = (function() {
       return;
     }
 
+    var isFirstOpen = !hasRenderedOnce;
+
     var idx = 0;
     for (var id in cards) {
       var card = cards[id];
@@ -492,15 +713,30 @@ var KanvazMapView = (function() {
           y: row * AUTO_GAP_Y + 60
         };
       }
-      world.appendChild(buildNode(card));
+      var nodeEl = buildNode(card);
+      if (isFirstOpen) {
+        nodeEl.classList.add('map-node-entrance');
+        nodeEl.style.animationDelay = Math.min(idx * 35, 420) + 'ms';
+      }
+      world.appendChild(nodeEl);
       idx++;
     }
 
-    renderLines();
+    renderLines(isFirstOpen);
     updateStatusBar(cards);
 
-    /* Dev safety net — full self-diagnostic after each render */
-    setTimeout(function() { diagnose(); }, 30);
+    /* Dev safety net — full self-diagnostic after each render.
+       Uses requestIdleCallback (falls back to a longer setTimeout)
+       instead of a fixed 30ms delay — diagnose() forces synchronous
+       layout (getBoundingClientRect per node), and a flat 30ms delay
+       landed squarely inside the ~480ms eased camera tween + staggered
+       entrance animations on first open, causing visible jank right
+       when switching into Map View. */
+    if (typeof requestIdleCallback === 'function') {
+      requestIdleCallback(function() { diagnose(); }, { timeout: 1500 });
+    } else {
+      setTimeout(function() { diagnose(); }, 600);
+    }
 
     /* Fit all nodes into view on first open */
     if (!hasRenderedOnce) {
@@ -530,11 +766,9 @@ var KanvazMapView = (function() {
     var contentH = maxY - minY + padY * 2;
     var newScale = Math.min(rect.width / contentW, rect.height / contentH, 1.5);
     newScale = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, newScale));
-    tx = (rect.width  / 2) - ((minX + (maxX - minX) / 2) * newScale);
-    ty = (rect.height / 2) - ((minY + (maxY - minY) / 2) * newScale);
-    scale = newScale;
-    applyTransform();
-    updateZoomDisplay();
+    var targetTx = (rect.width  / 2) - ((minX + (maxX - minX) / 2) * newScale);
+    var targetTy = (rect.height / 2) - ((minY + (maxY - minY) / 2) * newScale);
+    animateCameraTo(targetTx, targetTy, newScale, 480);
   }
 
   /* ══════════════════════════════════════════
@@ -584,14 +818,16 @@ var KanvazMapView = (function() {
     ].join(';');
     portIn.onmouseenter = function() {
       if (!wireFrom) return;
-      portIn.style.background = '#4A9EFF';
-      portIn.style.borderColor = '#4A9EFF';
+      portIn.style.background = 'var(--color-accent)';
+      portIn.style.borderColor = 'var(--color-accent)';
       portIn.style.transform = 'translateY(-50%) scale(1.4)';
+      portIn.style.boxShadow = '0 0 0 6px var(--color-accent-bg)';
     };
     portIn.onmouseleave = function() {
       portIn.style.background = 'var(--color-port)';
       portIn.style.borderColor = 'var(--color-border-2)';
       portIn.style.transform = 'translateY(-50%)';
+      portIn.style.boxShadow = '';
     };
     el.appendChild(portIn);
 
@@ -613,13 +849,15 @@ var KanvazMapView = (function() {
       'z-index:2'
     ].join(';');
     portOut.onmouseenter = function() {
-      portOut.style.background = '#4A9EFF';
+      portOut.style.background = 'var(--color-accent)';
       portOut.style.transform = 'translateY(-50%) scale(1.5)';
+      portOut.style.boxShadow = '0 0 0 6px var(--color-accent-bg)';
     };
     portOut.onmouseleave = function() {
       if (wireFrom === card.id) return;
-      portOut.style.background = 'var(--color-border-2)';
+      portOut.style.background = 'var(--color-port)';
       portOut.style.transform = 'translateY(-50%)';
+      portOut.style.boxShadow = '';
     };
     el.appendChild(portOut);
 
@@ -656,7 +894,7 @@ var KanvazMapView = (function() {
     el.onmouseenter = function() {
       if (dragNode) return;
       el.style.borderColor = 'var(--color-accent)';
-      el.style.boxShadow = '0 0 0 2px var(--color-accent), 0 2px 12px rgba(74,158,255,0.25)';
+      el.style.boxShadow = '0 0 0 2px var(--color-accent), 0 2px 12px rgba(var(--color-accent-rgb),0.25)';
       highlightConnections(card.id);
     };
     el.onmouseleave = function() {
@@ -673,7 +911,7 @@ var KanvazMapView = (function() {
      BEZIER TUBE LINES
      ══════════════════════════════════════════ */
 
-  function renderLines() {
+  function renderLines(isFirstOpen) {
     if (!svg) return;
 
     var oldLines = svg.querySelectorAll('.conn-line, .conn-label, .conn-glow');
@@ -691,8 +929,8 @@ var KanvazMapView = (function() {
       if (!fromCard || !toCard) continue;
       if (!fromCard.mapPosition || !toCard.mapPosition) continue;
 
-      var op = outPort(fromCard);
-      var ip = inPort(toCard);
+      var op = resolveOut(fromCard);
+      var ip = resolveIn(toCard);
 
       /* Skip if nodes overlap */
       var dx = ip.x - op.x;
@@ -774,8 +1012,38 @@ var KanvazMapView = (function() {
       label.setAttribute('font-family', 'var(--font-ui)');
       label.setAttribute('font-weight', '500');
       label.setAttribute('opacity', '0.65');
-      label.textContent = typeLabel(conn.type);
+      var devIds = false;
+      if (typeof KanvazUI_Extended !== 'undefined') {
+        var devS = KanvazUI_Extended.getSettings();
+        devIds = !!(devS && devS.devShowIds);
+      }
+      label.textContent = typeLabel(conn.type) + (devIds ? ' [' + conn.id + ']' : '');
       svg.appendChild(label);
+
+      /* Entrance: tube draws on, halo/dots/label fade in — first open only.
+         Never runs during drag-triggered re-renders (isFirstOpen is only
+         ever true from render()'s initial call). */
+      if (isFirstOpen) {
+        var stagger = Math.min(j * 55, 500);
+        var len = line.getTotalLength();
+        line.style.strokeDasharray  = len + ' ' + len;
+        line.style.strokeDashoffset = String(len);
+        line.style.transition = 'stroke-dashoffset 0.55s cubic-bezier(0.22,0.61,0.36,1) ' + stagger + 'ms';
+        glow.style.opacity = '0'; shadow.style.opacity = '0';
+        dotOut.style.opacity = '0'; dotIn.style.opacity = '0'; label.style.opacity = '0';
+        glow.style.transition = shadow.style.transition = dotOut.style.transition =
+          dotIn.style.transition = label.style.transition =
+          'opacity 0.4s ease-out ' + (stagger + 250) + 'ms';
+        (function(l, gl, sh, dO, dI, lb) {
+          requestAnimationFrame(function() {
+            requestAnimationFrame(function() {
+              l.style.strokeDashoffset = '0';
+              gl.style.opacity = ''; sh.style.opacity = '';
+              dO.style.opacity = ''; dI.style.opacity = ''; lb.style.opacity = '';
+            });
+          });
+        })(line, glow, shadow, dotOut, dotIn, label);
+      }
     }
   }
 
@@ -835,7 +1103,7 @@ var KanvazMapView = (function() {
       var el = document.querySelector('.map-node[data-ref-id="' + refId + '"]');
       if (el) {
         el.style.borderColor = 'var(--color-accent)';
-        el.style.boxShadow = '0 0 0 2px var(--color-accent), 0 2px 12px rgba(74,158,255,0.25)';
+        el.style.boxShadow = '0 0 0 2px var(--color-accent), 0 2px 12px rgba(var(--color-accent-rgb),0.25)';
       }
       KanvazCards.selectCard(refId);
     }
@@ -982,67 +1250,6 @@ var KanvazMapView = (function() {
   }
 
   /* ══════════════════════════════════════════
-     DEBUG: PORT ALIGNMENT VERIFICATION
-     Runs after every render — compares SVG port math against actual
-     DOM port dot positions. Warns in console if they drift.
-     ══════════════════════════════════════════ */
-
-  function verifyPortAlignment() {
-    if (!active || !container) return;
-    var cards = KanvazCards.getAll();
-    var issues = 0;
-
-    for (var id in cards) {
-      var card = cards[id];
-      if (!card.mapPosition) continue;
-
-      var nodeEl = document.querySelector('.map-node[data-ref-id="' + id + '"]');
-      if (!nodeEl) continue;
-
-      var outDot = nodeEl.querySelector('.map-port-out');
-      var inDot  = nodeEl.querySelector('.map-port-in');
-      if (!outDot || !inDot) continue;
-
-      /* Compare against WORLD origin — the SVG's coordinate space.
-         world may be offset from container, so we must use world's rect. */
-      var cRect = world.getBoundingClientRect();
-      var outRect = outDot.getBoundingClientRect();
-      var inRect  = inDot.getBoundingClientRect();
-
-      /* DOM dot center in world coords (world rect already includes transform) */
-      var domOutX = (outRect.left + outRect.width / 2 - cRect.left) / scale;
-      var domOutY = (outRect.top  + outRect.height / 2 - cRect.top) / scale;
-      var domInX  = (inRect.left  + inRect.width / 2  - cRect.left) / scale;
-      var domInY  = (inRect.top   + inRect.height / 2  - cRect.top) / scale;
-
-      /* SVG computed positions */
-      var svgOut = outPort(card);
-      var svgIn  = inPort(card);
-
-      /* Check alignment (allow 2px tolerance for rounding) */
-      var threshold = 2;
-      if (Math.abs(domOutX - svgOut.x) > threshold || Math.abs(domOutY - svgOut.y) > threshold) {
-        console.warn('[Kanvaz] PORT MISALIGN — outPort for "' + (card.name || id) + '": DOM=(' +
-          Math.round(domOutX) + ',' + Math.round(domOutY) + ') SVG=(' +
-          Math.round(svgOut.x) + ',' + Math.round(svgOut.y) + ') delta=(' +
-          Math.round(domOutX - svgOut.x) + ',' + Math.round(domOutY - svgOut.y) + ')');
-        issues++;
-      }
-      if (Math.abs(domInX - svgIn.x) > threshold || Math.abs(domInY - svgIn.y) > threshold) {
-        console.warn('[Kanvaz] PORT MISALIGN — inPort for "' + (card.name || id) + '": DOM=(' +
-          Math.round(domInX) + ',' + Math.round(domInY) + ') SVG=(' +
-          Math.round(svgIn.x) + ',' + Math.round(svgIn.y) + ') delta=(' +
-          Math.round(domInX - svgIn.x) + ',' + Math.round(domInY - svgIn.y) + ')');
-        issues++;
-      }
-    }
-
-    if (issues === 0) {
-      console.log('[Kanvaz] port alignment OK (' + Object.keys(cards).length + ' nodes checked)');
-    }
-  }
-
-  /* ══════════════════════════════════════════
      RUNTIME SELF-DIAGNOSTIC
      Advanced health check. Runs on Map View open + on demand via
      KanvazMapView.diagnose(). Catches the bug classes that have hit
@@ -1097,13 +1304,19 @@ var KanvazMapView = (function() {
         var oR = outDot.getBoundingClientRect();
         var iR = inDot.getBoundingClientRect();
         var domOutX = (oR.left + oR.width / 2 - wRect.left) / scale;
+        var domOutY = (oR.top  + oR.height / 2 - wRect.top)  / scale;
         var domInX  = (iR.left + iR.width / 2 - wRect.left) / scale;
+        var domInY  = (iR.top  + iR.height / 2 - wRect.top)  / scale;
         var mOut = outPort(cards[id]);
         var mIn  = inPort(cards[id]);
         if (Math.abs(domOutX - mOut.x) > 1.5) { portIssues++;
-          flag('error', 'outPort drift on "' + id + '": DOM=' + Math.round(domOutX) + ' math=' + Math.round(mOut.x)); }
+          flag('error', 'outPort X drift on "' + id + '": DOM=' + Math.round(domOutX) + ' math=' + Math.round(mOut.x)); }
+        if (Math.abs(domOutY - mOut.y) > 1.5) { portIssues++;
+          flag('error', 'outPort Y drift on "' + id + '": DOM=' + Math.round(domOutY) + ' math=' + Math.round(mOut.y)); }
         if (Math.abs(domInX - mIn.x) > 1.5) { portIssues++;
-          flag('error', 'inPort drift on "' + id + '": DOM=' + Math.round(domInX) + ' math=' + Math.round(mIn.x)); }
+          flag('error', 'inPort X drift on "' + id + '": DOM=' + Math.round(domInX) + ' math=' + Math.round(mIn.x)); }
+        if (Math.abs(domInY - mIn.y) > 1.5) { portIssues++;
+          flag('error', 'inPort Y drift on "' + id + '": DOM=' + Math.round(domInY) + ' math=' + Math.round(mIn.y)); }
       }
       if (portIssues === 0) report.portAlignment = 'OK';
     }
@@ -1150,8 +1363,7 @@ var KanvazMapView = (function() {
     if (active) { applyTransform(); updateZoomDisplay(); }
   }
   function resetView() {
-    tx = 0; ty = 0; scale = 1.0;
-    applyTransform(); updateZoomDisplay();
+    animateCameraTo(0, 0, 1.0, 320);
   }
 
   /* ══════════════════════════════════════════
@@ -1198,7 +1410,6 @@ var KanvazMapView = (function() {
     isActive: isActive, render: render,
     getState: getState, setState: setState, resetView: resetView,
     handleKey: handleKey, updateToggleBtn: updateToggleBtn,
-    verifyPortAlignment: verifyPortAlignment,
     diagnose: diagnose
   };
 

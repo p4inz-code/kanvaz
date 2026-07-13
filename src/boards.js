@@ -7,7 +7,7 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '3.5.4';
+  var VERSION       = '3.6.9';
 
   /* ── Init ── */
 
@@ -345,8 +345,11 @@ var KanvazBoards = (function() {
         }
         try {
           var data = JSON.parse(result.data);
-          /* Schema validation */
-          if (!data || !Array.isArray(data.boards)) {
+          /* Schema validation — accept current shape (data.boards) or a
+             flat legacy shape (data.cards at top level); loadFromJSON
+             migrates the legacy shape automatically. Anything else is
+             genuinely not a Kanvaz file. */
+          if (!data || (!Array.isArray(data.boards) && !Array.isArray(data.cards))) {
             KanvazUI.toast('File format not recognised', 'error');
             return;
           }
@@ -368,8 +371,46 @@ var KanvazBoards = (function() {
 
   /* ── Load from JSON data ── */
 
+  /* ══════════════════════════════════════════
+     LEGACY FORMAT MIGRATION
+     Every public version since v2.0.1 has required data.boards to
+     exist, silently rejecting (or, worse, silently no-op'ing) any
+     file that predates the boards[] wrapper — a genuine old-format
+     file just appeared to load empty, with no real explanation.
+     If we see a flat legacy shape (cards at the top level, no
+     boards[] array), wrap it into a single synthetic board instead
+     of discarding the user's content.
+     ══════════════════════════════════════════ */
+  function migrateLegacyShape(data) {
+    if (!data) return null;
+    if (Array.isArray(data.boards)) return data;               /* already current shape */
+    if (!Array.isArray(data.cards)) return null;                /* not a recognisable shape at all */
+
+    return {
+      version:   data.version || '1.x (migrated)',
+      activeIdx: 0,
+      boards: [{
+        id:          'legacy-board-' + Date.now(),
+        name:        'Recovered Board',
+        cards:       data.cards,
+        canvasTx:    data.tx    || 0,
+        canvasTy:    data.ty    || 0,
+        canvasScale: data.scale || 1.0,
+        mapTx: 0, mapTy: 0, mapScale: 1.0
+      }],
+      connections: data.connections || []
+    };
+  }
+
   function loadFromJSON(data) {
-    if (!data || !data.boards) return;
+    if (!data || !data.boards) {
+      var migrated = migrateLegacyShape(data);
+      if (!migrated) return;
+      data = migrated;
+      if (typeof KanvazUI !== 'undefined') {
+        KanvazUI.toast('Old Kanvaz file format detected — migrated automatically', 'success');
+      }
+    }
 
     boards    = data.boards;
     activeIdx = data.activeIdx || 0;
@@ -551,7 +592,7 @@ var KanvazBoards = (function() {
               }
               try {
                 var data = JSON.parse(result.data);
-                if (!data || !Array.isArray(data.boards)) {
+                if (!data || (!Array.isArray(data.boards) && !Array.isArray(data.cards))) {
                   KanvazUI.toast('File format not recognised', 'error');
                   return;
                 }
@@ -589,7 +630,7 @@ var KanvazBoards = (function() {
         'cursor:pointer',
         'transition:background 0.1s'
       ].join(';');
-      newBtn.onmouseenter = function() { newBtn.style.background = 'rgba(74,158,255,0.2)'; };
+      newBtn.onmouseenter = function() { newBtn.style.background = 'rgba(var(--color-accent-rgb),0.2)'; };
       newBtn.onmouseleave = function() { newBtn.style.background = 'var(--color-accent-bg)'; };
       newBtn.onclick = closeStartup;
       panel.appendChild(newBtn);
@@ -629,7 +670,8 @@ var KanvazBoards = (function() {
     loadFromJSON: loadFromJSON,
     serialise:    serialise,
     doAutosave:      doAutosave,
-    startAutosave:   startAutosave
+    startAutosave:   startAutosave,
+    getVersion:      function() { return VERSION; }
   };
 
 })();

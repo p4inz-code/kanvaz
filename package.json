@@ -1,7 +1,7 @@
 {
   "name": "kanvaz",
-  "version": "3.5.4",
-  "description": "Reference Operating System \u2014 collect, organize, connect, and understand your references.",
+  "version": "3.6.9",
+  "description": "Reference Operating System — collect, organize, connect, and understand your references.",
   "private": true,
   "main": "src/main.js",
   "author": "Atharva Patil (Northbyte Studios)",
@@ -23,7 +23,8 @@
   },
   "devDependencies": {
     "electron": "22.3.27",
-    "electron-builder": "24.13.3"
+    "electron-builder": "24.13.3",
+    "puppeteer-core": "^25.3.0"
   },
   "build": {
     "appId": "com.northbytestudios.kanvaz",

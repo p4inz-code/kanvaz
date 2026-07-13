@@ -11,9 +11,10 @@
   --color-border-2:  #3A3A48;
   --color-port:      #1A1A28;
 
-  --color-accent:    #4A9EFF;
-  --color-accent-dim:#2A7EDF;
-  --color-accent-bg: rgba(74, 158, 255, 0.12);
+  --color-accent:    #9D7FFF;
+  --color-accent-rgb: 157, 127, 255;
+  --color-accent-dim:#7C5CFC;
+  --color-accent-bg: rgba(157, 127, 255, 0.14);
   --color-amber:     #F0A500;
   --color-amber-bg:  rgba(240, 165, 0, 0.12);
   --color-red:       #FF5A5A;
@@ -22,7 +23,7 @@
 
   --color-text:      #DCDCE8;
   --color-text-2:    #A0A0B8;
-  --color-text-3:    #6A6A8A;
+  --color-text-3:    #8A8AAC;
   --color-text-inv:  #0E0E10;
 
   --color-shadow:    rgba(0, 0, 0, 0.5);
@@ -45,6 +46,7 @@
   --color-port:      #DCDCE4;
 
   --color-accent:    #2B7FD4;
+  --color-accent-rgb: 43, 127, 212;
   --color-accent-dim:#1F6AB8;
   --color-accent-bg: rgba(43, 127, 212, 0.10);
   --color-amber:     #D08F00;
@@ -55,7 +57,7 @@
 
   --color-text:      #1A1A2E;
   --color-text-2:    #4A4A64;
-  --color-text-3:    #7A7A94;
+  --color-text-3:    #5C5C78;
   --color-text-inv:  #FFFFFF;
 
   --color-shadow:    rgba(0, 0, 0, 0.12);
@@ -134,6 +136,85 @@ html, body {
   overflow: hidden;
 }
 
+#top-chrome {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+/* ── Top Mode / Auto-hide toolbar chrome-reveal ──
+   Class names kept as .moodlock-* internally (shared by both Top Mode
+   and the persistent "Auto-hide toolbar" setting — see app.js's
+   syncChromeAutoHide). Hides #top-chrome entirely (Esc or Tab exits
+   Top Mode). While active, a thin invisible zone at the very top edge
+   reveals #top-chrome as a floating overlay on hover — it does NOT
+   rejoin normal flex flow, so the canvas never resizes/reflows under
+   it; it slides in on top. */
+.moodlock-active #top-chrome {
+  display: flex !important;
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 900;
+  transform: translateY(-100%);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.22s cubic-bezier(0.22,0.61,0.36,1), opacity 0.18s ease;
+}
+
+.moodlock-active.moodlock-reveal #top-chrome {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Top Mode's reveal is deliberately more minimal than the general
+   Auto-hide toolbar setting's — only app name + project title + window
+   controls. Hides these even while #top-chrome is otherwise revealed,
+   since Top Mode is a presentation mode, not a "get the toolbar back"
+   convenience. The Auto-hide setting (without Top Mode) doesn't get
+   this class, so it still reveals the full toolbar/tabs. */
+.moodlock-minimal #toolbar,
+.moodlock-minimal #board-tabs,
+.moodlock-minimal #btn-export,
+.moodlock-minimal #btn-always-on-top {
+  display: none !important;
+}
+
+#moodlock-hover-zone {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 16px;
+  z-index: 899;
+}
+
+/* Persistent reminder that Top Mode is active, independent of the
+   hover-reveal state — without this there was no way to tell it was
+   on, or how to get out, without already knowing the shortcut. */
+#moodlock-badge {
+  position: fixed;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-2);
+  border-radius: 999px;
+  color: var(--color-text-2);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  box-shadow: 0 4px 16px var(--color-shadow);
+  z-index: 895;
+  pointer-events: none;
+  opacity: 0.75;
+  animation: moodlock-badge-in 0.3s ease-out;
+}
+
+@keyframes moodlock-badge-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  to   { opacity: 0.75; transform: translateX(-50%) translateY(0); }
+}
+
 /* ── Titlebar ── */
 #titlebar {
   display: flex;
@@ -151,6 +232,7 @@ html, body {
   align-items: center;
   gap: 7px;
   padding: 0 14px;
+  flex-shrink: 0;
   -webkit-app-region: no-drag;
 }
 
@@ -169,16 +251,21 @@ html, body {
 
 #titlebar-title {
   flex: 1;
+  min-width: 0;
   font-size: 12px;
   color: var(--color-text-3);
   font-family: var(--font-mono);
   -webkit-app-region: drag;
   text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 #titlebar-controls {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
   -webkit-app-region: no-drag;
 }
 
@@ -216,6 +303,9 @@ html, body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   padding: 0 10px;
   gap: 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
   flex-shrink: 0;
   z-index: 90;
 }
@@ -234,6 +324,7 @@ html, body {
   cursor: pointer;
   transition: background 0.1s, color 0.1s, border-color 0.1s;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .toolbar-btn:hover {
@@ -242,10 +333,21 @@ html, body {
   border-color: var(--color-border);
 }
 
+.toolbar-btn:active {
+  transform: scale(0.96);
+  background: var(--color-surface-2);
+}
+
+.toolbar-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
+}
+
 .toolbar-btn.active {
   background: var(--color-accent-bg);
   color: var(--color-accent);
-  border-color: rgba(74, 158, 255, 0.3);
+  border-color: rgba(var(--color-accent-rgb), 0.3);
 }
 
 .toolbar-sep {
@@ -302,17 +404,29 @@ html, body {
 
 /* ── Map View nodes ── */
 .map-node {
-  transition: box-shadow 0.15s, border-color 0.15s, transform 0.1s;
+  transition: box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.map-node-entrance {
+  animation: map-node-in 0.42s cubic-bezier(0.22,0.61,0.36,1) both;
+}
+
+@keyframes map-node-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)     scale(1); }
 }
 
 .map-node:hover {
   border-color: var(--color-border-2) !important;
-  box-shadow: 0 4px 16px var(--color-shadow) !important;
-  transform: translateY(-1px);
+  box-shadow: 0 4px 18px var(--color-shadow) !important;
 }
 
 .map-port {
-  transition: background 0.12s, transform 0.12s, border-color 0.12s;
+  transition: background 0.14s ease, transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+.map-port:hover {
+  box-shadow: 0 0 0 4px var(--color-accent-bg);
 }
 
 /* ── Card hover lift ── */
@@ -326,9 +440,7 @@ html, body {
 
 /* ── Context menu polish ── */
 #context-menu {
-  border-radius: 10px;
-  overflow: hidden;
-  animation: ctx-fade-in 0.1s ease-out;
+  animation: ctx-fade-in 0.12s ease-out;
 }
 
 @keyframes ctx-fade-in {
@@ -418,7 +530,7 @@ html, body {
 #drop-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(74, 158, 255, 0.06);
+  background: rgba(var(--color-accent-rgb), 0.06);
   border: 2px dashed var(--color-accent);
   border-radius: 4px;
   display: flex;
@@ -573,7 +685,7 @@ html, body {
 }
 
 .card-bar .badge-gif {
-  background: rgba(74, 158, 255, 0.2);
+  background: rgba(var(--color-accent-rgb), 0.2);
   color: var(--color-accent);
 }
 
@@ -600,7 +712,7 @@ html, body {
   background: var(--color-accent);
   border-radius: 50%;
   border: 1.5px solid var(--color-bg);
-  box-shadow: 0 0 0 1px rgba(74, 158, 255, 0.4);
+  box-shadow: 0 0 0 1px rgba(var(--color-accent-rgb), 0.4);
   opacity: 0;
   z-index: 10;
   transition: opacity 0.12s, transform 0.12s;
@@ -744,12 +856,12 @@ html, body {
   position: fixed;
   background: var(--color-surface);
   border: 1px solid var(--color-border-2);
-  border-radius: var(--radius-md);
-  padding: 4px;
-  min-width: 160px;
+  border-radius: 10px;
+  padding: 5px;
+  min-width: 168px;
   z-index: 70000;
   pointer-events: auto;
-  box-shadow: 0 8px 24px var(--color-shadow);
+  box-shadow: 0 10px 32px var(--color-shadow);
   display: none;
 }
 
@@ -788,8 +900,12 @@ html, body {
 .ctx-shortcut {
   margin-left: auto;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   color: var(--color-text-3);
+  background: var(--color-surface-2);
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid var(--color-border);
 }
 
 /* ── Toasts ── */
@@ -873,7 +989,7 @@ html, body {
   padding: 24px;
   min-width: 300px;
   max-width: 480px;
-  box-shadow: 0 16px 48px rgba(0,0,0,0.7);
+  box-shadow: 0 16px 48px var(--color-shadow);
 }
 
 .dialog h2 {
@@ -911,6 +1027,10 @@ html, body {
 .btn:hover {
   background: var(--color-surface-3);
   color: var(--color-text);
+}
+
+.btn:active {
+  transform: scale(0.97);
 }
 
 .btn.primary {

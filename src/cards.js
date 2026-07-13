@@ -152,6 +152,17 @@ var KanvazCards = (function() {
 
   /* ── Resize ── */
 
+  function snapToGrid(val) {
+    if (typeof KanvazUI_Extended === 'undefined') return val;
+    var s = KanvazUI_Extended.getSettings();
+    if (!s || !s.gridSnapEnabled) return val;
+    /* World-space grid spacing is scale-independent — the grid's
+       on-screen size changes with zoom, but its logical spacing in
+       world units (24 minor / 120 major) never does. */
+    var increment = s.gridSnapIncrement === 'major' ? 120 : 24;
+    return Math.round(val / increment) * increment;
+  }
+
   function startResize(card, el, dir, e) {
     var startX  = e.clientX;
     var startY  = e.clientY;
@@ -181,6 +192,11 @@ var KanvazCards = (function() {
           newH = newW / aspectRatio;
         }
       }
+
+      newW = snapToGrid(newW);
+      newH = snapToGrid(newH);
+      newX = snapToGrid(newX);
+      newY = snapToGrid(newY);
 
       newW = Math.max(CARD_MIN_W, newW);
       newH = Math.max(CARD_MIN_H, newH);
@@ -1070,11 +1086,42 @@ var KanvazCards = (function() {
     selectedId = null;
   }
 
+  /* Dev Mode — bulk-generate N synthetic note cards for stress-testing
+     render/scroll/zoom performance at scale. Deliberately bypasses
+     createNote()'s per-card selectCard()/focus()/history-push — doing
+     that N times for N=50-100 would thrash badly. One history push,
+     one render pass, at the end. */
+  function generateTestCards(n, baseX, baseY) {
+    var cols = Math.max(1, Math.ceil(Math.sqrt(n)));
+    for (var i = 0; i < n; i++) {
+      var id = nextId();
+      var col = i % cols;
+      var row = Math.floor(i / cols);
+      var card = {
+        id: id, type: 'note', dataUrl: null,
+        name: 'Test card ' + (i + 1),
+        path: null,
+        x: baseX + col * 280, y: baseY + row * 200,
+        w: 240, h: 160, z: ++zCounter, pinned: false,
+        text: 'Generated test card #' + (i + 1) + ' for stress-testing.',
+        annotations: [],
+        tags: [], properties: {}, mapPosition: null,
+        url: null, color: null, mimeType: null
+      };
+      cards[id] = card;
+      renderCard(card);
+    }
+    updateEmptyState();
+    updateCount();
+    if (typeof KanvazHistory !== 'undefined') KanvazHistory.push();
+  }
+
   return {
     init:              init,
     createFromMedia:   createFromMedia,
     createFromDataUrl: createFromDataUrl,
     createNote:        createNote,
+    generateTestCards: generateTestCards,
     selectCard:        selectCard,
     selectAll:         selectAll,
     deselectAll:       deselectAll,

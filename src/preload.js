@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
   forceClose:      function() { ipcRenderer.send('force-close'); },
   isMaximized:     function() { return ipcRenderer.invoke('window-is-maximized'); },
   setAlwaysOnTop:  function(flag) { ipcRenderer.send('window-set-always-on-top', flag); },
+  setMoodLockSize: function(active) { ipcRenderer.send('window-set-moodlock-size', active); },
 
   /* File dialogs */
   openFileDialog:  function() { return ipcRenderer.invoke('dialog-open-file'); },

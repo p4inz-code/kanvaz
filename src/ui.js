@@ -119,7 +119,7 @@ var KanvazUI_Extended = (function() {
     var vw = (vp.width  / vp.scale / WORLD) * MMAP_W;
     var vh = (vp.height / vp.scale / WORLD) * MMAP_H;
 
-    ctx.strokeStyle = '#4A9EFF';
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-accent').trim() || '#4A9EFF';
     ctx.lineWidth   = 1;
     ctx.strokeRect(vx, vy, vw, vh);
   }
@@ -140,7 +140,12 @@ var KanvazUI_Extended = (function() {
     animationsOn:     true,
     alwaysOnTop:      false,
     doubleClickCreatesNote: false,
-    leftDragPan:      true
+    leftDragPan:      true,
+    autoHideChrome:   false,
+    gridSnapEnabled:  false,
+    gridSnapIncrement: 'minor',
+    devShowFPS:       false,
+    devShowIds:       false
   };
 
   var settings = {};
@@ -211,6 +216,35 @@ var KanvazUI_Extended = (function() {
       KanvazBridge.setAlwaysOnTop(!!settings.alwaysOnTop);
     }
 
+    /* Auto-hide toolbar — same hover-reveal mechanic Top Mode uses,
+       but as a persistent setting instead of a shortcut-gated mode.
+       Independent of Top Mode's own state; either one hides the
+       chrome, and setChromeAutoHide reconciles them so turning one
+       off doesn't undo the other. */
+    if (typeof KanvazApp !== 'undefined' && KanvazApp.setChromeAutoHide) {
+      KanvazApp.setChromeAutoHide(!!settings.autoHideChrome);
+    }
+
+    /* Dev Mode: FPS / render-time overlay */
+    syncFpsOverlay(!!settings.devShowFPS);
+
+    /* Dev Mode: show card/connection IDs — pure CSS attr() overlay for
+       cards (DOM id) and Map View nodes (data-ref-id); connection IDs
+       are handled in map-view.js's renderLines() since SVG text needs
+       an actual element, not a CSS pseudo-element. */
+    var idStyleId = 'kanvaz-dev-ids-style';
+    var existingIdStyle = document.getElementById(idStyleId);
+    if (existingIdStyle) existingIdStyle.parentNode.removeChild(existingIdStyle);
+    if (settings.devShowIds) {
+      var idStyle = document.createElement('style');
+      idStyle.id = idStyleId;
+      idStyle.textContent =
+        '.card { position: relative; }\n' +
+        '.card::after { content: attr(id); position:absolute; bottom:2px; right:4px; font-size:9px; font-family:var(--font-mono); color:var(--color-accent); background:rgba(0,0,0,0.55); padding:1px 4px; border-radius:3px; pointer-events:none; z-index:50; }\n' +
+        '.map-node::after { content: attr(data-ref-id); position:absolute; bottom:-16px; left:0; font-size:9px; font-family:var(--font-mono); color:var(--color-accent); background:rgba(0,0,0,0.55); padding:1px 4px; border-radius:3px; pointer-events:none; z-index:50; white-space:nowrap; }';
+      document.head.appendChild(idStyle);
+    }
+
     /* Theme — apply to root element */
     var theme = settings.theme || 'dark';
     document.documentElement.setAttribute('data-theme', theme);
@@ -218,6 +252,82 @@ var KanvazUI_Extended = (function() {
     /* Restart autosave timer with current interval setting */
     if (typeof KanvazBoards !== 'undefined' && KanvazBoards.startAutosave) {
       KanvazBoards.startAutosave();
+    }
+  }
+
+  /* ── Dev Mode: FPS / render-time overlay ── */
+  var fpsRafId = null;
+  var fpsFrameCount = 0;
+  var fpsLastTime = 0;
+  var fpsLastFrameStart = 0;
+
+  function syncFpsOverlay(enabled) {
+    var el = document.getElementById('dev-fps-overlay');
+    if (enabled && !el) {
+      el = document.createElement('div');
+      el.id = 'dev-fps-overlay';
+      el.style.cssText = [
+        'position:fixed', 'top:8px', 'left:8px', 'z-index:99999',
+        'background:rgba(0,0,0,0.7)', 'color:#4CAF82',
+        'font-family:var(--font-mono)', 'font-size:11px',
+        'padding:4px 8px', 'border-radius:4px', 'pointer-events:none',
+        'white-space:pre'
+      ].join(';');
+      document.body.appendChild(el);
+      fpsFrameCount = 0;
+      fpsLastTime = performance.now();
+      fpsLoop();
+    } else if (!enabled && el) {
+      el.remove();
+      if (fpsRafId) { cancelAnimationFrame(fpsRafId); fpsRafId = null; }
+    }
+  }
+
+  function fpsLoop() {
+    var now = performance.now();
+    var frameTime = fpsLastFrameStart ? (now - fpsLastFrameStart) : 0;
+    fpsLastFrameStart = now;
+    fpsFrameCount++;
+
+    if (now - fpsLastTime >= 500) {
+      var fps = Math.round((fpsFrameCount * 1000) / (now - fpsLastTime));
+      var el = document.getElementById('dev-fps-overlay');
+      if (el) el.textContent = 'FPS: ' + fps + '\nframe: ' + frameTime.toFixed(1) + 'ms';
+      fpsFrameCount = 0;
+      fpsLastTime = now;
+    }
+    fpsRafId = requestAnimationFrame(fpsLoop);
+  }
+
+  /* ── Dev Mode: export debug info for bug reports ── */
+  function exportDebugInfo() {
+    var cards = (typeof KanvazCards !== 'undefined') ? KanvazCards.getAll() : {};
+    var cardCount = Object.keys(cards).length;
+    var connCount = 0;
+    if (typeof KanvazConnections !== 'undefined' && KanvazConnections.serialise) {
+      connCount = KanvazConnections.serialise().length;
+    }
+    var info = [
+      'Kanvaz Debug Info',
+      '==================',
+      'Version: ' + (typeof KanvazBoards !== 'undefined' && KanvazBoards.getVersion ? KanvazBoards.getVersion() : 'unknown'),
+      'Platform: ' + navigator.platform,
+      'User agent: ' + navigator.userAgent,
+      'Theme: ' + (settings.theme || 'dark'),
+      'Cards on current board: ' + cardCount,
+      'Connections (file-level): ' + connCount,
+      'Window size: ' + window.innerWidth + 'x' + window.innerHeight,
+      'Settings: ' + JSON.stringify(settings, null, 2)
+    ].join('\n');
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(info).then(function() {
+        KanvazUI.toast('Debug info copied to clipboard');
+      }, function() {
+        KanvazUI.toast('Could not copy — clipboard access denied', 'error');
+      });
+    } else {
+      KanvazUI.toast('Clipboard unavailable', 'error');
     }
   }
 
@@ -232,12 +342,14 @@ var KanvazUI_Extended = (function() {
       'top:80px',
       'right:12px',
       'width:280px',
+      'max-height:calc(100vh - 100px)',
+      'overflow-y:auto',
       'background:var(--color-surface)',
       'border:1px solid var(--color-border-2)',
       'border-radius:10px',
       'padding:16px',
       'z-index:9000',
-      'box-shadow:0 8px 32px rgba(0,0,0,0.6)',
+      'box-shadow:0 8px 32px var(--color-shadow)',
       'font-size:13px'
     ].join(';');
 
@@ -257,21 +369,59 @@ var KanvazUI_Extended = (function() {
     panel.appendChild(title);
 
     var rows = [
+      { section: 'Appearance' },
       { key: 'theme',           label: 'Theme',                 type: 'select', options: [['dark','Dark'],['light','Light']] },
       { key: 'showMinimap',     label: 'Show minimap',          type: 'toggle' },
-      { key: 'dotGridVisible',  label: 'Dot grid',              type: 'toggle' },
+      { key: 'dotGridVisible',  label: 'Grid lines',            type: 'toggle' },
       { key: 'cardShadows',     label: 'Card shadows',          type: 'toggle' },
       { key: 'animationsOn',    label: 'Animations',            type: 'toggle' },
+      { section: 'Behavior' },
       { key: 'openOnStartup',   label: 'Show recent on startup',type: 'toggle' },
       { key: 'confirmDelete',   label: 'Confirm before delete', type: 'toggle' },
       { key: 'leftDragPan',     label: 'Left-drag empty canvas to pan', type: 'toggle' },
+      { key: 'autoHideChrome',  label: 'Auto-hide toolbar (hover top edge to reveal)', type: 'toggle' },
       { key: 'doubleClickCreatesNote', label: 'Double-click canvas creates note', type: 'toggle' },
+      { key: 'gridSnapEnabled', label: 'Snap to grid on resize', type: 'toggle' },
+      { key: 'gridSnapIncrement', label: 'Snap increment', type: 'select', options: [['minor','Minor (24px)'],['major','Major (120px)']] },
+      { section: 'Files' },
       { key: 'autosaveInterval',label: 'Autosave (seconds)',    type: 'number', min: 10, max: 300 },
-      { key: 'defaultCardW',    label: 'Default card width (px)',type: 'number', min: 80, max: 1200 }
+      { key: 'defaultCardW',    label: 'Default card width (px)',type: 'number', min: 80, max: 1200 },
+      { section: 'Developer' },
+      { key: 'devShowFPS',      label: 'FPS / render-time overlay', type: 'toggle' },
+      { key: 'devShowIds',      label: 'Show card/connection IDs',  type: 'toggle' },
+      { label: 'Run diagnostics now', type: 'button', buttonLabel: 'Run',
+        action: function() {
+          if (typeof KanvazMapView !== 'undefined' && KanvazMapView.diagnose) {
+            KanvazMapView.diagnose();
+            KanvazUI.toast('Diagnostics run — see console (F12 / Ctrl+Shift+I)');
+          } else {
+            KanvazUI.toast('Diagnostics only available in Map View', 'error');
+          }
+        } },
+      { label: 'Generate 50 test cards', type: 'button', buttonLabel: 'Generate',
+        action: function() {
+          if (typeof KanvazCards !== 'undefined' && KanvazCards.generateTestCards) {
+            var vp = (typeof KanvazCanvas !== 'undefined') ? KanvazCanvas.getViewport() : null;
+            var bx = vp ? (-vp.tx / vp.scale) + 60 : 60;
+            var by = vp ? (-vp.ty / vp.scale) + 60 : 60;
+            KanvazCards.generateTestCards(50, bx, by);
+            KanvazUI.toast('Generated 50 test cards');
+          }
+        } },
+      { label: 'Export debug info', type: 'button', buttonLabel: 'Copy',
+        action: function() { exportDebugInfo(); } }
     ];
 
     for (var i = 0; i < rows.length; i++) {
       (function(row) {
+        /* Section header */
+        if (row.section) {
+          var hdr = document.createElement('div');
+          hdr.style.cssText = 'font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;color:var(--color-text-3);margin:14px 0 4px;';
+          hdr.textContent = row.section;
+          panel.appendChild(hdr);
+          return;
+        }
         var el = document.createElement('div');
         el.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--color-border);';
 
@@ -329,6 +479,15 @@ var KanvazUI_Extended = (function() {
             saveSettings();
           };
           el.appendChild(sel);
+
+        } else if (row.type === 'button') {
+          var btn = document.createElement('button');
+          btn.textContent = row.buttonLabel || 'Run';
+          btn.style.cssText = 'background:var(--color-accent-bg);border:1px solid var(--color-accent);border-radius:4px;color:var(--color-accent);padding:4px 10px;font-size:11px;font-family:var(--font-ui);cursor:pointer;transition:background 0.1s;';
+          btn.onmouseenter = function() { btn.style.background = 'rgba(var(--color-accent-rgb),0.25)'; };
+          btn.onmouseleave = function() { btn.style.background = 'var(--color-accent-bg)'; };
+          btn.onclick = function() { if (row.action) row.action(); };
+          el.appendChild(btn);
         }
 
         panel.appendChild(el);
@@ -356,6 +515,9 @@ var KanvazUI_Extended = (function() {
   /* ── About screen ── */
 
   function showAbout() {
+    var existing = document.getElementById('about-screen');
+    if (existing) { existing.parentNode.removeChild(existing); return; }
+
     var overlay = document.createElement('div');
     overlay.id = 'about-screen';
     overlay.style.cssText = [
@@ -388,12 +550,12 @@ var KanvazUI_Extended = (function() {
       '</svg>',
       '<div style="font-size:22px;font-weight:700;color:var(--color-text);margin-bottom:4px;">Kanvaz</div>',
       '<div style="font-size:13px;color:var(--color-text-3);margin-bottom:20px;">Your canvas. Your references.</div>',
-      '<div style="font-size:12px;color:var(--color-text-3);margin-bottom:16px;font-family:var(--font-mono);">Version 3.5.4</div>',
+      '<div style="font-size:12px;color:var(--color-text-3);margin-bottom:16px;font-family:var(--font-mono);">Version 3.6.9</div>',
       '<div style="font-size:13px;color:var(--color-text-2);margin-bottom:6px;">Made by <span style="color:var(--color-text);">Atharva Patil</span> — Northbyte Studios</div>',
       '<div style="font-size:12px;color:var(--color-text-3);margin-bottom:20px;">Navi Mumbai, India</div>',
       '<div style="font-size:12px;color:var(--color-text-3);line-height:1.7;margin-bottom:20px;">Built for VFX artists, 3D artists,<br>and the people who teach them.</div>',
       '<div style="font-size:11px;color:var(--color-text-3);line-height:1.8;margin-bottom:16px;">Free forever. MIT License.<br>No telemetry. No internet.<br>Your files never leave your machine.</div>',
-      '<div style="font-size:11px;color:var(--color-accent);line-height:1.7;margin-bottom:24px;">Reference Operating System<br>Actively developed — v3.5.4</div>'
+      '<div style="font-size:11px;color:var(--color-accent);line-height:1.7;margin-bottom:24px;">Reference Operating System<br>Actively developed — v3.6.9</div>'
     ].join('');
 
     var closeBtn = document.createElement('button');
@@ -492,7 +654,9 @@ var KanvazUI_Extended = (function() {
           ['M',           'Board \u2194 Map view'],
           ['L',           'Light \u2194 Dark theme'],
           ['T',           'Always on top'],
-          ['Ctrl+Shift+F','Mood lock'],
+          ['Tab',         'Top Mode'],
+          ['S',           'Settings'],
+          ['I',           'About'],
           ['?',           'This screen'],
           ['Esc',         'Deselect / close']
         ]

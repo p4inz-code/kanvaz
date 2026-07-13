@@ -183,32 +183,76 @@ var KanvazCanvas = (function() {
     if (scale > 3.0)  alpha = 1.0 - (scale - 3.0) / (ZOOM_MAX - 3.0);
     alpha = Math.max(0, Math.min(1, alpha));
 
-    if (alpha <= 0 || spacing < 4) return;
-
-    var dotRadius = Math.max(0.5, Math.min(1.5, scale * 0.8));
+    if (alpha <= 0) return;
 
     /* Origin offset so grid moves with pan */
     var ox = ((tx % spacing) + spacing) % spacing;
     var oy = ((ty % spacing) + spacing) % spacing;
 
     var isLight = document.documentElement.getAttribute('data-theme') === 'light';
-    var dotColor = isLight ? '0, 0, 0' : '255, 255, 255';
-    var dotAlpha = isLight ? 0.10 : 0.07;
-    gridCtx.fillStyle = 'rgba(' + dotColor + ', ' + (dotAlpha * alpha) + ')';
+    var lineColor = isLight ? '0, 0, 0' : '255, 255, 255';
+    var minorAlpha = (isLight ? 0.10 : 0.09) * alpha;
+    var majorAlpha = (isLight ? 0.22 : 0.20) * alpha;
 
-    /* Single path for ALL dots — massive perf win over individual arc+fill */
-    gridCtx.beginPath();
-    var x = ox;
-    while (x < w) {
+    /* Major/minor line grid (same treatment as Map View) — a bolder
+       line every 5th cell instead of a uniform dot field. */
+    var MAJOR_EVERY = 5;
+    var majorSpacing = spacing * MAJOR_EVERY;
+    var majorOx = ((tx % majorSpacing) + majorSpacing) % majorSpacing;
+    var majorOy = ((ty % majorSpacing) + majorSpacing) % majorSpacing;
+
+    /* Density fade — lines packed closer than ~12-24px apart visually
+       merge (anti-aliased edges overlap) into a wash that looked like
+       the grid "going white" when zooming out. Fade each line type out
+       smoothly as its own spacing approaches that merge threshold,
+       instead of drawing at full alpha right up until an abrupt cutoff.
+       Verified empirically (measured pixel brightness across the full
+       zoom range) before landing on these thresholds. */
+    var minorFade = 1.0;
+    if (spacing < 20) minorFade = Math.max(0, (spacing - 12) / (20 - 12));
+    minorAlpha *= minorFade;
+
+    var majorFade = 1.0;
+    if (majorSpacing < 40) majorFade = Math.max(0, (majorSpacing - 24) / (40 - 24));
+    majorAlpha *= majorFade;
+
+    gridCtx.lineWidth = 1;
+
+    if (minorFade > 0.01) {
+      gridCtx.strokeStyle = 'rgba(' + lineColor + ', ' + minorAlpha + ')';
+      gridCtx.beginPath();
+      var x = ox;
+      while (x < w) {
+        gridCtx.moveTo(x + 0.5, 0);
+        gridCtx.lineTo(x + 0.5, h);
+        x += spacing;
+      }
       var y = oy;
       while (y < h) {
-        gridCtx.moveTo(x + dotRadius, y);
-        gridCtx.arc(x, y, dotRadius, 0, Math.PI * 2);
+        gridCtx.moveTo(0, y + 0.5);
+        gridCtx.lineTo(w, y + 0.5);
         y += spacing;
       }
-      x += spacing;
+      gridCtx.stroke();
     }
-    gridCtx.fill();
+
+    if (majorFade > 0.01) {
+      gridCtx.strokeStyle = 'rgba(' + lineColor + ', ' + majorAlpha + ')';
+      gridCtx.beginPath();
+      var mx = majorOx;
+      while (mx < w) {
+        gridCtx.moveTo(mx + 0.5, 0);
+        gridCtx.lineTo(mx + 0.5, h);
+        mx += majorSpacing;
+      }
+      var my = majorOy;
+      while (my < h) {
+        gridCtx.moveTo(0, my + 0.5);
+        gridCtx.lineTo(w, my + 0.5);
+        my += majorSpacing;
+      }
+      gridCtx.stroke();
+    }
   }
 
   /* ── Events ── */
