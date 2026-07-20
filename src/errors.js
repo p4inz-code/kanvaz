@@ -55,13 +55,28 @@ var KanvazErrors = (function() {
   function init() {
     window.onerror = function(message, source, lineno, colno, error) {
       console.error('[Kanvaz Uncaught]', message, 'at', source + ':' + lineno);
-      handle('UNKNOWN', { message: message, source: source, lineno: lineno }, false);
+      /* Show the REAL error so devs can diagnose — the generic E999
+         message hides what actually broke and turns every bug into
+         a guessing game. */
+      var detail = String(message || 'unknown');
+      if (source) {
+        var file = source.split(/[\\/]/).pop();
+        detail += ' (' + file + ':' + lineno + ')';
+      }
+      if (typeof KanvazUI !== 'undefined' && KanvazUI.toast) {
+        KanvazUI.toast(detail, 'error');
+      }
+      console.error('[Kanvaz E999] ' + detail);
       return true;
     };
 
     window.onunhandledrejection = function(event) {
-      console.error('[Kanvaz Unhandled Promise]', event.reason);
-      handle('UNKNOWN', event.reason, false);
+      var reason = event.reason;
+      var detail = (reason && reason.message) ? reason.message : String(reason || 'promise rejected');
+      console.error('[Kanvaz Unhandled Promise]', detail, reason);
+      if (typeof KanvazUI !== 'undefined' && KanvazUI.toast) {
+        KanvazUI.toast(detail, 'error');
+      }
     };
   }
 

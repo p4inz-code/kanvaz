@@ -159,7 +159,7 @@ pill_w = 150
 c.roundRect(W - margin - pill_w, H - margin - 28, pill_w, 20, 10, fill=1, stroke=1)
 c.setFont('Helvetica-Bold', 8.5)
 c.setFillColor(GREEN)
-c.drawCentredString(W - margin - pill_w/2, H - margin - 21, 'v3.6.9')
+c.drawCentredString(W - margin - pill_w/2, H - margin - 21, 'v3.7.1')
 
 y = H - margin - 70
 
@@ -203,7 +203,7 @@ features = [
     (AMBER,  'Annotate anything', 'Draw, circle, and arrow directly on top of any card with pen, arrow, and rectangle tools in 6 colors.'),
     (ACCENT, 'Multiple boards', 'Organize different projects or shot sequences into separate board tabs within one file.'),
     (GREEN,  'Save & reload', 'Everything — positions, annotations, zoom level — saves to a single .kanvaz file and restores exactly.'),
-    (AMBER,  'Mood lock', 'Hide all UI chrome with one shortcut for distraction-free presenting or reviewing (Ctrl+Shift+F).'),
+    (AMBER,  'Top Mode', 'Hide all UI chrome for distraction-free presenting or reviewing — press Tab, hover the top edge to briefly bring the toolbar back.'),
 ]
 for color, title, desc in features:
     y = draw_feature_row(c, margin, y, color, title, desc, content_w)
@@ -216,7 +216,9 @@ y = draw_paragraph(
     c,
     'Kanvaz runs entirely on your machine. No accounts, no telemetry, no analytics, '
     'and no internet connection required — your boards, images, video, and audio '
-    'never leave your computer unless you choose to share the file yourself.',
+    'never leave your computer unless you choose to share the file yourself. The one '
+    'exception is an optional "Check for updates" button in the About screen, which '
+    'makes a single request to GitHub only when you click it.',
     margin, y, content_w, size=10.5, color=TEXT2, leading=15
 )
 
@@ -290,7 +292,7 @@ shortcuts = [
     ('Space + Drag', 'Pan around the canvas'),
     ('Scroll', 'Zoom in / out'),
     ('Ctrl + S', 'Save the current board'),
-    ('Ctrl + Shift + F', 'Mood lock — hide all UI for presenting'),
+    ('Tab', 'Top Mode — hide all UI for presenting'),
     ('Ctrl + Z', 'Undo (up to 50 steps)'),
 ]
 col_split = content_w / 2 + 10

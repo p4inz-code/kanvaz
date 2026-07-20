@@ -133,6 +133,19 @@ function registerIPC() {
     if (mainWindow) mainWindow.setAlwaysOnTop(flag);
   });
 
+  /* Tab+MMB whole-window drag — an alternative to dragging via the
+     titlebar, useful when Top Mode has the chrome hidden. Plain
+     middle-mouse-drag is already used for canvas panning, so this is
+     deliberately gated behind holding Tab too (checked renderer-side)
+     to avoid colliding with that. Moves the real OS window position,
+     which a CSS app-region drag zone can't do from an arbitrary point
+     on the canvas — only from a marked region. */
+  ipcMain.on('window-drag-by', function(event, delta) {
+    if (!mainWindow) return;
+    var b = mainWindow.getBounds();
+    mainWindow.setPosition(b.x + delta.dx, b.y + delta.dy);
+  });
+
   /* Top Mode (and the persistent Auto-hide toolbar setting) remove all
      toolbar/titlebar chrome, so the 320x240 unconditional floor no
      longer applies — relax it further to a real reference-viewing
@@ -339,6 +352,43 @@ function registerIPC() {
     } catch (e) {
       return { done: false };
     }
+  });
+
+  /* Clean reset — clears settings, recent-files list, recovery/autosave
+     cache, and the first-run flag. Deliberately touches ONLY paths
+     under app.getPath('userData') — every one of them is a
+     Kanvaz-internal cache/preference file, never a saved .kanvaz board.
+     Boards always live wherever the user chose via the save dialog, a
+     location entirely outside userData by construction — there is no
+     path in this function that could ever reach one, so no exclusion
+     list is needed; the safety comes from what's simply never touched
+     here, not from filtering. */
+  ipcMain.handle('reset-app-data', function() {
+    try {
+      var userDataDir = app.getPath('userData');
+      var settingsPath = path.join(userDataDir, 'settings.json');
+      var flagPath = path.join(userDataDir, 'first-run-done');
+
+      if (fs.existsSync(settingsPath)) fs.unlinkSync(settingsPath);
+      if (fs.existsSync(RECENT_FILES_PATH)) fs.unlinkSync(RECENT_FILES_PATH);
+      if (fs.existsSync(flagPath)) fs.unlinkSync(flagPath);
+
+      if (fs.existsSync(RECOVERY_DIR)) {
+        var files = fs.readdirSync(RECOVERY_DIR);
+        for (var i = 0; i < files.length; i++) {
+          fs.unlinkSync(path.join(RECOVERY_DIR, files[i]));
+        }
+      }
+
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  });
+
+  ipcMain.on('app-relaunch', function() {
+    app.relaunch();
+    app.exit(0);
   });
 
 }

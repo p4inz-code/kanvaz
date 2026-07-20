@@ -11,45 +11,52 @@ var KanvazApp = (function() {
   function init() {
     KanvazErrors.init();
 
-    var container = document.getElementById('canvas-container');
-    var world     = document.getElementById('canvas-world');
-    var grid      = document.getElementById('canvas-grid');
+    try {
+      var container = document.getElementById('canvas-container');
+      var world     = document.getElementById('canvas-world');
+      var grid      = document.getElementById('canvas-grid');
 
-    KanvazCanvas.init(container, world, grid);
-    KanvazCards.init(world);
-    KanvazHistory.init();
-    KanvazShortcuts.init();
-    KanvazBoards.init();
-    if (typeof KanvazMapView !== 'undefined') KanvazMapView.init();
-    KanvazUI_Extended.init();
+      KanvazCanvas.init(container, world, grid);
+      KanvazCards.init(world);
+      KanvazHistory.init();
+      KanvazShortcuts.init();
+      KanvazBoards.init();
+      if (typeof KanvazMapView !== 'undefined') KanvazMapView.init();
+      KanvazUI_Extended.init();
 
-    KanvazCanvas.initDrop(function(files, worldPos) {
-      handleDroppedFiles(files, worldPos);
-    });
+      KanvazCanvas.initDrop(function(files, worldPos) {
+        handleDroppedFiles(files, worldPos);
+      });
 
-    /* Paste from clipboard */
-    document.addEventListener('paste', function(e) {
-      handlePaste(e);
-    });
+      /* Paste from clipboard */
+      document.addEventListener('paste', function(e) {
+        handlePaste(e);
+      });
 
-    /* Recovery check */
-    KanvazBridge.on('recovery-available', function() {
-      showRecoveryDialog();
-    });
+      /* Recovery check */
+      KanvazBridge.on('recovery-available', function() {
+        showRecoveryDialog();
+      });
 
-    /* BUG 1 fix: main process intercepts window close and asks us
-       whether it's safe to close (unsaved changes check). */
-    KanvazBridge.on('check-unsaved-before-close', function() {
-      handleCloseRequest();
-    });
+      /* BUG 1 fix: main process intercepts window close and asks us
+         whether it's safe to close (unsaved changes check). */
+      KanvazBridge.on('check-unsaved-before-close', function() {
+        handleCloseRequest();
+      });
 
-    /* Wire every button — CSP blocks inline onclick, so bind here */
-    bindGlobalUI();
+      /* Wire every button — CSP blocks inline onclick, so bind here */
+      bindGlobalUI();
 
-    /* Zoom display is now updated reactively from canvas.js applyTransform() */
+      /* Zoom display is now updated reactively from canvas.js applyTransform() */
 
-    updateSaveStatus('ready');
-    updateCardCount(0);
+      updateSaveStatus('ready');
+      updateCardCount(0);
+    } catch (e) {
+      console.error('[Kanvaz] init() crashed:', e);
+      if (typeof KanvazUI !== 'undefined' && KanvazUI.toast) {
+        KanvazUI.toast('Boot error: ' + e.message, 'error');
+      }
+    }
   }
 
   /* ── Global UI bindings (CSP-safe: no inline onclick) ── */
@@ -100,7 +107,7 @@ var KanvazApp = (function() {
 
     KanvazBridge.isMaximized().then(function(isMax) {
       setMaximizedIcon(!!isMax);
-    });
+    }).catch(function() {});
 
     KanvazBridge.on('window-maximized-changed', function(isMax) {
       setMaximizedIcon(!!isMax);
@@ -205,6 +212,116 @@ var KanvazApp = (function() {
 
   /* ── Clipboard paste ── */
 
+  /* ══════════════════════════════════════════
+     SEARCH / FILTER (Ctrl+F or /)
+     Floating search bar that filters cards live by name, type, or tag.
+     Dims non-matching cards (opacity 0.15) instead of hiding them so
+     spatial context is preserved — you can still see where things are
+     relative to each other, just with the matches visually popping.
+     Esc or clearing the input restores all cards to full opacity.
+     ══════════════════════════════════════════ */
+  var searchBar = null;
+  var searchInput = null;
+  var searchActive = false;
+
+  function showSearchBar() {
+    if (searchActive) { focusSearchBar(); return; }
+    searchActive = true;
+
+    searchBar = document.createElement('div');
+    searchBar.id = 'search-bar';
+    searchBar.style.cssText = [
+      'position:fixed', 'top:90px', 'left:50%', 'transform:translateX(-50%)',
+      'width:320px', 'display:flex', 'align-items:center', 'gap:8px',
+      'padding:8px 14px',
+      'background:var(--color-surface)', 'border:1px solid var(--color-border-2)',
+      'border-radius:8px', 'box-shadow:0 8px 32px var(--color-shadow)',
+      'z-index:10000',
+      'animation:search-bar-in 0.2s ease-out'
+    ].join(';');
+
+    var icon = document.createElement('span');
+    icon.style.cssText = 'color:var(--color-text-3);font-size:14px;flex-shrink:0;';
+    icon.textContent = '\uD83D\uDD0D';
+
+    searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.placeholder = 'Search by name, type, or tag…';
+    searchInput.style.cssText = [
+      'flex:1', 'background:transparent', 'border:none', 'outline:none',
+      'color:var(--color-text)', 'font-family:var(--font-ui)', 'font-size:13px'
+    ].join(';');
+
+    var closeBtn = document.createElement('span');
+    closeBtn.style.cssText = 'cursor:pointer;color:var(--color-text-3);font-size:16px;flex-shrink:0;';
+    closeBtn.textContent = '\u00D7';
+    closeBtn.addEventListener('click', function() { hideSearchBar(); });
+
+    searchInput.addEventListener('input', function() { applySearchFilter(searchInput.value); });
+    searchInput.addEventListener('keydown', function(e) {
+      e.stopPropagation();
+      if (e.key === 'Escape') hideSearchBar();
+    });
+
+    searchBar.appendChild(icon);
+    searchBar.appendChild(searchInput);
+    searchBar.appendChild(closeBtn);
+    document.body.appendChild(searchBar);
+
+    searchInput.focus();
+  }
+
+  function focusSearchBar() {
+    if (searchInput) searchInput.focus();
+  }
+
+  function hideSearchBar() {
+    searchActive = false;
+    if (searchBar) { searchBar.remove(); searchBar = null; searchInput = null; }
+    clearSearchFilter();
+  }
+
+  function applySearchFilter(query) {
+    var q = query.trim().toLowerCase();
+    var allCards = KanvazCards.getAll();
+    for (var id in allCards) {
+      var card = allCards[id];
+      var el = document.getElementById(id);
+      if (!el) continue;
+
+      if (!q) {
+        el.style.opacity = '';
+        el.style.filter = '';
+        continue;
+      }
+
+      var nameMatch = (card.name || '').toLowerCase().indexOf(q) !== -1;
+      var typeMatch = (card.type || '').toLowerCase().indexOf(q) !== -1;
+      var tagMatch = false;
+      if (card.tags && card.tags.length) {
+        for (var t = 0; t < card.tags.length; t++) {
+          if (card.tags[t].toLowerCase().indexOf(q) !== -1) { tagMatch = true; break; }
+        }
+      }
+
+      if (nameMatch || typeMatch || tagMatch) {
+        el.style.opacity = '';
+        el.style.filter = '';
+      } else {
+        el.style.opacity = '0.12';
+        el.style.filter = 'grayscale(1)';
+      }
+    }
+  }
+
+  function clearSearchFilter() {
+    var allCards = KanvazCards.getAll();
+    for (var id in allCards) {
+      var el = document.getElementById(id);
+      if (el) { el.style.opacity = ''; el.style.filter = ''; }
+    }
+  }
+
   function handlePaste(e) {
     var items = e.clipboardData && e.clipboardData.items;
     if (!items) return;
@@ -257,6 +374,17 @@ var KanvazApp = (function() {
       }
     }
     KanvazUI.toast(alwaysOnTop ? 'Always on top: on' : 'Always on top: off');
+  }
+
+  /* Silent variant for Top Mode's auto-on-top feature — updates the
+     live window state and toolbar button, but doesn't toast or
+     persist to settings, since this is a temporary side-effect of
+     Top Mode, not the user's own explicit, durable preference. */
+  function setAlwaysOnTopSilent(flag) {
+    alwaysOnTop = flag;
+    KanvazBridge.setAlwaysOnTop(flag);
+    var btn = document.getElementById('btn-always-on-top');
+    if (btn) btn.style.color = flag ? 'var(--color-accent)' : '';
   }
 
   /* ── Save status ── */
@@ -375,7 +503,7 @@ var KanvazApp = (function() {
               KanvazBridge.clearRecovery();
               KanvazUI.toast('Board restored', 'success');
               setTimeout(function() { KanvazCanvas.zoomFit(); }, 100);
-            });
+            }).catch(function(e) { console.warn('[Kanvaz] readRecovery IPC failed:', e); });
           }
         },
         {
@@ -648,7 +776,7 @@ var KanvazApp = (function() {
         var app = document.getElementById('app');
         if (app) app.classList.remove('moodlock-reveal');
         chromeRevealTimer = null;
-      }, 450);
+      }, 700);
     }
 
     /* Top Mode's reveal is intentionally more minimal than the general
@@ -720,6 +848,61 @@ var KanvazApp = (function() {
       }
     }
 
+    var moodlockWasAlwaysOnTop = false;
+
+    var tabHeld = false;
+    var windowDragActive = false;
+    var windowDragLastX = 0;
+    var windowDragLastY = 0;
+
+    /* Tab+MMB whole-window drag — an alternative way to move the
+       window from anywhere on screen, not just a titlebar strip.
+       Gated behind holding Tab because plain middle-mouse-drag is
+       already used for canvas panning in both Board and Map View;
+       without the Tab gate this would collide with that.
+
+       Known tradeoff, not hidden: Tab already toggles Top Mode on
+       keydown (see toggleMoodLock). Holding Tab to start this drag
+       will also flip Top Mode as a side-effect of that same keydown,
+       since the two features share the same key. Living with this
+       for now since debouncing "tap vs hold" reliably would need
+       deferring the Top Mode toggle to keyup and add real latency to
+       what's currently an instant, well-liked toggle ("top works nice
+       fr"). Revisit if this combination proves annoying in practice. */
+    window.addEventListener('keydown', function(e) {
+      if (e.key === 'Tab') tabHeld = true;
+    }, true);
+    window.addEventListener('keyup', function(e) {
+      if (e.key === 'Tab') tabHeld = false;
+    }, true);
+    window.addEventListener('blur', function() { tabHeld = false; });
+
+    function initTabMmbWindowDrag() {
+      window.addEventListener('mousedown', function(e) {
+        if (e.button !== 1 || !tabHeld) return;
+        e.preventDefault();
+        e.stopPropagation();
+        windowDragActive = true;
+        windowDragLastX = e.screenX;
+        windowDragLastY = e.screenY;
+      }, true); /* capture phase — intercepts before canvas/map pan handlers */
+
+      window.addEventListener('mousemove', function(e) {
+        if (!windowDragActive) return;
+        var dx = e.screenX - windowDragLastX;
+        var dy = e.screenY - windowDragLastY;
+        windowDragLastX = e.screenX;
+        windowDragLastY = e.screenY;
+        if (dx || dy) KanvazBridge.dragWindowBy(dx, dy);
+      }, true);
+
+      window.addEventListener('mouseup', function(e) {
+        if (e.button === 1) windowDragActive = false;
+      }, true);
+    }
+
+    initTabMmbWindowDrag();
+
     function toggleMoodLock() {
       var app = document.getElementById('app');
       if (!app) return;
@@ -732,6 +915,26 @@ var KanvazApp = (function() {
       syncChromeAutoHide(wasActive);
       syncMinimalClass();
       syncMoodlockBadge();
+
+      /* Auto always-on-top, if the setting is enabled — Top Mode is a
+         "float this over everything else" presentation mode, so it's
+         a natural pairing. Remembers whether always-on-top was already
+         on beforehand so exiting Top Mode restores that instead of
+         just forcing it off (doesn't fight a user's own independent
+         Always-on-Top preference if they'd already turned it on). */
+      var topModeAutoOnTop = false;
+      if (typeof KanvazUI_Extended !== 'undefined') {
+        var tmSettings = KanvazUI_Extended.getSettings();
+        topModeAutoOnTop = !!(tmSettings && tmSettings.topModeAutoOnTop);
+      }
+      if (topModeAutoOnTop) {
+        if (moodlockOn) {
+          moodlockWasAlwaysOnTop = alwaysOnTop;
+          if (!alwaysOnTop) setAlwaysOnTopSilent(true);
+        } else if (!moodlockWasAlwaysOnTop && alwaysOnTop) {
+          setAlwaysOnTopSilent(false);
+        }
+      }
 
       KanvazUI.toast(moodlockOn
         ? 'Top Mode — hover the top edge to bring back the toolbar, Esc or Tab to exit'
@@ -774,6 +977,8 @@ var KanvazApp = (function() {
       hideContextMenu:     hideContextMenu,
       toggleMoodLock:      toggleMoodLock,
       setChromeAutoHide:   setChromeAutoHide,
+      showSearchBar:       showSearchBar,
+      hideSearchBar:       hideSearchBar,
       closeAll:            closeAll,
       showSettings:        showSettings,
       closeSettings:       function() { KanvazUI_Extended.closeSettings(); },

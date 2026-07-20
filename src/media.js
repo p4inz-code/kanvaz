@@ -121,6 +121,9 @@ var KanvazMedia = (function() {
           callback(result, null);
         });
       }
+    }).catch(function(e) {
+      console.warn('[Kanvaz] loadMedia IPC failed:', e);
+      callback(null, 'IPC_FAIL', null);
     });
   }
 

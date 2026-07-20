@@ -158,7 +158,7 @@ html, body {
   transform: translateY(-100%);
   opacity: 0;
   pointer-events: none;
-  transition: transform 0.22s cubic-bezier(0.22,0.61,0.36,1), opacity 0.18s ease;
+  transition: transform 0.4s cubic-bezier(0.16,1,0.3,1), opacity 0.35s ease;
 }
 
 .moodlock-active.moodlock-reveal #top-chrome {
@@ -180,11 +180,24 @@ html, body {
   display: none !important;
 }
 
+/* Thicker titlebar specifically while Top Mode's minimal chrome is
+   revealed — easier to grab and drag than the standard 36px strip,
+   since dragging is the main reason to reveal it in Top Mode at all. */
+.moodlock-minimal.moodlock-reveal #titlebar {
+  height: 48px;
+}
+
 #moodlock-hover-zone {
   position: fixed;
   top: 0; left: 0; right: 0;
   height: 16px;
   z-index: 899;
+  /* Real OS-level drag region — lets you move the window by grabbing
+     this strip even before the chrome reveals, since the titlebar
+     itself is hidden until hovered. Doesn't interfere with the
+     mouseenter/mouseleave hover-reveal listeners below; app-region
+     drag only affects mousedown-drag-to-move, not hover events. */
+  -webkit-app-region: drag;
 }
 
 /* Persistent reminder that Top Mode is active, independent of the
@@ -213,6 +226,11 @@ html, body {
 @keyframes moodlock-badge-in {
   from { opacity: 0; transform: translateX(-50%) translateY(6px); }
   to   { opacity: 0.75; transform: translateX(-50%) translateY(0); }
+}
+
+@keyframes search-bar-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
 /* ── Titlebar ── */
@@ -477,7 +495,7 @@ html, body {
   will-change: transform;
 }
 
-/* Dot grid overlay */
+/* Grid overlay */
 #canvas-grid {
   position: absolute;
   top: 0;
@@ -619,6 +637,8 @@ html, body {
   will-change: transform;
   min-width: 80px;
   min-height: 80px;
+  container-type: inline-size;
+  container-name: card;
 }
 
 .card.selected {
@@ -663,6 +683,72 @@ html, body {
 .card:hover .card-bar,
 .card.selected .card-bar {
   opacity: 1;
+}
+
+/* ── Tag chips ── */
+.tag-bar {
+  position: absolute;
+  bottom: 24px;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 3px 6px;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.card:hover .tag-bar,
+.card.selected .tag-bar {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  font-size: 9px;
+  font-family: var(--font-ui);
+  color: var(--color-accent);
+  background: var(--color-accent-bg);
+  border-radius: 3px;
+  white-space: nowrap;
+  cursor: default;
+  line-height: 1.4;
+}
+
+.tag-chip-remove {
+  cursor: pointer;
+  opacity: 0.6;
+  font-size: 11px;
+  line-height: 1;
+  margin-left: 1px;
+}
+
+.tag-chip-remove:hover {
+  opacity: 1;
+  color: var(--color-red);
+}
+
+.tag-chip-add {
+  cursor: pointer;
+  color: var(--color-text-3);
+  background: var(--color-surface-2);
+  border: 1px dashed var(--color-border-2);
+  padding: 1px 8px;
+  font-size: 10px;
+}
+
+.tag-chip-add:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
 }
 
 .card-bar .card-filename {
@@ -785,14 +871,31 @@ html, body {
   bottom: 24px;
   left: 0;
   right: 0;
-  height: 20px;
+  height: clamp(28px, 10cqw, 48px);
   display: flex;
   align-items: center;
-  padding: 0 8px;
-  gap: 6px;
+  padding: 0 clamp(6px, 2.5cqw, 14px);
+  gap: clamp(4px, 2cqw, 10px);
   background: var(--color-chrome);
   opacity: 0;
   transition: opacity 0.15s;
+  z-index: 3;
+}
+
+.video-scrub .media-play-btn svg,
+.audio-scrub .media-play-btn svg {
+  width: clamp(14px, 6cqw, 32px);
+  height: clamp(14px, 6cqw, 32px);
+}
+
+.video-scrub .media-mute-btn,
+.audio-scrub .media-mute-btn {
+  font-size: clamp(12px, 4.5cqw, 22px);
+  min-width: clamp(22px, 7cqw, 36px);
+  min-height: clamp(22px, 7cqw, 36px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .card:hover .video-scrub {
@@ -815,38 +918,42 @@ html, body {
   bottom: 24px;
   left: 0;
   right: 0;
-  height: 24px;
+  height: clamp(30px, 11cqw, 50px);
   display: flex;
   align-items: center;
-  padding: 0 8px;
-  gap: 6px;
+  padding: 0 clamp(6px, 2.5cqw, 14px);
+  gap: clamp(4px, 2cqw, 10px);
   background: var(--color-chrome);
   /* Always visible — there's no preview frame to reveal it on hover */
   opacity: 1;
+  z-index: 3;
 }
 
 .video-scrub .scrub-bar,
 .audio-scrub .scrub-bar {
   flex: 1;
-  height: 3px;
+  height: clamp(4px, 1.5cqw, 8px);
   background: var(--color-border-2);
-  border-radius: 2px;
+  border-radius: clamp(2px, 0.8cqw, 4px);
   cursor: pointer;
   position: relative;
+  /* Enlarge click target beyond visible bar */
+  padding: clamp(4px, 1.5cqw, 8px) 0;
+  background-clip: content-box;
 }
 
 .video-scrub .scrub-fill,
 .audio-scrub .scrub-fill {
   height: 100%;
   background: var(--color-accent);
-  border-radius: 2px;
+  border-radius: clamp(2px, 0.8cqw, 4px);
   pointer-events: none;
 }
 
 .video-scrub .scrub-time,
 .audio-scrub .scrub-time {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: clamp(10px, 3.5cqw, 16px);
   color: var(--color-text-3);
   white-space: nowrap;
 }
@@ -1080,4 +1187,286 @@ html, body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ── About screen ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  z-index: 60000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: modal-overlay-in 0.15s ease-out;
+}
+
+@keyframes modal-overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.about-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-2);
+  border-radius: 16px;
+  padding: 36px 32px 28px;
+  width: 320px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  animation: about-card-in 0.2s cubic-bezier(0.16,1,0.3,1);
+}
+
+@keyframes about-card-in {
+  from { opacity: 0; transform: scale(0.96) translateY(6px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.about-logo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
+.about-title {
+  font-size: 23px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 4px;
+  letter-spacing: -0.01em;
+}
+
+.about-subtitle {
+  font-size: 13px;
+  color: var(--color-text-3);
+  margin-bottom: 18px;
+}
+
+.about-version {
+  display: inline-block;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--color-text-2);
+  background: var(--color-surface-2);
+  border-radius: 999px;
+  padding: 2px 12px;
+  margin-bottom: 10px;
+}
+
+.about-update-status {
+  font-size: 11px;
+  color: var(--color-text-3);
+  min-height: 16px;
+  margin-bottom: 6px;
+}
+
+.about-divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 16px 0;
+}
+
+.about-author {
+  font-size: 13px;
+  color: var(--color-text-2);
+  margin-bottom: 3px;
+}
+
+.about-author strong {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.about-studio {
+  font-size: 11.5px;
+  color: var(--color-text-3);
+  margin-bottom: 16px;
+}
+
+.about-desc {
+  font-size: 12px;
+  color: var(--color-text-3);
+  line-height: 1.7;
+}
+
+.about-privacy {
+  font-size: 10.5px;
+  color: var(--color-text-3);
+  line-height: 1.7;
+  margin-bottom: 12px;
+}
+
+.about-tagline {
+  font-size: 11px;
+  color: var(--color-accent);
+  line-height: 1.6;
+  margin-bottom: 22px;
+}
+
+.about-btn {
+  display: block;
+  width: 100%;
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.about-btn-update {
+  padding: 7px 16px;
+  margin-bottom: 10px;
+  background: transparent;
+  border: 1px solid var(--color-border-2);
+  color: var(--color-text-2);
+}
+
+.about-btn-update:hover {
+  background: var(--color-surface-2);
+}
+
+.about-btn-close {
+  padding: 9px 24px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-2);
+  color: var(--color-text-2);
+  font-size: 13px;
+}
+
+.about-btn-close:hover {
+  background: var(--color-surface-3);
+}
+
+/* ── About screen (v3.6.13 redesign) ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  z-index: 60000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.about-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-2);
+  border-radius: 14px;
+  padding: 36px 32px 28px;
+  width: 320px;
+  text-align: center;
+  box-shadow: 0 20px 56px rgba(0, 0, 0, 0.75);
+  animation: about-card-in 0.2s cubic-bezier(0.16,1,0.3,1);
+}
+
+@keyframes about-card-in {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.about-logo { margin-bottom: 14px; }
+
+.about-title {
+  font-size: 23px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 4px;
+  letter-spacing: -0.01em;
+}
+
+.about-subtitle {
+  font-size: 13px;
+  color: var(--color-text-3);
+  margin-bottom: 18px;
+}
+
+.about-version {
+  display: inline-block;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--color-text-2);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 3px 12px;
+  margin-bottom: 10px;
+}
+
+.about-update-status {
+  font-size: 11px;
+  color: var(--color-text-3);
+  min-height: 16px;
+  margin-bottom: 4px;
+}
+
+.about-divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 16px 0;
+}
+
+.about-author {
+  font-size: 13px;
+  color: var(--color-text-2);
+  margin-bottom: 3px;
+}
+.about-author strong { color: var(--color-text); font-weight: 600; }
+
+.about-studio {
+  font-size: 11.5px;
+  color: var(--color-text-3);
+  margin-bottom: 16px;
+}
+
+.about-desc {
+  font-size: 12px;
+  color: var(--color-text-3);
+  line-height: 1.7;
+}
+
+.about-privacy {
+  font-size: 10.5px;
+  color: var(--color-text-3);
+  line-height: 1.7;
+}
+
+.about-tagline {
+  font-size: 11px;
+  color: var(--color-accent);
+  line-height: 1.6;
+  margin-top: 16px;
+  margin-bottom: 20px;
+}
+
+.about-btn {
+  display: block;
+  width: 100%;
+  padding: 8px 16px;
+  border-radius: 7px;
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  margin-bottom: 8px;
+}
+
+.about-btn-update {
+  background: transparent;
+  border: 1px solid var(--color-border-2);
+  color: var(--color-text-2);
+}
+.about-btn-update:hover {
+  background: var(--color-surface-2);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.about-btn-close {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-2);
+  color: var(--color-text-2);
+  margin-bottom: 0;
+}
+.about-btn-close:hover {
+  background: var(--color-surface-3);
 }

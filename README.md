@@ -2,8 +2,9 @@
 
 **Reference Operating System**
 
-> **v3.6.9** — Board View, Connection System, and Inspector are stable and shipping.
-> Map View (node-editor graph) is under active development — functional but receiving polish updates.
+> **v3.7.1** — Hotfix for startup crash, dead buttons, map port alignment on high-DPI displays, and media control sizing.
+> Board View, Connection System, and Inspector are stable and shipping.
+> Map View is functional and receiving polish updates.
 
 Collect, organize, connect, and understand your references — all offline.
 Kanvaz is a free, open-source desktop app for VFX artists, 3D artists, and creative professionals who work with visual references.
@@ -34,7 +35,7 @@ See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 **Connection Inspector** — select any reference and press C to see all its incoming and outgoing connections. Create, edit, and delete relationships from a side panel.
 
-**100% Offline** — no accounts, no telemetry, no internet required. Your `.kanvaz` files never leave your machine.
+**100% Offline** — no accounts, no telemetry, no internet required. Your `.kanvaz` files never leave your machine. The one exception: an optional "Check for updates" button in the About screen makes a single request to GitHub — only if you click it, never automatically.
 
 ---
 
@@ -52,8 +53,14 @@ See [CHANGELOG.md](CHANGELOG.md) for version history.
 - Autosave crash recovery (writes to recovery file every 30s)
 - Top Mode (Tab, or Ctrl+Shift+F) — hide all UI for distraction-free presenting; hover the top edge to briefly bring back the title/toolbar without exiting, Esc or Tab to fully exit
 - Auto-hide toolbar (Settings → Behavior, off by default) — same hover-to-reveal chrome as Top Mode, but as a standing preference instead of a shortcut-gated mode; also relaxes the minimum window size for a PureRef-style compact footprint
-- Grid snap on resize (Settings → Behavior, off by default) — snaps card width/height/position to the grid, choice of Minor (24px) or Major (120px) increment
+- Grid snap (Settings → Behavior, off by default) — snaps card width/height/position to the grid on both move and resize, choice of Minor (24px) or Major (120px) increment
 - Developer settings (Settings → Developer) — FPS/render-time overlay, card/connection ID overlay, manual diagnostics trigger, bulk test-card generator, one-click debug-info export for bug reports
+- Top Mode auto-enables Always on Top (Settings → Behavior, off by default) — restores your prior Always-on-Top state when you exit Top Mode
+- Tab+MMB whole-window drag — hold Tab and drag with the middle mouse button to move the window from anywhere on screen
+- Optional update check (About screen) — the one network call in the entire app, fires only when you click it, never automatically
+- Reset Kanvaz (Settings → Reset) — clears settings, recent-files list, and autosave/recovery cache, then restarts. Never touches saved `.kanvaz` boards, which always live outside the app's own data folder regardless of where you save them
+- Tag editing — add/remove tags directly on any card, shown as chips on hover/selection
+- Search/filter (`/` or Ctrl+F) — live filter by name, type, or tag; matches stay full-opacity, everything else dims so you keep spatial context
 - Always on top (T) — persists across restarts
 - Board/Map segmented toggle in toolbar
 - Light / dark theme (press L or change in Settings)
@@ -83,7 +90,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 3.6.9.exe` and `dist/Kanvaz 3.6.9.exe`
+Output: `dist/Kanvaz Setup 3.7.1.exe` and `dist/Kanvaz 3.7.1.exe`
 
 **macOS:**
 ```bash
@@ -111,6 +118,7 @@ npm run build:linux
 | Ctrl+S | Save board |
 | Ctrl+Shift+S | Save board as new file |
 | Ctrl+O | Open board |
+| Ctrl+F or / | Search/filter cards |
 | Ctrl+Z / Ctrl+Y | Undo / Redo |
 | Ctrl+A | Select all cards |
 | Delete | Delete selected card |
@@ -132,18 +140,24 @@ npm run build:linux
 
 ## File format
 
-Boards are saved as `.kanvaz` files — plain JSON with version `"3.6.9"`. Media is embedded as base64 data URLs. Connections are stored as a top-level `connections` array alongside boards. Files from v2.x load cleanly with zero connections.
+Boards are saved as `.kanvaz` files — plain JSON with version `"3.7.1"`. Media is embedded as base64 data URLs. Connections are stored as a top-level `connections` array alongside boards. Files from v2.x load cleanly with zero connections.
 
 ---
 
 ## Known limitations
 
-- Tags and custom properties are in the data model but have no editing UI yet (planned for v4).
+- Custom key-value properties are in the data model but have no editing UI yet (tags got theirs in v3.7.0; properties panel planned for v4).
 - `.kanvaz` files embed media as base64, so files with large video/audio can get large.
 - MKV and AVI video files may not play (Chromium codec limitation) — MP4 (H.264) and WebM recommended.
-- The annotation toolbar doesn't follow the canvas if you pan/zoom while it's open.
 - Autosave writes to a recovery file only — "Unsaved changes" in the status bar clears only on explicit Save (Ctrl+S). The recovery file is now cleared on every clean close (v3.6.5) so the "Recover unsaved board?" prompt only appears after an actual crash, not on every launch.
-- **Map View: connection wires sometimes start from a slightly different point than the actual output port.** Reported by users; reproduction and root-cause investigation pending. Tracked for a future patch — not fixed yet.
+
+---
+
+## Roadmap
+
+**v3.8.0** — Next milestone. Focus areas: advanced error diagnostics with version-aware settings migration, crash-safe save (write-to-temp then rename), `.pur` file import for PureRef users migrating to Kanvaz, custom properties panel (key-value metadata editing per card), and a color picker card type.
+
+**v4.0** — Long-term. Auto-updater (Squirrel or electron-updater), auto-layout algorithms for Map View, and the remaining reference types (URL, PDF, Color, File, Outcome) that are registered in the type system but don't have creation UI yet.
 
 ---
 

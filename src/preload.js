@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
   isMaximized:     function() { return ipcRenderer.invoke('window-is-maximized'); },
   setAlwaysOnTop:  function(flag) { ipcRenderer.send('window-set-always-on-top', flag); },
   setMoodLockSize: function(active) { ipcRenderer.send('window-set-moodlock-size', active); },
+  dragWindowBy: function(dx, dy) { ipcRenderer.send('window-drag-by', { dx: dx, dy: dy }); },
 
   /* File dialogs */
   openFileDialog:  function() { return ipcRenderer.invoke('dialog-open-file'); },
@@ -41,6 +42,8 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
   /* Settings */
   readSettings:    function() { return ipcRenderer.invoke('settings-read'); },
   writeSettings:   function(d) { return ipcRenderer.invoke('settings-write', d); },
+  resetAppData:    function() { return ipcRenderer.invoke('reset-app-data'); },
+  relaunchApp:     function() { ipcRenderer.send('app-relaunch'); },
   firstRunCheck:   function() { return ipcRenderer.invoke('first-run-check'); },
 
   /* Main → Renderer events */

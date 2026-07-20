@@ -24,24 +24,24 @@ of the whole app. The pin avoids "working build today, broken build after
 
 | File | LOC | Responsibility |
 |---|---|---|
-| `main.js` | 355 | Electron main process — window management, all IPC handlers (file read/write, dialogs, recovery, recent files, media loading with size/type checks), close-with-unsaved-changes interception, relaxed minimum window size while chrome auto-hide is active (Top Mode or the persistent setting) |
-| `preload.js` | 58 | `contextBridge` API exposed to the renderer as `window.KanvazBridge` — only whitelisted IPC channels are exposed |
+| `main.js` | 405 | Electron main process — window management, all IPC handlers (file read/write, dialogs, recovery, recent files, media loading with size/type checks), close-with-unsaved-changes interception, relaxed minimum window size while chrome auto-hide is active (Top Mode or the persistent setting), Tab+MMB window-drag-by-delta (v3.6.10), clean app-data reset scoped to userData only (v3.6.12) |
+| `preload.js` | 61 | `contextBridge` API exposed to the renderer as `window.KanvazBridge` — only whitelisted IPC channels are exposed |
 | `errors.js` | 74 | Centralized error-code → user-facing message mapping, global error boundary |
 | `reference-types.js` | 93 | Type registry for 10 reference types (image, gif, video, audio, note, url, pdf, color, file, outcome) with icons, categories, and field definitions |
 | `media.js` | 203 | Media type detection (image/GIF/video/audio), natural-size probing, drop-size capping |
 | `canvas.js` | 476 | Pan/zoom with rAF-throttled grid redraw, batched major/minor line-grid rendering (v3.6.7 — was dots), tx/ty bounds clamping, screen↔world coordinate conversion, drag-and-drop entry point |
-| `cards.js` | 1,144 | Card (reference) data model and rendering. Uses event delegation — 3 listeners attached once to the canvas, never re-bound. Builds each card type (image/GIF/video/audio/note) with resize handles, pin, duplicate, delete. Serialise/deserialise with v3 fields (tags, properties, mapPosition, url, color, mimeType). Cascade-deletes connections on card delete. Closes inspector on card delete. |
+| `cards.js` | 1,266 | Card (reference) data model and rendering. Uses event delegation — 3 listeners attached once to the canvas, never re-bound. Builds each card type (image/GIF/video/audio/note) with resize handles, pin, duplicate, delete. Serialise/deserialise with v3 fields (tags, properties, mapPosition, url, color, mimeType). Cascade-deletes connections on card delete. Closes inspector on card delete. Tag chip editing UI (add/remove, v3.7.0) — mousedown delegation explicitly excludes tag-chip interactions from triggering card select/drag, since mousedown fires before the chip's own click handler. |
 | `connections.js` | 222 | CRUD for directional reference relationships. 7 built-in types (RelatedTo, InspiredBy, DerivedFrom, AlternativeTo, Supports, UsedIn, References). Duplicate prevention, collect-then-delete safe iteration, cascade removal. File-level storage (not per-board). |
 | `history.js` | 153 | Undo/redo stack (50 steps). Snapshots include both references and connections as `{ refs, conns }` with backward compat for v2 plain-array snapshots. Shares immutable fields (media data, type, id) by reference and deep-copies mutable fields (position, size, tags, properties, mapPosition). Re-renders map view and refreshes inspector on restore. |
-| `annotate.js` | 518 | Per-card canvas overlay for pen/arrow/rectangle annotations in 6 colors |
-| `boards.js` | 677 | Multi-board state — create/rename/delete/switch tabs, save/load `.kanvaz` files, serialization with connections, recovery autosave with try-catch and status indicator, startup screen, map view state save/restore per board. Cascade-deletes connections on board delete. Clears connections on new board. Migrates legacy pre-`boards[]` file shapes into a synthetic board on load (v3.6.5). |
+| `annotate.js` | 540 | Per-card canvas overlay for pen/arrow/rectangle annotations in 6 colors. Toolbar repositions live via `MutationObserver` on the canvas transform (v3.7.0 — previously positioned once via `getBoundingClientRect()` at open time, so it drifted out of sync with the card on any pan/zoom); observer cleaned up on toolbar close so it doesn't linger. |
+| `boards.js` | 684 | Multi-board state — create/rename/delete/switch tabs, save/load `.kanvaz` files, serialization with connections, recovery autosave with try-catch and status indicator, startup screen, map view state save/restore per board. Cascade-deletes connections on board delete. Clears connections on new board. Migrates legacy pre-`boards[]` file shapes into a synthetic board on load (v3.6.5). |
 | `inspector.js` | 599 | Connection Inspector side panel — shows incoming/outgoing connections for a selected reference with type tags, priority indicators, notes. Create/edit/delete dialogs. Double-click row to jump to connected reference. |
 | `map-view.js` | 1,416 | Node-editor-style relationship visualization. References as compact cards with input/output port dots. Bezier tube connections with glow + shadow + colored dot terminators, staggered draw-on entrance animation on first open. Drag-from-port wire creation with live preview and accent-color glow. Independent pan/zoom with its own major/minor line grid (v3.6.6 — was a dot grid in v3.6.5, changed to match what was actually asked for and to visually differentiate from Board View), eased camera moves for fit-all/reset (cancellable, decoupled from the separately-optimized instant wheel-zoom/drag-pan path). Right-click context menu per node. Keyboard delegation (blocks board-specific shortcuts when active). Runtime self-diagnostic checks port alignment on both axes, scheduled via `requestIdleCallback` (v3.6.6) rather than a fixed delay so it never contends with in-flight animations for layout. |
-| `shortcuts.js` | 206 | Global keyboard shortcut handling. Shortcut order: file ops → undo/redo → global (T, ?, M) → map delegation (blocks board shortcuts when map active) → board zoom → board card ops. Respects text input focus and OS key-repeat. |
-| `ui.js` | 819 | Settings panel with 10+ toggleable options (including Auto-hide toolbar, v3.6.6), About screen, shortcuts-reference overlay, first-run dialog. Persists settings via IPC. Calls `startAutosave()` after settings load. |
-| `app.js` | 816 | Renderer entry point: boot sequence, toolbar button wiring, context menu builder (type-aware, shared `positionMenuInViewport()` clamps to viewport, v3.6.8), drag-drop and clipboard-paste handling (share one `gridArrangePos()` helper sized off the real `defaultCardW` setting, v3.6.8), window chrome, dirty/save-state tracking, recovery dialog, Top Mode + the persistent Auto-hide toolbar setting (share one hover-reveal chrome mechanic, reference-counted so either can be on independently; Top Mode's reveal is deliberately more minimal than the setting's, v3.6.8), persistent Top Mode badge. |
+| `shortcuts.js` | 220 | Global keyboard shortcut handling. Shortcut order: file ops → undo/redo → global (T, ?, M) → map delegation (blocks board shortcuts when map active) → board zoom → board card ops. Respects text input focus and OS key-repeat. |
+| `ui.js` | 932 | Settings panel with 10+ toggleable options (including Auto-hide toolbar, v3.6.6; Reset Kanvaz, v3.6.12), About screen rebuilt onto real CSS classes instead of inline `style.cssText` blobs (v3.7.0) with an opt-in GitHub update-check (v3.6.10, the app's only network call), shortcuts-reference overlay, first-run dialog. Persists settings via IPC. Calls `startAutosave()` after settings load. |
+| `app.js` | 1,014 | Renderer entry point: boot sequence, toolbar button wiring, context menu builder (type-aware, shared `positionMenuInViewport()` clamps to viewport, v3.6.8), drag-drop and clipboard-paste handling (share one `gridArrangePos()` helper sized off the real `defaultCardW` setting, v3.6.8), window chrome, dirty/save-state tracking, recovery dialog, Top Mode + the persistent Auto-hide toolbar setting (share one hover-reveal chrome mechanic, reference-counted so either can be on independently; Top Mode's reveal is deliberately more minimal than the setting's, v3.6.8), persistent Top Mode badge, search/filter bar (`Ctrl+F` or `/`, v3.7.0 — dims non-matching cards rather than hiding them, cleared on board switch/file open). |
 
-**Total**: 7,829 LOC across 16 modules.
+**Total**: 8,358 LOC across 16 modules.
 
 ## File format (v3.x)
 
@@ -112,6 +112,50 @@ instead. A file matching neither shape still gets an explicit
   `README.md` build output, `generate_overview_pdf.py` footer.
 
 ## Architecture decisions
+- **"Reset Kanvaz" is safe by construction, not by exclusion-list
+  filtering** (v3.6.12) — the reset handler in `main.js` only ever
+  constructs paths from `app.getPath('userData')` (settings.json,
+  recent.json, the recovery/ directory, the first-run flag). Saved
+  `.kanvaz` boards always live wherever the user chose via the native
+  save dialog, a location structurally outside `userData` — there is
+  no code path in the handler that could ever reach one, so there's
+  nothing to exclude or filter; the safety comes from what's simply
+  never referenced. Verified by re-reading the final handler with this
+  specific question in mind before shipping, not assumed from the
+  original design intent.
+- **Exactly one network call exists anywhere in the app, and it's
+  strictly opt-in** (v3.6.10) — the "Check for updates" button in the
+  About screen, which fetches `api.github.com/repos/p4inz-code/kanvaz/
+  releases/latest` and does a numeric (not string) version comparison
+  against the current build. Never runs automatically, never on
+  startup, never in the background. This was a deliberate line not to
+  cross casually: "zero network calls, period" has been a real,
+  marketed differentiator for Kanvaz (see the PureRef-positioning
+  discussion), and even an opt-in fetch changes that property for
+  anyone who verifies it by reading the source. Both the README and
+  the generated PDF's Privacy section now explicitly carve out this
+  one exception rather than leaving the older, now-imprecise "no
+  internet" claim standing unqualified.
+- **Grid snap applies to both move and resize, sharing one
+  `snapToGrid()` helper** (v3.6.10) — it was originally wired into
+  resize only (matching the setting's original name/scope), which
+  looked completely broken to anyone testing it via repositioning
+  instead. For aspect-locked corner resizes specifically, only width
+  is snapped and height is re-derived from it, rather than snapping
+  both independently — doing both would distort the locked ratio.
+- **Deleting a card auto-selects another remaining one** (v3.6.10) —
+  previously `selectedId` just went to `null`, so a keyboard-only bulk
+  delete (Delete, Delete, Delete...) went dead after the first press
+  since the shortcut handler requires an active selection.
+- **Tab is overloaded: Top Mode toggle (keydown) and a modifier for
+  Tab+MMB window drag.** Holding Tab to start a middle-mouse window
+  drag also fires the Top Mode toggle as a side-effect of that same
+  keydown — a known, disclosed tradeoff, not an oversight. Properly
+  separating "tap to toggle" from "hold as a modifier" would mean
+  deferring the toggle to keyup and reliably distinguishing a tap from
+  a hold, which adds latency to an instant, already-well-received
+  toggle. Revisit only if the combination proves genuinely disruptive
+  in practice.
 - **Connections are file-level, not board-level.** A connection can link
   references across boards. `clearAll()` in cards.js does NOT clear
   connections — that's handled at the boards.js level (newBoard, deleteBoard).

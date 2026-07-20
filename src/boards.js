@@ -7,7 +7,7 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '3.6.9';
+  var VERSION       = '3.7.1';
 
   /* ── Init ── */
 
@@ -149,6 +149,9 @@ var KanvazBoards = (function() {
 
     /* Close inspector — cards will be different on the new board */
     if (typeof KanvazInspector !== 'undefined') KanvazInspector.close();
+    /* Clear any active search — leaving it open would show a stale
+       query against a board it was never applied to */
+    if (typeof KanvazUI !== 'undefined' && KanvazUI.hideSearchBar) KanvazUI.hideSearchBar();
 
     loadBoardState(boards[idx]);
     renderTabs();
@@ -297,7 +300,7 @@ var KanvazBoards = (function() {
           KanvazUI.toast('Save failed: ' + result.error, 'error');
           if (onDone) onDone(false);
         }
-      });
+      }).catch(function(e) { console.warn('[Kanvaz] writeFile IPC failed:', e); });
     }
 
     if (savePath) {
@@ -306,7 +309,7 @@ var KanvazBoards = (function() {
       var defaultName = (boards[activeIdx] ? boards[activeIdx].name : 'untitled') + '.kanvaz';
       KanvazBridge.saveFileDialog(defaultName).then(function(p) {
         doSave(p);
-      });
+      }).catch(function(e) { console.warn('[Kanvaz] saveFileDialog IPC failed:', e); });
     }
   }
 
@@ -329,8 +332,8 @@ var KanvazBoards = (function() {
         } else {
           KanvazUI.toast('Save failed', 'error');
         }
-      });
-    });
+      }).catch(function(e) { console.warn('[Kanvaz] writeFile IPC failed:', e); });
+    }).catch(function(e) { console.warn('[Kanvaz] saveFileDialog IPC failed:', e); });
   }
 
   /* ── Open board ── */
@@ -365,8 +368,8 @@ var KanvazBoards = (function() {
         } catch (e) {
           KanvazUI.toast('File appears corrupted', 'error');
         }
-      });
-    });
+      }).catch(function(e) { console.warn('[Kanvaz] readFile IPC failed:', e); });
+    }).catch(function(e) { console.warn('[Kanvaz] openFileDialog IPC failed:', e); });
   }
 
   /* ── Load from JSON data ── */
@@ -424,6 +427,10 @@ var KanvazBoards = (function() {
       newBoard(true);
       return;
     }
+
+    /* Clear any active search — a newly opened file's cards were
+       never filtered against it */
+    if (typeof KanvazUI !== 'undefined' && KanvazUI.hideSearchBar) KanvazUI.hideSearchBar();
 
     /* Guard against a corrupted/malformed file pointing activeIdx past
        the end of the boards array — without this, boards[activeIdx]
@@ -492,7 +499,7 @@ var KanvazBoards = (function() {
           setTimeout(function() { el.style.opacity = '0'; }, 2000);
         }
       }
-    });
+    }).catch(function(e) { console.warn('[Kanvaz] writeRecovery IPC failed:', e); });
 
     /* Note: deliberately does NOT also write to currentPath. Autosave's
        job is crash recovery (the recovery file above). Writing the user's
@@ -513,6 +520,7 @@ var KanvazBoards = (function() {
        settings IPC will have resolved too. */
     KanvazBridge.getRecent().then(function(recent) {
       if (!recent || !recent.length) return;
+
 
       if (typeof KanvazUI_Extended !== 'undefined') {
         var s = KanvazUI_Extended.getSettings();
@@ -607,7 +615,7 @@ var KanvazBoards = (function() {
               } catch (e) {
                 KanvazUI.toast('File appears corrupted', 'error');
               }
-            });
+            }).catch(function(e) { console.warn('[Kanvaz] readFile IPC failed:', e); });
           };
 
           panel.appendChild(row);
@@ -642,6 +650,8 @@ var KanvazBoards = (function() {
       overlay.onclick = function(e) {
         if (e.target === overlay) closeStartup();
       };
+    }).catch(function(e) {
+      console.warn('[Kanvaz] getRecent IPC failed:', e);
     });
   }
 

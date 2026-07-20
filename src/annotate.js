@@ -427,11 +427,31 @@ var KanvazAnnotate = (function() {
 
     document.body.appendChild(tb);
     toolbarEl = tb;
+    toolbarCardId = cardId;
 
-    /* Position above the card */
+    /* Position above the card — and keep repositioning when the canvas
+       pans/zooms. The toolbar is position:fixed (so it doesn't scroll
+       with the canvas world), but the card it's anchored to IS inside
+       the canvas world, so its screen position changes on every
+       pan/zoom. Watch for style changes on the transform parent. */
+    repositionToolbar();
+    var worldEl = document.getElementById('canvas-world');
+    if (worldEl && typeof MutationObserver !== 'undefined') {
+      toolbarObserver = new MutationObserver(function() { repositionToolbar(); });
+      toolbarObserver.observe(worldEl, { attributes: true, attributeFilter: ['style'] });
+    }
+  }
+
+  var toolbarCardId = null;
+  var toolbarObserver = null;
+
+  function repositionToolbar() {
+    if (!toolbarEl || !toolbarCardId) return;
+    var cardEl = document.getElementById(toolbarCardId);
+    if (!cardEl) return;
     var rect = cardEl.getBoundingClientRect();
-    tb.style.left = rect.left + 'px';
-    tb.style.top  = Math.max(4, rect.top - 44) + 'px';
+    toolbarEl.style.left = rect.left + 'px';
+    toolbarEl.style.top  = Math.max(4, rect.top - 44) + 'px';
   }
 
   function updateToolbar() {
@@ -457,10 +477,12 @@ var KanvazAnnotate = (function() {
   }
 
   function hideToolbar() {
+    if (toolbarObserver) { toolbarObserver.disconnect(); toolbarObserver = null; }
     if (toolbarEl && toolbarEl.parentNode) {
       toolbarEl.parentNode.removeChild(toolbarEl);
     }
     toolbarEl = null;
+    toolbarCardId = null;
   }
 
   /* ── Serialise / deserialise ── */

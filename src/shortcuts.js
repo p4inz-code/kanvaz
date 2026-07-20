@@ -46,6 +46,12 @@ var KanvazShortcuts = (function() {
       return;
     }
 
+    if (ctrl && !shift && e.key === 'f') {
+      e.preventDefault();
+      KanvazUI.showSearchBar();
+      return;
+    }
+
     if (ctrl && shift && e.key === 'F') {
       e.preventDefault();
       KanvazUI.toggleMoodLock();
@@ -56,9 +62,17 @@ var KanvazShortcuts = (function() {
        Ctrl+Z/Ctrl+Y/Ctrl+Shift+Z/Ctrl+A have native meanings inside a
        textarea (undo typing, redo, select all text) — they must NOT be
        hijacked into board-level undo/redo/select-all while the user is
-       typing in a note. Ctrl+S/Ctrl+Shift+S/Ctrl+O/Ctrl+Shift+F have no
-       native textarea meaning, so those stay above as "always fire". */
+       typing in a note. Ctrl+S/Ctrl+Shift+S/Ctrl+O/Ctrl+Shift+F/Ctrl+F
+       have no native textarea meaning, so those stay above as "always
+       fire". */
     if (inText) return;
+
+    /* Quick search — / is the vim/Blender convention for instant search */
+    if (e.key === '/') {
+      e.preventDefault();
+      KanvazUI.showSearchBar();
+      return;
+    }
 
     /* Top Mode — easier single-key trigger than Ctrl+Shift+F (kept
        above for backward compat/muscle memory). Tab has a native

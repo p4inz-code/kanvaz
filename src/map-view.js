@@ -41,6 +41,7 @@ var KanvazMapView = (function() {
   var wireFrom     = null;   /* ref ID we're dragging a wire from */
   var wirePreview  = null;   /* live SVG path element */
   var hasRenderedOnce = false;
+  var useMathOnly    = false; /* skip domPort during entrance animations */
 
   /* ── Node sizing ── */
   var NODE_W      = 176;   /* border-box width (global * reset forces box-sizing:border-box) */
@@ -144,8 +145,9 @@ var KanvazMapView = (function() {
   }
 
   /* Read the live rendered port-dot center in WORLD coordinates.
-     Returns null if the node/port isn't in the DOM yet (caller falls
-     back to math). */
+     Returns null if the node/port isn't in the DOM yet or if the
+     rect is zero-sized (hidden, mid-animation, DPI edge-case on
+     some Windows machines). Caller falls back to math. */
   function domPort(refId, side) {
     if (!world) return null;
     var cls = (side === 'out') ? '.map-port-out' : '.map-port-in';
@@ -153,18 +155,30 @@ var KanvazMapView = (function() {
     if (!dot) return null;
     var wRect = world.getBoundingClientRect();
     var dRect = dot.getBoundingClientRect();
-    return {
-      x: (dRect.left + dRect.width / 2 - wRect.left) / scale,
-      y: (dRect.top  + dRect.height / 2 - wRect.top) / scale
-    };
+    /* Guard: zero-size rects mean the element isn't laid out yet
+       (display:none ancestor, entrance animation at frame 0, or
+       a DPI-scaling edge-case on certain Windows setups). Return
+       null so the caller uses the math fallback instead of (0,0). */
+    if (dRect.width === 0 || dRect.height === 0) return null;
+    if (wRect.width === 0 || wRect.height === 0) return null;
+    var x = (dRect.left + dRect.width / 2 - wRect.left) / scale;
+    var y = (dRect.top  + dRect.height / 2 - wRect.top) / scale;
+    /* Sanity: if the computed position is wildly outside the
+       expected range, the DOM read was unreliable — fall back. */
+    if (x < -5000 || x > 50000 || y < -5000 || y > 50000) return null;
+    return { x: x, y: y };
   }
 
-  /* Resolved endpoint: DOM truth if available, else math fallback. */
+  /* Resolved endpoint: DOM truth if available, else math fallback.
+     During entrance animations useMathOnly is set — DOM positions
+     are unreliable (translateY offset, zero-size rects on some DPI). */
   function resolveOut(card) {
+    if (useMathOnly) return outPort(card);
     var dom = domPort(card.id, 'out');
     return dom || outPort(card);
   }
   function resolveIn(card) {
+    if (useMathOnly) return inPort(card);
     var dom = domPort(card.id, 'in');
     return dom || inPort(card);
   }
@@ -722,7 +736,22 @@ var KanvazMapView = (function() {
       idx++;
     }
 
-    renderLines(isFirstOpen);
+    /* On first open, use math-only port positions — entrance animations
+       make getBoundingClientRect unreliable (translateY offset, zero-size
+       rects on some Windows DPI configs → ports converge at 0,0).
+       After all animations finish, re-render lines with DOM-accurate
+       positions for pixel-perfect alignment. */
+    if (isFirstOpen) {
+      useMathOnly = true;
+      renderLines(true);
+      var animDone = Math.min(idx * 35, 420) + 420 + 60;
+      setTimeout(function() {
+        useMathOnly = false;
+        renderLines(false);
+      }, animDone);
+    } else {
+      renderLines(false);
+    }
     updateStatusBar(cards);
 
     /* Dev safety net — full self-diagnostic after each render.

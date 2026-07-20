@@ -72,6 +72,15 @@ var KanvazCards = (function() {
         return;
       }
 
+      /* Tag chips — remove/add/input must never trigger a card drag.
+         mousedown fires before the chip's own click handler, so without
+         this the underlying card would select/drag before the tag
+         action ever runs. */
+      if (target.closest('.tag-chip-remove') || target.closest('.tag-chip-add') || target.closest('.tag-input')) {
+        e.stopPropagation();
+        return;
+      }
+
       /* Card body — select, bring to front, maybe drag */
       var cardEl = target.closest('.card');
       if (!cardEl) return; /* empty canvas — canvas.js handles pan/deselect */
@@ -131,8 +140,8 @@ var KanvazCards = (function() {
       var dy = (ev.clientY - startY) / scale;
       if (!moved && Math.abs(dx) < 2 && Math.abs(dy) < 2) return;
       moved = true;
-      card.x = origX + dx;
-      card.y = origY + dy;
+      card.x = snapToGrid(origX + dx);
+      card.y = snapToGrid(origY + dy);
       el.style.left = card.x + 'px';
       el.style.top  = card.y + 'px';
     }
@@ -187,14 +196,21 @@ var KanvazCards = (function() {
       if (dir === 'br' || dir === 'bc' || dir === 'bl') newH = startH + dy;
       if (dir === 'tr' || dir === 'tc' || dir === 'tl') { newH = startH - dy; newY = startCY + dy; }
 
-      if (aspectLock && card.type !== 'note' && card.type !== 'audio') {
-        if (dir === 'br' || dir === 'tr' || dir === 'bl' || dir === 'tl') {
-          newH = newW / aspectRatio;
-        }
+      var isCorner = (dir === 'br' || dir === 'tr' || dir === 'bl' || dir === 'tl');
+      if (aspectLock && card.type !== 'note' && card.type !== 'audio' && isCorner) {
+        newH = newW / aspectRatio;
       }
 
-      newW = snapToGrid(newW);
-      newH = snapToGrid(newH);
+      if (aspectLock && isCorner) {
+        /* Snap width only, then re-derive height from the snapped width
+           — snapping both dimensions independently would distort the
+           locked aspect ratio (e.g. a 4:3 image ending up 1:1-ish). */
+        newW = snapToGrid(newW);
+        newH = newW / aspectRatio;
+      } else {
+        newW = snapToGrid(newW);
+        newH = snapToGrid(newH);
+      }
       newX = snapToGrid(newX);
       newY = snapToGrid(newY);
 
@@ -228,8 +244,8 @@ var KanvazCards = (function() {
 
   /* ── Video controls (delegated) ── */
 
-  var PLAY_ICON  = '<svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><polygon points="1,1 9,5 1,9"/></svg>';
-  var PAUSE_ICON = '<svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><rect x="1" y="1" width="3" height="8"/><rect x="6" y="1" width="3" height="8"/></svg>';
+  var PLAY_ICON  = '<svg width="18" height="18" viewBox="0 0 10 10" fill="currentColor"><polygon points="1,1 9,5 1,9"/></svg>';
+  var PAUSE_ICON = '<svg width="18" height="18" viewBox="0 0 10 10" fill="currentColor"><rect x="1" y="1" width="3" height="8"/><rect x="6" y="1" width="3" height="8"/></svg>';
 
   function toggleVideoPlay(cardEl) {
     if (!cardEl) return;
@@ -499,7 +515,7 @@ var KanvazCards = (function() {
     /* Mute button */
     var muteBtn = document.createElement('button');
     muteBtn.className = 'media-mute-btn';
-    muteBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-text-3);padding:0;display:flex;align-items:center;font-family:var(--font-mono);font-size:9px;';
+    muteBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-text-3);padding:0;display:flex;align-items:center;font-family:var(--font-mono);';
     muteBtn.textContent = 'M';
     muteBtn.title = 'Toggle mute';
 
@@ -567,7 +583,7 @@ var KanvazCards = (function() {
 
     var muteBtn = document.createElement('button');
     muteBtn.className = 'media-mute-btn';
-    muteBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-text-3);padding:0;display:flex;align-items:center;font-family:var(--font-mono);font-size:9px;';
+    muteBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-text-3);padding:0;display:flex;align-items:center;font-family:var(--font-mono);';
     muteBtn.textContent = 'M';
     muteBtn.title = 'Toggle mute';
 
@@ -645,6 +661,98 @@ var KanvazCards = (function() {
     }
 
     el.appendChild(bar);
+    buildTagBar(el, card);
+  }
+
+  /* ── Tag chips (inline editing) ── */
+
+  function collectAllTags() {
+    var allTags = {};
+    for (var id in cards) {
+      var c = cards[id];
+      if (c.tags && c.tags.length) {
+        for (var t = 0; t < c.tags.length; t++) {
+          allTags[c.tags[t]] = true;
+        }
+      }
+    }
+    return Object.keys(allTags).sort();
+  }
+
+  function buildTagBar(el, card) {
+    var existing = el.querySelector('.tag-bar');
+    if (existing) existing.parentNode.removeChild(existing);
+
+    var tagBar = document.createElement('div');
+    tagBar.className = 'tag-bar';
+
+    if (card.tags && card.tags.length) {
+      for (var i = 0; i < card.tags.length; i++) {
+        (function(tag, idx) {
+          var chip = document.createElement('span');
+          chip.className = 'tag-chip';
+          chip.textContent = tag;
+
+          var removeBtn = document.createElement('span');
+          removeBtn.className = 'tag-chip-remove';
+          removeBtn.textContent = '\u00D7';
+          removeBtn.title = 'Remove tag';
+          removeBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            card.tags.splice(idx, 1);
+            buildTagBar(el, card);
+            KanvazApp.markDirty();
+            KanvazHistory.push();
+          });
+          chip.appendChild(removeBtn);
+          tagBar.appendChild(chip);
+        })(card.tags[i], i);
+      }
+    }
+
+    var addBtn = document.createElement('span');
+    addBtn.className = 'tag-chip tag-chip-add';
+    addBtn.textContent = '+';
+    addBtn.title = 'Add tag';
+    addBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      showTagInput(el, card, tagBar);
+    });
+    tagBar.appendChild(addBtn);
+
+    el.appendChild(tagBar);
+  }
+
+  function showTagInput(cardEl, card, tagBar) {
+    var existingInput = tagBar.querySelector('.tag-input');
+    if (existingInput) return;
+
+    var input = document.createElement('input');
+    input.className = 'tag-input';
+    input.type = 'text';
+    input.placeholder = 'tag name';
+    input.style.cssText = 'width:70px;padding:1px 4px;border:1px solid var(--color-accent);border-radius:3px;background:var(--color-surface-2);color:var(--color-text);font-size:10px;font-family:var(--font-ui);outline:none;';
+
+    function addTag() {
+      var val = input.value.trim().toLowerCase();
+      if (val && (!card.tags || card.tags.indexOf(val) === -1)) {
+        if (!card.tags) card.tags = [];
+        card.tags.push(val);
+        KanvazApp.markDirty();
+        KanvazHistory.push();
+      }
+      buildTagBar(cardEl, card);
+    }
+
+    input.addEventListener('keydown', function(e) {
+      e.stopPropagation();
+      if (e.key === 'Enter') { addTag(); }
+      if (e.key === 'Escape') { buildTagBar(cardEl, card); }
+    });
+    input.addEventListener('blur', function() { addTag(); });
+
+    tagBar.insertBefore(input, tagBar.querySelector('.tag-chip-add'));
+    input.focus();
   }
 
   /* ── Pin indicator ── */
@@ -746,7 +854,21 @@ var KanvazCards = (function() {
     }
 
     delete cards[id];
-    if (selectedId === id) selectedId = null;
+    if (selectedId === id) {
+      selectedId = null;
+      /* Auto-select another remaining card so a keyboard-only bulk
+         delete (Delete, Delete, Delete...) keeps working instead of
+         going dead after the first one — without this, selectedId
+         stays null and every subsequent Delete press is a no-op until
+         the user clicks something again. Picks the most recently
+         created remaining card (simple, predictable) rather than
+         attempting spatial "nearest" selection. */
+      var remainingIds = Object.keys(cards);
+      if (remainingIds.length) {
+        var lastId = remainingIds[remainingIds.length - 1];
+        selectCard(lastId);
+      }
+    }
 
     /* Close inspector if it was showing this reference */
     if (typeof KanvazInspector !== 'undefined' && KanvazInspector.isOpen()) {

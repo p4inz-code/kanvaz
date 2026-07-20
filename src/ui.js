@@ -144,6 +144,7 @@ var KanvazUI_Extended = (function() {
     autoHideChrome:   false,
     gridSnapEnabled:  false,
     gridSnapIncrement: 'minor',
+    topModeAutoOnTop: false,
     devShowFPS:       false,
     devShowIds:       false
   };
@@ -166,11 +167,13 @@ var KanvazUI_Extended = (function() {
           console.warn('[Kanvaz] Failed to parse settings, using defaults:', e.message);
         }
       }
+    }).catch(function(e) {
+      console.warn('[Kanvaz] settings IPC failed:', e);
     });
   }
 
   function saveSettings() {
-    KanvazBridge.writeSettings(JSON.stringify(settings)).then(function() {});
+    KanvazBridge.writeSettings(JSON.stringify(settings)).then(function() {}).catch(function(e) { console.warn('[Kanvaz] writeSettings IPC failed:', e); });
     applySettings();
   }
 
@@ -221,8 +224,8 @@ var KanvazUI_Extended = (function() {
        Independent of Top Mode's own state; either one hides the
        chrome, and setChromeAutoHide reconciles them so turning one
        off doesn't undo the other. */
-    if (typeof KanvazApp !== 'undefined' && KanvazApp.setChromeAutoHide) {
-      KanvazApp.setChromeAutoHide(!!settings.autoHideChrome);
+    if (typeof KanvazUI !== 'undefined' && KanvazUI.setChromeAutoHide) {
+      KanvazUI.setChromeAutoHide(!!settings.autoHideChrome);
     }
 
     /* Dev Mode: FPS / render-time overlay */
@@ -239,9 +242,8 @@ var KanvazUI_Extended = (function() {
       var idStyle = document.createElement('style');
       idStyle.id = idStyleId;
       idStyle.textContent =
-        '.card { position: relative; }\n' +
-        '.card::after { content: attr(id); position:absolute; bottom:2px; right:4px; font-size:9px; font-family:var(--font-mono); color:var(--color-accent); background:rgba(0,0,0,0.55); padding:1px 4px; border-radius:3px; pointer-events:none; z-index:50; }\n' +
-        '.map-node::after { content: attr(data-ref-id); position:absolute; bottom:-16px; left:0; font-size:9px; font-family:var(--font-mono); color:var(--color-accent); background:rgba(0,0,0,0.55); padding:1px 4px; border-radius:3px; pointer-events:none; z-index:50; white-space:nowrap; }';
+        '.card::after { content: attr(id); position:absolute; top:2px; left:4px; font-size:9px; font-family:var(--font-mono); color:var(--color-accent); background:rgba(0,0,0,0.7); padding:1px 4px; border-radius:3px; pointer-events:none; z-index:100; }\n' +
+        '.map-node::after { content: attr(data-ref-id); position:absolute; bottom:-16px; left:0; font-size:9px; font-family:var(--font-mono); color:var(--color-accent); background:rgba(0,0,0,0.7); padding:1px 4px; border-radius:3px; pointer-events:none; z-index:50; white-space:nowrap; }';
       document.head.appendChild(idStyle);
     }
 
@@ -331,6 +333,36 @@ var KanvazUI_Extended = (function() {
     }
   }
 
+  /* ── Reset Kanvaz (settings & cache only) ──
+     Explicitly, prominently states what this does and doesn't touch —
+     this is a destructive-feeling action even though it can never
+     reach a saved board file by construction (main.js's handler only
+     ever touches paths under userData, and boards live wherever the
+     user saved them, entirely outside that). */
+  function confirmResetAppData() {
+    KanvazUI.showDialog(
+      'Reset Kanvaz?',
+      'This clears settings, the recent-files list, and the autosave/recovery cache, then restarts Kanvaz with defaults. Your saved .kanvaz board files are never touched — this only ever affects app-internal preferences and cache. Any unsaved changes in the board you currently have open will be lost, the same as closing without saving.',
+      [
+        { label: 'Reset', cls: 'danger', action: function() { doResetAppData(); } },
+        { label: 'Cancel', cls: '', action: function() {} }
+      ]
+    );
+  }
+
+  function doResetAppData() {
+    KanvazBridge.resetAppData().then(function(result) {
+      if (result && result.ok) {
+        KanvazUI.toast('Reset complete — restarting…');
+        setTimeout(function() { KanvazBridge.relaunchApp(); }, 800);
+      } else {
+        KanvazUI.toast('Reset failed: ' + ((result && result.error) || 'unknown error'), 'error');
+      }
+    }, function() {
+      KanvazUI.toast('Reset failed — could not reach the app process', 'error');
+    });
+  }
+
   function showSettings() {
     if (settingsOpen) { closeSettings(); return; }
     settingsOpen = true;
@@ -380,12 +412,16 @@ var KanvazUI_Extended = (function() {
       { key: 'confirmDelete',   label: 'Confirm before delete', type: 'toggle' },
       { key: 'leftDragPan',     label: 'Left-drag empty canvas to pan', type: 'toggle' },
       { key: 'autoHideChrome',  label: 'Auto-hide toolbar (hover top edge to reveal)', type: 'toggle' },
+      { key: 'topModeAutoOnTop', label: 'Top Mode auto-enables Always on Top', type: 'toggle' },
       { key: 'doubleClickCreatesNote', label: 'Double-click canvas creates note', type: 'toggle' },
-      { key: 'gridSnapEnabled', label: 'Snap to grid on resize', type: 'toggle' },
+      { key: 'gridSnapEnabled', label: 'Snap to grid (move & resize)', type: 'toggle' },
       { key: 'gridSnapIncrement', label: 'Snap increment', type: 'select', options: [['minor','Minor (24px)'],['major','Major (120px)']] },
       { section: 'Files' },
       { key: 'autosaveInterval',label: 'Autosave (seconds)',    type: 'number', min: 10, max: 300 },
       { key: 'defaultCardW',    label: 'Default card width (px)',type: 'number', min: 80, max: 1200 },
+      { section: 'Reset' },
+      { label: 'Reset Kanvaz (settings & cache only)', type: 'button', buttonLabel: 'Reset',
+        action: function() { confirmResetAppData(); } },
       { section: 'Developer' },
       { key: 'devShowFPS',      label: 'FPS / render-time overlay', type: 'toggle' },
       { key: 'devShowIds',      label: 'Show card/connection IDs',  type: 'toggle' },
@@ -514,55 +550,134 @@ var KanvazUI_Extended = (function() {
 
   /* ── About screen ── */
 
+  /* ── Check for updates ──
+     The ONLY network call anywhere in Kanvaz. Fires only when the user
+     clicks the button in the About screen — never automatically, never
+     on startup. Compares against GitHub's latest release tag. */
+  function compareVersions(a, b) {
+    var pa = a.replace(/^v/i, '').split('.').map(Number);
+    var pb = b.replace(/^v/i, '').split('.').map(Number);
+    for (var i = 0; i < Math.max(pa.length, pb.length); i++) {
+      var na = pa[i] || 0, nb = pb[i] || 0;
+      if (na !== nb) return na - nb;
+    }
+    return 0;
+  }
+
+  function checkForUpdates(btn) {
+    var status = document.getElementById('about-update-status');
+    if (!status) return;
+    if (btn) btn.disabled = true;
+    status.style.color = 'var(--color-text-3)';
+    status.textContent = 'Checking…';
+
+    var currentVersion = (typeof KanvazBoards !== 'undefined' && KanvazBoards.getVersion)
+      ? KanvazBoards.getVersion() : '0.0.0';
+
+    /* fetch() never times out on its own — without this, a hanging
+       connection (captive portal, flaky wifi) would leave the button
+       disabled and "Checking…" on screen indefinitely. */
+    var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    var timeoutId = controller ? setTimeout(function() { controller.abort(); }, 8000) : null;
+
+    fetch('https://api.github.com/repos/p4inz-code/kanvaz/releases/latest',
+          controller ? { signal: controller.signal } : {})
+      .then(function(res) {
+        if (timeoutId) clearTimeout(timeoutId);
+        if (res.status === 403) {
+          var resetHeader = res.headers.get('X-RateLimit-Reset');
+          var resetMsg = 'GitHub rate-limited this check';
+          if (resetHeader) {
+            var resetDate = new Date(parseInt(resetHeader, 10) * 1000);
+            resetMsg += ' — try again after ' + resetDate.toLocaleTimeString();
+          } else {
+            resetMsg += ' — try again in a few minutes';
+          }
+          var err = new Error(resetMsg);
+          err.isRateLimit = true;
+          throw err;
+        }
+        if (res.status === 404) throw new Error('Release info not found on GitHub');
+        if (!res.ok) throw new Error('GitHub returned ' + res.status);
+        return res.json();
+      })
+      .then(function(data) {
+        var latest = (data.tag_name || '').replace(/^v/i, '');
+        if (!latest) throw new Error('No release tag found');
+        var cmp = compareVersions(latest, currentVersion);
+        if (cmp > 0) {
+          status.style.color = 'var(--color-accent)';
+          status.innerHTML = 'v' + latest + ' is available — <a href="#" id="about-update-link" style="color:var(--color-accent);text-decoration:underline;">view release</a>';
+          var link = document.getElementById('about-update-link');
+          if (link) link.onclick = function(e) {
+            e.preventDefault();
+            if (typeof KanvazBridge !== 'undefined' && KanvazBridge.openExternal) {
+              KanvazBridge.openExternal(data.html_url || 'https://github.com/p4inz-code/kanvaz/releases/latest');
+            }
+          };
+        } else {
+          status.style.color = 'var(--color-text-3)';
+          status.textContent = "You're up to date (v" + currentVersion + ')';
+        }
+      })
+      .catch(function(err) {
+        status.style.color = 'var(--color-text-3)';
+        if (err && err.name === 'AbortError') {
+          status.textContent = 'Timed out — check your connection and try again';
+        } else if (err && err.isRateLimit) {
+          status.textContent = err.message;
+        } else {
+          status.textContent = "Couldn't check — no internet, or GitHub unreachable";
+        }
+      })
+      .then(function() {
+        if (btn) btn.disabled = false;
+      });
+  }
+
   function showAbout() {
     var existing = document.getElementById('about-screen');
     if (existing) { existing.parentNode.removeChild(existing); return; }
 
     var overlay = document.createElement('div');
     overlay.id = 'about-screen';
-    overlay.style.cssText = [
-      'position:fixed',
-      'inset:0',
-      'background:rgba(0,0,0,0.65)',
-      'z-index:60000',
-      'display:flex',
-      'align-items:center',
-      'justify-content:center'
-    ].join(';');
+    overlay.className = 'modal-overlay';
 
     var box = document.createElement('div');
-    box.style.cssText = [
-      'background:var(--color-surface)',
-      'border:1px solid var(--color-border-2)',
-      'border-radius:12px',
-      'padding:32px 28px',
-      'width:320px',
-      'text-align:center',
-      'box-shadow:0 16px 48px rgba(0,0,0,0.7)'
-    ].join(';');
+    box.className = 'about-card';
 
     box.innerHTML = [
-      '<svg width="40" height="40" viewBox="0 0 18 18" fill="none" style="margin-bottom:12px;">',
-        '<rect x="2" y="6" width="12" height="9" rx="2" fill="#2A2A35"/>',
-        '<rect x="3" y="4" width="12" height="9" rx="2" fill="#1A1A22" stroke="#2E2E3A" stroke-width="0.5"/>',
-        '<rect x="4" y="2" width="12" height="9" rx="2" fill="#DCDCE8"/>',
-        '<circle cx="14" cy="3" r="2" fill="#4A9EFF"/>',
-      '</svg>',
-      '<div style="font-size:22px;font-weight:700;color:var(--color-text);margin-bottom:4px;">Kanvaz</div>',
-      '<div style="font-size:13px;color:var(--color-text-3);margin-bottom:20px;">Your canvas. Your references.</div>',
-      '<div style="font-size:12px;color:var(--color-text-3);margin-bottom:16px;font-family:var(--font-mono);">Version 3.6.9</div>',
-      '<div style="font-size:13px;color:var(--color-text-2);margin-bottom:6px;">Made by <span style="color:var(--color-text);">Atharva Patil</span> — Northbyte Studios</div>',
-      '<div style="font-size:12px;color:var(--color-text-3);margin-bottom:20px;">Navi Mumbai, India</div>',
-      '<div style="font-size:12px;color:var(--color-text-3);line-height:1.7;margin-bottom:20px;">Built for VFX artists, 3D artists,<br>and the people who teach them.</div>',
-      '<div style="font-size:11px;color:var(--color-text-3);line-height:1.8;margin-bottom:16px;">Free forever. MIT License.<br>No telemetry. No internet.<br>Your files never leave your machine.</div>',
-      '<div style="font-size:11px;color:var(--color-accent);line-height:1.7;margin-bottom:24px;">Reference Operating System<br>Actively developed — v3.6.9</div>'
+      '<div class="about-logo">',
+        '<svg width="44" height="44" viewBox="0 0 18 18" fill="none">',
+          '<rect x="2" y="6" width="12" height="9" rx="2" fill="var(--color-surface-3)"/>',
+          '<rect x="3" y="4" width="12" height="9" rx="2" fill="var(--color-surface)" stroke="var(--color-border-2)" stroke-width="0.5"/>',
+          '<rect x="4" y="2" width="12" height="9" rx="2" fill="var(--color-text)"/>',
+          '<circle cx="14" cy="3" r="2" fill="var(--color-accent)"/>',
+        '</svg>',
+      '</div>',
+      '<div class="about-title">Kanvaz</div>',
+      '<div class="about-subtitle">Your canvas. Your references.</div>',
+      '<div class="about-version">Version 3.7.1</div>',
+      '<div id="about-update-status" class="about-update-status"></div>',
+      '<div class="about-divider"></div>',
+      '<div class="about-author">Made by <strong>Atharva Patil</strong></div>',
+      '<div class="about-studio">Northbyte Studios — Navi Mumbai, India</div>',
+      '<div class="about-desc">Built for VFX artists, 3D artists,<br>and the people who teach them.</div>',
+      '<div class="about-divider"></div>',
+      '<div class="about-privacy">Free forever. MIT License.<br>No telemetry, no background network activity.<br>Your files never leave your machine.</div>',
+      '<div class="about-tagline">Reference Operating System<br>Actively developed — v3.7.1</div>'
     ].join('');
 
+    var updateBtn = document.createElement('button');
+    updateBtn.className = 'about-btn about-btn-update';
+    updateBtn.textContent = 'Check for updates';
+    updateBtn.title = 'One request to GitHub — the only network call Kanvaz ever makes, only when you click this.';
+    updateBtn.onclick = function() { checkForUpdates(updateBtn); };
+    box.appendChild(updateBtn);
+
     var closeBtn = document.createElement('button');
+    closeBtn.className = 'about-btn about-btn-close';
     closeBtn.textContent = 'Close';
-    closeBtn.style.cssText = 'padding:8px 24px;background:var(--color-surface-2);border:1px solid var(--color-border-2);border-radius:6px;color:var(--color-text-2);font-family:var(--font-ui);font-size:13px;cursor:pointer;';
-    closeBtn.onmouseenter = function() { closeBtn.style.background = 'var(--color-surface-3)'; };
-    closeBtn.onmouseleave = function() { closeBtn.style.background = 'var(--color-surface-2)'; };
     closeBtn.onclick = function() {
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
     };
@@ -731,6 +846,8 @@ var KanvazUI_Extended = (function() {
     KanvazBridge.firstRunCheck().then(function(result) {
       if (!result || result.done) return;
       doShowFirstRun();
+    }).catch(function(e) {
+      console.warn('[Kanvaz] firstRunCheck IPC failed:', e);
     });
   }
 

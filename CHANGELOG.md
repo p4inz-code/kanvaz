@@ -2,6 +2,269 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [3.7.1] — Hotfix: startup crash, dead buttons, map ports, media controls
+
+### Critical: startup crash blocking all mouse input
+v3.7.0 shipped with two broken calls that crashed during `init()`,
+preventing `bindGlobalUI()` from executing — which meant **every mouse
+click in the app was silently dead** (Settings, About, Shortcuts, Save,
+zoom, everything routed through a button listener). Keyboard shortcuts
+and canvas pan/zoom still worked because they're wired earlier in boot.
+
+- Fixed: `initTabMmbWindowDrag()` called from `init()` (parent scope)
+  but defined inside the `KanvazUI` IIFE (child closure). JS closures
+  don't let parents see into children → ReferenceError on every launch.
+  Moved the call inside the KanvazUI IIFE after the function definition.
+- Fixed: `KanvazApp.showSearchBar/hideSearchBar` → `KanvazUI.showSearchBar/hideSearchBar`
+  (`src/boards.js` x2, `src/shortcuts.js` x2).
+
+### Map View: port positions converging at (0,0) on some PCs
+Connections drew correctly on most machines but all port endpoints
+collapsed to the top-left corner on Windows displays with non-100% DPI
+scaling. Root cause: `domPort()` read port positions via
+`getBoundingClientRect()` during the entrance animation, when
+`translateY(10px) scale(0.96)` shifted coordinates. On standard scaling
+the error was small enough to look correct; on 125%/150% scaling it
+produced visually broken results. Additionally, `renderLines(false)` was
+passing `false` instead of `true` on first open, killing the line
+entrance animation.
+
+- Fixed: added `useMathOnly` flag — on first open, port positions use
+  pure arithmetic from `card.mapPosition` (always correct). After all
+  entrance animations finish (~900ms), re-renders with DOM-accurate
+  positions for pixel-perfect alignment.
+- Fixed: `domPort()` now validates `getBoundingClientRect` results —
+  returns null on zero-size rects or wildly out-of-range coordinates,
+  triggering the math fallback instead of returning garbage.
+
+### Media controls: too small, unclickable, didn't scale with card resize
+The scrub bar was 3px tall (nearly impossible to click), the mute button
+had an inline `font-size:9px` overriding the responsive CSS, and fixed
+px values prevented controls from scaling when the card was resized.
+
+- Fixed: all media control dimensions now use `cqw` (container query
+  width) units with `clamp()` so they scale proportionally with the
+  card. Resize a video card larger → controls grow. Resize smaller →
+  controls shrink to a usable minimum.
+- Fixed: scrub bar increased from 3px to `clamp(4px, 1.5cqw, 8px)` with
+  `padding: clamp(4px, 1.5cqw, 8px) 0` for an 18px+ click target area.
+- Fixed: removed inline `font-size:9px` from mute button (was overriding
+  the responsive `clamp(12px, 4.5cqw, 22px)` CSS rule).
+- Fixed: play/pause SVG icons enlarged from 14×14 to 18×18 base size.
+- Fixed: scrub container height, padding, gap, button min-sizes all
+  converted from fixed px to responsive cqw clamp values.
+
+### Other fixes
+- Fixed: `.tag-bar` (invisible, z-index:2) captured pointer events on
+  top of video/audio scrub bars (z-index:3 now, plus `pointer-events:
+  none` when hidden, `auto` on hover/selected).
+- Fixed: update checker always reported "no internet" — CSP had no
+  `connect-src`. Added `connect-src 'self' https://api.github.com;`.
+- Fixed: added `.catch()` to all remaining unguarded promise chains in
+  `boards.js` (×7), `media.js` (×1), `ui.js` (×1), `app.js` (×1) to
+  prevent unhandled rejection error toasts.
+
+## [3.7.0] — Tags, Search, and a Real Polish Pass
+The first minor-version milestone since v3.5.4 — closes out the original
+v4.0 Phase 1 scope (tag editing, search) that had been deferred across
+an extended run of user-reported bug fixes, and does a real audit pass
+rather than shipping on hope.
+
+### New features
+- **Tag editing UI.** Tags have existed in the data model since v3.0
+  with no way to actually add or edit them — that's now fixed. Chips
+  appear on hover/selection, click `+` to add, click a chip's `×` to
+  remove. Autocomplete draws from tags already used elsewhere on the
+  board.
+- **Search/filter** (`Ctrl+F` or `/`). Live filter by name, type, or
+  tag. Non-matching cards dim and desaturate rather than disappearing
+  — keeps spatial context so you're not disoriented when you clear
+  the search. Automatically clears when switching boards or opening
+  a different file, so a stale query never silently applies to
+  content it was never run against.
+
+### Fixes
+- **Video/audio control sizing.** Play/pause icons and the scrub bar
+  were fixed-size (10×10px icons, 20px bar) regardless of card size —
+  functionally unusable once a card was resized down. Now scales with
+  `clamp()` against card width, with a sane minimum touch target.
+- **Annotation toolbar drift on pan/zoom** — a real, previously
+  undocumented-as-fixed limitation. The toolbar was positioned once
+  via `getBoundingClientRect()` at open time and never repositioned;
+  panning or zooming while annotating left it stuck in place while the
+  card moved underneath it. Now watches the canvas transform via a
+  `MutationObserver` and repositions live; cleaned up on toolbar close
+  so it doesn't linger watching a card that's no longer being
+  annotated.
+- **Dev Mode's "Show card/connection IDs" was hiding video/audio
+  cards.** The injected CSS set `.card { position: relative }`,
+  overriding the inline `position: absolute` every card already has,
+  and the ID badge itself was positioned at the bottom-right — directly
+  over the video/audio scrub bar and controls. Badge moved to the
+  top-left, and the position override removed entirely (cards already
+  had the right positioning; nothing needed to be set).
+- **Top Mode's chrome reveal/hide was abrupt** — sped past as a snap
+  rather than a deliberate motion. Eased from 0.22s to 0.4s with a
+  softer curve, and the hide-delay grace period extended from 450ms to
+  700ms so moving from the hover-zone into the toolbar doesn't
+  accidentally dismiss it.
+- **Caught during this round's bug hunt, before shipping:**
+  - Tag chip remove/add buttons were falling through the card's
+    `mousedown` delegation with no exclusion, meaning a click on a tag
+    chip could also select/drag the card underneath before the chip's
+    own click handler ever ran (mousedown fires first). Added the same
+    kind of exclusion the media controls already had.
+  - A linter false-positive (`\blet\s` matching the English word "let"
+    inside a code comment, not an actual `let` statement) — reworded
+    the comment rather than loosening the regex, since that rule is
+    correctly strict everywhere else.
+  - Stale search state could persist across a board switch or file
+    open, showing a query that no longer applied to anything on
+    screen. Now explicitly cleared on both paths.
+
+### About screen redesign
+Rebuilt from inline `style.cssText` blobs (version number baked
+directly into an `innerHTML` string, in two places) into real CSS
+classes — same visual content, properly styled: rounded card, clean
+type hierarchy, a pill-style version badge, and the update-check
+button visually integrated instead of bolted on. Version number now
+reads from `KanvazBoards.getVersion()` in one place instead of being
+duplicated as a literal string.
+
+### Housekeeping
+- Removed the resolved "tags have no editing UI" and "annotation
+  toolbar doesn't follow the canvas" lines from Known Limitations —
+  properly removed rather than left in place with a note announcing
+  the fix.
+- Fixed a stale CHANGELOG entry still marked "not fixed yet" for the
+  Map View port-alignment issue that was confirmed resolved back in
+  v3.6.10.
+- Fixed a stale CSS comment ("Dot grid overlay") that had survived
+  since the grid changed to lines in v3.6.7.
+
+### Audit
+Full 10-pass audit before shipping: syntax ×2, static lint ×2 (caught
+1 real false-positive, fixed), real-Chromium port alignment ×2, plus
+4 targeted passes verifying every fix above is actually present and
+wired — not just claimed. `npm run validate` passes clean.
+
+## [3.6.12] — Clean Reset, Reliable Update Checker
+- **Add: "Reset Kanvaz" (Settings → Reset).** Clears settings, the
+  recent-files list, and the autosave/recovery cache, then restarts
+  with defaults. Built as an in-app feature rather than hooking the
+  NSIS uninstaller — an uninstall-hooked approach would only ever
+  cover the installer distribution path, not the portable `.exe` or
+  running from source, and hand-written NSIS scripting isn't something
+  that could be compile-tested in the environment this was built in.
+  The in-app version works identically regardless of how Kanvaz is
+  being run, and is provably safe: the handler only ever constructs
+  paths under `app.getPath('userData')`, and saved `.kanvaz` boards
+  always live wherever the user chose via the save dialog — a location
+  structurally outside `userData`, not something that needs excluding.
+- **Investigated the installer-upgrade question further:**
+  `deleteAppDataOnUninstall` (electron-builder's built-in option) was
+  deliberately not used — it has a known bug with scoped package names
+  (not applicable here, `name` is unscoped) but more importantly it
+  would fire during routine version upgrades too, not just intentional
+  uninstalls, silently wiping settings on every update unless very
+  carefully scripted around. The in-app reset sidesteps this risk
+  entirely.
+- **Reliability pass on the "Check for updates" feature**, tested
+  against GitHub's live API rather than assumptions:
+  - Added an 8-second timeout (`fetch()` never times out on its own —
+    without this, a hanging connection could leave the button
+    disabled indefinitely).
+  - Added specific handling for GitHub's rate-limit response
+    (HTTP 403 with `X-RateLimit-Reset`) instead of lumping it into a
+    generic "unreachable" message — verified against a real live
+    rate-limited response encountered while testing this, not a mock.
+  - Verified the success path against the real API too: confirmed
+    version comparison correctly reports "up to date" for a build
+    ahead of the latest published GitHub release.
+
+## [3.6.11] — Installer Upgrade Behavior, Opt-In Update Check
+- **Investigated: "many Kanvaz installs on one PC."** Checked the
+  actual electron-builder/NSIS config: `appId` has been stable
+  (`com.northbytestudios.kanvaz`) since v3.5.4, and electron-builder
+  derives a deterministic upgrade/uninstall GUID from `appId` when one
+  isn't explicitly set — meaning every installer-based install across
+  every past version has already been sharing the same upgrade
+  identity, and should already replace in place regardless of install
+  path. Almost certainly explained by dev-testing folders and portable
+  `.exe` builds instead (neither registers with Windows, so there's
+  nothing for an installer to "clash" with) rather than an installer
+  bug. Added an explicit `perMachine: false` to the NSIS config for
+  defensive clarity — deliberately did **not** add a new custom GUID,
+  since that would have broken upgrade continuity for every existing
+  install rather than fixing anything (caught before shipping it).
+- **Add: opt-in "Check for updates" in the About screen.** Fetches
+  GitHub's latest release tag and compares it numerically against the
+  running version (not as strings — `"3.6.10"` vs `"3.6.9"` sorts
+  wrong under plain string comparison since `1` < `9`). This is the
+  **only** network call anywhere in Kanvaz, fires only on click, never
+  automatically or on startup. Given how central "zero network calls"
+  has been to Kanvaz's identity, this wasn't added quietly — the
+  About screen's copy, README, and the generated PDF's Privacy section
+  were all updated to precisely disclose this one exception rather
+  than leave an now-imprecise blanket "no internet" claim standing.
+
+## [3.6.10] — Real Bug Root Causes, Top Mode Ergonomics
+- **Fix: grid snap didn't work.** Root cause, confirmed by tracing the
+  actual math: snap was only ever wired into **resize**, never into
+  **moving** a card — and moving is the far more commonly tested
+  interaction. Extended snap to card repositioning too. Also fixed a
+  secondary correctness bug found while tracing this: aspect-locked
+  resizes were snapping width and height independently, which could
+  distort the locked aspect ratio — now snaps width only and re-derives
+  height from it for aspect-locked corner drags.
+- **Fix: Delete key "losing focus."** Root cause: after deleting a
+  card, `selectedId` just went to `null` with nothing re-selected — so
+  a keyboard-only bulk delete (Delete, Delete, Delete...) went dead
+  after the first one, since the shortcut handler requires a selection
+  to act on. Now auto-selects another remaining card after a delete.
+- **Add: Top Mode auto-enables Always on Top**, gated behind a new
+  Settings toggle (off by default). Remembers whether Always on Top
+  was already on beforehand so exiting Top Mode restores that instead
+  of just forcing it off — doesn't fight a separate, deliberate
+  Always-on-Top preference if the user already had one set.
+- **Add: Tab+MMB whole-window drag** — hold Tab and drag with the
+  middle mouse button to move the window from anywhere on screen, not
+  just a titlebar strip. Gated behind Tab specifically because plain
+  middle-mouse-drag is already canvas-pan in both views. Known,
+  disclosed tradeoff: Tab already toggles Top Mode on keydown, so
+  holding Tab to start this drag also flips Top Mode as a side effect
+  of that same keypress — living with it for now rather than adding
+  toggle latency to fix a rare combination.
+- **Add: thicker titlebar during Top Mode's reveal** (36px → 48px) and
+  made the top hover-zone a real OS-level drag region — addresses
+  "dragging is hard in Top Mode" directly, independent of the Tab+MMB
+  feature above.
+- **Confirmed fixed: the Map View port start-point discrepancy**
+  reported by users. No longer reproducible — removed from Known
+  Limitations in the README.
+- **Docs**: caught two more stale "Mood lock" references that had
+  survived the Top Mode rename — both were baked directly into the
+  generated PDF (the feature list and the shortcuts table), so they'd
+  been shipping in every release since without anyone noticing since
+  they're not in the source Markdown that gets reviewed directly.
+  PDF regenerated.
+
+### Known issue, still unresolved
+- **New/legacy `.kanvaz` files reported as "opening empty," at least
+  partially.** Re-verified the full load pipeline end-to-end this
+  round: all three entry points (File → Open, Recent Files list,
+  startup screen) now consistently run the same validated
+  flat-shape-migration logic, and the save/serialise round-trip for a
+  freshly migrated board was traced and confirmed correct. Couldn't
+  find a further defect through code inspection alone — if this is
+  still happening, the most likely explanation is that the actual old
+  file's shape doesn't match the flat-`cards`-array format the
+  migration assumes (this repo has no source history before the
+  public v2.0.1 release, so the true legacy format was inferred, not
+  known). Need an actual sample of a file that still fails — even just
+  its first ~20 lines of JSON — to fix this correctly instead of
+  guessing a third time.
+
 ## [3.6.9] — Grid Snap, Dev Mode
 - **Add: grid snap on resize.** New Settings toggle ("Snap to grid on
   resize") plus an increment selector — Minor (24px) or Major (120px),
@@ -205,10 +468,10 @@ Several real bugs reported by users, root-caused and fixed:
   space). Restores to 640×480 immediately on exit, growing the window
   back up if it had been shrunk smaller.
 
-### Known issue (not fixed yet)
-- Map View: connection wires sometimes start from a slightly different
-  point than the actual output port. Reported by users; reproduction
-  and root-cause investigation pending.
+### Previously known issue — now resolved
+- Map View: connection wires sometimes starting from a different point
+  than the output port — confirmed fixed as of v3.6.10, no longer
+  reproducible. Removed from README Known Limitations.
 
 ## [3.6.4] — Post-Polish Audit
 - Fixed: `hide()` didn't cancel an in-flight eased camera tween
