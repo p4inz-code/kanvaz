@@ -1,3 +1,8 @@
+
+<p align="center">
+  <img src="https://github.com/p4inz-code/kanvaz/blob/main/assets/banner.png?raw=true" alt="Kanvaz Banner" width="100%">
+</p>
+
 # Kanvaz
 
 **Reference Operating System**
