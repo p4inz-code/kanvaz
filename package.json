@@ -1,6 +1,6 @@
 {
   "name": "kanvaz",
-  "version": "3.7.1",
+  "version": "3.7.2",
   "description": "Reference Operating System — collect, organize, connect, and understand your references.",
   "private": true,
   "main": "src/main.js",
@@ -17,6 +17,7 @@
     "build:mac": "electron-builder --mac",
     "build:linux": "electron-builder --linux",
     "build:all": "electron-builder --win --mac --linux",
+    "dist": "electron-builder --win",
     "lint": "node test/lint.js",
     "validate": "node test/validate.js",
     "test:ports": "node test/run-port-test.js"

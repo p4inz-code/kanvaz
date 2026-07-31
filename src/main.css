@@ -200,6 +200,22 @@ html, body {
   -webkit-app-region: drag;
 }
 
+/* Visible drag strip — a subtle accent line at the very top so users
+   can discover the grab zone. Thin enough not to break the
+   distraction-free purpose of Top Mode. */
+#moodlock-hover-zone::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--color-accent);
+  opacity: 0.3;
+  transition: opacity 0.2s;
+}
+#moodlock-hover-zone:hover::before {
+  opacity: 0.6;
+}
+
 /* Persistent reminder that Top Mode is active, independent of the
    hover-reveal state — without this there was no way to tell it was
    on, or how to get out, without already knowing the shortcut. */
@@ -801,6 +817,7 @@ html, body {
   box-shadow: 0 0 0 1px rgba(var(--color-accent-rgb), 0.4);
   opacity: 0;
   z-index: 10;
+  cursor: nwse-resize;
   transition: opacity 0.12s, transform 0.12s;
 }
 
