@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kanvaz — Reference Operating System</title>
+<meta name="description" content="Free, open-source, 100% offline desktop app for VFX artists, 3D artists, and creative professionals. Collect, organize, connect, and understand your references.">
+<meta property="og:title" content="Kanvaz — Reference Operating System">
+<meta property="og:description" content="Free, open-source, 100% offline reference board with infinite canvas, connection system, and Map View. Built for VFX and 3D artists.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://p4inz-code.github.io/kanvaz/">
+<meta property="og:image" content="https://github.com/p4inz-code/kanvaz/blob/main/assets/banner.png?raw=true">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Kanvaz — Reference Operating System">
+<meta name="twitter:description" content="Free, open-source, 100% offline reference board for creative professionals.">
+<meta name="keywords" content="reference board, moodboard, VFX, 3D art, PureRef alternative, offline, open source, Electron, infinite canvas, node editor, connection system">
+<link rel="icon" type="image/png" href="https://github.com/p4inz-code/kanvaz/blob/main/assets/icon.png?raw=true">
+<style>
+  :root {
+    --bg: #0D0D12;
+    --bg-2: #16161E;
+    --bg-3: #1E1E28;
+    --text: #E8E6F0;
+    --text-2: #A8A6B4;
+    --text-3: #6A6A8A;
+    --accent: #9D7FFF;
+    --accent-2: #7B5FDD;
+    --green: #4ECDC4;
+    --red: #FF6B6B;
+    --gold: #FFD700;
+    --radius: 12px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(157,127,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(157,127,255,0.03) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container { max-width: 960px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+  /* Nav */
+  nav {
+    padding: 20px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .nav-brand { font-size: 18px; font-weight: 700; color: var(--text); text-decoration: none; letter-spacing: -0.5px; }
+  .nav-links { display: flex; gap: 24px; }
+  .nav-links a { color: var(--text-2); text-decoration: none; font-size: 14px; transition: color 0.2s; }
+  .nav-links a:hover { color: var(--accent); }
+
+  /* Hero */
+  .hero {
+    text-align: center;
+    padding: 80px 0 60px;
+  }
+  .hero-badge {
+    display: inline-block;
+    background: rgba(157,127,255,0.12);
+    color: var(--accent);
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 24px;
+    border: 1px solid rgba(157,127,255,0.2);
+  }
+  .hero h1 {
+    font-size: clamp(36px, 6vw, 56px);
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 16px;
+    letter-spacing: -1.5px;
+  }
+  .hero h1 span { color: var(--accent); }
+  .hero p {
+    font-size: 18px;
+    color: var(--text-2);
+    max-width: 560px;
+    margin: 0 auto 36px;
+  }
+
+  .cta-group { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 28px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .btn:hover { transform: translateY(-1px); }
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 4px 20px rgba(157,127,255,0.3);
+  }
+  .btn-primary:hover { box-shadow: 0 6px 28px rgba(157,127,255,0.4); }
+  .btn-secondary {
+    background: var(--bg-3);
+    color: var(--text);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+
+  /* Stats */
+  .stats {
+    display: flex;
+    justify-content: center;
+    gap: 48px;
+    padding: 32px 0;
+    margin-bottom: 48px;
+  }
+  .stat { text-align: center; }
+  .stat-value { font-size: 28px; font-weight: 700; color: var(--text); }
+  .stat-label { font-size: 12px; color: var(--text-3); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+
+  /* Features */
+  .features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    padding: 40px 0;
+  }
+  .feature {
+    background: var(--bg-2);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: var(--radius);
+    padding: 28px;
+    transition: border-color 0.2s;
+  }
+  .feature:hover { border-color: rgba(157,127,255,0.2); }
+  .feature-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    margin-bottom: 16px;
+  }
+  .feature h3 { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+  .feature p { font-size: 14px; color: var(--text-2); line-height: 1.5; }
+
+  /* Comparison */
+  .comparison {
+    padding: 60px 0;
+    text-align: center;
+  }
+  .comparison h2 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+  .comparison .subtitle { color: var(--text-2); margin-bottom: 32px; font-size: 15px; }
+
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0 auto;
+    font-size: 14px;
+  }
+  .compare-table th {
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    color: var(--text-2);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .compare-table th:first-child { width: 40%; }
+  .compare-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .compare-table td:first-child { color: var(--text-2); }
+  .yes { color: var(--green); font-weight: 600; }
+  .no { color: var(--text-3); }
+  .highlight-col { background: rgba(157,127,255,0.04); }
+
+  /* Bottom CTA */
+  .bottom-cta {
+    text-align: center;
+    padding: 80px 0;
+  }
+  .bottom-cta h2 { font-size: 32px; font-weight: 700; margin-bottom: 12px; }
+  .bottom-cta p { color: var(--text-2); margin-bottom: 28px; font-size: 16px; }
+
+  /* Footer */
+  footer {
+    padding: 32px 0;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    text-align: center;
+    color: var(--text-3);
+    font-size: 13px;
+  }
+  footer a { color: var(--text-2); text-decoration: none; }
+  footer a:hover { color: var(--accent); }
+
+  @media (max-width: 600px) {
+    .stats { gap: 24px; }
+    .stat-value { font-size: 22px; }
+    .nav-links { gap: 16px; }
+    .features { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <nav>
+    <a href="#" class="nav-brand">Kanvaz</a>
+    <div class="nav-links">
+      <a href="https://github.com/p4inz-code/kanvaz">GitHub</a>
+      <a href="https://github.com/p4inz-code/kanvaz/blob/main/CHANGELOG.md">Changelog</a>
+      <a href="https://github.com/p4inz-code/kanvaz/blob/main/docs/TECHNICAL_OVERVIEW.md">Docs</a>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <div class="hero-badge">100% Offline &bull; Free &bull; Open Source</div>
+    <h1>Your references,<br><span>connected.</span></h1>
+    <p>Collect, organize, and connect visual references on an infinite canvas with a built-in node editor. Made for VFX artists, 3D artists, and creative professionals.</p>
+    <div class="cta-group">
+      <a href="https://github.com/p4inz-code/kanvaz/releases/latest" class="btn btn-primary">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v8M4 7l4 4 4-4M2 14h12"/></svg>
+        Download for Windows
+      </a>
+      <a href="https://github.com/p4inz-code/kanvaz" class="btn btn-secondary">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        View on GitHub
+      </a>
+    </div>
+  </section>
+
+  <section class="stats">
+    <div class="stat">
+      <div class="stat-value">16</div>
+      <div class="stat-label">Source Modules</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">35+</div>
+      <div class="stat-label">Releases</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">0</div>
+      <div class="stat-label">Network Calls</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">MIT</div>
+      <div class="stat-label">License</div>
+    </div>
+  </section>
+
+  <section class="features">
+    <div class="feature">
+      <div class="feature-icon" style="background: rgba(157,127,255,0.12);">&#x1F3A8;</div>
+      <h3>Infinite Canvas</h3>
+      <p>Pan, zoom (8%–500%), and arrange images, GIFs, videos, audio, and notes freely. Multiple boards in one file.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon" style="background: rgba(78,205,196,0.12);">&#x1F517;</div>
+      <h3>Connection System</h3>
+      <p>Link references with typed, directional relationships. 7 relationship types with notes and priority.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon" style="background: rgba(255,107,107,0.12);">&#x1F5FA;</div>
+      <h3>Map View</h3>
+      <p>Node-editor graph that visualizes all your references and connections. Drag ports to create relationships.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon" style="background: rgba(255,215,0,0.12);">&#x1F50D;</div>
+      <h3>Inspector Panel</h3>
+      <p>Select any card, press C — see all incoming and outgoing connections. Create, edit, delete from the panel.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon" style="background: rgba(157,127,255,0.12);">&#x1F3AD;</div>
+      <h3>Top Mode</h3>
+      <p>Press Tab to hide all UI for presentations. Hover the top edge to reveal controls. Always-on-top optional.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon" style="background: rgba(78,205,196,0.12);">&#x1F512;</div>
+      <h3>100% Offline</h3>
+      <p>No accounts, no telemetry, no internet required. Your .kanvaz files never leave your machine.</p>
+    </div>
+  </section>
+
+  <section class="comparison">
+    <h2>Why Kanvaz?</h2>
+    <p class="subtitle">How it compares to other reference tools</p>
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th class="highlight-col">Kanvaz</th>
+          <th>PureRef</th>
+          <th>Milanote</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Infinite canvas</td>
+          <td class="yes highlight-col">&#10003;</td>
+          <td class="yes">&#10003;</td>
+          <td class="yes">&#10003;</td>
+        </tr>
+        <tr>
+          <td>Connection system</td>
+          <td class="yes highlight-col">&#10003; 7 types</td>
+          <td class="no">&#10005;</td>
+          <td class="no">Basic</td>
+        </tr>
+        <tr>
+          <td>Node-editor Map View</td>
+          <td class="yes highlight-col">&#10003;</td>
+          <td class="no">&#10005;</td>
+          <td class="no">&#10005;</td>
+        </tr>
+        <tr>
+          <td>100% offline</td>
+          <td class="yes highlight-col">&#10003;</td>
+          <td class="yes">&#10003;</td>
+          <td class="no">Cloud</td>
+        </tr>
+        <tr>
+          <td>Open source</td>
+          <td class="yes highlight-col">MIT</td>
+          <td class="no">Proprietary</td>
+          <td class="no">Proprietary</td>
+        </tr>
+        <tr>
+          <td>Free</td>
+          <td class="yes highlight-col">Forever</td>
+          <td class="no">$</td>
+          <td class="no">Freemium</td>
+        </tr>
+        <tr>
+          <td>Video/audio cards</td>
+          <td class="yes highlight-col">&#10003;</td>
+          <td class="no">&#10005;</td>
+          <td class="yes">&#10003;</td>
+        </tr>
+        <tr>
+          <td>Annotations</td>
+          <td class="yes highlight-col">&#10003; Pen/arrow/rect</td>
+          <td class="no">&#10005;</td>
+          <td class="no">&#10005;</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="bottom-cta">
+    <h2>Start organizing your references</h2>
+    <p>Free, open-source, yours forever. No signup required.</p>
+    <div class="cta-group">
+      <a href="https://github.com/p4inz-code/kanvaz/releases/latest" class="btn btn-primary">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v8M4 7l4 4 4-4M2 14h12"/></svg>
+        Download v3.7.2
+      </a>
+      <a href="https://github.com/p4inz-code/kanvaz" class="btn btn-secondary">
+        &#9733; Star on GitHub
+      </a>
+    </div>
+  </section>
+
+  <footer>
+    Made by <a href="https://github.com/p4inz-code">Atharva Patil</a> &mdash; Northbyte Studios, India
+    &nbsp;&bull;&nbsp;
+    <a href="https://github.com/p4inz-code/kanvaz/blob/main/LICENSE">MIT License</a>
+  </footer>
+</div>
+
+</body>
+</html>
