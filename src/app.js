@@ -937,7 +937,7 @@ var KanvazApp = (function() {
       }
 
       KanvazUI.toast(moodlockOn
-        ? 'Top Mode — hover the top edge to bring back the toolbar, Esc or Tab to exit'
+        ? 'Top Mode — drag the top bar to move window, hover to reveal toolbar, Esc or Tab to exit'
         : 'Top Mode off');
     }
 

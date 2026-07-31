@@ -7,7 +7,7 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '3.7.1';
+  var VERSION       = '3.7.2';
 
   /* ── Init ── */
 
@@ -75,6 +75,21 @@ var KanvazBoards = (function() {
         nameSpan.textContent = boards[idx].name;
         nameSpan.style.cssText = 'overflow:hidden;text-overflow:ellipsis;flex:1;';
         tab.appendChild(nameSpan);
+
+        /* Card count badge */
+        var cardCount = 0;
+        if (idx === activeIdx) {
+          var allCards = KanvazCards.getAll();
+          for (var _k in allCards) cardCount++;
+        } else {
+          cardCount = (boards[idx].cards && boards[idx].cards.length) ? boards[idx].cards.length : 0;
+        }
+        if (cardCount > 0) {
+          var countBadge = document.createElement('span');
+          countBadge.textContent = cardCount;
+          countBadge.style.cssText = 'font-size:9px;color:var(--color-text-3);background:var(--color-surface-2);padding:1px 5px;border-radius:8px;flex-shrink:0;font-weight:500;';
+          tab.appendChild(countBadge);
+        }
 
         /* Close button — only show if more than 1 board */
         if (boards.length > 1) {

@@ -7,7 +7,7 @@
 
 **Reference Operating System**
 
-> **v3.7.1** — Hotfix for startup crash, dead buttons, map port alignment on high-DPI displays, and media control sizing.
+> **v3.7.2** — Top Mode drag bar, Map View zoom-to-fit + double-click-to-jump, tab card count badges, resize cursor, ship script.
 > Board View, Connection System, and Inspector are stable and shipping.
 > Map View is functional and receiving polish updates.
 
@@ -95,7 +95,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 3.7.1.exe` and `dist/Kanvaz 3.7.1.exe`
+Output: `dist/Kanvaz Setup 3.7.2.exe` and `dist/Kanvaz 3.7.2.exe`
 
 **macOS:**
 ```bash
@@ -145,7 +145,7 @@ npm run build:linux
 
 ## File format
 
-Boards are saved as `.kanvaz` files — plain JSON with version `"3.7.1"`. Media is embedded as base64 data URLs. Connections are stored as a top-level `connections` array alongside boards. Files from v2.x load cleanly with zero connections.
+Boards are saved as `.kanvaz` files — plain JSON with version `"3.7.2"`. Media is embedded as base64 data URLs. Connections are stored as a top-level `connections` array alongside boards. Files from v2.x load cleanly with zero connections.
 
 ---
 

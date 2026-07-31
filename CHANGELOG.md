@@ -2,6 +2,27 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [3.7.2] — Polish: Map View UX, tab badges, Top Mode drag bar, dist alias
+
+### Added
+- **Top Mode visible drag bar** — a subtle accent-colored strip at the top
+  of the screen when Top Mode is active, so you can see where to grab to
+  move the window. Brightens on hover for clear feedback.
+- **Map View zoom-to-fit (F key)** — press F in Map View to fit all nodes
+  into the viewport, matching Board View behavior.
+- **Double-click-to-jump** — double-click any Map View node to switch to
+  Board View with that card selected and centered.
+- **Card count badges** — board tabs now show the number of cards in each
+  board as a small badge next to the tab name.
+- **Resize handle cursor** — card resize handles now show `nwse-resize`
+  cursor on hover, giving clear visual feedback that the handle is draggable.
+- **`npm run dist` alias** — shortcut for `npm run build:win` so
+  `npm run dist` works out of the box.
+- **`ship.bat`** — one-click ship script: lint → syntax check → version
+  consistency check → git commit/tag/push → build installers.
+
+---
+
 ## [3.7.1] — Hotfix: startup crash, dead buttons, map ports, media controls
 
 ### Critical: startup crash blocking all mouse input

@@ -380,6 +380,29 @@ var KanvazMapView = (function() {
       }
     });
 
+    /* Double-click node — jump to Board View and center that card */
+    container.addEventListener('dblclick', function(e) {
+      var nodeEl = e.target.closest('.map-node');
+      if (!nodeEl) return;
+      var refId = nodeEl.dataset.refId;
+      if (!refId) return;
+      e.preventDefault();
+      hide();
+      updateToggleBtn();
+      KanvazCards.selectCard(refId);
+      /* Center the card in viewport */
+      var cardEl = document.getElementById(refId);
+      if (cardEl) {
+        var cc = document.getElementById('canvas-container');
+        var cScale = KanvazCanvas.getScale();
+        var cx = cardEl.offsetLeft + cardEl.offsetWidth / 2;
+        var cy = cardEl.offsetTop + cardEl.offsetHeight / 2;
+        var vpW = cc ? cc.clientWidth : window.innerWidth;
+        var vpH = cc ? cc.clientHeight : window.innerHeight;
+        KanvazCanvas.panTo(vpW / 2 - cx * cScale, vpH / 2 - cy * cScale);
+      }
+    });
+
     /* Right-click */
     container.addEventListener('contextmenu', function(e) {
       e.preventDefault();
@@ -1416,6 +1439,12 @@ var KanvazMapView = (function() {
 
     if ((e.key === 'c' || e.key === 'C') && selectedNode) {
       if (typeof KanvazInspector !== 'undefined') KanvazInspector.open(selectedNode);
+      return true;
+    }
+
+    if (e.key === 'f' || e.key === 'F') {
+      e.preventDefault();
+      fitAll(KanvazCards.getAll());
       return true;
     }
 
