@@ -14,7 +14,7 @@ open-source project — backporting fixes to older versions is not feasible.
 
 **Do not open a public issue for security vulnerabilities.**
 
-Email **masteratharva9@gmail.com** with:
+Email **atharva.patil.cg@gmail.com** with:
 
 - A description of the vulnerability
 - Steps to reproduce
