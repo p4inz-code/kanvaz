@@ -161,6 +161,14 @@ var KanvazApp = (function() {
   }
 
   function handleDroppedFiles(files, worldPos) {
+    /* Intercept .pur files — route to PureRef importer */
+    for (var p = 0; p < files.length; p++) {
+      if (files[p].path && files[p].path.toLowerCase().slice(-4) === '.pur') {
+        importPurFromPath(files[p].path);
+        return;
+      }
+    }
+
     /* Grid-arrange the drop instead of a small diagonal cascade — a
        24px-per-file offset barely separates cards that are ~200-300px,
        so any real batch drop (10-20 files) visually stacked on top of
@@ -584,8 +592,8 @@ var KanvazApp = (function() {
 
       var items = [];
 
-      /* Annotate — only for visual media cards, not notes or audio */
-      if (card.type !== 'note' && card.type !== 'audio') {
+      /* Annotate — only for visual media cards, not notes, audio, or color */
+      if (card.type !== 'note' && card.type !== 'audio' && card.type !== 'color') {
         items.push({
           label: 'Annotate',
           action: function() {
@@ -599,6 +607,13 @@ var KanvazApp = (function() {
           shortcut: 'C',
           action: function() {
             if (typeof KanvazInspector !== 'undefined') KanvazInspector.open(card.id);
+          }
+        },
+        {
+          label: 'Properties',
+          shortcut: 'E',
+          action: function() {
+            if (typeof KanvazProperties !== 'undefined') KanvazProperties.open(card.id);
           }
         },
         { sep: true },
@@ -700,6 +715,12 @@ var KanvazApp = (function() {
             var pos = KanvazCanvas.screenToWorld(x, y);
             if (typeof KanvazCards !== 'undefined') KanvazCards.createNote(pos.x, pos.y);
           }},
+          { label: 'New color swatch', action: function() {
+            var pos = KanvazCanvas.screenToWorld(x, y);
+            if (typeof KanvazCards !== 'undefined') KanvazCards.createColorCard(pos.x, pos.y);
+          }},
+          { sep: true },
+          { label: 'Import .pur file', action: function() { importPurFile(); }},
           { sep: true },
           { label: 'Reset zoom', shortcut: '0', action: function() { KanvazCanvas.zoomReset(); }},
           { label: 'Fit all cards', shortcut: 'F', action: function() { KanvazCanvas.zoomFit(); }}
@@ -747,6 +768,7 @@ var KanvazApp = (function() {
       closeDialog();
       hideContextMenu();
       if (typeof KanvazAnnotate !== 'undefined') KanvazAnnotate.deactivate();
+      if (typeof KanvazProperties !== 'undefined') KanvazProperties.close();
       /* Exit Top Mode on Escape */
       var app = document.getElementById('app');
       if (app && app.dataset.moodlock === '1') toggleMoodLock();
@@ -993,6 +1015,86 @@ var KanvazApp = (function() {
     init();
   });
 
+  /* ── PureRef import ── */
+
+  function importPurFile() {
+    KanvazBridge.openPurDialog().then(function(purPath) {
+      if (!purPath) return;
+      KanvazUI.toast('Importing PureRef file…', 'success');
+      KanvazBridge.importPur(purPath).then(function(result) {
+        if (!result.ok) {
+          KanvazErrors.handle('LOAD_FAIL', result.error);
+          return;
+        }
+        if (result.count === 0) {
+          KanvazUI.toast('No images found in .pur file', 'error');
+          return;
+        }
+        placePurImages(result.images);
+      }).catch(function(e) {
+        KanvazErrors.handle('LOAD_FAIL', e);
+      });
+    });
+  }
+
+  function importPurFromPath(purPath) {
+    KanvazUI.toast('Importing PureRef file…', 'success');
+    KanvazBridge.importPur(purPath).then(function(result) {
+      if (!result.ok) {
+        KanvazErrors.handle('LOAD_FAIL', result.error);
+        return;
+      }
+      if (result.count === 0) {
+        KanvazUI.toast('No images found in .pur file', 'error');
+        return;
+      }
+      placePurImages(result.images);
+    }).catch(function(e) {
+      KanvazErrors.handle('LOAD_FAIL', e);
+    });
+  }
+
+  function placePurImages(images) {
+    var placed = 0;
+    var total = images.length;
+
+    for (var i = 0; i < total; i++) {
+      (function(img) {
+        /* Measure natural size from the dataUrl, then create card */
+        KanvazMedia.getNaturalSize(img.dataUrl, function(natW, natH) {
+          /* Apply PureRef scale */
+          var w = Math.round(Math.abs(natW * (img.scaleX || 1)));
+          var h = Math.round(Math.abs(natH * (img.scaleY || 1)));
+
+          /* Cap to reasonable size */
+          var sz = KanvazMedia.capSize(w, h);
+
+          var mediaResult = {
+            ok: true,
+            dataUrl: img.dataUrl,
+            name: img.name || 'pur-image',
+            type: 'image',
+            originalPath: null,
+            sizeMB: 0,
+            naturalW: natW,
+            naturalH: natH,
+            displayW: sz.w,
+            displayH: sz.h
+          };
+
+          KanvazCards.createFromMedia(mediaResult, { x: img.x, y: img.y });
+          placed++;
+
+          if (placed === total) {
+            KanvazApp.markDirty();
+            KanvazUI.toast(total + ' image' + (total > 1 ? 's' : '') + ' imported from PureRef', 'success');
+            setTimeout(function() { KanvazCanvas.zoomFit(); }, 200);
+          }
+        });
+      })(images[i]);
+    }
+  }
+
   return {
     toggleAlwaysOnTop: toggleAlwaysOnTop,
     updateSaveStatus:  updateSaveStatus,
@@ -1015,7 +1117,9 @@ var KanvazApp = (function() {
       boardDirty = false;
       updateSaveStatus('saved');
     },
-    isDirty:           function() { return boardDirty; }
+    isDirty:           function() { return boardDirty; },
+    importPurFile:     importPurFile,
+    importPurFromPath: importPurFromPath
   };
 
 })();

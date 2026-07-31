@@ -128,7 +128,10 @@ var KanvazUI_Extended = (function() {
 
   var settingsOpen = false;
 
+  var SETTINGS_VERSION = 2;
+
   var SETTINGS_DEFAULTS = {
+    _version:         SETTINGS_VERSION,
     theme:            'dark',
     autosaveInterval: 30,
     showMinimap:      true,
@@ -149,6 +152,33 @@ var KanvazUI_Extended = (function() {
     devShowIds:       false
   };
 
+  /* ── Settings migrations ──
+     Each entry: { from: N, to: N+1, migrate: function(s) { ... return s; } }
+     Runs in order when loaded _version < SETTINGS_VERSION.
+     To add a new migration: bump SETTINGS_VERSION, add an entry here. */
+  var SETTINGS_MIGRATIONS = [
+    { from: 1, to: 2, migrate: function(s) {
+      /* v1→v2: no transform needed, just establishes the versioning system.
+         Future migrations go here, e.g.:
+         if (s.oldKey !== undefined) { s.newKey = s.oldKey; delete s.oldKey; } */
+      return s;
+    }}
+  ];
+
+  function migrateSettings(loaded) {
+    var v = loaded._version || 1;
+    if (v >= SETTINGS_VERSION) return loaded;
+    for (var i = 0; i < SETTINGS_MIGRATIONS.length; i++) {
+      var m = SETTINGS_MIGRATIONS[i];
+      if (v === m.from) {
+        loaded = m.migrate(loaded);
+        v = m.to;
+        loaded._version = v;
+      }
+    }
+    return loaded;
+  }
+
   var settings = {};
 
   function loadSettings() {
@@ -159,10 +189,17 @@ var KanvazUI_Extended = (function() {
       if (result && result.ok && result.data) {
         try {
           var loaded = JSON.parse(result.data);
+          loaded = migrateSettings(loaded);
+          var migrated = (loaded._version || 1) !== SETTINGS_VERSION;
           for (var k in loaded) {
             if (SETTINGS_DEFAULTS.hasOwnProperty(k)) settings[k] = loaded[k];
           }
+          settings._version = SETTINGS_VERSION;
           applySettings();
+          /* Persist migrated settings so migration only runs once */
+          if (migrated) {
+            KanvazBridge.writeSettings(JSON.stringify(settings)).catch(function() {});
+          }
         } catch (e) {
           console.warn('[Kanvaz] Failed to parse settings, using defaults:', e.message);
         }
@@ -657,7 +694,7 @@ var KanvazUI_Extended = (function() {
       '</div>',
       '<div class="about-title">Kanvaz</div>',
       '<div class="about-subtitle">Your canvas. Your references.</div>',
-      '<div class="about-version">Version 3.7.2</div>',
+      '<div class="about-version">Version 3.8.0</div>',
       '<div id="about-update-status" class="about-update-status"></div>',
       '<div class="about-divider"></div>',
       '<div class="about-author">Made by <strong>Atharva Patil</strong></div>',
@@ -665,7 +702,7 @@ var KanvazUI_Extended = (function() {
       '<div class="about-desc">Built for VFX artists, 3D artists,<br>and the people who teach them.</div>',
       '<div class="about-divider"></div>',
       '<div class="about-privacy">Free forever. MIT License.<br>No telemetry, no background network activity.<br>Your files never leave your machine.</div>',
-      '<div class="about-tagline">Reference Operating System<br>Actively developed — v3.7.2</div>'
+      '<div class="about-tagline">Reference Operating System<br>Actively developed — v3.8.0</div>'
     ].join('');
 
     var updateBtn = document.createElement('button');
@@ -784,6 +821,7 @@ var KanvazUI_Extended = (function() {
           ['P',       'Pin / unpin'],
           ['A',       'Annotate'],
           ['C',       'Connections'],
+          ['E',       'Properties'],
           ['H',       'Hide annotations'],
           ['Ctrl+A',  'Select all']
         ]

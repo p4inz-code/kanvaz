@@ -9,6 +9,8 @@ var shell = electron.shell;
 var path = require('path');
 var fs = require('fs');
 
+var purImport = require('./pur-import');
+
 var mainWindow = null;
 var allowClose = false;
 var RECOVERY_DIR = path.join(app.getPath('userData'), 'recovery');
@@ -197,9 +199,17 @@ function registerIPC() {
   });
 
   ipcMain.handle('file-write', function(event, filePath, data) {
-    return fs.promises.writeFile(filePath, data, 'utf8')
+    var tmpPath = filePath + '.tmp';
+    return fs.promises.writeFile(tmpPath, data, 'utf8')
+      .then(function() {
+        return fs.promises.rename(tmpPath, filePath);
+      })
       .then(function() { return { ok: true }; })
-      .catch(function(e) { return { ok: false, error: e.message }; });
+      .catch(function(e) {
+        /* Clean up .tmp if rename failed */
+        try { fs.unlinkSync(tmpPath); } catch (_) {}
+        return { ok: false, error: e.message };
+      });
   });
 
   /* ── IPC: Media loading ── */
@@ -338,9 +348,16 @@ function registerIPC() {
 
   ipcMain.handle('settings-write', function(event, data) {
     var settingsPath = path.join(app.getPath('userData'), 'settings.json');
-    return fs.promises.writeFile(settingsPath, data, 'utf8')
+    var tmpPath = settingsPath + '.tmp';
+    return fs.promises.writeFile(tmpPath, data, 'utf8')
+      .then(function() {
+        return fs.promises.rename(tmpPath, settingsPath);
+      })
       .then(function() { return { ok: true }; })
-      .catch(function(e) { return { ok: false, error: e.message }; });
+      .catch(function(e) {
+        try { fs.unlinkSync(tmpPath); } catch (_) {}
+        return { ok: false, error: e.message };
+      });
   });
 
   ipcMain.handle('first-run-check', function() {
@@ -389,6 +406,28 @@ function registerIPC() {
   ipcMain.on('app-relaunch', function() {
     app.relaunch();
     app.exit(0);
+  });
+
+  /* ── IPC: PureRef import ── */
+
+  ipcMain.handle('dialog-open-pur', function() {
+    var result = dialog.showOpenDialogSync(mainWindow, {
+      title: 'Import PureRef File',
+      filters: [{ name: 'PureRef Board', extensions: ['pur'] }],
+      properties: ['openFile']
+    });
+    return result ? result[0] : null;
+  });
+
+  ipcMain.handle('pur-import', function(event, filePath) {
+    return fs.promises.readFile(filePath)
+      .then(function(buffer) {
+        var parsed = purImport.parsePurFile(buffer);
+        return { ok: true, images: parsed.images, count: parsed.count };
+      })
+      .catch(function(e) {
+        return { ok: false, error: e.message };
+      });
   });
 
 }
