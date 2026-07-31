@@ -14,22 +14,31 @@ var KanvazErrors = (function() {
     BOARD_INIT_FAIL:   'E009',
     ANNOTATE_FAIL:     'E010',
     CRASH_RECOVERY:    'E011',
+    DISK_FULL:         'E012',
+    FILE_LOCKED:       'E013',
+    FILE_CORRUPT:      'E014',
+    PERMISSION_DENIED: 'E015',
     UNKNOWN:           'E999'
   };
 
-  var ERROR_MESSAGES = {
-    'E001': 'File is too large to load.',
-    'E002': 'File type is not supported.',
-    'E003': 'File could not be found.',
-    'E004': 'Canvas failed to initialise.',
-    'E005': 'Board could not be saved.',
-    'E006': 'Board could not be loaded.',
-    'E007': 'Media file failed to load.',
-    'E008': 'Communication error with app core.',
-    'E009': 'Board system failed to start.',
-    'E010': 'Annotation overlay failed.',
-    'E011': 'Recovered from unexpected crash.',
-    'E999': 'An unexpected error occurred.'
+  /* Each entry: message (what happened) + action (what to do) */
+  var ERROR_INFO = {
+    'E001': { msg: 'File is too large to load.',            action: 'Try a smaller file or split it into multiple boards.' },
+    'E002': { msg: 'File type is not supported.',           action: 'Kanvaz supports images, GIFs, MP4/WebM video, MP3/WAV/OGG audio, and .kanvaz files.' },
+    'E003': { msg: 'File could not be found.',              action: 'The file may have been moved or deleted. Check the file path.' },
+    'E004': { msg: 'Canvas failed to initialise.',          action: 'Try restarting Kanvaz. If it persists, reset via Settings → Reset.' },
+    'E005': { msg: 'Board could not be saved.',             action: 'Check disk space and file permissions, then try Save As to a different location.' },
+    'E006': { msg: 'Board could not be loaded.',            action: 'The file may be corrupted. Check if a .kanvaz.tmp backup exists in the same folder.' },
+    'E007': { msg: 'Media file failed to load.',            action: 'The file may be corrupted or in an unsupported format. MP4 (H.264) and WebM are recommended for video.' },
+    'E008': { msg: 'Communication error with app core.',    action: 'Restart Kanvaz. If it persists, reinstall.' },
+    'E009': { msg: 'Board system failed to start.',         action: 'Restart Kanvaz. If it persists, reset via Settings → Reset.' },
+    'E010': { msg: 'Annotation overlay failed.',            action: 'Press Esc to close, then try annotating again.' },
+    'E011': { msg: 'Recovered from unexpected crash.',      action: 'Your work was restored from the autosave. Save (Ctrl+S) to keep it.' },
+    'E012': { msg: 'Disk is full — cannot save.',      action: 'Free up disk space, then try saving again.' },
+    'E013': { msg: 'File is locked by another program.',    action: 'Close the file in the other program, then try again.' },
+    'E014': { msg: 'File appears to be corrupted.',         action: 'Check if a .kanvaz.tmp backup exists in the same folder.' },
+    'E015': { msg: 'Permission denied.',                    action: 'Try saving to a different folder, or run Kanvaz as administrator.' },
+    'E999': { msg: 'An unexpected error occurred.',         action: 'Try restarting Kanvaz. If it persists, export debug info (Settings → Developer) and report the issue.' }
   };
 
   function getCode(key) {
@@ -37,27 +46,51 @@ var KanvazErrors = (function() {
   }
 
   function getMessage(code) {
-    return ERROR_MESSAGES[code] || ERROR_MESSAGES['E999'];
+    var info = ERROR_INFO[code] || ERROR_INFO['E999'];
+    return info.msg;
+  }
+
+  function getAction(code) {
+    var info = ERROR_INFO[code] || ERROR_INFO['E999'];
+    return info.action;
+  }
+
+  /* Detect specific OS-level errors and map to a Kanvaz error code */
+  function classifyError(err) {
+    if (!err) return 'UNKNOWN';
+    var msg = (err.message || String(err)).toLowerCase();
+    var code = err.code || '';
+    if (code === 'ENOSPC' || msg.indexOf('no space') !== -1) return 'DISK_FULL';
+    if (code === 'EACCES' || code === 'EPERM' || msg.indexOf('permission') !== -1) return 'PERMISSION_DENIED';
+    if (code === 'EBUSY' || msg.indexOf('locked') !== -1) return 'FILE_LOCKED';
+    if (code === 'ENOENT' || msg.indexOf('not found') !== -1 || msg.indexOf('no such file') !== -1) return 'FILE_NOT_FOUND';
+    if (msg.indexOf('unexpected token') !== -1 || msg.indexOf('json') !== -1) return 'FILE_CORRUPT';
+    return null;
   }
 
   function handle(key, detail, silent) {
+    /* Auto-classify OS errors if key is generic */
+    if (key === 'UNKNOWN' || key === 'SAVE_FAIL' || key === 'LOAD_FAIL') {
+      var autoKey = classifyError(detail);
+      if (autoKey) key = autoKey;
+    }
+
     var code = getCode(key);
     var msg = getMessage(code);
+    var action = getAction(code);
+
     if (!silent) {
       if (typeof KanvazUI !== 'undefined' && KanvazUI.toast) {
-        KanvazUI.toast(msg, 'error');
+        KanvazUI.toast(code + ': ' + msg + ' ' + action, 'error');
       }
-      console.error('[Kanvaz ' + code + '] ' + msg, detail || '');
+      console.error('[Kanvaz ' + code + '] ' + msg + ' → ' + action, detail || '');
     }
-    return { code: code, message: msg, detail: detail };
+    return { code: code, message: msg, action: action, detail: detail };
   }
 
   function init() {
     window.onerror = function(message, source, lineno, colno, error) {
       console.error('[Kanvaz Uncaught]', message, 'at', source + ':' + lineno);
-      /* Show the REAL error so devs can diagnose — the generic E999
-         message hides what actually broke and turns every bug into
-         a guessing game. */
       var detail = String(message || 'unknown');
       if (source) {
         var file = source.split(/[\\/]/).pop();
@@ -83,6 +116,7 @@ var KanvazErrors = (function() {
   return {
     init: init,
     handle: handle,
+    classify: classifyError,
     codes: ERROR_CODES
   };
 

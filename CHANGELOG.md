@@ -2,6 +2,31 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [3.8.0] — Crash-safe save, .pur import, properties panel, color cards
+
+### Added
+- **Crash-safe save** — writes to a temp file first, then atomically renames
+  to the target path. A crash or power loss mid-save can no longer corrupt
+  your `.kanvaz` file.
+- **Settings migration system** — version-aware migration pipeline that
+  automatically upgrades settings across versions without data loss.
+  Supports future schema changes with per-version migration functions.
+- **Error diagnostics v2** — enhanced diagnostic system with structured
+  error codes, contextual metadata, and one-click debug-info export from
+  Developer settings.
+- **`.pur` file import** — import PureRef `.pur` files via drag-drop or
+  right-click canvas menu. Parses the binary format, extracts embedded
+  PNG images, and preserves position and scale from PureRef's transform
+  matrices.
+- **Properties panel (E)** — press E on any selected card to open a
+  left-side panel for editing custom key-value metadata. Add, edit, and
+  delete properties per card.
+- **Color picker card type** — create color swatch cards from the canvas
+  right-click menu. Click the swatch to open the native OS color picker.
+  Card bar shows a colored circle badge.
+
+---
+
 ## [3.7.2] — Polish: Map View UX, tab badges, Top Mode drag bar, dist alias
 
 ### Added

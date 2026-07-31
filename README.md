@@ -16,7 +16,7 @@
 
 **Reference Operating System**
 
-> **v3.7.2** — Top Mode drag bar, Map View zoom-to-fit + double-click-to-jump, tab card count badges, resize cursor, ship script.
+> **v3.8.0** — Crash-safe save, settings migration, error diagnostics v2, `.pur` file import, properties panel, color picker card type.
 > Board View, Connection System, and Inspector are stable and shipping.
 > Map View is functional and receiving polish updates.
 
@@ -79,6 +79,11 @@ See [CHANGELOG.md](CHANGELOG.md) for version history.
 - Board/Map segmented toggle in toolbar
 - Light / dark theme (press L or change in Settings)
 - Type-aware context menus (note cards hide irrelevant media options)
+- Crash-safe save — writes to a temp file first, then renames, so a crash mid-save can't corrupt your board
+- Settings migration — automatically upgrades settings across versions without data loss
+- `.pur` file import — drag-drop or menu-import PureRef boards with position/scale preserved
+- Properties panel (E) — attach custom key-value metadata to any card
+- Color picker card type — solid color swatches with native OS color picker
 
 ---
 
@@ -104,7 +109,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 3.7.2.exe` and `dist/Kanvaz 3.7.2.exe`
+Output: `dist/Kanvaz Setup 3.8.0.exe` and `dist/Kanvaz 3.8.0.exe`
 
 **macOS:**
 ```bash
@@ -140,6 +145,7 @@ npm run build:linux
 | P | Pin / unpin card |
 | A | Annotate selected card |
 | C | Connections inspector |
+| E | Properties panel |
 | M | Toggle Board / Map view |
 | H | Hide annotations |
 | Arrow keys | Nudge card 1px |
@@ -154,13 +160,13 @@ npm run build:linux
 
 ## File format
 
-Boards are saved as `.kanvaz` files — plain JSON with version `"3.7.2"`. Media is embedded as base64 data URLs. Connections are stored as a top-level `connections` array alongside boards. Files from v2.x load cleanly with zero connections.
+Boards are saved as `.kanvaz` files — plain JSON with version `"3.8.0"`. Media is embedded as base64 data URLs. Connections are stored as a top-level `connections` array alongside boards. Files from v2.x load cleanly with zero connections.
 
 ---
 
 ## Known limitations
 
-- Custom key-value properties are in the data model but have no editing UI yet (tags got theirs in v3.7.0; properties panel planned for v4).
+- Properties panel is basic key-value editing; richer field types planned for v4.
 - `.kanvaz` files embed media as base64, so files with large video/audio can get large.
 - MKV and AVI video files may not play (Chromium codec limitation) — MP4 (H.264) and WebM recommended.
 - Autosave writes to a recovery file only — "Unsaved changes" in the status bar clears only on explicit Save (Ctrl+S). The recovery file is now cleared on every clean close (v3.6.5) so the "Recover unsaved board?" prompt only appears after an actual crash, not on every launch.
@@ -169,7 +175,7 @@ Boards are saved as `.kanvaz` files — plain JSON with version `"3.7.2"`. Media
 
 ## Roadmap
 
-**v3.8.0** — Next milestone. Focus areas: advanced error diagnostics with version-aware settings migration, crash-safe save (write-to-temp then rename), `.pur` file import for PureRef users migrating to Kanvaz, custom properties panel (key-value metadata editing per card), and a color picker card type.
+**v3.9.0** — Next milestone. Focus areas: URL card type with link previews, PDF card type with page thumbnails, auto-layout algorithms for Map View, and batch operations (multi-select tag/property editing).
 
 **v4.0** — Long-term. Auto-updater (Squirrel or electron-updater), auto-layout algorithms for Map View, and the remaining reference types (URL, PDF, Color, File, Outcome) that are registered in the type system but don't have creation UI yet.
 

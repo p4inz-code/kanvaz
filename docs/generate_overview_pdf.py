@@ -159,7 +159,7 @@ pill_w = 150
 c.roundRect(W - margin - pill_w, H - margin - 28, pill_w, 20, 10, fill=1, stroke=1)
 c.setFont('Helvetica-Bold', 8.5)
 c.setFillColor(GREEN)
-c.drawCentredString(W - margin - pill_w/2, H - margin - 21, 'v3.7.2')
+c.drawCentredString(W - margin - pill_w/2, H - margin - 21, 'v3.8.0')
 
 y = H - margin - 70
 

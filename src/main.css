@@ -32,6 +32,14 @@
 
   --font-ui:   system-ui, 'Segoe UI', Arial, sans-serif;
   --font-mono: Consolas, 'Courier New', monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+
+  --titlebar-h: 36px;
+  --statusbar-h: 26px;
+  --toolbar-h: 44px;
 }
 
 /* ── Light theme ── */
@@ -97,15 +105,6 @@
 
 :root[data-theme="light"] .view-toggle-btn.view-toggle-active {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-}
-
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 10px;
-
-  --titlebar-h: 36px;
-  --statusbar-h: 26px;
-  --toolbar-h: 44px;
 }
 
 /* ── Reset ── */
@@ -876,10 +875,10 @@ html, body {
 }
 
 /* ── Video card ── */
-.card-video video {
+.card-video > video {
   display: block;
   width: 100%;
-  height: 100%;
+  height: calc(100% - 24px - clamp(28px, 10cqw, 48px));
   object-fit: cover;
 }
 
@@ -905,14 +904,20 @@ html, body {
   height: clamp(14px, 6cqw, 32px);
 }
 
+.video-scrub .media-mute-btn svg,
+.audio-scrub .media-mute-btn svg {
+  width: clamp(14px, 5cqw, 24px);
+  height: clamp(14px, 5cqw, 24px);
+}
+
 .video-scrub .media-mute-btn,
 .audio-scrub .media-mute-btn {
-  font-size: clamp(12px, 4.5cqw, 22px);
-  min-width: clamp(22px, 7cqw, 36px);
-  min-height: clamp(22px, 7cqw, 36px);
+  min-width: clamp(20px, 6cqw, 32px);
+  min-height: clamp(20px, 6cqw, 32px);
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .card:hover .video-scrub {
@@ -923,11 +928,16 @@ html, body {
 
 .audio-icon-area {
   width: 100%;
-  height: calc(100% - 48px);
+  height: calc(100% - 24px - clamp(30px, 11cqw, 50px));
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--color-surface);
+}
+
+.audio-icon-area .audio-icon-svg {
+  width: clamp(28px, 25cqw, 64px);
+  height: clamp(28px, 25cqw, 64px);
 }
 
 .audio-scrub {
@@ -949,6 +959,7 @@ html, body {
 .video-scrub .scrub-bar,
 .audio-scrub .scrub-bar {
   flex: 1;
+  min-width: 0;
   height: clamp(4px, 1.5cqw, 8px);
   background: var(--color-border-2);
   border-radius: clamp(2px, 0.8cqw, 4px);
@@ -973,6 +984,16 @@ html, body {
   font-size: clamp(10px, 3.5cqw, 16px);
   color: var(--color-text-3);
   white-space: nowrap;
+}
+
+/* Hide time + mute on very small cards to prevent overflow */
+@container card (max-width: 140px) {
+  .scrub-time { display: none; }
+  .media-mute-btn { display: none; }
+}
+
+@container card (max-width: 200px) {
+  .scrub-time { display: none; }
 }
 
 /* ── Context menu ── */
@@ -1226,148 +1247,6 @@ html, body {
 .about-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border-2);
-  border-radius: 16px;
-  padding: 36px 32px 28px;
-  width: 320px;
-  text-align: center;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
-  animation: about-card-in 0.2s cubic-bezier(0.16,1,0.3,1);
-}
-
-@keyframes about-card-in {
-  from { opacity: 0; transform: scale(0.96) translateY(6px); }
-  to   { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-.about-logo {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 14px;
-}
-
-.about-title {
-  font-size: 23px;
-  font-weight: 700;
-  color: var(--color-text);
-  margin-bottom: 4px;
-  letter-spacing: -0.01em;
-}
-
-.about-subtitle {
-  font-size: 13px;
-  color: var(--color-text-3);
-  margin-bottom: 18px;
-}
-
-.about-version {
-  display: inline-block;
-  font-size: 11px;
-  font-family: var(--font-mono);
-  color: var(--color-text-2);
-  background: var(--color-surface-2);
-  border-radius: 999px;
-  padding: 2px 12px;
-  margin-bottom: 10px;
-}
-
-.about-update-status {
-  font-size: 11px;
-  color: var(--color-text-3);
-  min-height: 16px;
-  margin-bottom: 6px;
-}
-
-.about-divider {
-  height: 1px;
-  background: var(--color-border);
-  margin: 16px 0;
-}
-
-.about-author {
-  font-size: 13px;
-  color: var(--color-text-2);
-  margin-bottom: 3px;
-}
-
-.about-author strong {
-  color: var(--color-text);
-  font-weight: 600;
-}
-
-.about-studio {
-  font-size: 11.5px;
-  color: var(--color-text-3);
-  margin-bottom: 16px;
-}
-
-.about-desc {
-  font-size: 12px;
-  color: var(--color-text-3);
-  line-height: 1.7;
-}
-
-.about-privacy {
-  font-size: 10.5px;
-  color: var(--color-text-3);
-  line-height: 1.7;
-  margin-bottom: 12px;
-}
-
-.about-tagline {
-  font-size: 11px;
-  color: var(--color-accent);
-  line-height: 1.6;
-  margin-bottom: 22px;
-}
-
-.about-btn {
-  display: block;
-  width: 100%;
-  font-family: var(--font-ui);
-  font-size: 12.5px;
-  cursor: pointer;
-  border-radius: 8px;
-  transition: background 0.12s, border-color 0.12s;
-}
-
-.about-btn-update {
-  padding: 7px 16px;
-  margin-bottom: 10px;
-  background: transparent;
-  border: 1px solid var(--color-border-2);
-  color: var(--color-text-2);
-}
-
-.about-btn-update:hover {
-  background: var(--color-surface-2);
-}
-
-.about-btn-close {
-  padding: 9px 24px;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-2);
-  color: var(--color-text-2);
-  font-size: 13px;
-}
-
-.about-btn-close:hover {
-  background: var(--color-surface-3);
-}
-
-/* ── About screen (v3.6.13 redesign) ── */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.65);
-  z-index: 60000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.about-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-2);
   border-radius: 14px;
   padding: 36px 32px 28px;
   width: 320px;
@@ -1486,4 +1365,10 @@ html, body {
 }
 .about-btn-close:hover {
   background: var(--color-surface-3);
+}
+
+/* ── Properties panel slide-in ── */
+@keyframes panel-slide-in {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
 }

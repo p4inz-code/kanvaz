@@ -244,8 +244,10 @@ var KanvazCards = (function() {
 
   /* ── Video controls (delegated) ── */
 
-  var PLAY_ICON  = '<svg width="18" height="18" viewBox="0 0 10 10" fill="currentColor"><polygon points="1,1 9,5 1,9"/></svg>';
-  var PAUSE_ICON = '<svg width="18" height="18" viewBox="0 0 10 10" fill="currentColor"><rect x="1" y="1" width="3" height="8"/><rect x="6" y="1" width="3" height="8"/></svg>';
+  var PLAY_ICON  = '<svg viewBox="0 0 10 10" fill="currentColor"><polygon points="1,1 9,5 1,9"/></svg>';
+  var PAUSE_ICON = '<svg viewBox="0 0 10 10" fill="currentColor"><rect x="1" y="1" width="3" height="8"/><rect x="6" y="1" width="3" height="8"/></svg>';
+  var MUTE_ICON  = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5.5h2l3-3v11l-3-3H3a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1z"/><line x1="12" y1="5" x2="12" y2="11" stroke-linecap="round"/><line x1="14.5" y1="3.5" x2="14.5" y2="12.5" stroke-linecap="round"/></svg>';
+  var MUTED_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5.5h2l3-3v11l-3-3H3a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1z"/><line x1="11" y1="5.5" x2="15" y2="10.5" stroke-linecap="round"/><line x1="15" y1="5.5" x2="11" y2="10.5" stroke-linecap="round"/></svg>';
 
   function toggleVideoPlay(cardEl) {
     if (!cardEl) return;
@@ -267,6 +269,7 @@ var KanvazCards = (function() {
     var btn = cardEl.querySelector('.media-mute-btn');
     if (!vid || !btn) return;
     vid.muted = !vid.muted;
+    btn.innerHTML = vid.muted ? MUTED_ICON : MUTE_ICON;
     btn.style.color = vid.muted ? 'var(--color-text-3)' : 'var(--color-accent)';
   }
 
@@ -398,6 +401,49 @@ var KanvazCards = (function() {
     return card;
   }
 
+  /* ── Create color swatch ── */
+
+  function createColorCard(x, y, hex) {
+    var id = nextId();
+    var color = hex || '#9D7FFF';
+    var card = {
+      id:       id,
+      type:     'color',
+      dataUrl:  null,
+      name:     color,
+      path:     null,
+      x:        x,
+      y:        y,
+      w:        160,
+      h:        160,
+      z:        ++zCounter,
+      pinned:   false,
+      color:    color,
+      annotations: []
+    };
+
+    cards[id] = card;
+    renderCard(card);
+    selectCard(id);
+    updateEmptyState();
+    updateCount();
+
+    /* Open color picker immediately */
+    setTimeout(function() {
+      var el = document.getElementById(id);
+      if (el) {
+        var swatch = el.querySelector('.color-swatch');
+        if (swatch) swatch.click();
+      }
+    }, 100);
+
+    if (typeof KanvazHistory !== 'undefined') {
+      KanvazHistory.push();
+    }
+
+    return card;
+  }
+
   /* ── Render card DOM ──
      NOTE: el.id AND el.dataset.cardId are both set to card.id.
      el.id is used by ~15 lookup sites (document.getElementById).
@@ -425,6 +471,8 @@ var KanvazCards = (function() {
       buildAudioCard(el, card);
     } else if (card.type === 'note') {
       buildNoteCard(el, card);
+    } else if (card.type === 'color') {
+      buildColorCard(el, card);
     }
 
     buildCardBar(el, card);
@@ -466,8 +514,8 @@ var KanvazCards = (function() {
     vid.muted = true;
     vid.loop = true;
     vid.playsInline = true;
-    /* 100% height minus scrub bar (20px) minus card bar (24px) */
-    vid.style.cssText = 'display:block;width:100%;height:calc(100% - 44px);object-fit:cover;pointer-events:none;';
+    /* Height set by CSS (.card-video > video) using container-query-aware calc */
+    vid.style.cssText = 'display:block;width:100%;object-fit:cover;pointer-events:none;';
 
     /* Scrub bar — built before vid.src so we can reference it in handlers */
     var scrub = document.createElement('div');
@@ -485,7 +533,7 @@ var KanvazCards = (function() {
       vid.style.display = 'none';
       scrub.style.display = 'none';
       var errDiv = document.createElement('div');
-      errDiv.style.cssText = 'display:flex;align-items:center;justify-content:center;width:100%;height:calc(100% - 24px);background:var(--color-surface-2);color:var(--color-text-3);font-size:11px;font-family:var(--font-ui);text-align:center;padding:12px;';
+      errDiv.style.cssText = 'display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:var(--color-surface-2);color:var(--color-text-3);font-size:11px;font-family:var(--font-ui);text-align:center;padding:12px;';
       errDiv.textContent = 'Video format not supported \u2014 try MP4 (H.264) or WebM';
       el.insertBefore(errDiv, el.firstChild);
     };
@@ -515,8 +563,8 @@ var KanvazCards = (function() {
     /* Mute button */
     var muteBtn = document.createElement('button');
     muteBtn.className = 'media-mute-btn';
-    muteBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-text-3);padding:0;display:flex;align-items:center;font-family:var(--font-mono);';
-    muteBtn.textContent = 'M';
+    muteBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-text-3);padding:0;display:flex;align-items:center;';
+    muteBtn.innerHTML = MUTED_ICON; /* starts muted */
     muteBtn.title = 'Toggle mute';
 
     scrub.appendChild(playBtn);
@@ -539,11 +587,12 @@ var KanvazCards = (function() {
   /* ── Audio card ── */
 
   function buildAudioCard(el, card) {
-    /* Icon area — fills the card above the scrub bar + card bar */
+    /* Icon area — fills the card above the scrub bar + card bar.
+       Height set by CSS (.audio-icon-area) using container-query-aware calc */
     var iconArea = document.createElement('div');
     iconArea.className = 'audio-icon-area';
     iconArea.innerHTML = [
-      '<svg width="44" height="44" viewBox="0 0 36 36" fill="none">',
+      '<svg class="audio-icon-svg" viewBox="0 0 36 36" fill="none">',
         '<path d="M13 24V9.6L27 6v14.4" stroke="var(--color-accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
         '<circle cx="9" cy="24" r="4" stroke="var(--color-accent)" stroke-width="2"/>',
         '<circle cx="23" cy="20.4" r="4" stroke="var(--color-accent)" stroke-width="2"/>',
@@ -583,8 +632,8 @@ var KanvazCards = (function() {
 
     var muteBtn = document.createElement('button');
     muteBtn.className = 'media-mute-btn';
-    muteBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-text-3);padding:0;display:flex;align-items:center;font-family:var(--font-mono);';
-    muteBtn.textContent = 'M';
+    muteBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-accent);padding:0;display:flex;align-items:center;';
+    muteBtn.innerHTML = MUTE_ICON; /* audio starts unmuted */
     muteBtn.title = 'Toggle mute';
 
     scrub.appendChild(playBtn);
@@ -627,6 +676,55 @@ var KanvazCards = (function() {
     el.appendChild(ta);
   }
 
+  /* ── Color swatch card ── */
+
+  function buildColorCard(el, card) {
+    var hex = card.color || '#9D7FFF';
+    var swatch = document.createElement('div');
+    swatch.className = 'color-swatch';
+    swatch.style.cssText = 'width:100%;height:calc(100% - 48px);background:' + hex + ';cursor:pointer;border-radius:6px 6px 0 0;';
+
+    var label = document.createElement('div');
+    label.className = 'color-label';
+    label.style.cssText = 'height:24px;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:11px;color:var(--color-text-2);letter-spacing:0.05em;text-transform:uppercase;user-select:all;';
+    label.textContent = hex;
+
+    /* Click swatch → open native color picker */
+    swatch.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var picker = document.createElement('input');
+      picker.type = 'color';
+      picker.value = hex;
+      picker.style.cssText = 'position:absolute;opacity:0;pointer-events:none;';
+      document.body.appendChild(picker);
+
+      picker.addEventListener('input', function() {
+        var newColor = picker.value;
+        card.color = newColor;
+        card.name  = newColor;
+        swatch.style.background = newColor;
+        label.textContent = newColor;
+        hex = newColor;
+        /* Update card bar name + badge */
+        var barName = el.querySelector('.card-filename');
+        if (barName) barName.textContent = newColor;
+        var barBadge = el.querySelector('.card-badge');
+        if (barBadge) barBadge.style.background = newColor;
+        KanvazApp.markDirty();
+      });
+
+      picker.addEventListener('change', function() {
+        KanvazHistory.push();
+        document.body.removeChild(picker);
+      });
+
+      picker.click();
+    });
+
+    el.appendChild(swatch);
+    el.appendChild(label);
+  }
+
   /* ── Card bar (filename + badge) ── */
 
   function buildCardBar(el, card) {
@@ -658,6 +756,11 @@ var KanvazCards = (function() {
       nbadge.className = 'card-badge badge-note';
       nbadge.textContent = 'NOTE';
       bar.appendChild(nbadge);
+    } else if (card.type === 'color') {
+      var cbadge = document.createElement('span');
+      cbadge.className = 'card-badge';
+      cbadge.style.cssText = 'background:' + (card.color || '#9D7FFF') + ';width:12px;height:12px;border-radius:50%;border:1.5px solid var(--color-border-2);padding:0;';
+      bar.appendChild(cbadge);
     }
 
     el.appendChild(bar);
@@ -1243,6 +1346,7 @@ var KanvazCards = (function() {
     createFromMedia:   createFromMedia,
     createFromDataUrl: createFromDataUrl,
     createNote:        createNote,
+    createColorCard:   createColorCard,
     generateTestCards: generateTestCards,
     selectCard:        selectCard,
     selectAll:         selectAll,

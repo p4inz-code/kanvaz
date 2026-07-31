@@ -39,6 +39,10 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
   /* Shell */
   openExternal:    function(url) { ipcRenderer.send('shell-open-external', url); },
 
+  /* PureRef import */
+  openPurDialog:   function() { return ipcRenderer.invoke('dialog-open-pur'); },
+  importPur:       function(p) { return ipcRenderer.invoke('pur-import', p); },
+
   /* Settings */
   readSettings:    function() { return ipcRenderer.invoke('settings-read'); },
   writeSettings:   function(d) { return ipcRenderer.invoke('settings-write', d); },

@@ -207,6 +207,13 @@ var KanvazShortcuts = (function() {
       return;
     }
 
+    if (e.key === 'e' || e.key === 'E') {
+      if (typeof KanvazProperties !== 'undefined') {
+        KanvazProperties.open(sel);
+      }
+      return;
+    }
+
     /* Arrow nudge */
     var nudge = shift ? 10 : 1;
     if (e.key === 'ArrowLeft')  { e.preventDefault(); KanvazCards.nudge(sel, -nudge, 0); return; }
