@@ -88,7 +88,6 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
     },
-    "publisherName": "Northbyte Studios",
     "publish": {
       "provider": "github",
       "owner": "p4inz-code",

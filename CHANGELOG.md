@@ -29,10 +29,9 @@ easier to ship and easier to trust.
 - **App reset v2** — an optional "Reset & Clear Caches" mode that also
   wipes Electron's HTTP/GPU/local-storage caches, for the rare case a
   normal reset doesn't clear up something visually broken.
-- **Polished NSIS installer** — custom sidebar art, bundled license
-  text, and a publisher name, so the Windows installer looks and
-  reads like a finished product instead of an electron-builder
-  default.
+- **Polished NSIS installer** — custom sidebar art and bundled license
+  text, so the Windows installer looks and reads like a finished
+  product instead of an electron-builder default.
 - **GitHub Actions CI** — lint and syntax validation on every push and
   PR, plus a full Windows/macOS/Linux build-and-publish pipeline that
   runs automatically on version tags.
