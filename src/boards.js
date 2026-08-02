@@ -7,7 +7,7 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '3.8.0';
+  var VERSION       = '3.8.1';
 
   /* ── Init ── */
 
@@ -356,35 +356,43 @@ var KanvazBoards = (function() {
   function openBoard() {
     KanvazBridge.openFileDialog().then(function(p) {
       if (!p) return;
-      KanvazBridge.readFile(p).then(function(result) {
-        if (!result.ok) {
-          KanvazUI.toast('Could not open file', 'error');
+      openFilePath(p);
+    }).catch(function(e) { console.warn('[Kanvaz] openFileDialog IPC failed:', e); });
+  }
+
+  /* ── Open a board given a path directly ──
+     Shared by openBoard() (picked via dialog) and the BUG 5 argv/
+     open-file handler (double-clicking a .kanvaz file, or a second
+     instance handing off its file to this one). */
+  function openFilePath(p) {
+    KanvazBridge.readFile(p).then(function(result) {
+      if (!result.ok) {
+        KanvazUI.toast('Could not open file', 'error');
+        return;
+      }
+      try {
+        var data = JSON.parse(result.data);
+        /* Schema validation — accept current shape (data.boards) or a
+           flat legacy shape (data.cards at top level); loadFromJSON
+           migrates the legacy shape automatically. Anything else is
+           genuinely not a Kanvaz file. */
+        if (!data || (!Array.isArray(data.boards) && !Array.isArray(data.cards))) {
+          KanvazUI.toast('File format not recognised', 'error');
           return;
         }
-        try {
-          var data = JSON.parse(result.data);
-          /* Schema validation — accept current shape (data.boards) or a
-             flat legacy shape (data.cards at top level); loadFromJSON
-             migrates the legacy shape automatically. Anything else is
-             genuinely not a Kanvaz file. */
-          if (!data || (!Array.isArray(data.boards) && !Array.isArray(data.cards))) {
-            KanvazUI.toast('File format not recognised', 'error');
-            return;
-          }
-          loadFromJSON(data);
-          currentPath = p;
-          KanvazApp.setCurrentPath(p);
-          KanvazBridge.addRecent(p);
-          KanvazApp.markClean();
-          KanvazBridge.clearRecovery();
-          /* Zoom to fit so cards are always visible */
-          setTimeout(function() { KanvazCanvas.zoomFit(); }, 100);
-          KanvazUI.toast('Board opened', 'success');
-        } catch (e) {
-          KanvazUI.toast('File appears corrupted', 'error');
-        }
-      }).catch(function(e) { console.warn('[Kanvaz] readFile IPC failed:', e); });
-    }).catch(function(e) { console.warn('[Kanvaz] openFileDialog IPC failed:', e); });
+        loadFromJSON(data);
+        currentPath = p;
+        KanvazApp.setCurrentPath(p);
+        KanvazBridge.addRecent(p);
+        KanvazApp.markClean();
+        KanvazBridge.clearRecovery();
+        /* Zoom to fit so cards are always visible */
+        setTimeout(function() { KanvazCanvas.zoomFit(); }, 100);
+        KanvazUI.toast('Board opened', 'success');
+      } catch (e) {
+        KanvazUI.toast('File appears corrupted', 'error');
+      }
+    }).catch(function(e) { console.warn('[Kanvaz] readFile IPC failed:', e); });
   }
 
   /* ── Load from JSON data ── */
@@ -690,6 +698,7 @@ var KanvazBoards = (function() {
     init:         init,
     newBoard:     newBoard,
     openBoard:    openBoard,
+    openFilePath: openFilePath,
     saveBoard:    saveBoard,
     saveBoardAs:  saveBoardAs,
     loadFromJSON: loadFromJSON,

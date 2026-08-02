@@ -186,7 +186,7 @@ var KanvazShortcuts = (function() {
     if (e.key === 'a' || e.key === 'A') {
       if (typeof KanvazAnnotate !== 'undefined') {
         var selCard = KanvazCards.getAll()[sel];
-        if (selCard && selCard.type !== 'note' && selCard.type !== 'audio') {
+        if (selCard && selCard.type !== 'note' && selCard.type !== 'audio' && selCard.type !== 'color') {
           KanvazAnnotate.activate(sel);
         }
       }

@@ -2,6 +2,56 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [3.8.1] — Hotfix: 8 verified bugs from the v4.0 pre-audit
+
+Ships the Phase 1 fixes from the v4.0 quality pass ahead of the card
+UI/UX polish work — all eight were verified with exact file/line
+references before fixing.
+
+### Fixed
+- **Annotate shortcut opened on color cards** — the `A` key guard in
+  `shortcuts.js` excluded `note` and `audio` cards but not `color`,
+  so pressing A on a color swatch activated the annotation overlay on
+  a card type that can't render one.
+- **Color picker leaked DOM elements** — clicking a color swatch
+  appended a hidden `<input type="color">` to `<body>`, only removed
+  on the `change` event. Cancelling the OS picker (Escape, click
+  away) left it orphaned in the DOM permanently. Now cleans up any
+  leftover picker before creating a new one and removes it on `blur`
+  as a fallback.
+- **Context menu showed irrelevant items for color/audio cards** —
+  "Flip horizontal/vertical" and "Reset size" only excluded `note`;
+  "Clear annotations" had no type guard at all. Both now exclude
+  `color` and `audio`.
+- **`flipCard()` corrupted state on non-visual cards** — flipping a
+  note, color, or audio card toggled `flipH`/`flipV` flags and tried
+  to transform a nonexistent `img`/`video` element, leaving garbage
+  flip state in the saved file. Now returns early for those types.
+- **No single-instance lock** — nothing called
+  `app.requestSingleInstanceLock()`, so launching Kanvaz twice (or
+  double-clicking a second `.kanvaz` file) could open two processes
+  against the same recovery/settings files. A second launch now
+  focuses the existing window instead.
+- **No `.kanvaz` file-open handling** — double-clicking a `.kanvaz`
+  file did nothing; there was no `process.argv` parsing on startup
+  and no macOS `open-file` handler. Both now forward the file to the
+  renderer, which opens it the same way File → Open does.
+- **Window title never updated** — the taskbar/Alt-Tab title stayed
+  hardcoded to "Kanvaz" regardless of which file was open. The
+  in-app custom titlebar showed the filename, but the real OS window
+  title never got `setTitle()` called on it. Now reflects the open
+  file and an unsaved-changes marker.
+- **No `.kanvaz` file association** — `package.json`'s build config
+  had no `fileAssociations` entry, so the OS didn't know `.kanvaz`
+  files belonged to Kanvaz (no icon, no "Open with", no double-click
+  launch). Added for Windows/macOS/Linux via electron-builder.
+
+### Internal
+- Added `.gitattributes` (`* text=auto eol=lf`) and normalized all
+  tracked text files to LF — the working tree had drifted to CRLF,
+  producing full-file diffs on every commit that had nothing to do
+  with the actual change.
+
 ## [3.8.0] — Crash-safe save, .pur import, properties panel, color cards
 
 ### Added

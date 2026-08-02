@@ -692,11 +692,24 @@ var KanvazCards = (function() {
     /* Click swatch → open native color picker */
     swatch.addEventListener('click', function(e) {
       e.stopPropagation();
+
+      /* BUG 2 fix: clean up any orphaned picker left over from a previous
+         swatch click that never fired 'change' (Escape, click-away, etc.)
+         — otherwise these <input type="color"> elements pile up in the
+         DOM forever. */
+      var oldPicker = document.querySelector('input[type="color"][data-kanvaz-picker]');
+      if (oldPicker && oldPicker.parentNode) oldPicker.parentNode.removeChild(oldPicker);
+
       var picker = document.createElement('input');
       picker.type = 'color';
       picker.value = hex;
+      picker.dataset.kanvazPicker = '1';
       picker.style.cssText = 'position:absolute;opacity:0;pointer-events:none;';
       document.body.appendChild(picker);
+
+      function removePicker() {
+        if (picker.parentNode) picker.parentNode.removeChild(picker);
+      }
 
       picker.addEventListener('input', function() {
         var newColor = picker.value;
@@ -715,7 +728,15 @@ var KanvazCards = (function() {
 
       picker.addEventListener('change', function() {
         KanvazHistory.push();
-        document.body.removeChild(picker);
+        removePicker();
+      });
+
+      /* Fallback cleanup: fires when the native picker closes without a
+         'change' event (Escape, clicking away). Delayed so a genuine
+         'change' (which also blurs) removes it via the handler above
+         first — removePicker() is idempotent either way. */
+      picker.addEventListener('blur', function() {
+        setTimeout(removePicker, 200);
       });
 
       picker.click();
@@ -1182,6 +1203,10 @@ var KanvazCards = (function() {
   function flipCard(id, axis) {
     var card = cards[id];
     if (!card) return;
+    /* Only visual media cards can be flipped — note/color/audio have no
+       img/video element and flipping them would just corrupt flipH/flipV
+       state that never gets used. */
+    if (card.type === 'note' || card.type === 'color' || card.type === 'audio') return;
     if (!card.flipH) card.flipH = false;
     if (!card.flipV) card.flipV = false;
     if (axis === 'h') card.flipH = !card.flipH;

@@ -44,6 +44,13 @@ var KanvazApp = (function() {
         handleCloseRequest();
       });
 
+      /* BUG 5 fix: main process sends this when Kanvaz is launched (or
+         handed off via single-instance lock) with a .kanvaz file — e.g.
+         double-clicking a file, or "Open with Kanvaz". */
+      KanvazBridge.on('open-file-from-argv', function(filePath) {
+        if (filePath) KanvazBoards.openFilePath(filePath);
+      });
+
       /* Wire every button — CSP blocks inline onclick, so bind here */
       bindGlobalUI();
 
@@ -638,7 +645,7 @@ var KanvazApp = (function() {
       );
 
       /* Media-only items: flip, reset size */
-      if (card.type !== 'note') {
+      if (card.type !== 'note' && card.type !== 'color' && card.type !== 'audio') {
         items.push({ sep: true });
         items.push({
           label: 'Flip horizontal',
@@ -660,12 +667,14 @@ var KanvazApp = (function() {
         submenu: true,
         action: function() { KanvazCards.showOpacityPicker(card.id, x, y); }
       });
-      items.push({
-        label: 'Clear annotations',
-        action: function() {
-          if (typeof KanvazAnnotate !== 'undefined') KanvazAnnotate.clearAnnotations(card.id);
-        }
-      });
+      if (card.type !== 'note' && card.type !== 'audio' && card.type !== 'color') {
+        items.push({
+          label: 'Clear annotations',
+          action: function() {
+            if (typeof KanvazAnnotate !== 'undefined') KanvazAnnotate.clearAnnotations(card.id);
+          }
+        });
+      }
       items.push({ sep: true });
       items.push({
           label: 'Delete',
@@ -1095,6 +1104,19 @@ var KanvazApp = (function() {
     }
   }
 
+  /* BUG 6 fix: push the current filename + dirty state to the OS-level
+     window title (taskbar, Alt-Tab preview). The #titlebar-title element
+     below only updates Kanvaz's own custom in-app titlebar — it never
+     touched the real window title, which stayed hardcoded to 'Kanvaz'. */
+  function updateWindowTitle() {
+    var name = currentBoardPath
+      ? currentBoardPath.split(/[\\/]/).pop()
+      : 'Untitled';
+    if (typeof KanvazBridge !== 'undefined' && KanvazBridge.setWindowTitle) {
+      KanvazBridge.setWindowTitle('Kanvaz — ' + name + (boardDirty ? ' *' : ''));
+    }
+  }
+
   return {
     toggleAlwaysOnTop: toggleAlwaysOnTop,
     updateSaveStatus:  updateSaveStatus,
@@ -1108,14 +1130,17 @@ var KanvazApp = (function() {
         var parts = p.split(/[\\/]/);
         el.textContent = parts[parts.length - 1];
       }
+      updateWindowTitle();
     },
     markDirty:         function() {
       boardDirty = true;
       updateSaveStatus('unsaved');
+      updateWindowTitle();
     },
     markClean:         function() {
       boardDirty = false;
       updateSaveStatus('saved');
+      updateWindowTitle();
     },
     isDirty:           function() { return boardDirty; },
     importPurFile:     importPurFile,

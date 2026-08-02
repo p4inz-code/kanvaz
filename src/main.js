@@ -13,27 +13,82 @@ var purImport = require('./pur-import');
 
 var mainWindow = null;
 var allowClose = false;
+var pendingFileOpen = null;
 var RECOVERY_DIR = path.join(app.getPath('userData'), 'recovery');
 var RECENT_FILES_PATH = path.join(app.getPath('userData'), 'recent.json');
 var MAX_RECENT = 8;
 var LARGE_FILE_WARN_MB = 200;
 var MAX_FILE_SIZE_MB   = 500;
 
-/* ── Startup ── */
+/* ── argv / file-open helper (BUG 5) ── */
 
-app.whenReady().then(function() {
-  ensureDirectories();
-  createWindow();
-  registerIPC();
-});
+function findKanvazArg(argv) {
+  for (var i = 0; i < argv.length; i++) {
+    if (/\.kanvaz$/i.test(argv[i])) return argv[i];
+  }
+  return null;
+}
 
-app.on('window-all-closed', function() {
-  if (process.platform !== 'darwin') app.quit();
-});
+/* ── Single-instance lock (BUG 4) ──
+   Kanvaz reads/writes .kanvaz files and a shared recovery/settings dir —
+   two instances racing against the same files can corrupt them. If this
+   process loses the lock, another instance is already running: hand off
+   (via 'second-instance' below, in that other process) and quit. */
+var gotLock = app.requestSingleInstanceLock();
 
-app.on('activate', function() {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow();
-});
+if (!gotLock) {
+  app.quit();
+} else {
+
+  /* ── Startup ── */
+
+  app.whenReady().then(function() {
+    ensureDirectories();
+    createWindow();
+    registerIPC();
+
+    /* BUG 5: fresh launch with a .kanvaz file on the command line
+       (double-click a file, or "Open with Kanvaz"). */
+    var startupFile = pendingFileOpen || findKanvazArg(process.argv);
+    if (startupFile && mainWindow) {
+      mainWindow.webContents.once('did-finish-load', function() {
+        mainWindow.webContents.send('open-file-from-argv', startupFile);
+      });
+    }
+  });
+
+  app.on('window-all-closed', function() {
+    if (process.platform !== 'darwin') app.quit();
+  });
+
+  app.on('activate', function() {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  });
+
+  /* BUG 4: a second launch (e.g. double-clicking another .kanvaz file
+     while Kanvaz is already open) fires this on the FIRST instance
+     instead of opening a second window. Focus the existing window and
+     open the file there if one was passed. */
+  app.on('second-instance', function(event, argv) {
+    if (!mainWindow) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+    var filePath = findKanvazArg(argv);
+    if (filePath) mainWindow.webContents.send('open-file-from-argv', filePath);
+  });
+
+  /* BUG 5: macOS file-open event — can fire before the window (or even
+     app.whenReady) exists, so queue it via pendingFileOpen if so. */
+  app.on('open-file', function(event, filePath) {
+    event.preventDefault();
+    if (mainWindow) {
+      mainWindow.webContents.send('open-file-from-argv', filePath);
+    } else {
+      pendingFileOpen = filePath;
+    }
+  });
+
+}
 
 /* ── Window ── */
 
@@ -133,6 +188,15 @@ function registerIPC() {
 
   ipcMain.on('window-set-always-on-top', function(event, flag) {
     if (mainWindow) mainWindow.setAlwaysOnTop(flag);
+  });
+
+  /* BUG 6 fix: renderer calls this after save/open with the display
+     filename so the OS-level window title (taskbar, Alt-Tab preview)
+     reflects the open file. The custom in-app titlebar already showed
+     it via #titlebar-title — window.setTitle() itself was never
+     called, so it stayed hardcoded to 'Kanvaz'. */
+  ipcMain.on('set-window-title', function(event, title) {
+    if (mainWindow) mainWindow.setTitle(title);
   });
 
   /* Tab+MMB whole-window drag — an alternative to dragging via the

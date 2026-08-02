@@ -694,7 +694,7 @@ var KanvazUI_Extended = (function() {
       '</div>',
       '<div class="about-title">Kanvaz</div>',
       '<div class="about-subtitle">Your canvas. Your references.</div>',
-      '<div class="about-version">Version 3.8.0</div>',
+      '<div class="about-version">Version 3.8.1</div>',
       '<div id="about-update-status" class="about-update-status"></div>',
       '<div class="about-divider"></div>',
       '<div class="about-author">Made by <strong>Atharva Patil</strong></div>',
@@ -702,7 +702,7 @@ var KanvazUI_Extended = (function() {
       '<div class="about-desc">Built for VFX artists, 3D artists,<br>and the people who teach them.</div>',
       '<div class="about-divider"></div>',
       '<div class="about-privacy">Free forever. MIT License.<br>No telemetry, no background network activity.<br>Your files never leave your machine.</div>',
-      '<div class="about-tagline">Reference Operating System<br>Actively developed — v3.8.0</div>'
+      '<div class="about-tagline">Reference Operating System<br>Actively developed — v3.8.1</div>'
     ].join('');
 
     var updateBtn = document.createElement('button');

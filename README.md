@@ -16,7 +16,7 @@
 
 **Reference Operating System**
 
-> **v3.8.0** — Crash-safe save, settings migration, error diagnostics v2, `.pur` file import, properties panel, color picker card type.
+> **v3.8.1** — Hotfix: 8 verified bugs fixed (color-card annotate/flip/context-menu guards, color-picker DOM leak, single-instance lock, `.kanvaz` file association + double-click open, OS window title sync).
 > Board View, Connection System, and Inspector are stable and shipping.
 > Map View is functional and receiving polish updates.
 
@@ -109,7 +109,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 3.8.0.exe` and `dist/Kanvaz 3.8.0.exe`
+Output: `dist/Kanvaz Setup 3.8.1.exe` and `dist/Kanvaz 3.8.1.exe`
 
 **macOS:**
 ```bash
@@ -160,7 +160,7 @@ npm run build:linux
 
 ## File format
 
-Boards are saved as `.kanvaz` files — plain JSON with version `"3.8.0"`. Media is embedded as base64 data URLs. Connections are stored as a top-level `connections` array alongside boards. Files from v2.x load cleanly with zero connections.
+Boards are saved as `.kanvaz` files — plain JSON with version `"3.8.1"`. Media is embedded as base64 data URLs. Connections are stored as a top-level `connections` array alongside boards. Files from v2.x load cleanly with zero connections.
 
 ---
 

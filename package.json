@@ -1,6 +1,6 @@
 {
   "name": "kanvaz",
-  "version": "3.8.0",
+  "version": "3.8.1",
   "description": "Reference Operating System — collect, organize, connect, and understand your references.",
   "private": true,
   "main": "src/main.js",
@@ -38,6 +38,16 @@
       "src/**/*",
       "assets/**/*",
       "package.json"
+    ],
+    "fileAssociations": [
+      {
+        "ext": "kanvaz",
+        "name": "Kanvaz Board",
+        "description": "Kanvaz Reference Board",
+        "mimeType": "application/x-kanvaz",
+        "role": "Editor",
+        "icon": "assets/icons/icon"
+      }
     ],
     "win": {
       "target": [
