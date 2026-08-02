@@ -7,7 +7,7 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '3.8.1';
+  var VERSION       = '4.0.0';
 
   /* ── Init ── */
 
@@ -689,9 +689,23 @@ var KanvazBoards = (function() {
     var el = document.getElementById('titlebar-title');
     if (!el) return;
     var name = boards[activeIdx] ? boards[activeIdx].name : 'Untitled';
-    el.textContent = currentPath
-      ? currentPath.split(/[\\/]/).pop()
-      : name;
+    var base = currentPath ? currentPath.split(/[\\/]/).pop() : name;
+
+    /* Phase 3 — unsaved changes dot. Single authoritative place that
+       writes #titlebar-title, so the dot can't go stale on board
+       switch/delete the way a second, independent writer would. Built
+       as text + a colored span rather than one text blob so the dot
+       can pick up the same amber "unsaved" color used in the status
+       bar, instead of inheriting the plain title color. */
+    var dirty = (typeof KanvazApp !== 'undefined' && KanvazApp.isDirty) ? KanvazApp.isDirty() : false;
+    el.textContent = base;
+    if (dirty) {
+      var dot = document.createElement('span');
+      dot.className = 'titlebar-dirty-dot';
+      dot.textContent = ' ●';
+      dot.title = 'Unsaved changes';
+      el.appendChild(dot);
+    }
   }
 
   return {
@@ -699,6 +713,7 @@ var KanvazBoards = (function() {
     newBoard:     newBoard,
     openBoard:    openBoard,
     openFilePath: openFilePath,
+    updateTitle:  updateTitle,
     saveBoard:    saveBoard,
     saveBoardAs:  saveBoardAs,
     loadFromJSON: loadFromJSON,

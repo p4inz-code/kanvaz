@@ -1,6 +1,6 @@
 {
   "name": "kanvaz",
-  "version": "3.8.1",
+  "version": "4.0.0",
   "description": "Reference Operating System — collect, organize, connect, and understand your references.",
   "private": true,
   "main": "src/main.js",
@@ -82,8 +82,20 @@
       "allowToChangeInstallationDirectory": true,
       "installerIcon": "assets/icons/icon.ico",
       "uninstallerIcon": "assets/icons/icon.ico",
+      "installerSidebar": "assets/installer-sidebar.bmp",
+      "uninstallerSidebar": "assets/installer-sidebar.bmp",
+      "license": "LICENSE",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
+    },
+    "publisherName": "Northbyte Studios",
+    "publish": {
+      "provider": "github",
+      "owner": "p4inz-code",
+      "repo": "kanvaz"
     }
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
   }
 }

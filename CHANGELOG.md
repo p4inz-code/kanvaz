@@ -2,6 +2,67 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [4.0.0] — V4.0 Quality Release: card polish, infra, and auto-updates
+
+Completes the v4.0 quality pass that [3.8.1](#381--hotfix-8-verified-bugs-from-the-v40-pre-audit)
+started: every card type got a full pass of UI/UX polish, plus a round
+of infrastructure work (installer, CI, auto-updater) to make releases
+easier to ship and easier to trust.
+
+### Added
+- **Per-card-type polish, all 6 types** — image gets a cover/contain
+  fit toggle; image/GIF/video get a loading skeleton and a clear
+  broken-media error state with a one-click **Relink** button; GIF
+  gets a pause overlay; video gets drag-to-scrub, a 0.5×/1×/2×
+  playback-speed picker, and a duration badge; audio gets a generated
+  waveform, a loop toggle, and a duration badge; notes get a live
+  character count and a live filename preview as you type; color
+  cards can cycle hex/rgb/hsl format with one click and copy the
+  value to the clipboard, plus a black/white contrast preview.
+- **Live annotation indicator** — a small dot on any annotated card
+  that now updates in real time as you draw or clear, instead of only
+  reflecting what was true at last save.
+- **Tag autocomplete** — typing a tag now suggests existing tags from
+  across the board.
+- **Unsaved-changes dot** in the window titlebar, next to the
+  filename.
+- **App reset v2** — an optional "Reset & Clear Caches" mode that also
+  wipes Electron's HTTP/GPU/local-storage caches, for the rare case a
+  normal reset doesn't clear up something visually broken.
+- **Polished NSIS installer** — custom sidebar art, bundled license
+  text, and a publisher name, so the Windows installer looks and
+  reads like a finished product instead of an electron-builder
+  default.
+- **GitHub Actions CI** — lint and syntax validation on every push and
+  PR, plus a full Windows/macOS/Linux build-and-publish pipeline that
+  runs automatically on version tags.
+- **Auto-updater** — checks GitHub Releases for a newer build,
+  downloads it in the background, and prompts to restart once it's
+  ready. Strictly user-triggered from the existing "Check for
+  updates" button in About — Kanvaz still makes zero network calls on
+  its own.
+
+### Fixed
+- **`.card-error-state` wasn't positioned** — on image/GIF cards it
+  rendered clipped and invisible behind the still-visible broken
+  `<img>` element instead of showing the intended error state.
+- **Annotation dot could go stale mid-session** — it read a
+  save-time-only field instead of the live stroke data, so it never
+  appeared while drawing and never disappeared after clearing.
+- **Tag autocomplete dropdown could be clipped** by a card's
+  `overflow: hidden` — now rendered outside the card and positioned
+  against it directly.
+- **Update-check status text used `innerHTML`** with a string built
+  from a network response — switched to safe DOM APIs.
+
+### Internal
+- Consolidated titlebar text into a single writer
+  (`KanvazBoards.updateTitle()`), replacing two competing code paths
+  that could disagree with each other.
+- Added `electron-updater` as a real dependency, wrapped in try/catch
+  so a missing or broken install degrades to "no updates available"
+  rather than crashing the app.
+
 ## [3.8.1] — Hotfix: 8 verified bugs from the v4.0 pre-audit
 
 Ships the Phase 1 fixes from the v4.0 quality pass ahead of the card

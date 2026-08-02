@@ -11,6 +11,17 @@ var fs = require('fs');
 
 var purImport = require('./pur-import');
 
+/* electron-updater is a real dependency (see package.json), but it's
+   wrapped in try/catch anyway — if it's ever missing (e.g. a stripped
+   dev checkout without a full npm install) the app should still start
+   normally with updates simply unavailable, not crash on require(). */
+var autoUpdater = null;
+try {
+  autoUpdater = require('electron-updater').autoUpdater;
+} catch (e) {
+  autoUpdater = null;
+}
+
 var mainWindow = null;
 var allowClose = false;
 var pendingFileOpen = null;
@@ -54,6 +65,15 @@ if (!gotLock) {
       mainWindow.webContents.once('did-finish-load', function() {
         mainWindow.webContents.send('open-file-from-argv', startupFile);
       });
+    }
+
+    /* Auto-updater — wires up event listeners only. Kanvaz makes no
+       background network calls (see the About screen's privacy note),
+       so this never checks on its own; it only fires when the user
+       clicks "Check for updates", via the 'check-for-updates' IPC
+       handler below. */
+    if (app.isPackaged && autoUpdater) {
+      wireAutoUpdaterEvents();
     }
   });
 
@@ -462,7 +482,7 @@ function registerIPC() {
      path in this function that could ever reach one, so no exclusion
      list is needed; the safety comes from what's simply never touched
      here, not from filtering. */
-  ipcMain.handle('reset-app-data', function() {
+  ipcMain.handle('reset-app-data', function(event, clearCaches) {
     try {
       var userDataDir = app.getPath('userData');
       var settingsPath = path.join(userDataDir, 'settings.json');
@@ -479,6 +499,22 @@ function registerIPC() {
         }
       }
 
+      /* App reset v2 — opt-in via the "Reset & Clear Caches" button.
+         Wipes Electron/Chromium's own HTTP cache, GPU shader cache,
+         and DOM local storage under userData. Not part of the default
+         reset since it makes the next launch slower to warm back up
+         (fresh GPU shader compiles) — only worth it when something
+         looks visually broken and a normal reset didn't fix it. */
+      if (clearCaches) {
+        var cacheDirs = ['Cache', 'Code Cache', 'GPUCache', 'DawnCache', 'Local Storage'];
+        for (var c = 0; c < cacheDirs.length; c++) {
+          var dir = path.join(userDataDir, cacheDirs[c]);
+          if (fs.existsSync(dir)) {
+            fs.rmSync(dir, { recursive: true, force: true });
+          }
+        }
+      }
+
       return { ok: true };
     } catch (e) {
       return { ok: false, error: e.message };
@@ -488,6 +524,16 @@ function registerIPC() {
   ipcMain.on('app-relaunch', function() {
     app.relaunch();
     app.exit(0);
+  });
+
+  /* ── IPC: Auto-updater ── */
+
+  ipcMain.on('check-for-updates', function() {
+    if (autoUpdater && app.isPackaged) autoUpdater.checkForUpdates();
+  });
+
+  ipcMain.on('install-update', function() {
+    if (autoUpdater) autoUpdater.quitAndInstall();
   });
 
   /* ── IPC: PureRef import ── */
@@ -512,6 +558,44 @@ function registerIPC() {
       });
   });
 
+}
+
+/* ── Auto-updater ──
+   GitHub-releases-backed update feed (see build.publish in package.json —
+   the same config electron-builder reads to publish releases from CI is
+   what electron-updater reads at runtime to find them).
+
+   Kanvaz's whole pitch is "no telemetry, no background network activity"
+   (see the About screen) — so this module NEVER calls checkForUpdates()
+   on its own. wireAutoUpdaterEvents() just registers listeners (inert,
+   no network I/O); the actual check only fires from the 'check-for-updates'
+   IPC handler, which only fires when the user clicks the button. Once
+   they've asked, autoDownload quietly finishes the job in the background
+   and installs only on their explicit "Restart & Install" — never a
+   surprise relaunch while someone's mid-edit. */
+function wireAutoUpdaterEvents() {
+  if (!autoUpdater) return;
+
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on('update-available', function(info) {
+    if (mainWindow) {
+      mainWindow.webContents.send('update-available', { version: info && info.version });
+    }
+  });
+
+  autoUpdater.on('update-downloaded', function(info) {
+    if (mainWindow) {
+      mainWindow.webContents.send('update-downloaded', { version: info && info.version });
+    }
+  });
+
+  autoUpdater.on('error', function(err) {
+    /* Check failures (no internet, feed unreachable, etc.) are expected
+       and shouldn't interrupt the user — log only. */
+    console.error('[Kanvaz] auto-updater error:', err ? err.message : err);
+  });
 }
 
 /* ── Crash recovery check ── */

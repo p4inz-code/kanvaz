@@ -51,6 +51,23 @@ var KanvazApp = (function() {
         if (filePath) KanvazBoards.openFilePath(filePath);
       });
 
+      /* Auto-updater — main process checks/downloads in the background;
+         we just report the two moments that matter to the user. */
+      KanvazBridge.on('update-available', function(info) {
+        KanvazUI.toast('Update' + (info && info.version ? ' v' + info.version : '') + ' found — downloading…');
+      });
+
+      KanvazBridge.on('update-downloaded', function(info) {
+        KanvazUI.showDialog(
+          'Update ready',
+          'Kanvaz' + (info && info.version ? ' v' + info.version : '') + ' has been downloaded. Restart now to install it?',
+          [
+            { label: 'Restart & Install', cls: 'primary', action: function() { KanvazBridge.installUpdate(); } },
+            { label: 'Later', cls: '' }
+          ]
+        );
+      });
+
       /* Wire every button — CSP blocks inline onclick, so bind here */
       bindGlobalUI();
 
@@ -1142,21 +1159,22 @@ var KanvazApp = (function() {
     getCurrentPath:    function() { return currentBoardPath; },
     setCurrentPath:    function(p) {
       currentBoardPath = p;
-      var el = document.getElementById('titlebar-title');
-      if (el && p) {
-        var parts = p.split(/[\\/]/);
-        el.textContent = parts[parts.length - 1];
-      }
+      /* boards.js's updateTitle() is the single authoritative writer of
+         #titlebar-title (also handles the unsaved-changes dot) — call
+         through to it instead of duplicating the DOM write here. */
+      if (typeof KanvazBoards !== 'undefined' && KanvazBoards.updateTitle) KanvazBoards.updateTitle();
       updateWindowTitle();
     },
     markDirty:         function() {
       boardDirty = true;
       updateSaveStatus('unsaved');
+      if (typeof KanvazBoards !== 'undefined' && KanvazBoards.updateTitle) KanvazBoards.updateTitle();
       updateWindowTitle();
     },
     markClean:         function() {
       boardDirty = false;
       updateSaveStatus('saved');
+      if (typeof KanvazBoards !== 'undefined' && KanvazBoards.updateTitle) KanvazBoards.updateTitle();
       updateWindowTitle();
     },
     isDirty:           function() { return boardDirty; },

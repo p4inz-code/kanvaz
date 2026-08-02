@@ -284,6 +284,10 @@ html, body {
   letter-spacing: 0.02em;
 }
 
+.titlebar-dirty-dot {
+  color: var(--color-amber);
+}
+
 #titlebar-title {
   flex: 1;
   min-width: 0;

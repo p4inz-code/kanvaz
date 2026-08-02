@@ -379,16 +379,17 @@ var KanvazUI_Extended = (function() {
   function confirmResetAppData() {
     KanvazUI.showDialog(
       'Reset Kanvaz?',
-      'This clears settings, the recent-files list, and the autosave/recovery cache, then restarts Kanvaz with defaults. Your saved .kanvaz board files are never touched — this only ever affects app-internal preferences and cache. Any unsaved changes in the board you currently have open will be lost, the same as closing without saving.',
+      'This clears settings, the recent-files list, and the autosave/recovery cache, then restarts Kanvaz with defaults. Your saved .kanvaz board files are never touched — this only ever affects app-internal preferences and cache. Any unsaved changes in the board you currently have open will be lost, the same as closing without saving. "Reset & Clear Caches" also wipes Electron’s own HTTP/GPU/local-storage caches — slower to rebuild on next launch, but the move if something looks visually broken and a normal reset didn’t fix it.',
       [
-        { label: 'Reset', cls: 'danger', action: function() { doResetAppData(); } },
+        { label: 'Reset', cls: 'danger', action: function() { doResetAppData(false); } },
+        { label: 'Reset & Clear Caches', cls: 'danger', action: function() { doResetAppData(true); } },
         { label: 'Cancel', cls: '', action: function() {} }
       ]
     );
   }
 
-  function doResetAppData() {
-    KanvazBridge.resetAppData().then(function(result) {
+  function doResetAppData(clearCaches) {
+    KanvazBridge.resetAppData(clearCaches).then(function(result) {
       if (result && result.ok) {
         KanvazUI.toast('Reset complete — restarting…');
         setTimeout(function() { KanvazBridge.relaunchApp(); }, 800);
@@ -608,6 +609,16 @@ var KanvazUI_Extended = (function() {
     status.style.color = 'var(--color-text-3)';
     status.textContent = 'Checking…';
 
+    /* Packaged builds only: this is the one place that kicks off the
+       real download (electron-updater, main process) — same click,
+       same "only when you click this" promise as the GitHub check
+       below. If a newer build is found it downloads in the background
+       and a "Restart & Install" prompt shows up when it's ready
+       (see app.js's 'update-downloaded' handling). */
+    if (typeof KanvazBridge !== 'undefined' && KanvazBridge.checkForUpdates) {
+      KanvazBridge.checkForUpdates();
+    }
+
     var currentVersion = (typeof KanvazBoards !== 'undefined' && KanvazBoards.getVersion)
       ? KanvazBoards.getVersion() : '0.0.0';
 
@@ -644,14 +655,26 @@ var KanvazUI_Extended = (function() {
         var cmp = compareVersions(latest, currentVersion);
         if (cmp > 0) {
           status.style.color = 'var(--color-accent)';
-          status.innerHTML = 'v' + latest + ' is available — <a href="#" id="about-update-link" style="color:var(--color-accent);text-decoration:underline;">view release</a>';
-          var link = document.getElementById('about-update-link');
-          if (link) link.onclick = function(e) {
+          status.textContent = '';
+
+          /* Built via DOM APIs rather than innerHTML — `latest` comes
+             from the GitHub API response, and even though it's our own
+             repo's release feed, untrusted-network-data should never
+             be concatenated into innerHTML. */
+          status.appendChild(document.createTextNode('v' + latest + ' is available — '));
+          var link = document.createElement('a');
+          link.href = '#';
+          link.id = 'about-update-link';
+          link.style.color = 'var(--color-accent)';
+          link.style.textDecoration = 'underline';
+          link.textContent = 'view release';
+          link.onclick = function(e) {
             e.preventDefault();
             if (typeof KanvazBridge !== 'undefined' && KanvazBridge.openExternal) {
               KanvazBridge.openExternal(data.html_url || 'https://github.com/p4inz-code/kanvaz/releases/latest');
             }
           };
+          status.appendChild(link);
         } else {
           status.style.color = 'var(--color-text-3)';
           status.textContent = "You're up to date (v" + currentVersion + ')';
@@ -694,7 +717,7 @@ var KanvazUI_Extended = (function() {
       '</div>',
       '<div class="about-title">Kanvaz</div>',
       '<div class="about-subtitle">Your canvas. Your references.</div>',
-      '<div class="about-version">Version 3.8.1</div>',
+      '<div class="about-version">Version 4.0.0</div>',
       '<div id="about-update-status" class="about-update-status"></div>',
       '<div class="about-divider"></div>',
       '<div class="about-author">Made by <strong>Atharva Patil</strong></div>',
@@ -702,13 +725,13 @@ var KanvazUI_Extended = (function() {
       '<div class="about-desc">Built for VFX artists, 3D artists,<br>and the people who teach them.</div>',
       '<div class="about-divider"></div>',
       '<div class="about-privacy">Free forever. MIT License.<br>No telemetry, no background network activity.<br>Your files never leave your machine.</div>',
-      '<div class="about-tagline">Reference Operating System<br>Actively developed — v3.8.1</div>'
+      '<div class="about-tagline">Reference Operating System<br>Actively developed — v4.0.0</div>'
     ].join('');
 
     var updateBtn = document.createElement('button');
     updateBtn.className = 'about-btn about-btn-update';
     updateBtn.textContent = 'Check for updates';
-    updateBtn.title = 'One request to GitHub — the only network call Kanvaz ever makes, only when you click this.';
+    updateBtn.title = 'Checks GitHub for a newer release — the only network activity Kanvaz ever does, and only when you click this.';
     updateBtn.onclick = function() { checkForUpdates(updateBtn); };
     box.appendChild(updateBtn);
 

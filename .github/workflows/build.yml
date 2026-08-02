@@ -1,0 +1,73 @@
+name: Build
+
+# Validate on every push/PR (cheap — lint + syntax + version consistency).
+# Only actually build installers when a v* tag is pushed, one native
+# runner per platform since electron-builder can't reliably cross-compile
+# NSIS/dmg/AppImage from a single OS.
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    name: Validate (lint + syntax + version check)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run validate
+
+  build:
+    name: Build (${{ matrix.os }})
+    needs: validate
+    if: startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            script: build:win
+          - os: macos-latest
+            script: build:mac
+          - os: ubuntu-latest
+            script: build:linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # --publish always uploads build artifacts straight to the GitHub
+      # Release matching this tag (creating it as a draft if it doesn't
+      # exist yet). Requires the "publish" block in package.json's
+      # electron-builder config (see build.publish).
+      #
+      # No Apple Developer ID cert is configured (CSC_LINK/CSC_KEY_PASSWORD
+      # unset) — CSC_IDENTITY_AUTO_DISCOVERY=false stops electron-builder
+      # from searching the runner's empty keychain for one, so the mac
+      # leg produces a normal *unsigned* dmg instead of erroring. Users
+      # will see a Gatekeeper warning until a paid Apple cert is added.
+      - name: Build and publish installers
+        run: npm run ${{ matrix.script }} -- --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false

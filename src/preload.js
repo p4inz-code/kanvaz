@@ -48,13 +48,17 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
   /* Settings */
   readSettings:    function() { return ipcRenderer.invoke('settings-read'); },
   writeSettings:   function(d) { return ipcRenderer.invoke('settings-write', d); },
-  resetAppData:    function() { return ipcRenderer.invoke('reset-app-data'); },
+  resetAppData:    function(clearCaches) { return ipcRenderer.invoke('reset-app-data', !!clearCaches); },
   relaunchApp:     function() { ipcRenderer.send('app-relaunch'); },
   firstRunCheck:   function() { return ipcRenderer.invoke('first-run-check'); },
 
+  /* Auto-updater */
+  checkForUpdates: function() { ipcRenderer.send('check-for-updates'); },
+  installUpdate:   function() { ipcRenderer.send('install-update'); },
+
   /* Main → Renderer events */
   on: function(channel, fn) {
-    var allowed = ['recovery-available', 'window-maximized-changed', 'check-unsaved-before-close', 'open-file-from-argv'];
+    var allowed = ['recovery-available', 'window-maximized-changed', 'check-unsaved-before-close', 'open-file-from-argv', 'update-available', 'update-downloaded'];
     if (allowed.indexOf(channel) !== -1) {
       ipcRenderer.on(channel, function(event, data) { fn(data); });
     }
