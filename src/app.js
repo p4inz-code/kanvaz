@@ -616,8 +616,8 @@ var KanvazApp = (function() {
 
       var items = [];
 
-      /* Annotate — only for visual media cards, not notes, audio, or color */
-      if (card.type !== 'note' && card.type !== 'audio' && card.type !== 'color') {
+      /* Annotate — only for visual media cards, not notes, audio, color, URL, or file refs */
+      if (card.type !== 'note' && card.type !== 'audio' && card.type !== 'color' && card.type !== 'url' && card.type !== 'file') {
         items.push({
           label: 'Annotate',
           action: function() {
@@ -662,7 +662,7 @@ var KanvazApp = (function() {
       );
 
       /* Media-only items: flip, reset size */
-      if (card.type !== 'note' && card.type !== 'color' && card.type !== 'audio') {
+      if (card.type !== 'note' && card.type !== 'color' && card.type !== 'audio' && card.type !== 'url' && card.type !== 'file') {
         items.push({ sep: true });
         items.push({
           label: 'Flip horizontal',
@@ -701,11 +701,60 @@ var KanvazApp = (function() {
         submenu: true,
         action: function() { KanvazCards.showOpacityPicker(card.id, x, y); }
       });
-      if (card.type !== 'note' && card.type !== 'audio' && card.type !== 'color') {
+      if (card.type !== 'note' && card.type !== 'audio' && card.type !== 'color' && card.type !== 'url' && card.type !== 'file') {
         items.push({
           label: 'Clear annotations',
           action: function() {
             if (typeof KanvazAnnotate !== 'undefined') KanvazAnnotate.clearAnnotations(card.id);
+          }
+        });
+      }
+      if (card.type === 'url') {
+        items.push({
+          label: 'Open in browser',
+          action: function() {
+            var raw = (card.url || '').trim();
+            if (!raw) return;
+            var target = /^https?:\/\//i.test(raw) ? raw : 'https://' + raw;
+            KanvazBridge.openExternal(target);
+          }
+        });
+        items.push({
+          label: 'Copy link',
+          action: function() {
+            var raw = (card.url || '').trim();
+            if (!raw) return;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(raw).then(function() {
+                KanvazUI.toast('Copied link', 'success');
+              }).catch(function() {
+                KanvazUI.toast('Could not copy to clipboard', 'error');
+              });
+            }
+          }
+        });
+      }
+      if (card.type === 'file') {
+        items.push({
+          label: 'Open file',
+          action: function() {
+            if (!card.path) return;
+            KanvazBridge.openPath(card.path).then(function(err) {
+              if (err) KanvazUI.toast(err, 'error');
+            });
+          }
+        });
+        items.push({
+          label: 'Copy path',
+          action: function() {
+            if (!card.path) return;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(card.path).then(function() {
+                KanvazUI.toast('Copied path', 'success');
+              }).catch(function() {
+                KanvazUI.toast('Could not copy to clipboard', 'error');
+              });
+            }
           }
         });
       }
@@ -772,6 +821,14 @@ var KanvazApp = (function() {
           { label: 'New color swatch', action: function() {
             var pos = KanvazCanvas.screenToWorld(x, y);
             if (typeof KanvazCards !== 'undefined') KanvazCards.createColorCard(pos.x, pos.y);
+          }},
+          { label: 'New URL reference', action: function() {
+            var pos = KanvazCanvas.screenToWorld(x, y);
+            if (typeof KanvazCards !== 'undefined') KanvazCards.createUrlCard(pos.x, pos.y);
+          }},
+          { label: 'New file reference', action: function() {
+            var pos = KanvazCanvas.screenToWorld(x, y);
+            if (typeof KanvazCards !== 'undefined') KanvazCards.createFileRefCard(pos.x, pos.y);
           }},
           { sep: true },
           { label: 'Import .pur file', action: function() { importPurFile(); }},

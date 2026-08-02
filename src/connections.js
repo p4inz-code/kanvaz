@@ -4,8 +4,16 @@
  * A connection goes FROM one reference TO another, with a
  * relationship type, optional note, priority, and timestamps.
  *
- * Connections are stored flat (not per-board) so cross-board
- * relationships are possible in a future release.
+ * Connections are stored flat (not per-board), so the data model itself
+ * doesn't prevent a connection between cards on different boards. In
+ * practice there's currently no UI path to create one, though: only one
+ * board's cards are ever loaded into memory at a time (see boards.js —
+ * switching boards swaps the active card set), so the Inspector's
+ * "Connect to" picker can only ever offer cards from the board you're
+ * currently on. Cross-board linking would need its own UI (a way to
+ * browse/pick a card from another board while a different one is
+ * active) — it's a real feature to design properly later, not something
+ * that falls out of the data model for free.
  */
 
 var KanvazConnections = (function() {

@@ -714,16 +714,11 @@ var KanvazUI_Extended = (function() {
 
     box.innerHTML = [
       '<div class="about-logo">',
-        '<svg width="44" height="44" viewBox="0 0 18 18" fill="none">',
-          '<rect x="2" y="6" width="12" height="9" rx="2" fill="var(--color-surface-3)"/>',
-          '<rect x="3" y="4" width="12" height="9" rx="2" fill="var(--color-surface)" stroke="var(--color-border-2)" stroke-width="0.5"/>',
-          '<rect x="4" y="2" width="12" height="9" rx="2" fill="var(--color-text)"/>',
-          '<circle cx="14" cy="3" r="2" fill="var(--color-accent)"/>',
-        '</svg>',
+        '<img src="../assets/icons/icon-128.png" alt="" width="44" height="44">',
       '</div>',
       '<div class="about-title">Kanvaz</div>',
       '<div class="about-subtitle">Your canvas. Your references.</div>',
-      '<div class="about-version">Version 4.0.1</div>',
+      '<div class="about-version">Version 4.1.0</div>',
       '<div id="about-update-status" class="about-update-status"></div>',
       '<div class="about-divider"></div>',
       '<div class="about-author">Made by <strong>Atharva Patil</strong></div>',
@@ -731,7 +726,7 @@ var KanvazUI_Extended = (function() {
       '<div class="about-desc">Built for VFX artists, 3D artists,<br>and the people who teach them.</div>',
       '<div class="about-divider"></div>',
       '<div class="about-privacy">Free forever. MIT License.<br>No telemetry, no background network activity.<br>Your files never leave your machine.</div>',
-      '<div class="about-tagline">Reference Operating System<br>Actively developed — v4.0.1</div>'
+      '<div class="about-tagline">Reference Operating System<br>Actively developed — v4.1.0</div>'
     ].join('');
 
     var updateBtn = document.createElement('button');

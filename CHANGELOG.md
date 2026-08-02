@@ -2,6 +2,27 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [4.1.0] — Reference types, safer file format, more bug fixes
+
+### Added
+- **URL reference cards** — paste a link, open it in your default browser or copy it. Never fetches previews/favicons; stays fully offline like everything else in Kanvaz.
+- **File reference cards** — point at a file anywhere on disk (a source PSD, a script, a brief) without embedding it. Open with its default app, or re-point it to a different file anytime. Opening deliberately refuses executable/script file types (`.exe`, `.bat`, `.ps1`, `.js`, `.lnk`, etc.) for safety, since a shared `.kanvaz` file's card data isn't necessarily trustworthy — every legitimate reference use (documents, source files) is unaffected.
+- **New `.kanvaz` container format** — a `.kanvaz` file is now a zip container (`board.json` + one file per embedded asset with a SHA-256 integrity hash) instead of one giant JSON blob with everything base64-encoded inline. Fixes the ~33% base64 size bloat and means a single damaged asset degrades to that one card, not the whole board. Old plain-JSON files still open exactly as before — this only changes how new saves are written. Covered by a new permanent test (`test/format-roundtrip-test.js`, wired into `npm run validate`).
+
+### Removed
+- **`outcome` reference type** — was registered in the type system with an icon and no defined fields, no creation UI, and no spec for what it was meant to do differently from a Note. Removed rather than left as a permanent ghost entry.
+
+### Fixed
+- **Color swatch cards felt impossible to drag** — dragging any card still fires a native `click` on mouseup over the same element; every other card type ignores that, but the color card's swatch/label/copy-button all had click handlers (open color picker, cycle format, copy hex) that fired immediately after every drag attempt, undoing the feel of moving it at all.
+- **`.kanvaz` files could silently save without their extension** — Windows' native Save dialog only auto-appends the filter extension when the typed filename has no dot at all; any board name with a dot in it (dates, version numbers) saved with no `.kanvaz` extension, which broke both its file icon and its visibility in the Open dialog's `*.kanvaz` filter. The save handler now forces the extension unconditionally.
+- **Map View connections misaligned on some Windows machines, never on others** — traced to a hand-measured pixel offset constant (`PORT_INSET`) calibrated against one specific Chromium render, plus a fixed-timeout guess for when entrance animations had "definitely" finished. Both assumptions break on different display-scaling setups. Replaced with always preferring the live-measured DOM position (safe per-node fallback already existed) and a frame-driven settle loop instead of a timing guess.
+- **Video codec failures looked identical to a moved/deleted file** — an MKV/AVI file Chromium can't decode showed the same generic "Missing media" state as an actually-missing file, even though Relink can't fix a codec problem. Now says so plainly and suggests re-exporting as MP4/WebM.
+- Replaced the placeholder app icon/logo (in the taskbar, `.kanvaz` file association, and in-app titlebar/About screen) with the real Kanvaz mark.
+
+### Security
+- Hardened the CSP further and closed the file-reference "Open" action against launching executable/script files from untrusted `.kanvaz` data (see File reference cards above).
+- Corrected a code comment in `connections.js` that implied cross-board connections were just a future flip of a switch — the data model doesn't block it, but there's genuinely no UI path to it today (only one board's cards are ever loaded at a time).
+
 ## [4.0.1] — Foundation hardening pass
 
 A full bug-hunt audit across every file in `src/`, followed by fixes for

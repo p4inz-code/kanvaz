@@ -275,6 +275,8 @@ html, body {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
+  border-radius: 4px;
+  object-fit: contain;
 }
 
 #titlebar-logo .logo-text {
@@ -961,6 +963,15 @@ html, body {
   max-width: 100%;
 }
 
+.card-error-reason {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  color: var(--color-text-3);
+  max-width: 90%;
+  text-align: center;
+  margin-top: 2px;
+}
+
 /* Persistent annotation indicator — stays visible even without hover,
    unlike the card bar, so it's obvious at a glance which cards have
    markup on them. Sits opposite the pin dot (top-left vs top-right). */
@@ -1101,6 +1112,96 @@ html, body {
   background: var(--color-accent);
   z-index: 1;
   pointer-events: none;
+}
+
+/* ── URL reference card ── */
+.card-url {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.url-accent-bar {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  width: 18px;
+  height: 18px;
+  color: var(--color-accent);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.url-accent-bar svg {
+  width: 100%;
+  height: 100%;
+}
+
+.url-body {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px 0 36px;
+  margin-top: 4px;
+}
+
+.url-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 4px 0;
+  caret-color: var(--color-accent);
+}
+
+.url-input::placeholder {
+  color: var(--color-text-2);
+}
+
+.url-label {
+  flex: 1;
+  min-width: 0;
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 4px 0;
+}
+
+.card-file {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.url-open-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--color-text-3);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.url-open-btn:hover {
+  color: var(--color-accent);
+}
+
+.url-open-btn svg {
+  width: 13px;
+  height: 13px;
 }
 
 /* ── Color swatch card ── */
@@ -1695,6 +1796,7 @@ html, body {
 }
 
 .about-logo { margin-bottom: 14px; }
+.about-logo img { border-radius: 9px; display: block; margin: 0 auto; }
 
 .about-title {
   font-size: 23px;

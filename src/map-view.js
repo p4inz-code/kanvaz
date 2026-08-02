@@ -41,7 +41,6 @@ var KanvazMapView = (function() {
   var wireFrom     = null;   /* ref ID we're dragging a wire from */
   var wirePreview  = null;   /* live SVG path element */
   var hasRenderedOnce = false;
-  var useMathOnly    = false; /* skip domPort during entrance animations */
 
   /* ── Node sizing ── */
   var NODE_W      = 176;   /* border-box width (global * reset forces box-sizing:border-box) */
@@ -170,15 +169,23 @@ var KanvazMapView = (function() {
   }
 
   /* Resolved endpoint: DOM truth if available, else math fallback.
-     During entrance animations useMathOnly is set — DOM positions
-     are unreliable (translateY offset, zero-size rects on some DPI). */
+     domPort() itself guards against unreliable reads (unlaid-out nodes,
+     zero-size rects mid-animation) and returns null in those cases. */
   function resolveOut(card) {
-    if (useMathOnly) return outPort(card);
+    /* BUG fix: this used to hard-skip domPort() for the entire first-open
+       animation window (useMathOnly) and fall back to a hand-measured
+       "PORT_INSET" pixel constant instead — calibrated once against one
+       Chromium render. On a different DPI/scaling setup that constant is
+       simply wrong, which showed up as cables/ports being persistently
+       misaligned on some Windows machines and not others. domPort() already
+       has its own per-node, per-call zero-rect guard (falls back to math
+       only when a node genuinely isn't laid out yet), so it's always safe
+       to try it first — no need for a blanket window that forces the
+       fragile constant on machines where it doesn't hold. */
     var dom = domPort(card.id, 'out');
     return dom || outPort(card);
   }
   function resolveIn(card) {
-    if (useMathOnly) return inPort(card);
     var dom = domPort(card.id, 'in');
     return dom || inPort(card);
   }
@@ -759,19 +766,33 @@ var KanvazMapView = (function() {
       idx++;
     }
 
-    /* On first open, use math-only port positions — entrance animations
-       make getBoundingClientRect unreliable (translateY offset, zero-size
-       rects on some Windows DPI configs → ports converge at 0,0).
-       After all animations finish, re-render lines with DOM-accurate
-       positions for pixel-perfect alignment. */
+    /* On first open, entrance animations mean some nodes' rects aren't
+       laid out yet on the very first frame — resolveOut/resolveIn already
+       fall back to math per-node when that happens, so this initial call
+       is always safe. */
+    renderLines(true);
+
     if (isFirstOpen) {
-      useMathOnly = true;
-      renderLines(true);
-      var animDone = Math.min(idx * 35, 420) + 420 + 60;
-      setTimeout(function() {
-        useMathOnly = false;
+      /* BUG fix: this used to switch to DOM-accurate lines exactly once,
+         after a single guessed setTimeout duration meant to outlast the
+         staggered entrance animations. That guess depends on the machine
+         being fast enough (and animations being enabled at all — OS
+         "reduce motion" / animations-off settings finish instantly, and
+         a throttled/backgrounded tab can delay a timer well past its
+         target), so on some machines the "final" re-render fired before
+         layout had actually settled, leaving cables permanently pinned to
+         the wrong spot. Re-rendering across a bounded run of animation
+         frames instead means every render keeps refining toward the true
+         DOM position rather than betting everything on one timed guess —
+         it self-corrects regardless of how fast entrance animations
+         actually played out on this particular machine. */
+      var framesLeft = 40; /* ~0.6s+ at 60fps — comfortably outlasts the ~840ms staggered entrance */
+      var settle = function() {
         renderLines(false);
-      }, animDone);
+        framesLeft--;
+        if (framesLeft > 0) requestAnimationFrame(settle);
+      };
+      requestAnimationFrame(settle);
     } else {
       renderLines(false);
     }

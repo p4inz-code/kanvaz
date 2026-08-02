@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
   openFileDialog:  function() { return ipcRenderer.invoke('dialog-open-file'); },
   saveFileDialog:  function(name) { return ipcRenderer.invoke('dialog-save-file', name); },
   openMediaDialog: function() { return ipcRenderer.invoke('dialog-open-media'); },
+  openRefFileDialog: function(ext) { return ipcRenderer.invoke('dialog-open-ref-file', ext); },
 
   /* File I/O */
   readFile:        function(p) { return ipcRenderer.invoke('file-read', p); },
@@ -40,6 +41,7 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
 
   /* Shell */
   openExternal:    function(url) { ipcRenderer.send('shell-open-external', url); },
+  openPath:        function(p) { return ipcRenderer.invoke('shell-open-path', p); },
 
   /* PureRef import */
   openPurDialog:   function() { return ipcRenderer.invoke('dialog-open-pur'); },

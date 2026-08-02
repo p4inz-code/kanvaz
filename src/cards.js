@@ -164,6 +164,15 @@ var KanvazCards = (function() {
       var dy = (ev.clientY - startY) / scale;
       if (!moved && Math.abs(dx) < 2 && Math.abs(dy) < 2) return;
       moved = true;
+      /* BUG fix: the browser still fires a native 'click' on the original
+         mousedown target once the mouse comes back up over it — dragging
+         doesn't suppress click the way it does on touch. For plain cards
+         that's harmless, but the color card's swatch/label/copy-button
+         have their own click handlers (open color picker, cycle format,
+         copy hex) that would otherwise fire immediately after every drag,
+         making the card feel like it snaps back / "won't move". Flag the
+         element so those handlers can recognize and skip that one click. */
+      el.dataset.justDragged = '1';
       card.x = snapToGrid(origX + dx);
       card.y = snapToGrid(origY + dy);
       el.style.left = card.x + 'px';
@@ -221,7 +230,7 @@ var KanvazCards = (function() {
       if (dir === 'tr' || dir === 'tc' || dir === 'tl') { newH = startH - dy; newY = startCY + dy; }
 
       var isCorner = (dir === 'br' || dir === 'tr' || dir === 'bl' || dir === 'tl');
-      if (aspectLock && card.type !== 'note' && card.type !== 'audio' && isCorner) {
+      if (aspectLock && card.type !== 'note' && card.type !== 'audio' && card.type !== 'url' && card.type !== 'file' && isCorner) {
         newH = newW / aspectRatio;
       }
 
@@ -556,6 +565,87 @@ var KanvazCards = (function() {
     return card;
   }
 
+  /* ── Create URL reference ── */
+
+  function createUrlCard(x, y) {
+    var id = nextId();
+    var card = {
+      id:       id,
+      type:     'url',
+      dataUrl:  null,
+      name:     'URL reference',
+      path:     null,
+      x:        x,
+      y:        y,
+      w:        220,
+      h:        90,
+      z:        ++zCounter,
+      pinned:   false,
+      url:      '',
+      annotations: []
+    };
+
+    cards[id] = card;
+    renderCard(card);
+    selectCard(id);
+    updateEmptyState();
+    updateCount();
+
+    /* Focus the URL input immediately so typing/pasting a link is the
+       very next thing that happens — same "ready to go" feel as a new
+       note dropping in with the cursor already active. */
+    setTimeout(function() {
+      var el = document.getElementById(id);
+      var input = el && el.querySelector('.url-input');
+      if (input) input.focus();
+    }, 50);
+
+    if (typeof KanvazHistory !== 'undefined') {
+      KanvazHistory.push();
+    }
+
+    return card;
+  }
+
+  /* ── Create File reference ──
+     Points at a file on disk without embedding it (hasMedia:false in
+     reference-types.js) — for linking a source PSD, script, brief, or
+     any other file too big/impractical to embed as base64. */
+
+  function createFileRefCard(x, y) {
+    KanvazBridge.openRefFileDialog(null).then(function(p) {
+      if (!p) return; /* cancelled — never create an empty, useless card */
+      var id = nextId();
+      var card = {
+        id:       id,
+        type:     'file',
+        dataUrl:  null,
+        name:     basenameOf(p),
+        path:     p,
+        x:        x,
+        y:        y,
+        w:        220,
+        h:        90,
+        z:        ++zCounter,
+        pinned:   false,
+        annotations: []
+      };
+      cards[id] = card;
+      renderCard(card);
+      selectCard(id);
+      updateEmptyState();
+      updateCount();
+      if (typeof KanvazHistory !== 'undefined') KanvazHistory.push();
+    }).catch(function(e) { console.warn('[Kanvaz] openRefFileDialog IPC failed:', e); });
+  }
+
+  /* No Node `path` module in the renderer (contextIsolation) — just
+     split on whichever slash the OS used. */
+  function basenameOf(p) {
+    var parts = p.split(/[\\/]/);
+    return parts[parts.length - 1] || p;
+  }
+
   /* ── Render card DOM ──
      NOTE: el.id AND el.dataset.cardId are both set to card.id.
      el.id is used by ~15 lookup sites (document.getElementById).
@@ -585,6 +675,10 @@ var KanvazCards = (function() {
       buildNoteCard(el, card);
     } else if (card.type === 'color') {
       buildColorCard(el, card);
+    } else if (card.type === 'url') {
+      buildUrlCard(el, card);
+    } else if (card.type === 'file') {
+      buildFileRefCard(el, card);
     }
 
     buildCardBar(el, card);
@@ -712,7 +806,7 @@ var KanvazCards = (function() {
     bar.appendChild(btn);
   }
 
-  function showMediaError(el, card) {
+  function showMediaError(el, card, reason) {
     if (el.querySelector('.card-error-state')) return;
     el.classList.add('card-error');
     var box = document.createElement('div');
@@ -725,7 +819,16 @@ var KanvazCards = (function() {
     name.textContent = card.name || 'Missing media';
     box.appendChild(icon);
     box.appendChild(name);
+    if (reason) {
+      var reasonEl = document.createElement('div');
+      reasonEl.className = 'card-error-reason';
+      reasonEl.textContent = reason;
+      box.appendChild(reasonEl);
+    }
     el.appendChild(box);
+    /* Relink still makes sense even for a codec failure, not just a
+       moved/missing file — the user may have another take of the same
+       clip already encoded as MP4/WebM sitting right next to this one. */
     addRelinkButton(el, card);
   }
 
@@ -921,7 +1024,19 @@ var KanvazCards = (function() {
       vid.style.display = 'none';
       scrub.style.display = 'none';
       progressLine.style.display = 'none';
-      showMediaError(el, card);
+      /* BUG fix: video data is embedded as a base64 data URL (see
+         README — media never re-reads from disk after import), so
+         "the file moved" can't be why this fired. MEDIA_ERR_SRC_NOT_
+         SUPPORTED means Chromium just can't decode this codec/
+         container — almost always MKV or AVI (documented Known
+         Limitation). Say that plainly instead of showing the generic
+         "Missing media" state, which wrongly implies Relink can fix it
+         by pointing at the exact same unsupported file again. */
+      var reason = null;
+      if (vid.error && vid.error.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
+        reason = 'Format not supported — try re-exporting as MP4 (H.264) or WebM.';
+      }
+      showMediaError(el, card, reason);
     };
     /* Only play after data is loaded — prevents corrupt partial display */
     vid.onloadeddata = function() {
@@ -1232,6 +1347,7 @@ var KanvazCards = (function() {
 
     /* Click the label to cycle display format — hex ↔ rgb ↔ hsl */
     label.addEventListener('click', function(e) {
+      if (el.dataset.justDragged) { delete el.dataset.justDragged; return; }
       e.stopPropagation();
       format = (format === 'hex') ? 'rgb' : (format === 'rgb' ? 'hsl' : 'hex');
       card.colorFormat = format;
@@ -1242,6 +1358,7 @@ var KanvazCards = (function() {
     /* Copy button always copies the hex value, regardless of what
        format is currently displayed — hex is the portable/pasteable one. */
     copyBtn.addEventListener('click', function(e) {
+      if (el.dataset.justDragged) { delete el.dataset.justDragged; return; }
       e.stopPropagation();
       var toCopy = hex.toUpperCase();
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -1258,6 +1375,7 @@ var KanvazCards = (function() {
 
     /* Click swatch → open native color picker */
     swatch.addEventListener('click', function(e) {
+      if (el.dataset.justDragged) { delete el.dataset.justDragged; return; }
       e.stopPropagation();
 
       /* BUG 2 fix: clean up any orphaned picker left over from a previous
@@ -1311,6 +1429,144 @@ var KanvazCards = (function() {
 
     el.appendChild(swatch);
     el.appendChild(labelRow);
+  }
+
+  /* ── URL reference card ── */
+
+  var LINK_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 9.5a3 3 0 0 0 4.24 0l2-2a3 3 0 0 0-4.24-4.24l-1 1"/><path d="M9.5 6.5a3 3 0 0 0-4.24 0l-2 2a3 3 0 0 0 4.24 4.24l1-1"/></svg>';
+  var OPEN_ICON = '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2H2v10h10V8"/><path d="M8 2h4v4"/><path d="M12 2 6.5 7.5"/></svg>';
+
+  /* Kanvaz never fetches link previews/favicons for these — the app makes
+     zero background network calls (see PRIVACY.md), and a URL card is no
+     exception. It's a fast, offline note-to-self of a link: paste it,
+     open it in your real browser when you need it. */
+  function buildUrlCard(el, card) {
+    var accent = document.createElement('div');
+    accent.className = 'url-accent-bar';
+    accent.innerHTML = LINK_ICON;
+    el.appendChild(accent);
+
+    var body = document.createElement('div');
+    body.className = 'url-body';
+
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'url-input';
+    input.placeholder = 'https://…';
+    input.value = card.url || '';
+    input.spellcheck = false;
+
+    var openBtn = document.createElement('button');
+    openBtn.className = 'url-open-btn';
+    openBtn.innerHTML = OPEN_ICON;
+    openBtn.title = 'Open in your default browser';
+
+    function updateOpenState() {
+      var has = !!(card.url && card.url.trim());
+      openBtn.style.display = has ? '' : 'none';
+    }
+    updateOpenState();
+
+    function updateBarName() {
+      var barName = el.querySelector('.card-filename');
+      if (!barName) return;
+      var v = (card.url || '').trim();
+      barName.textContent = v
+        ? (v.length > 28 ? v.slice(0, 28) + '…' : v)
+        : (card.name || 'URL reference');
+    }
+
+    input.addEventListener('input', function() {
+      card.url = input.value;
+      KanvazApp.markDirty();
+      updateOpenState();
+      updateBarName();
+    });
+
+    input.addEventListener('blur', function() {
+      if (el.dataset.justDragged) { delete el.dataset.justDragged; return; }
+      KanvazHistory.push();
+    });
+
+    /* mousedown on the input must not start a card drag — same pattern
+       as tag inputs and other in-card text fields. */
+    input.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+
+    openBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (el.dataset.justDragged) { delete el.dataset.justDragged; return; }
+      var raw = (card.url || '').trim();
+      if (!raw) return;
+      var target = /^https?:\/\//i.test(raw) ? raw : 'https://' + raw;
+      KanvazBridge.openExternal(target);
+    });
+    openBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+
+    body.appendChild(input);
+    body.appendChild(openBtn);
+    el.appendChild(body);
+    updateBarName();
+  }
+
+  /* ── File reference card ── */
+
+  var FOLDER_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4.5a1 1 0 0 1 1-1h3l1.5 1.5H13a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-7.5z"/></svg>';
+  var CHANGE_ICON = '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7a5 5 0 0 1 8.5-3.5M12 7a5 5 0 0 1-8.5 3.5"/><path d="M10 1v3h-3M4 13v-3h3"/></svg>';
+
+  function buildFileRefCard(el, card) {
+    var accent = document.createElement('div');
+    accent.className = 'url-accent-bar';
+    accent.innerHTML = FOLDER_ICON;
+    el.appendChild(accent);
+
+    var body = document.createElement('div');
+    body.className = 'url-body';
+
+    var label = document.createElement('span');
+    label.className = 'url-label ellipsis';
+    label.title = card.path || '';
+    label.textContent = card.name || 'File reference';
+
+    var openBtn = document.createElement('button');
+    openBtn.className = 'url-open-btn';
+    openBtn.innerHTML = OPEN_ICON;
+    openBtn.title = 'Open with your default app for this file type';
+    openBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (el.dataset.justDragged) { delete el.dataset.justDragged; return; }
+      if (!card.path) return;
+      KanvazBridge.openPath(card.path).then(function(err) {
+        if (err) KanvazUI.toast(err, 'error');
+      });
+    });
+    openBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+
+    var changeBtn = document.createElement('button');
+    changeBtn.className = 'url-open-btn';
+    changeBtn.innerHTML = CHANGE_ICON;
+    changeBtn.title = 'Point this card at a different file';
+    changeBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (el.dataset.justDragged) { delete el.dataset.justDragged; return; }
+      var ext = (card.type === 'pdf') ? 'pdf' : null;
+      KanvazBridge.openRefFileDialog(ext).then(function(p) {
+        if (!p) return;
+        card.path = p;
+        card.name = basenameOf(p);
+        label.textContent = card.name;
+        label.title = card.path;
+        var barName = el.querySelector('.card-filename');
+        if (barName) barName.textContent = card.name;
+        KanvazApp.markDirty();
+        KanvazHistory.push();
+      }).catch(function(e) { console.warn('[Kanvaz] openRefFileDialog IPC failed:', e); });
+    });
+    changeBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+
+    body.appendChild(label);
+    body.appendChild(changeBtn);
+    body.appendChild(openBtn);
+    el.appendChild(body);
   }
 
   /* ── Card bar (filename + badge) ── */
@@ -2065,7 +2321,7 @@ var KanvazCards = (function() {
     /* Only visual media cards can be flipped — note/color/audio have no
        img/video element and flipping them would just corrupt flipH/flipV
        state that never gets used. */
-    if (card.type === 'note' || card.type === 'color' || card.type === 'audio') return;
+    if (card.type === 'note' || card.type === 'color' || card.type === 'audio' || card.type === 'url' || card.type === 'file') return;
     if (!card.flipH) card.flipH = false;
     if (!card.flipV) card.flipV = false;
     if (axis === 'h') card.flipH = !card.flipH;
@@ -2230,6 +2486,8 @@ var KanvazCards = (function() {
     createFromDataUrl: createFromDataUrl,
     createNote:        createNote,
     createColorCard:   createColorCard,
+    createUrlCard:     createUrlCard,
+    createFileRefCard: createFileRefCard,
     generateTestCards: generateTestCards,
     selectCard:        selectCard,
     selectAll:         selectAll,

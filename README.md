@@ -16,7 +16,9 @@
 
 **Reference Operating System**
 
-> **v4.0.1** — Foundation hardening pass: a full bug-hunt audit across every source file, fixing a save-file data-loss bug, a broken Select All, a minimap pan bug, two Escape-key bugs, and a dozen other issues. See [CHANGELOG.md](CHANGELOG.md) for the full list.
+> **v4.1.0** — URL and File reference cards (link/point at something without embedding it), a safer `.kanvaz` file format (zip container with per-asset integrity checks instead of one giant base64 JSON blob — old files still open fine), and another security/reliability pass. See [CHANGELOG.md](CHANGELOG.md) for the full list.
+>
+> **v4.0.1** — Foundation hardening pass: a full bug-hunt audit across every source file, fixing a save-file data-loss bug, a broken Select All, a minimap pan bug, two Escape-key bugs, and a dozen other issues.
 >
 > **v4.0.0** — Quality release: full UI/UX polish pass across all 6 card types (relink broken media, video speed control + scrub, audio waveforms, live annotation indicator, color format cycling, and more), an unsaved-changes indicator, a polished installer, GitHub Actions CI, and an opt-in auto-updater.
 > Board View, Connection System, and Inspector are stable and shipping.
@@ -86,6 +88,8 @@ See [CHANGELOG.md](CHANGELOG.md) for version history.
 - `.pur` file import — drag-drop or menu-import PureRef boards with position/scale preserved
 - Properties panel (E) — attach custom key-value metadata to any card
 - Color picker card type — solid color swatches with native OS color picker
+- URL reference cards — paste a link, open it in your default browser or copy it; never fetches previews/favicons, so this stays 100% offline like everything else
+- File reference cards — point at a file anywhere on disk (a source PSD, a script, a brief) without embedding it; open with its default app or re-point it to a different file anytime
 
 ---
 
@@ -111,7 +115,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 4.0.1.exe` and `dist/Kanvaz 4.0.1.exe`
+Output: `dist/Kanvaz Setup 4.1.0.exe` and `dist/Kanvaz 4.1.0.exe`
 
 **macOS:**
 ```bash
@@ -162,24 +166,30 @@ npm run build:linux
 
 ## File format
 
-Boards are saved as `.kanvaz` files — plain JSON with version `"4.0.1"`. Media is embedded as base64 data URLs. Connections are stored as a top-level `connections` array alongside boards. Files from v2.x load cleanly with zero connections.
+As of 4.1.0, a `.kanvaz` file is a zip container — `board.json` (the same board/card/connection structure Kanvaz has always used) plus one file per embedded image/video/audio asset, each with a SHA-256 hash recorded for corruption detection. This replaced the old plain-JSON-with-everything-base64-encoded format, which inflated media by ~33% and put your whole board at risk if a single byte anywhere in that one giant JSON string got corrupted. A damaged asset now degrades to that one card showing "missing media" instead of threatening the rest of the file.
+
+Files saved by 4.0.1 and earlier (plain JSON, base64 media) still open exactly as before — Kanvaz detects the format automatically and only ever writes the new container going forward. Connections are stored as a top-level `connections` array alongside boards. Files from v2.x load cleanly with zero connections.
 
 ---
 
 ## Known limitations
 
-- Properties panel is basic key-value editing; richer field types planned for v4.
-- `.kanvaz` files embed media as base64, so files with large video/audio can get large.
-- MKV and AVI video files may not play (Chromium codec limitation) — MP4 (H.264) and WebM recommended.
+- Properties panel is basic key-value editing only (text values) — no dropdown/date/number field types yet.
+- MKV and AVI video files may not play (Chromium codec limitation) — MP4 (H.264) and WebM recommended. Kanvaz now tells you plainly when this is why a video card failed, instead of a generic "missing media" message.
+- PDF reference cards aren't implemented — `pdf` is still in the type registry for a future version with real page thumbnails, but there's no creation UI for it today (unlike `url` and `file`, which fully ship as of 4.1.0).
+- Cross-board connections aren't possible from the UI — the data model doesn't prevent it, but only one board's cards are ever loaded at a time, so the "Connect to" picker can only offer cards from the board you're currently on.
 - Autosave writes to a recovery file only — "Unsaved changes" in the status bar clears only on explicit Save (Ctrl+S). The recovery file is now cleared on every clean close (v3.6.5) so the "Recover unsaved board?" prompt only appears after an actual crash, not on every launch.
 
 ---
 
 ## Roadmap
 
-**v3.9.0** — Next milestone. Focus areas: URL card type with link previews, PDF card type with page thumbnails, auto-layout algorithms for Map View, and batch operations (multi-select tag/property editing).
+Kanvaz 4.x is intended to be the last major version, with only small fixes after a few more builds — so this is a short list of genuinely-still-open items rather than a long-term plan:
 
-**v4.0** — Long-term. Auto-updater (Squirrel or electron-updater), auto-layout algorithms for Map View, and the remaining reference types (URL, PDF, Color, File, Outcome) that are registered in the type system but don't have creation UI yet.
+- Real PDF reference cards (page thumbnails, not just an "open externally" pointer)
+- Richer Properties panel field types (dropdown, date, number, checkbox)
+- Cross-board connections, if it turns out to matter enough to design the UI for it
+- Map View auto-layout algorithms
 
 ---
 

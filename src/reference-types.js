@@ -26,8 +26,12 @@ var KanvazRefTypes = (function() {
     url:     { label: 'URL',     icon: '\uD83D\uDD17',       category: 'link',     hasMedia: false, fields: ['url'] },
     pdf:     { label: 'PDF',     icon: '\uD83D\uDCC4',       category: 'media',    hasMedia: true,  fields: ['pageCount'] },
     color:   { label: 'Color',   icon: '\uD83C\uDFA8',       category: 'abstract', hasMedia: false, fields: ['color'] },
-    file:    { label: 'File',    icon: '\uD83D\uDCC1',       category: 'link',     hasMedia: false, fields: ['fileSize', 'mimeType'] },
-    outcome: { label: 'Outcome', icon: '\uD83C\uDFAF',       category: 'abstract', hasMedia: false, fields: [] }
+    file:    { label: 'File',    icon: '\uD83D\uDCC1',       category: 'link',     hasMedia: false, fields: ['fileSize', 'mimeType'] }
+    /* 'outcome' removed (v4.0.2) \u2014 was registered with an icon and no
+       defined fields, no creation UI, and no spec for what it was meant
+       to do differently from a Note. Rather than leave a permanent ghost
+       entry in the type registry, it's gone; if a real use case shows up
+       later it can be designed and added properly then. */
   };
 
   /* ── Queries ── */

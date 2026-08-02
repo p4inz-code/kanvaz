@@ -60,8 +60,23 @@ if (fs.existsSync(path.join(__dirname, 'run-port-test.js'))) {
   console.log('  (skipped — test/run-port-test.js missing)');
 }
 
-/* 4. Version consistency */
-section('4. Version consistency');
+/* 4. .kanvaz container format round trip */
+section('4. Board container format round trip');
+if (fs.existsSync(path.join(__dirname, 'format-roundtrip-test.js'))) {
+  try {
+    var formatOut = cp.execSync('node "' + path.join(__dirname, 'format-roundtrip-test.js') + '"', { encoding: 'utf8', timeout: 30000 });
+    if (/ALL FORMAT ROUND-TRIP TESTS PASSED/.test(formatOut)) ok('pack/unpack lossless, old files still detected, corruption handled safely');
+    else { bad('format round-trip test failed'); console.log(formatOut); }
+  } catch (e) {
+    bad('format round-trip test crashed');
+    console.log(e.stdout || e.message);
+  }
+} else {
+  console.log('  (skipped — test/format-roundtrip-test.js missing)');
+}
+
+/* 5. Version consistency */
+section('5. Version consistency');
 var pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
 var v = pkg.version;
 var boards = fs.readFileSync(path.join(SRC, 'boards.js'), 'utf8');

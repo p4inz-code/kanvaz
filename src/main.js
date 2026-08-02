@@ -10,6 +10,7 @@ var path = require('path');
 var fs = require('fs');
 
 var purImport = require('./pur-import');
+var boardContainer = require('./board-container');
 
 /* electron-updater is a real dependency (see package.json), but it's
    wrapped in try/catch anyway — if it's ever missing (e.g. a stripped
@@ -291,7 +292,20 @@ function registerIPC() {
       defaultPath: defaultName || 'untitled.kanvaz',
       filters: [{ name: 'Kanvaz Board', extensions: ['kanvaz'] }]
     });
-    return result || null;
+    if (!result) return null;
+    /* BUG fix: Windows' native save dialog only auto-appends the filter
+       extension when the typed filename has NO dot at all. Any board name
+       containing a dot (dates, versions like "Ref v1.2", "Board 4.10")
+       makes Windows treat the text after the last dot as the extension the
+       user "chose", and it saves the file with no .kanvaz extension at
+       all. That silently breaks two things later: the file gets no
+       registered icon (looks like a plain/unknown file), and it becomes
+       invisible in the Open dialog, which filters strictly to *.kanvaz.
+       Force the extension unconditionally so this can never happen. */
+    if (!/\.kanvaz$/i.test(result)) {
+      result += '.kanvaz';
+    }
+    return result;
   });
 
   /* Phase 2 "Relink" — pick a replacement file for a card whose media
@@ -312,17 +326,60 @@ function registerIPC() {
     return result ? result[0] : null;
   });
 
+  /* File Reference card — picks any file on disk to link to (not
+     embedded, unlike media cards). PDF reference cards reuse the same
+     dialog with a .pdf filter. */
+  ipcMain.handle('dialog-open-ref-file', function(event, ext) {
+    var filters = ext
+      ? [{ name: ext.toUpperCase() + ' files', extensions: [ext] }]
+      : [{ name: 'All Files', extensions: ['*'] }];
+    var result = dialog.showOpenDialogSync(mainWindow, {
+      title: 'Choose a file to reference',
+      filters: filters,
+      properties: ['openFile']
+    });
+    return result ? result[0] : null;
+  });
+
+  /* Open a referenced File/PDF card's linked path in the OS default
+     app — same idea as double-clicking it in Explorer.
+
+     Security note: unlike the dialog above, the path passed here can
+     come from a .kanvaz file's saved data — including one someone
+     else shared — not just a file the user picked in this session. A
+     board is just JSON, so a card's "path" field could in principle
+     be crafted to point at a local executable/script, and openPath()
+     runs a file with its OS-registered default handler, which for an
+     .exe/.bat/etc IS "run it". Block the extensions that would launch
+     rather than open something to look at/read — every legitimate
+     reference use (docs, source files, PDFs, project files) is
+     unaffected, only the actually dangerous case is closed off. */
+  var UNSAFE_OPEN_EXTENSIONS = ['exe','bat','cmd','com','scr','ps1','vbs','vbe','js','jse','wsf','wsh','msi','msp','jar','sh','app','apk','lnk','reg'];
+  ipcMain.handle('shell-open-path', function(event, filePath) {
+    if (typeof filePath !== 'string' || !filePath) return 'Invalid path';
+    var ext = path.extname(filePath).toLowerCase().replace('.', '');
+    if (UNSAFE_OPEN_EXTENSIONS.indexOf(ext) !== -1) {
+      return 'Kanvaz won\'t open ' + ext.toUpperCase() + ' files directly for safety — open it from Explorer if you trust the source.';
+    }
+    return shell.openPath(filePath);
+  });
+
   /* ── IPC: File read/write ── */
 
   ipcMain.handle('file-read', function(event, filePath) {
-    return fs.promises.readFile(filePath, 'utf8')
-      .then(function(data) { return { ok: true, data: data }; })
+    return fs.promises.readFile(filePath)
+      .then(function(buf) {
+        if (boardContainer.looksLikeZip(buf)) return boardContainer.unpackBoard(buf);
+        return buf.toString('utf8'); /* pre-4.1.0 plain-JSON file */
+      })
+      .then(function(jsonStr) { return { ok: true, data: jsonStr }; })
       .catch(function(e) { return { ok: false, error: e.message }; });
   });
 
   ipcMain.handle('file-write', function(event, filePath, data) {
     var tmpPath = filePath + '.tmp';
-    return fs.promises.writeFile(tmpPath, data, 'utf8')
+    return boardContainer.packBoard(data)
+      .then(function(zipBuf) { return fs.promises.writeFile(tmpPath, zipBuf); })
       .then(function() {
         return fs.promises.rename(tmpPath, filePath);
       })
