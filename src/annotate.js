@@ -34,16 +34,33 @@ var KanvazAnnotate = (function() {
       'border-radius:6px'
     ].join(';');
 
-    cvs.width  = cardEl.offsetWidth  || 300;
-    cvs.height = cardEl.offsetHeight || 200;
+    /* HiDPI/Retina fix: the canvas BUFFER is sized in real device pixels
+       (CSS size * devicePixelRatio) so strokes render crisply, while the
+       CSS box (set via the width:100%/height:100% above) stays at the
+       card's normal size. ctx.scale(dpr, dpr) then lets every drawing
+       call below keep using plain CSS-pixel coordinates — getPos(),
+       stroke storage, and redraw() are all unchanged and still produce
+       the exact same numbers as before this fix (dpr used to be
+       implicitly 1 everywhere since the buffer was never enlarged), so
+       saved annotations stay pixel-identical across machines with
+       different display scaling. */
+    var dpr  = window.devicePixelRatio || 1;
+    var cssW = cardEl.offsetWidth  || 300;
+    var cssH = cardEl.offsetHeight || 200;
+    cvs.width  = Math.round(cssW * dpr);
+    cvs.height = Math.round(cssH * dpr);
 
     cardEl.appendChild(cvs);
 
+    var ctx = cvs.getContext('2d');
+    ctx.scale(dpr, dpr);
+
     overlays[cardId] = {
       canvas:  cvs,
-      ctx:     cvs.getContext('2d'),
+      ctx:     ctx,
       strokes: [],
-      visible: true
+      visible: true,
+      dpr:     dpr
     };
   }
 
@@ -53,29 +70,42 @@ var KanvazAnnotate = (function() {
     var ov = overlays[cardId];
     if (!ov) return;
 
+    /* w/h arrive as the card's new CSS pixel size (see cards.js call
+       sites) — the canvas BUFFER stays dpr times larger, same as attach(). */
+    var dpr = ov.dpr || window.devicePixelRatio || 1;
     var oldW = ov.canvas.width;
     var oldH = ov.canvas.height;
+    var newW = Math.round(w * dpr);
+    var newH = Math.round(h * dpr);
 
     if (oldW === 0 || oldH === 0) {
-      ov.canvas.width  = w;
-      ov.canvas.height = h;
+      ov.canvas.width  = newW;
+      ov.canvas.height = newH;
+      ov.ctx.scale(dpr, dpr);
       return;
     }
 
-    /* Setting canvas.width/height clears the pixel buffer, so snapshot
-       the old content onto a temp canvas first, then scale it back in
-       via drawImage — this makes annotations resize PROPORTIONALLY with
+    /* Setting canvas.width/height clears the pixel buffer (and resets
+       any transform, including the scale below), so snapshot the old
+       content onto a temp canvas first, then scale it back in via
+       drawImage — this makes annotations resize PROPORTIONALLY with
        the card, matching the underlying media (which uses object-fit:
        cover at 100% width/height). A naive getImageData/putImageData
        pair would paste the old bitmap at its old pixel size into the
-       top-left corner instead of scaling. */
+       top-left corner instead of scaling. temp/getImageData/drawImage's
+       SOURCE rect all work in raw buffer pixels regardless of any
+       transform, so oldW/oldH (buffer pixels) are correct there; the
+       DESTINATION rect below is drawn through the freshly re-applied
+       dpr scale, so it uses w/h (CSS pixels) to land on the full new
+       buffer, exactly like attach()/getPos() do everywhere else. */
     var temp = document.createElement('canvas');
     temp.width  = oldW;
     temp.height = oldH;
     temp.getContext('2d').drawImage(ov.canvas, 0, 0);
 
-    ov.canvas.width  = w;
-    ov.canvas.height = h;
+    ov.canvas.width  = newW;
+    ov.canvas.height = newH;
+    ov.ctx.scale(dpr, dpr);
     ov.ctx.drawImage(temp, 0, 0, oldW, oldH, 0, 0, w, h);
   }
 
@@ -144,12 +174,18 @@ var KanvazAnnotate = (function() {
   }
 
   function getPos(e) {
+    /* Plain CSS-pixel coordinates — the canvas context is scaled by
+       devicePixelRatio (see attach()/resize()), so drawing calls made
+       with these coordinates land correctly on the higher-resolution
+       buffer without needing to know dpr here. This used to multiply by
+       activeCanvas.width/rect.width as a buffer/CSS ratio, which was a
+       no-op when the buffer was always exactly CSS-sized (pre-HiDPI-fix)
+       — keeping this in CSS-pixel space is what keeps stored stroke
+       coordinates identical to before, across any devicePixelRatio. */
     var rect = activeCanvas.getBoundingClientRect();
-    var scaleX = activeCanvas.width  / rect.width;
-    var scaleY = activeCanvas.height / rect.height;
     return {
-      x: (e.clientX - rect.left) * scaleX,
-      y: (e.clientY - rect.top)  * scaleY
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
     };
   }
 
@@ -167,9 +203,14 @@ var KanvazAnnotate = (function() {
     if (activeTool === 'pen') {
       activeCtx.beginPath();
       activeCtx.moveTo(startX, startY);
+    } else {
+      /* Only 'rect'/'arrow' use this snapshot (see onMove: they repaint
+         it before drawing each live-preview frame so the in-progress
+         shape doesn't smear). 'pen' never reads `snapshot`, so skip the
+         full-canvas readback for it — a real cost on a large annotation
+         canvas, paid on every single pen stroke for no reason. */
+      snapshot = activeCtx.getImageData(0, 0, activeCanvas.width, activeCanvas.height);
     }
-
-    snapshot = activeCtx.getImageData(0, 0, activeCanvas.width, activeCanvas.height);
   }
 
   function onMove(e) {
@@ -256,7 +297,12 @@ var KanvazAnnotate = (function() {
   function redraw(cardId) {
     var ov = overlays[cardId];
     if (!ov) return;
-    ov.ctx.clearRect(0, 0, ov.canvas.width, ov.canvas.height);
+    /* clearRect (unlike getImageData/putImageData) respects the ctx.scale
+       transform from attach()/resize(), so divide back to CSS-pixel
+       units here — using the raw buffer size would ask it to clear a
+       dpr-times-too-large area. Harmless in practice (clipped to the
+       canvas either way) but dimensionally correct this way. */
+    ov.ctx.clearRect(0, 0, ov.canvas.width / (ov.dpr || 1), ov.canvas.height / (ov.dpr || 1));
     for (var i = 0; i < ov.strokes.length; i++) {
       var s = ov.strokes[i];
       if (s.tool === 'pen' && s.points && s.points.length) {
@@ -303,7 +349,13 @@ var KanvazAnnotate = (function() {
           action: function() {
             var ov = overlays[cardId];
             if (!ov) return;
-            ov.ctx.clearRect(0, 0, ov.canvas.width, ov.canvas.height);
+            /* clearRect (unlike getImageData/putImageData) respects the
+               ctx.scale transform from attach()/resize(), so divide back
+               to CSS-pixel units here — using the raw buffer size would
+               ask it to clear a dpr-times-too-large area. Harmless in
+               practice (clipped to the canvas either way) but
+               dimensionally correct this way. */
+            ov.ctx.clearRect(0, 0, ov.canvas.width / (ov.dpr || 1), ov.canvas.height / (ov.dpr || 1));
             ov.strokes = [];
             if (typeof KanvazCards !== 'undefined') KanvazCards.refreshAnnotationDot(cardId);
             KanvazApp.markDirty();

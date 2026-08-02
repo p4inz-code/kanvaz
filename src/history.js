@@ -50,6 +50,16 @@ var KanvazHistory = (function() {
         opacity:     c.opacity,
         flipH:       c.flipH,
         flipV:       c.flipV,
+        /* v4 fields — primitives, safe to copy by value like the rest
+           of this "Mutable" block. Without these, undo/redo would
+           silently strip image fit / video speed / audio loop / color
+           format on every single undo or redo, independent of the
+           save-file whitelist bug this mirrors in KanvazCards.serialise(). */
+        objectFit:    c.objectFit,
+        playbackRate: c.playbackRate,
+        audioLoop:    c.audioLoop,
+        colorFormat:  c.colorFormat,
+        muted:        c.muted,
         annotations: JSON.parse(JSON.stringify(c.annotations || [])),
         tags:        c.tags ? c.tags.slice() : [],
         properties:  c.properties ? JSON.parse(JSON.stringify(c.properties)) : {},

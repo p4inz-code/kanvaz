@@ -46,8 +46,14 @@ var KanvazUI_Extended = (function() {
       var my    = (e.clientY - rect.top)  / MMAP_H;
       var vp    = KanvazCanvas.getViewport();
       var WORLD = computeWorld();
-      var wx    = mx * WORLD - vp.width  / 2;
-      var wy    = my * WORLD - vp.height / 2;
+      /* vp.width/height are screen-space pixels; the on-canvas viewport
+         is that divided by the current zoom (see drawMinimap()'s own
+         vw/vh below, which does the same division). Skipping /vp.scale
+         here made minimap click-to-pan only line up at exactly 100%
+         zoom and drift further off the more zoomed in/out the canvas was. */
+      var scale = vp.scale || 1;
+      var wx    = mx * WORLD - (vp.width  / scale) / 2;
+      var wy    = my * WORLD - (vp.height / scale) / 2;
       KanvazCanvas.panTo(-wx, -wy);
     });
 
@@ -717,7 +723,7 @@ var KanvazUI_Extended = (function() {
       '</div>',
       '<div class="about-title">Kanvaz</div>',
       '<div class="about-subtitle">Your canvas. Your references.</div>',
-      '<div class="about-version">Version 4.0.0</div>',
+      '<div class="about-version">Version 4.0.1</div>',
       '<div id="about-update-status" class="about-update-status"></div>',
       '<div class="about-divider"></div>',
       '<div class="about-author">Made by <strong>Atharva Patil</strong></div>',
@@ -725,7 +731,7 @@ var KanvazUI_Extended = (function() {
       '<div class="about-desc">Built for VFX artists, 3D artists,<br>and the people who teach them.</div>',
       '<div class="about-divider"></div>',
       '<div class="about-privacy">Free forever. MIT License.<br>No telemetry, no background network activity.<br>Your files never leave your machine.</div>',
-      '<div class="about-tagline">Reference Operating System<br>Actively developed — v4.0.0</div>'
+      '<div class="about-tagline">Reference Operating System<br>Actively developed — v4.0.1</div>'
     ].join('');
 
     var updateBtn = document.createElement('button');
@@ -803,14 +809,18 @@ var KanvazUI_Extended = (function() {
       {
         name: 'Cards',
         items: [
-          ['Click',     'Select card'],
-          ['Drag',      'Move card'],
-          ['Delete',    'Delete card'],
-          ['Ctrl+D',    'Duplicate'],
-          ['P',         'Pin / unpin'],
-          ['H',         'Hide annotations'],
-          ['Arrow keys','Nudge 1px'],
-          ['Shift+Arrow','Nudge 10px']
+          ['Click',      'Select card'],
+          ['Ctrl+A',     'Select all'],
+          ['Drag',       'Move card'],
+          ['Arrow keys', 'Nudge 1px'],
+          ['Shift+Arrow','Nudge 10px'],
+          ['Delete',     'Delete card'],
+          ['Ctrl+D',     'Duplicate'],
+          ['P',          'Pin / unpin'],
+          ['A',          'Annotate'],
+          ['H',          'Hide annotations'],
+          ['C',          'Connections'],
+          ['E',          'Properties']
         ]
       },
       {
@@ -834,19 +844,6 @@ var KanvazUI_Extended = (function() {
           ['I',           'About'],
           ['?',           'This screen'],
           ['Esc',         'Deselect / close']
-        ]
-      },
-      {
-        name: 'Cards',
-        items: [
-          ['Delete',  'Delete card'],
-          ['Ctrl+D',  'Duplicate'],
-          ['P',       'Pin / unpin'],
-          ['A',       'Annotate'],
-          ['C',       'Connections'],
-          ['E',       'Properties'],
-          ['H',       'Hide annotations'],
-          ['Ctrl+A',  'Select all']
         ]
       }
     ];

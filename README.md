@@ -16,6 +16,8 @@
 
 **Reference Operating System**
 
+> **v4.0.1** — Foundation hardening pass: a full bug-hunt audit across every source file, fixing a save-file data-loss bug, a broken Select All, a minimap pan bug, two Escape-key bugs, and a dozen other issues. See [CHANGELOG.md](CHANGELOG.md) for the full list.
+>
 > **v4.0.0** — Quality release: full UI/UX polish pass across all 6 card types (relink broken media, video speed control + scrub, audio waveforms, live annotation indicator, color format cycling, and more), an unsaved-changes indicator, a polished installer, GitHub Actions CI, and an opt-in auto-updater.
 > Board View, Connection System, and Inspector are stable and shipping.
 > Map View is functional and receiving polish updates.
@@ -109,7 +111,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 4.0.0.exe` and `dist/Kanvaz 4.0.0.exe`
+Output: `dist/Kanvaz Setup 4.0.1.exe` and `dist/Kanvaz 4.0.1.exe`
 
 **macOS:**
 ```bash
@@ -160,7 +162,7 @@ npm run build:linux
 
 ## File format
 
-Boards are saved as `.kanvaz` files — plain JSON with version `"4.0.0"`. Media is embedded as base64 data URLs. Connections are stored as a top-level `connections` array alongside boards. Files from v2.x load cleanly with zero connections.
+Boards are saved as `.kanvaz` files — plain JSON with version `"4.0.1"`. Media is embedded as base64 data URLs. Connections are stored as a top-level `connections` array alongside boards. Files from v2.x load cleanly with zero connections.
 
 ---
 

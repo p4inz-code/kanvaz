@@ -2,6 +2,91 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [4.0.1] — Foundation hardening pass
+
+A full bug-hunt audit across every file in `src/`, followed by fixes for
+everything it found — from a save-file data-loss bug down to CSP
+hardening. v4.0 is the last planned major version; this batch is meant
+to leave the foundation solid before only small fixes ship from here.
+
+### Fixed
+- **Image fit, video speed, audio loop, and color format were silently
+  lost on every save** — `KanvazCards.serialise()`'s save-file whitelist
+  never listed `objectFit`/`playbackRate`/`audioLoop`/`colorFormat`.
+  Each feature worked perfectly for the rest of the session (render code
+  reads the live card object directly) but reverted to its default the
+  moment the file was reloaded. The same 4 fields (plus a newly-added
+  persisted `muted` state, see below) were also missing from
+  `KanvazHistory`'s undo/redo snapshot, so even undo/redo inside a
+  single session would strip them. Both whitelists now include all 5 fields.
+- **"Select All" only ever selected one card for real** — Ctrl+A visually
+  highlighted every card, but the underlying selection state
+  (`selectedId`) tracked just the last one, so Delete/Duplicate/Pin/nudge
+  afterward silently acted on a single card while the rest stayed
+  untouched. Added real multi-select tracking and bulk-aware
+  `deleteSelected()`/`duplicateSelected()`/`togglePinSelected()`, each
+  behind exactly one confirm dialog / history entry / toast for the
+  whole batch — falls through to the exact previous single-card
+  behavior whenever only one card is selected.
+- **Minimap click-to-pan was only correct at exactly 100% zoom** — the
+  click handler used the raw screen-pixel viewport size instead of
+  dividing by the current zoom scale, so panning via the minimap drifted
+  further off the more zoomed in or out the canvas was.
+- **Escape committed instead of cancelling, in two places** — renaming a
+  board tab and typing a card tag both tore down the DOM to "cancel,"
+  which fires a native `blur` on the still-focused input first; since
+  both had a commit-on-blur handler, Escape ended up saving whatever was
+  typed, identically to Enter. Fixed in both `boards.js` and `cards.js`.
+- **macOS could skip the unsaved-changes prompt after the first window
+  closed** — the `allowClose` flag that gates the close-confirmation
+  dialog was never reset per window; since macOS keeps the app running
+  after the last window closes and can spawn a new one, a second window
+  could inherit a stale `true` and skip the check on its first close.
+- **A crashed renderer could hang the app forever** — there was no
+  `render-process-gone` handling, so if the renderer process actually
+  died (not just a caught JS error) while the main process was waiting
+  on the close-confirmation handshake, that wait never resolved.
+- **Video/audio mute state wasn't saved** — same class of bug as the
+  serialise() issue above; muting a video or audio card reverted to the
+  type's default (muted for video, unmuted for audio) on every reload.
+  Now persisted as `card.muted`.
+- **Tall portrait images could land wildly oversized** — the initial
+  drop-size cap only checked width, so an image like 300×3000 passed
+  through completely unscaled instead of being fit to a bounding box.
+- **Clipboard-pasted audio silently failed to import** — the
+  mimetype-based type detector used for paste (as opposed to the
+  extension-based one used for file drops) had no `audio/` case.
+- **Deleting the active board could orphan connections** — the
+  cascade-delete read a snapshot of the board's cards that's only
+  refreshed on switch/save, so any card added since the last switch
+  wasn't in it, and its connections survived the board's deletion.
+- **Shortcuts overlay (`?`) listed "Cards" twice**, with Delete/Ctrl+D/P/H
+  duplicated across both — merged into one section.
+- **Properties panel couldn't be closed with Escape or E** once focus
+  was anywhere inside it — a blanket `stopPropagation` meant to keep
+  Delete/P/etc. from leaking to the global shortcut handler also
+  swallowed the panel's own documented close shortcuts. Both now close
+  the panel directly.
+- **Annotations rendered soft on HiDPI/Retina displays** — the drawing
+  canvas was sized in CSS pixels with no `devicePixelRatio` scaling.
+  Fixed by rendering at native resolution while keeping every stored
+  stroke coordinate in the same CSS-pixel space as before, so existing
+  saved annotations are unaffected and portable across displays.
+
+### Hardening / polish
+- Single-key shortcuts (T, 0, L, etc.) no longer get suppressed just
+  because a checkbox, color swatch, or range slider happens to be
+  focused — only genuine text-input focus blocks them now.
+- Context menus are now built with DOM APIs instead of `innerHTML`.
+- `markDirty()`/`markClean()`/`setCurrentPath()` no-op when nothing
+  actually changed.
+- The pen tool no longer pays for a full-canvas pixel readback it never
+  used (that snapshot is only needed by the rect/arrow tools).
+- CSP now also sets `object-src 'none'` and `base-uri 'self'`.
+- `KanvazBridge.off()` now respects the same channel allowlist as `on()`.
+- The Reset Kanvaz recovery-file cleanup no longer aborts entirely if it
+  ever encounters a subdirectory instead of a file.
+
 ## [4.0.0] — V4.0 Quality Release: card polish, infra, and auto-updates
 
 Completes the v4.0 quality pass that [3.8.1](#381--hotfix-8-verified-bugs-from-the-v40-pre-audit)

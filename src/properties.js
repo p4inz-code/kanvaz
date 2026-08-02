@@ -93,8 +93,25 @@ var KanvazProperties = (function() {
     panelEl.id = 'properties-panel';
     panelEl.style.cssText = PANEL_CSS;
 
-    /* Stop keyboard shortcuts from firing while typing in the panel */
-    panelEl.addEventListener('keydown', function(e) { e.stopPropagation(); });
+    /* Stop keyboard shortcuts (Delete, P, etc.) from leaking through to
+       the global card-shortcuts dispatcher while focus/interaction is
+       anywhere inside this panel — not just its inputs (shortcuts.js
+       already skips text inputs on its own; this also covers the
+       panel's buttons and other non-input elements). Escape and E are
+       handled here directly instead of being swallowed, so the panel's
+       own documented close shortcuts (see closeBtn's "Close (E)" title)
+       keep working no matter where focus is once the panel is open —
+       previously they only worked while focus was still outside the
+       panel entirely, since stopping propagation blocked them from
+       ever reaching the global handler that normally toggles this panel. */
+    panelEl.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' || e.key === 'e' || e.key === 'E') {
+        e.stopPropagation();
+        close();
+        return;
+      }
+      e.stopPropagation();
+    });
 
     /* ── Header ── */
     var header = document.createElement('div');

@@ -31,6 +31,7 @@ var KanvazMedia = (function() {
   function getTypeFromDataUrl(dataUrl) {
     if (dataUrl.indexOf('image/gif') !== -1)   return 'gif';
     if (dataUrl.indexOf('video/')    !== -1)   return 'video';
+    if (dataUrl.indexOf('audio/')    !== -1)   return 'audio';
     if (dataUrl.indexOf('image/')    !== -1)   return 'image';
     return null;
   }
@@ -76,9 +77,14 @@ var KanvazMedia = (function() {
       var s = KanvazUI_Extended.getSettings();
       if (s && s.defaultCardW && s.defaultCardW >= 80) maxW = s.defaultCardW;
     }
-    if (w <= maxW) return { w: w, h: h };
-    var ratio = maxW / w;
-    return { w: maxW, h: Math.round(h * ratio) };
+    /* Fit within a maxW x maxW box, preserving aspect ratio, capping
+       whichever dimension overflows more. Previously only checked width,
+       so a tall portrait image (e.g. 300x3000 — a concept sheet or film
+       strip) passed through completely unscaled and landed on the
+       canvas 10x taller than wide. */
+    if (w <= maxW && h <= maxW) return { w: w, h: h };
+    var ratio = Math.min(maxW / w, maxW / h);
+    return { w: Math.round(w * ratio), h: Math.round(h * ratio) };
   }
 
   /* ── Load from file path via bridge ── */
@@ -163,6 +169,16 @@ var KanvazMedia = (function() {
         result.displayH = sz.h;
         callback(result, null);
       });
+    } else if (type === 'audio') {
+      /* Fixed card size, same as loadFromPath's audio branch — audio has
+         no visual "natural size" to measure, and running it through the
+         image-based getNaturalSize() below would just fail and fall
+         back to a wrong-shaped 300x200 default. */
+      result.naturalW = AUDIO_CARD_W;
+      result.naturalH = AUDIO_CARD_H;
+      result.displayW = AUDIO_CARD_W;
+      result.displayH = AUDIO_CARD_H;
+      callback(result, null);
     } else {
       getNaturalSize(dataUrl, function(w, h) {
         var sz = capSize(w, h);

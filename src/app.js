@@ -727,7 +727,18 @@ var KanvazApp = (function() {
         (function(item) {
           var el = document.createElement('div');
           el.className = 'ctx-item' + (item.danger ? ' danger' : '');
-          el.innerHTML = item.label + (item.shortcut ? '<span class="ctx-shortcut">' + item.shortcut + '</span>' : '');
+          /* Built via DOM APIs rather than innerHTML — every item.label
+             here is a static string today, but building menus from
+             textContent/DOM nodes instead of string concatenation means
+             a future item sourced from user data (a card name, a tag)
+             can't reopen an XSS path just by being added to this list. */
+          el.appendChild(document.createTextNode(item.label));
+          if (item.shortcut) {
+            var shortcutEl = document.createElement('span');
+            shortcutEl.className = 'ctx-shortcut';
+            shortcutEl.textContent = item.shortcut;
+            el.appendChild(shortcutEl);
+          }
           el.addEventListener('mousedown', function(ev) {
             ev.preventDefault();
             ev.stopPropagation();
@@ -780,7 +791,18 @@ var KanvazApp = (function() {
         (function(item) {
           var el = document.createElement('div');
           el.className = 'ctx-item' + (item.danger ? ' danger' : '');
-          el.innerHTML = item.label + (item.shortcut ? '<span class="ctx-shortcut">' + item.shortcut + '</span>' : '');
+          /* Built via DOM APIs rather than innerHTML — every item.label
+             here is a static string today, but building menus from
+             textContent/DOM nodes instead of string concatenation means
+             a future item sourced from user data (a card name, a tag)
+             can't reopen an XSS path just by being added to this list. */
+          el.appendChild(document.createTextNode(item.label));
+          if (item.shortcut) {
+            var shortcutEl = document.createElement('span');
+            shortcutEl.className = 'ctx-shortcut';
+            shortcutEl.textContent = item.shortcut;
+            el.appendChild(shortcutEl);
+          }
           el.addEventListener('mousedown', function(ev) {
             ev.preventDefault();
             ev.stopPropagation();
@@ -1158,6 +1180,7 @@ var KanvazApp = (function() {
     updateEmptyState:  updateEmptyState,
     getCurrentPath:    function() { return currentBoardPath; },
     setCurrentPath:    function(p) {
+      if (p === currentBoardPath) return;
       currentBoardPath = p;
       /* boards.js's updateTitle() is the single authoritative writer of
          #titlebar-title (also handles the unsaved-changes dot) — call
@@ -1166,12 +1189,18 @@ var KanvazApp = (function() {
       updateWindowTitle();
     },
     markDirty:         function() {
+      /* No-op once already dirty — markDirty() is called from ~30 sites
+         across the app (most mutations), so skipping the DOM/title
+         refresh when nothing actually changed avoids needless repeated
+         work without changing behavior for the "just became dirty" case. */
+      if (boardDirty) return;
       boardDirty = true;
       updateSaveStatus('unsaved');
       if (typeof KanvazBoards !== 'undefined' && KanvazBoards.updateTitle) KanvazBoards.updateTitle();
       updateWindowTitle();
     },
     markClean:         function() {
+      if (!boardDirty) return;
       boardDirty = false;
       updateSaveStatus('saved');
       if (typeof KanvazBoards !== 'undefined' && KanvazBoards.updateTitle) KanvazBoards.updateTitle();

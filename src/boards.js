@@ -7,7 +7,7 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '4.0.0';
+  var VERSION       = '4.0.1';
 
   /* ── Init ── */
 
@@ -232,7 +232,16 @@ var KanvazBoards = (function() {
     input.onblur = commit;
     input.onkeydown = function(e) {
       if (e.key === 'Enter') { e.preventDefault(); commit(); }
-      if (e.key === 'Escape') { renderTabs(); }
+      if (e.key === 'Escape') {
+        /* renderTabs() rebuilds the tab bar (innerHTML = ''), which
+           removes this still-focused input from the DOM — that fires a
+           native 'blur' on it first, which was wired to commit() above.
+           Left alone, Escape would "cancel" by committing whatever was
+           typed, same as Enter. Unhook the blur handler first so the
+           teardown is silent. */
+        input.onblur = null;
+        renderTabs();
+      }
     };
   }
 
@@ -254,10 +263,24 @@ var KanvazBoards = (function() {
           action: function() {
             var wasActive = (idx === activeIdx);
 
-            /* Cascade-delete connections for all cards on this board */
-            if (typeof KanvazConnections !== 'undefined' && boards[idx].cards) {
-              for (var ci = 0; ci < boards[idx].cards.length; ci++) {
-                KanvazConnections.removeAllFor(boards[idx].cards[ci].id);
+            /* Cascade-delete connections for all cards on this board.
+               For the board being deleted RIGHT NOW while active, read
+               the live card list instead of boards[idx].cards — that
+               snapshot is only refreshed by saveCurrentBoardState() (on
+               switchBoard()/newBoard()), so any card added or moved
+               since the last switch wouldn't be in it yet, and its
+               connections would survive as orphans. */
+            if (typeof KanvazConnections !== 'undefined') {
+              var cardIdsToClean = [];
+              if (wasActive) {
+                cardIdsToClean = Object.keys(KanvazCards.getAll());
+              } else if (boards[idx].cards) {
+                for (var ci = 0; ci < boards[idx].cards.length; ci++) {
+                  cardIdsToClean.push(boards[idx].cards[ci].id);
+                }
+              }
+              for (var cj = 0; cj < cardIdsToClean.length; cj++) {
+                KanvazConnections.removeAllFor(cardIdsToClean[cj]);
               }
             }
 

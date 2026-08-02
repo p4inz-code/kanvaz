@@ -9,7 +9,17 @@ var KanvazCards = (function() {
 
   var cards = {};        /* id → card object (single source of truth) */
   var cardCount = 0;
-  var selectedId = null;
+  var selectedId = null;      /* "primary" selection — the one card that
+                                  single-target features (Annotate, Connections,
+                                  Properties) act on. Always the last id in
+                                  multiSelectedIds when more than one is selected. */
+  var multiSelectedIds = [];  /* full multi-select set. Kept in sync with the
+                                  '.selected' DOM class by every function that
+                                  changes selection (selectCard/selectAll/
+                                  deselectAll/clearAll/setMultiSelection). Length
+                                  0 or 1 in the common case; >1 only after
+                                  Select All (Ctrl+A) — there's no rectangle/
+                                  shift-click multi-select in this app yet. */
   var world = null;
   var zCounter = 1;
 
@@ -328,6 +338,14 @@ var KanvazCards = (function() {
     vid.muted = !vid.muted;
     btn.innerHTML = vid.muted ? MUTED_ICON : MUTE_ICON;
     btn.style.color = vid.muted ? 'var(--color-text-3)' : 'var(--color-accent)';
+    /* Persist — same pattern as toggleAudioLoop just below. Without
+       this the mute state only ever lived on the live <video>/<audio>
+       element and reverted to the type's hardcoded default every reload. */
+    var card = cards[cardEl.dataset.cardId];
+    if (card) {
+      card.muted = vid.muted;
+      KanvazApp.markDirty();
+    }
   }
 
   function toggleAudioLoop(cardEl) {
@@ -870,7 +888,9 @@ var KanvazCards = (function() {
 
     var vid = document.createElement('video');
     vid.preload = 'auto';
-    vid.muted = true;
+    /* Defaults to muted (autoplay-friendly, no surprise audio on drop),
+       but respects a previously-saved mute/unmute choice. */
+    vid.muted = (card.muted !== undefined) ? card.muted : true;
     vid.loop = true;
     vid.playsInline = true;
     /* Height set by CSS (.card-video > video) using container-query-aware calc */
@@ -937,11 +957,14 @@ var KanvazCards = (function() {
     timeEl.className = 'scrub-time';
     timeEl.textContent = '0:00';
 
-    /* Mute button */
+    /* Mute button — icon/color reflects vid.muted's actual starting
+       state above (default muted, or a restored unmuted preference)
+       rather than always assuming muted. */
     var muteBtn = document.createElement('button');
     muteBtn.className = 'media-mute-btn';
-    muteBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-text-3);padding:0;display:flex;align-items:center;';
-    muteBtn.innerHTML = MUTED_ICON; /* starts muted */
+    muteBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:' +
+      (vid.muted ? 'var(--color-text-3)' : 'var(--color-accent)') + ';padding:0;display:flex;align-items:center;';
+    muteBtn.innerHTML = vid.muted ? MUTED_ICON : MUTE_ICON;
     muteBtn.title = 'Toggle mute';
 
     scrub.appendChild(playBtn);
@@ -1063,6 +1086,10 @@ var KanvazCards = (function() {
     aud.src = card.dataUrl;
     aud.preload = 'metadata';
     aud.loop = !!card.audioLoop;
+    /* Defaults to unmuted (audio cards are explicitly about hearing the
+       sound), but respects a previously-saved mute/unmute choice —
+       same shared toggleVideoMute() persists this for both card types. */
+    aud.muted = (card.muted !== undefined) ? card.muted : false;
     aud.style.display = 'none';
     el.appendChild(aud);
 
@@ -1102,8 +1129,9 @@ var KanvazCards = (function() {
 
     var muteBtn = document.createElement('button');
     muteBtn.className = 'media-mute-btn';
-    muteBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-accent);padding:0;display:flex;align-items:center;';
-    muteBtn.innerHTML = MUTE_ICON; /* audio starts unmuted */
+    muteBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:' +
+      (aud.muted ? 'var(--color-text-3)' : 'var(--color-accent)') + ';padding:0;display:flex;align-items:center;';
+    muteBtn.innerHTML = aud.muted ? MUTED_ICON : MUTE_ICON;
     muteBtn.title = 'Toggle mute';
 
     var loopBtn = document.createElement('button');
@@ -1489,12 +1517,27 @@ var KanvazCards = (function() {
 
     input.addEventListener('input', updateDropdown);
 
+    /* buildTagBar() below rebuilds the tag bar, which removes this
+       still-focused input from the DOM — that fires a native 'blur' on
+       it first, which is wired to addTag() below. Left alone, Escape
+       would "cancel" by adding whatever partial text was typed as a
+       real tag, same as Enter. This flag lets the blur handler know a
+       cancel is already in progress so it skips addTag(). */
+    var cancelled = false;
+
     input.addEventListener('keydown', function(e) {
       e.stopPropagation();
       if (e.key === 'Enter') { addTag(); }
-      if (e.key === 'Escape') { closeDropdown(); buildTagBar(cardEl, card); }
+      if (e.key === 'Escape') {
+        cancelled = true;
+        closeDropdown();
+        buildTagBar(cardEl, card);
+      }
     });
-    input.addEventListener('blur', function() { addTag(); });
+    input.addEventListener('blur', function() {
+      if (cancelled) return;
+      addTag();
+    });
 
     tagBar.insertBefore(input, tagBar.querySelector('.tag-chip-add'));
     input.focus();
@@ -1534,13 +1577,61 @@ var KanvazCards = (function() {
   /* ── Select ── */
 
   function selectCard(id) {
-    if (selectedId && selectedId !== id) {
+    /* Selecting any single card always collapses a prior multi-selection
+       (e.g. after Ctrl+A) down to just this one — there's no group-drag
+       or group-select-add in this app, so a click/drag/create always
+       means "just this card now", same as clicking one of several
+       highlighted rows in a file browser. */
+    if (multiSelectedIds.length > 1) {
+      clearSelectionVisuals();
+    } else if (selectedId && selectedId !== id) {
       var prev = document.getElementById(selectedId);
       if (prev) prev.classList.remove('selected');
     }
     selectedId = id;
+    multiSelectedIds = [id];
     var el = document.getElementById(id);
     if (el) el.classList.add('selected');
+  }
+
+  /* Remove the '.selected' class from every card currently wearing it,
+     without touching selectedId/multiSelectedIds — callers update that
+     state themselves right after. Shared by selectCard/selectAll/
+     deselectAll/setMultiSelection so there's exactly one place that
+     touches the DOM for this. */
+  function clearSelectionVisuals() {
+    var allEls = document.querySelectorAll('.card.selected');
+    for (var i = 0; i < allEls.length; i++) {
+      allEls[i].classList.remove('selected');
+    }
+  }
+
+  /* Select an explicit set of cards (used after a bulk duplicate, so the
+     newly-created copies become the new selection). Ids that no longer
+     exist are skipped defensively. */
+  function setMultiSelection(ids) {
+    clearSelectionVisuals();
+    var applied = [];
+    for (var i = 0; i < ids.length; i++) {
+      var el = document.getElementById(ids[i]);
+      if (el) {
+        el.classList.add('selected');
+        applied.push(ids[i]);
+      }
+    }
+    multiSelectedIds = applied;
+    selectedId = applied.length ? applied[applied.length - 1] : null;
+  }
+
+  /* Returns every currently-selected id (length 0, 1, or many). This is
+     the set that bulk-capable operations (delete, duplicate, pin, hide
+     annotations, nudge) act on. Single-target features (Annotate,
+     Connections inspector, Properties panel) should keep using
+     getSelected() below, which returns just the one "primary" id — it
+     doesn't make sense to pop open 40 Properties panels at once. */
+  function getSelectedIds() {
+    if (multiSelectedIds.length) return multiSelectedIds.slice();
+    return selectedId ? [selectedId] : [];
   }
 
   /* ── Z-order ── */
@@ -1579,9 +1670,14 @@ var KanvazCards = (function() {
     }
   }
 
-  function doDelete(id) {
+  /* Removes one card's DOM/annotate/connections/map state — no history
+     push, no dirty flag, no empty-state/count refresh. Shared by the
+     single-card path (doDelete) and the bulk path (deleteMultiple) so a
+     multi-delete does exactly this work N times and the "finish up"
+     bookkeeping (below) exactly once, instead of once per card. */
+  function removeCardCore(id) {
     var card = cards[id];
-    if (!card) return;
+    if (!card) return false;
 
     /* Pause any playing media before removing the DOM element */
     var el = document.getElementById(id);
@@ -1599,23 +1695,33 @@ var KanvazCards = (function() {
     }
 
     delete cards[id];
-    if (selectedId === id) {
-      selectedId = null;
-      /* Auto-select another remaining card so a keyboard-only bulk
-         delete (Delete, Delete, Delete...) keeps working instead of
-         going dead after the first one — without this, selectedId
-         stays null and every subsequent Delete press is a no-op until
-         the user clicks something again. Picks the most recently
-         created remaining card (simple, predictable) rather than
-         attempting spatial "nearest" selection. */
+    if (multiSelectedIds.length) {
+      var idx = multiSelectedIds.indexOf(id);
+      if (idx !== -1) multiSelectedIds.splice(idx, 1);
+    }
+    if (selectedId === id) selectedId = null;
+    return true;
+  }
+
+  /* Post-delete bookkeeping shared by the single and bulk paths. Picks
+     a remaining card to auto-select (if any) so a keyboard-only bulk
+     delete (Delete, Delete, Delete...) keeps working instead of going
+     dead after the first one — without this, selectedId stays null and
+     every subsequent Delete press is a no-op until the user clicks
+     something again. Picks the most recently created remaining card
+     (simple, predictable) rather than attempting spatial "nearest"
+     selection. */
+  function finishDelete() {
+    if (!selectedId) {
       var remainingIds = Object.keys(cards);
       if (remainingIds.length) {
-        var lastId = remainingIds[remainingIds.length - 1];
-        selectCard(lastId);
+        selectCard(remainingIds[remainingIds.length - 1]);
+      } else {
+        multiSelectedIds = [];
       }
     }
 
-    /* Close inspector if it was showing this reference */
+    /* Close inspector if it was showing a reference that's now gone */
     if (typeof KanvazInspector !== 'undefined' && KanvazInspector.isOpen()) {
       KanvazInspector.close();
     }
@@ -1626,11 +1732,60 @@ var KanvazCards = (function() {
     KanvazHistory.push();
   }
 
+  function doDelete(id) {
+    if (!removeCardCore(id)) return;
+    finishDelete();
+  }
+
+  /* Deletes every id in the array with exactly one history push / dirty
+     flag / count refresh at the end, instead of one per card — the same
+     pattern generateTestCards() already uses for bulk creation. */
+  function deleteMultiple(ids) {
+    if (!ids || !ids.length) return;
+    var deletedAny = false;
+    for (var i = 0; i < ids.length; i++) {
+      if (removeCardCore(ids[i])) deletedAny = true;
+    }
+    if (deletedAny) finishDelete();
+  }
+
+  /* Shortcut/menu entry point that's multi-select aware: deletes just
+     one card (identical behavior to before, including the optional
+     per-card confirm dialog) when a single card is selected, or all
+     selected cards behind one confirm dialog when more than one is. */
+  function deleteSelected() {
+    var ids = getSelectedIds();
+    if (!ids.length) return;
+    if (ids.length === 1) { deleteCard(ids[0]); return; }
+
+    var confirmDel = false;
+    if (typeof KanvazUI_Extended !== 'undefined') {
+      var s = KanvazUI_Extended.getSettings();
+      confirmDel = s && s.confirmDelete;
+    }
+
+    if (confirmDel) {
+      KanvazUI.showDialog(
+        'Delete ' + ids.length + ' cards?',
+        'Remove ' + ids.length + ' selected cards from the canvas?',
+        [
+          { label: 'Delete', cls: 'danger', action: function() { deleteMultiple(ids); } },
+          { label: 'Cancel', cls: '',       action: function() {} }
+        ]
+      );
+    } else {
+      deleteMultiple(ids);
+    }
+  }
+
   /* ── Duplicate ── */
 
-  function duplicateCard(id) {
+  /* Clones one card and inserts the copy — no selection change, no
+     history push, no dirty flag. Shared by the single and bulk paths,
+     same split as removeCardCore/finishDelete above. */
+  function duplicateCardCore(id) {
     var src = cards[id];
-    if (!src) return;
+    if (!src) return null;
 
     var newCard = JSON.parse(JSON.stringify(src));
     newCard.id  = nextId();
@@ -1640,11 +1795,40 @@ var KanvazCards = (function() {
 
     cards[newCard.id] = newCard;
     renderCard(newCard);
-    selectCard(newCard.id);
+    return newCard.id;
+  }
+
+  function duplicateCard(id) {
+    var newId = duplicateCardCore(id);
+    if (!newId) return;
+    selectCard(newId);
     updateCount();
     KanvazApp.markDirty();
     KanvazHistory.push();
     KanvazUI.toast('Duplicated');
+  }
+
+  /* Multi-select aware duplicate: one card behaves exactly as before;
+     more than one duplicates the whole set behind one history push and
+     selects the new copies (mirrors what a single Ctrl+D does — the
+     result of the action becomes the new selection). */
+  function duplicateSelected() {
+    var ids = getSelectedIds();
+    if (!ids.length) return;
+    if (ids.length === 1) { duplicateCard(ids[0]); return; }
+
+    var newIds = [];
+    for (var i = 0; i < ids.length; i++) {
+      var nid = duplicateCardCore(ids[i]);
+      if (nid) newIds.push(nid);
+    }
+    if (!newIds.length) return;
+
+    setMultiSelection(newIds);
+    updateCount();
+    KanvazApp.markDirty();
+    KanvazHistory.push();
+    KanvazUI.toast('Duplicated ' + newIds.length + ' cards');
   }
 
   /* ── Pin ── */
@@ -1662,6 +1846,36 @@ var KanvazCards = (function() {
       }
     }
     KanvazUI.toast(card.pinned ? 'Card pinned' : 'Card unpinned');
+    KanvazApp.markDirty();
+    KanvazHistory.push();
+  }
+
+  /* Multi-select aware pin toggle: one card behaves exactly as before
+     (including its own toast); more than one toggles every selected
+     card to the SAME target state (based on the primary/last-selected
+     card's current state) behind one toast and one history push,
+     rather than N individual "Card pinned"/"Card unpinned" toasts that
+     could each disagree if cards started in a mixed pinned state. */
+  function togglePinSelected() {
+    var ids = getSelectedIds();
+    if (!ids.length) return;
+    if (ids.length === 1) { togglePin(ids[0]); return; }
+
+    var primary = cards[selectedId];
+    var target = primary ? !primary.pinned : true;
+    var changed = 0;
+
+    for (var i = 0; i < ids.length; i++) {
+      var card = cards[ids[i]];
+      if (!card || card.pinned === target) continue;
+      card.pinned = target;
+      var el = document.getElementById(ids[i]);
+      if (el) el.classList[target ? 'add' : 'remove']('pinned');
+      changed++;
+    }
+
+    if (!changed) return;
+    KanvazUI.toast((target ? 'Pinned ' : 'Unpinned ') + changed + ' cards');
     KanvazApp.markDirty();
     KanvazHistory.push();
   }
@@ -1712,7 +1926,20 @@ var KanvazCards = (function() {
         mapPosition: c.mapPosition || null,
         url:         c.url         || null,
         color:       c.color       || null,
-        mimeType:    c.mimeType    || null
+        mimeType:    c.mimeType    || null,
+        /* v4 fields — per-card display/playback preferences. Each of
+           these already has a "missing → default" fallback wherever
+           it's read (objectFit in buildImageCard, playbackRate in
+           buildVideoCard, audioLoop in buildAudioCard, colorFormat in
+           buildColorCard), so omitting them here is silently "safe"
+           but throws the feature away on every save — this whitelist
+           has to be kept in sync by hand whenever a new persisted
+           per-card field is added. */
+        objectFit:    c.objectFit    || null,
+        playbackRate: c.playbackRate || null,
+        audioLoop:    c.audioLoop    || false,
+        colorFormat:  c.colorFormat  || null,
+        muted:        c.muted        !== undefined ? c.muted : null
       });
     }
     return out;
@@ -1731,6 +1958,16 @@ var KanvazCards = (function() {
       if (!c.url)         c.url         = null;
       if (!c.color)       c.color       = null;
       if (!c.mimeType)    c.mimeType    = null;
+
+      /* v4 field defaults — ensures pre-4.0 files (and files saved by
+         the buggy 4.0.0 serialise() that dropped these) load cleanly.
+         Render-time code also falls back per-field, this just keeps
+         the in-memory card object's shape consistent right after load. */
+      if (!c.objectFit)    c.objectFit    = null;
+      if (!c.playbackRate) c.playbackRate = null;
+      if (!c.audioLoop)    c.audioLoop    = false;
+      if (!c.colorFormat)  c.colorFormat  = null;
+      if (c.muted === undefined) c.muted  = null;
 
       cards[c.id] = c;
       renderCard(c);
@@ -1773,6 +2010,7 @@ var KanvazCards = (function() {
     }
     cards = {};
     selectedId = null;
+    multiSelectedIds = [];
     updateEmptyState();
     updateCount();
   }
@@ -1945,16 +2183,15 @@ var KanvazCards = (function() {
       var el = document.getElementById(ids[i]);
       if (el) el.classList.add('selected');
     }
+    multiSelectedIds = ids.slice();
     selectedId = ids[ids.length - 1];
     KanvazUI.toast('All ' + ids.length + ' cards selected');
   }
 
   function deselectAll() {
-    var allEls = document.querySelectorAll('.card.selected');
-    for (var i = 0; i < allEls.length; i++) {
-      allEls[i].classList.remove('selected');
-    }
+    clearSelectionVisuals();
     selectedId = null;
+    multiSelectedIds = [];
   }
 
   /* Dev Mode — bulk-generate N synthetic note cards for stress-testing
@@ -1998,8 +2235,11 @@ var KanvazCards = (function() {
     selectAll:         selectAll,
     deselectAll:       deselectAll,
     deleteCard:        deleteCard,
+    deleteSelected:    deleteSelected,
     duplicateCard:     duplicateCard,
+    duplicateSelected: duplicateSelected,
     togglePin:         togglePin,
+    togglePinSelected: togglePinSelected,
     bringToFront:      bringToFront,
     sendToBack:        sendToBack,
     flipCard:          flipCard,
@@ -2013,7 +2253,8 @@ var KanvazCards = (function() {
     deserialise:       deserialise,
     clearAll:          clearAll,
     getAll:            getAll,
-    getSelected:       function() { return selectedId; }
+    getSelected:       function() { return selectedId; },
+    getSelectedIds:    getSelectedIds
   };
 
 })();

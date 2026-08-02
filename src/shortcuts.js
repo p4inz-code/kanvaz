@@ -8,11 +8,18 @@ var KanvazShortcuts = (function() {
     });
   }
 
+  /* Input types that don't accept free-text typing — a checkbox, color
+     swatch, or range slider being focused shouldn't suppress single-key
+     shortcuts (T, 0, L, etc.) the way an actual text field should. */
+  var NON_TEXT_INPUT_TYPES = ['checkbox', 'radio', 'range', 'color', 'button', 'submit', 'reset', 'file', 'image'];
+
   function handle(e) {
-    var tag    = document.activeElement && document.activeElement.tagName;
-    var inText = (tag === 'TEXTAREA' || tag === 'INPUT');
-    var ctrl   = e.ctrlKey || e.metaKey;
-    var shift  = e.shiftKey;
+    var activeEl = document.activeElement;
+    var tag      = activeEl && activeEl.tagName;
+    var isTextInput = tag === 'INPUT' && NON_TEXT_INPUT_TYPES.indexOf(activeEl.type) === -1;
+    var inText   = (tag === 'TEXTAREA' || isTextInput);
+    var ctrl     = e.ctrlKey || e.metaKey;
+    var shift    = e.shiftKey;
 
     /* Ignore OS key-repeat (holding a key down) for everything except
        arrow-key nudge. Without this, holding Ctrl+D creates several
@@ -166,20 +173,28 @@ var KanvazShortcuts = (function() {
     var sel = KanvazCards.getSelected();
     if (!sel) return;
 
+    /* Bulk-capable operations act on the whole Select-All set when more
+       than one card is selected (KanvazCards.*Selected() each collapse
+       to the exact same single-card behavior as before when only one
+       card is selected — see cards.js). Panel/overlay operations below
+       (Annotate, Connections, Properties) stay single-target: opening
+       many property panels at once has no sensible meaning, so those
+       keep using `sel`, the one "primary" selected card. */
+
     if (e.key === 'Delete' || e.key === 'Backspace') {
       e.preventDefault();
-      KanvazCards.deleteCard(sel);
+      KanvazCards.deleteSelected();
       return;
     }
 
     if (ctrl && e.key === 'd') {
       e.preventDefault();
-      KanvazCards.duplicateCard(sel);
+      KanvazCards.duplicateSelected();
       return;
     }
 
     if (e.key === 'p' || e.key === 'P') {
-      KanvazCards.togglePin(sel);
+      KanvazCards.togglePinSelected();
       return;
     }
 
@@ -195,7 +210,10 @@ var KanvazShortcuts = (function() {
 
     if (e.key === 'h' || e.key === 'H') {
       if (typeof KanvazAnnotate !== 'undefined') {
-        KanvazAnnotate.toggleVisibility(sel);
+        var hideIds = KanvazCards.getSelectedIds();
+        for (var hi = 0; hi < hideIds.length; hi++) {
+          KanvazAnnotate.toggleVisibility(hideIds[hi]);
+        }
       }
       return;
     }
@@ -214,12 +232,31 @@ var KanvazShortcuts = (function() {
       return;
     }
 
-    /* Arrow nudge */
+    /* Arrow nudge — nudge() already debounces its own history push
+       (see cards.js), so looping it across a multi-selection here still
+       results in exactly one undo step per burst of arrow presses. */
     var nudge = shift ? 10 : 1;
-    if (e.key === 'ArrowLeft')  { e.preventDefault(); KanvazCards.nudge(sel, -nudge, 0); return; }
-    if (e.key === 'ArrowRight') { e.preventDefault(); KanvazCards.nudge(sel,  nudge, 0); return; }
-    if (e.key === 'ArrowUp')    { e.preventDefault(); KanvazCards.nudge(sel, 0, -nudge); return; }
-    if (e.key === 'ArrowDown')  { e.preventDefault(); KanvazCards.nudge(sel, 0,  nudge); return; }
+    var nudgeIds = KanvazCards.getSelectedIds();
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      for (var nl = 0; nl < nudgeIds.length; nl++) KanvazCards.nudge(nudgeIds[nl], -nudge, 0);
+      return;
+    }
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      for (var nr = 0; nr < nudgeIds.length; nr++) KanvazCards.nudge(nudgeIds[nr], nudge, 0);
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      for (var nu = 0; nu < nudgeIds.length; nu++) KanvazCards.nudge(nudgeIds[nu], 0, -nudge);
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      for (var nd = 0; nd < nudgeIds.length; nd++) KanvazCards.nudge(nudgeIds[nd], 0, nudge);
+      return;
+    }
   }
 
   return { init: init };

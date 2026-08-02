@@ -65,7 +65,15 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
   },
 
   off: function(channel) {
-    ipcRenderer.removeAllListeners(channel);
+    /* Same allowlist as on() above — keeps this from ever being usable
+       to strip listeners off a channel it was never allowed to
+       subscribe to in the first place. Not currently exploited anywhere
+       (nothing in the renderer calls off() with an arbitrary channel),
+       just closing the gap between the two. */
+    var allowed = ['recovery-available', 'window-maximized-changed', 'check-unsaved-before-close', 'open-file-from-argv', 'update-available', 'update-downloaded'];
+    if (allowed.indexOf(channel) !== -1) {
+      ipcRenderer.removeAllListeners(channel);
+    }
   }
 
 });

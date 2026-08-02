@@ -113,6 +113,14 @@ if (!gotLock) {
 /* ── Window ── */
 
 function createWindow() {
+  /* Reset per new window. allowClose is only ever flipped to true right
+     before a deliberate close (see 'force-close' below); without this
+     reset, macOS can hit a stale `true` here — window-all-closed doesn't
+     quit on darwin, and app.on('activate') can spawn a fresh window
+     after the last one closes, which would then skip the unsaved-
+     changes check on its own first close attempt. */
+  allowClose = false;
+
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -151,6 +159,18 @@ function createWindow() {
     if (allowClose) return;
     e.preventDefault();
     mainWindow.webContents.send('check-unsaved-before-close');
+  });
+
+  /* If the renderer actually crashes (not a caught JS exception — the
+     whole render process dying: OOM, GPU driver fault, etc.) it can
+     never send back 'force-close', so without this the window above
+     would sit forever with its close already prevented, waiting for a
+     reply that's never coming. There's nothing left to save at that
+     point, so allow the close to proceed instead of hanging forever. */
+  mainWindow.webContents.on('render-process-gone', function(event, details) {
+    console.error('[Kanvaz] Renderer process gone:', details && details.reason);
+    allowClose = true;
+    if (mainWindow) mainWindow.close();
   });
 
   mainWindow.on('maximize', function() {
@@ -495,7 +515,14 @@ function registerIPC() {
       if (fs.existsSync(RECOVERY_DIR)) {
         var files = fs.readdirSync(RECOVERY_DIR);
         for (var i = 0; i < files.length; i++) {
-          fs.unlinkSync(path.join(RECOVERY_DIR, files[i]));
+          /* RECOVERY_DIR is only ever expected to hold flat recovery
+             files, but fs.unlinkSync throws EISDIR on a directory —
+             which would abort this whole reset (caught by the outer
+             try/catch, reported as a failure) over one unexpected
+             subdirectory. rmSync with recursive+force handles either
+             case without throwing, same as the cache-clearing block
+             just below. */
+          fs.rmSync(path.join(RECOVERY_DIR, files[i]), { recursive: true, force: true });
         }
       }
 
