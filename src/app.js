@@ -661,6 +661,23 @@ var KanvazApp = (function() {
         });
       }
 
+      /* Image-only: cover/contain toggle */
+      if (card.type === 'image') {
+        items.push({
+          label: 'Image fit: ' + ((card.objectFit === 'contain') ? 'Contain' : 'Cover') + ' (click to switch)',
+          action: function() { KanvazCards.toggleObjectFit(card.id); }
+        });
+      }
+
+      /* Video-only: playback speed */
+      if (card.type === 'video') {
+        items.push({
+          label: 'Playback speed',
+          submenu: true,
+          action: function() { KanvazCards.showSpeedPicker(card.id, x, y); }
+        });
+      }
+
       items.push({ sep: true });
       items.push({
         label: 'Opacity',

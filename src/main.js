@@ -254,6 +254,24 @@ function registerIPC() {
     return result || null;
   });
 
+  /* Phase 2 "Relink" — pick a replacement file for a card whose media
+     is missing (moved/deleted source file). Reuses the same media-load
+     pipeline as drag-drop/open, just entered from a file picker instead
+     of a drop event. */
+  ipcMain.handle('dialog-open-media', function() {
+    var result = dialog.showOpenDialogSync(mainWindow, {
+      title: 'Relink Media',
+      filters: [
+        { name: 'All Supported Media', extensions: ['jpg','jpeg','png','gif','bmp','webp','mp4','webm','mov','mkv','avi','mp3','wav','ogg','m4a'] },
+        { name: 'Images', extensions: ['jpg','jpeg','png','gif','bmp','webp'] },
+        { name: 'Video', extensions: ['mp4','webm','mov','mkv','avi'] },
+        { name: 'Audio', extensions: ['mp3','wav','ogg','m4a'] }
+      ],
+      properties: ['openFile']
+    });
+    return result ? result[0] : null;
+  });
+
   /* ── IPC: File read/write ── */
 
   ipcMain.handle('file-read', function(event, filePath) {

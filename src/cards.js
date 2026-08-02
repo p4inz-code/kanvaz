@@ -64,6 +64,14 @@ var KanvazCards = (function() {
         return;
       }
 
+      /* Audio loop toggle */
+      var loopBtn = target.closest('.media-loop-btn');
+      if (loopBtn) {
+        e.stopPropagation();
+        toggleAudioLoop(loopBtn.closest('.card'));
+        return;
+      }
+
       /* Video scrub track */
       var track = target.closest('.scrub-bar');
       if (track) {
@@ -76,7 +84,7 @@ var KanvazCards = (function() {
          mousedown fires before the chip's own click handler, so without
          this the underlying card would select/drag before the tag
          action ever runs. */
-      if (target.closest('.tag-chip-remove') || target.closest('.tag-chip-add') || target.closest('.tag-input')) {
+      if (target.closest('.tag-chip-remove') || target.closest('.tag-chip-add') || target.closest('.tag-input') || target.closest('.tag-autocomplete')) {
         e.stopPropagation();
         return;
       }
@@ -102,14 +110,20 @@ var KanvazCards = (function() {
       startDrag(card, cardEl, e);
     });
 
-    /* ── click: GIF pause/resume toggle ── */
+    /* ── click: GIF pause/resume toggle (image itself, or the card-bar
+       toggle button added in Phase 2) ── */
     world.addEventListener('click', function(e) {
-      if (e.target.tagName !== 'IMG') return;
+      var isImg = e.target.tagName === 'IMG';
+      var toggleBtn = e.target.closest('.gif-toggle-btn');
+      if (!isImg && !toggleBtn) return;
       var cardEl = e.target.closest('.card-gif');
       if (!cardEl) return;
       var card = cards[cardEl.dataset.cardId];
       if (!card) return;
-      toggleGifPause(e.target, card);
+      var img = cardEl.querySelector('img');
+      if (!img) return;
+      if (toggleBtn) e.stopPropagation();
+      toggleGifPause(img, card);
     });
 
     /* ── right-click: card context menu ── */
@@ -248,6 +262,49 @@ var KanvazCards = (function() {
   var PAUSE_ICON = '<svg viewBox="0 0 10 10" fill="currentColor"><rect x="1" y="1" width="3" height="8"/><rect x="6" y="1" width="3" height="8"/></svg>';
   var MUTE_ICON  = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5.5h2l3-3v11l-3-3H3a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1z"/><line x1="12" y1="5" x2="12" y2="11" stroke-linecap="round"/><line x1="14.5" y1="3.5" x2="14.5" y2="12.5" stroke-linecap="round"/></svg>';
   var MUTED_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5.5h2l3-3v11l-3-3H3a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1z"/><line x1="11" y1="5.5" x2="15" y2="10.5" stroke-linecap="round"/><line x1="15" y1="5.5" x2="11" y2="10.5" stroke-linecap="round"/></svg>';
+  var LOOP_ICON  = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8a6 6 0 0 1 10.5-4"/><path d="M14 8a6 6 0 0 1-10.5 4"/><path d="M12 1.2v3.5H8.5"/><path d="M4 14.8v-3.5H7.5"/></svg>';
+  var COPY_ICON  = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8.5" height="8.5" rx="1.5"/><path d="M10.5 5.5V3.5A1.5 1.5 0 0 0 9 2H3.5A1.5 1.5 0 0 0 2 3.5V9a1.5 1.5 0 0 0 1.5 1.5h2"/></svg>';
+
+  /* ── Color format helpers (hex ↔ rgb ↔ hsl) ── */
+
+  function hexToRgb(hex) {
+    var h = hex.replace('#', '');
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    return {
+      r: parseInt(h.substring(0, 2), 16),
+      g: parseInt(h.substring(2, 4), 16),
+      b: parseInt(h.substring(4, 6), 16)
+    };
+  }
+
+  function rgbToHsl(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    var max = Math.max(r, g, b), min = Math.min(r, g, b);
+    var h, s, l = (max + min) / 2;
+    if (max === min) {
+      h = s = 0;
+    } else {
+      var d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      if (max === r)      h = (g - b) / d + (g < b ? 6 : 0);
+      else if (max === g) h = (b - r) / d + 2;
+      else                 h = (r - g) / d + 4;
+      h /= 6;
+    }
+    return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+  }
+
+  function formatColorString(hex, format) {
+    var rgb = hexToRgb(hex);
+    if (format === 'rgb') {
+      return 'rgb(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ')';
+    }
+    if (format === 'hsl') {
+      var hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+      return 'hsl(' + hsl.h + ', ' + hsl.s + '%, ' + hsl.l + '%)';
+    }
+    return hex.toUpperCase();
+  }
 
   function toggleVideoPlay(cardEl) {
     if (!cardEl) return;
@@ -273,21 +330,56 @@ var KanvazCards = (function() {
     btn.style.color = vid.muted ? 'var(--color-text-3)' : 'var(--color-accent)';
   }
 
+  function toggleAudioLoop(cardEl) {
+    if (!cardEl) return;
+    var aud = cardEl.querySelector('audio');
+    var btn = cardEl.querySelector('.media-loop-btn');
+    if (!aud || !btn) return;
+    aud.loop = !aud.loop;
+    btn.classList.toggle('active', aud.loop);
+    var card = cards[cardEl.dataset.cardId];
+    if (card) {
+      card.audioLoop = aud.loop;
+      KanvazApp.markDirty();
+    }
+  }
+
   function seekVideo(cardEl, e, track) {
     if (!cardEl) return;
     var vid = cardEl.querySelector('video, audio');
     if (!vid || !vid.duration) return;
-    var rect = track.getBoundingClientRect();
-    var pct = (e.clientX - rect.left) / rect.width;
-    vid.currentTime = Math.max(0, Math.min(1, pct)) * vid.duration;
+
+    function doSeek(evt) {
+      var rect = track.getBoundingClientRect();
+      var pct = (evt.clientX - rect.left) / rect.width;
+      vid.currentTime = Math.max(0, Math.min(1, pct)) * vid.duration;
+    }
+
+    doSeek(e);
+
+    /* Draggable scrub thumb — keep seeking while the mouse is held down
+       and moved, not just on the initial click. */
+    function onMove(evt) { doSeek(evt); }
+    function onUp() {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    }
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
   }
 
   /* ── GIF pause/resume (delegated) ── */
 
   function toggleGifPause(img, card) {
+    var cardEl = img.closest('.card');
+    var overlay = cardEl ? cardEl.querySelector('.gif-pause-overlay') : null;
+    var toggleBtn = cardEl ? cardEl.querySelector('.gif-toggle-btn') : null;
+
     if (img._paused) {
       img.src = img._origSrc;
       img._paused = false;
+      if (overlay) overlay.classList.remove('visible');
+      if (toggleBtn) toggleBtn.innerHTML = PAUSE_ICON;
     } else {
       var cvs = document.createElement('canvas');
       cvs.width  = img.naturalWidth  || card.w;
@@ -296,6 +388,8 @@ var KanvazCards = (function() {
       ctx.drawImage(img, 0, 0);
       img.src = cvs.toDataURL('image/png');
       img._paused = true;
+      if (overlay) overlay.classList.add('visible');
+      if (toggleBtn) toggleBtn.innerHTML = PLAY_ICON;
     }
   }
 
@@ -482,33 +576,298 @@ var KanvazCards = (function() {
     world.appendChild(el);
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     PHASE 2 shared media-card helpers — skeleton loading shimmer,
+     themed error state + Relink, and a persistent annotation dot.
+     Used by image/GIF/video (the three types that load an async
+     media element and can be annotated).
+     ══════════════════════════════════════════════════════════════ */
+
+  var BROKEN_MEDIA_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/><line x1="4" y1="4" x2="20" y2="20" stroke="var(--color-red)"/></svg>';
+  var ANNOTATION_DOT_ICON = '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 1.5l2 2L4 10 1.5 10.5 2 8z"/></svg>';
+
+  function removeSkeleton(el) {
+    var sk = el.querySelector('.card-skeleton');
+    if (!sk) return;
+    sk.classList.add('card-skeleton-out');
+    setTimeout(function() {
+      if (sk.parentNode) sk.parentNode.removeChild(sk);
+    }, 220);
+  }
+
+  /* Skeleton + spinner both gone — used once a video's first frame (or
+     an image's pixels) has actually rendered. */
+  function clearLoadingState(el) {
+    removeSkeleton(el);
+    var sp = el.querySelector('.card-spinner');
+    if (sp && sp.parentNode) sp.parentNode.removeChild(sp);
+  }
+
+  /* ── Audio waveform generator ──
+     Decodes the audio buffer and downsamples it to a handful of peak
+     values so it can be rendered as a subtle static bar-chart behind
+     the icon area. Best-effort: any failure (unsupported format,
+     decode error) just leaves the waveform empty — never blocks
+     playback, which works independently via the <audio> element. */
+  var WAVEFORM_BARS = 32;
+
+  function generateWaveform(dataUrl, callback) {
+    var AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx || typeof fetch === 'undefined') {
+      callback(null);
+      return;
+    }
+    fetch(dataUrl)
+      .then(function(res) { return res.arrayBuffer(); })
+      .then(function(buf) {
+        var ctx = new AudioCtx();
+        return ctx.decodeAudioData(buf);
+      })
+      .then(function(audioBuffer) {
+        var raw = audioBuffer.getChannelData(0);
+        var blockSize = Math.max(1, Math.floor(raw.length / WAVEFORM_BARS));
+        var peaks = [];
+        for (var i = 0; i < WAVEFORM_BARS; i++) {
+          var start = i * blockSize;
+          var max = 0;
+          for (var j = 0; j < blockSize; j++) {
+            var v = Math.abs(raw[start + j] || 0);
+            if (v > max) max = v;
+          }
+          peaks.push(max);
+        }
+        callback(peaks);
+      })
+      .catch(function() { callback(null); });
+  }
+
+  /* Persistent top-left dot shown whenever a card has annotations —
+     unlike the hover-only card bar, this stays visible so it's always
+     clear at a glance which cards have markup on them. */
+  function buildAnnotationDot(el, card) {
+    var existing = el.querySelector('.card-annotation-dot');
+    if (existing) existing.parentNode.removeChild(existing);
+    if (card.annotations && card.annotations.length) {
+      var dot = document.createElement('div');
+      dot.className = 'card-annotation-dot';
+      dot.title = 'Has annotations';
+      dot.innerHTML = ANNOTATION_DOT_ICON;
+      el.appendChild(dot);
+    }
+  }
+
+  /* Live refresh for the annotation dot — card.annotations only gets
+     populated at save/load time (see serialise/deserialise), so mid-
+     session drawing or clearing needs to check annotate.js's actual
+     live stroke list instead. Called from annotate.js after a stroke
+     is added and after "Clear annotations". */
+  function refreshAnnotationDot(id) {
+    var el = document.getElementById(id);
+    var card = cards[id];
+    if (!el || !card) return;
+    var count = (typeof KanvazAnnotate !== 'undefined' && KanvazAnnotate.getStrokes)
+      ? KanvazAnnotate.getStrokes(id).length
+      : (card.annotations || []).length;
+    var existing = el.querySelector('.card-annotation-dot');
+    if (count > 0 && !existing) {
+      var dot = document.createElement('div');
+      dot.className = 'card-annotation-dot';
+      dot.title = 'Has annotations';
+      dot.innerHTML = ANNOTATION_DOT_ICON;
+      el.appendChild(dot);
+    } else if (count === 0 && existing) {
+      existing.parentNode.removeChild(existing);
+    }
+  }
+
+  function addRelinkButton(el, card) {
+    var bar = el.querySelector('.card-bar');
+    if (!bar || bar.querySelector('.card-relink-btn')) return;
+    var btn = document.createElement('button');
+    btn.className = 'card-relink-btn';
+    btn.textContent = 'Relink';
+    btn.title = 'Choose a replacement file';
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      relinkCard(card.id);
+    });
+    bar.appendChild(btn);
+  }
+
+  function showMediaError(el, card) {
+    if (el.querySelector('.card-error-state')) return;
+    el.classList.add('card-error');
+    var box = document.createElement('div');
+    box.className = 'card-error-state';
+    var icon = document.createElement('div');
+    icon.className = 'card-error-icon';
+    icon.innerHTML = BROKEN_MEDIA_ICON;
+    var name = document.createElement('div');
+    name.className = 'card-error-name ellipsis';
+    name.textContent = card.name || 'Missing media';
+    box.appendChild(icon);
+    box.appendChild(name);
+    el.appendChild(box);
+    addRelinkButton(el, card);
+  }
+
+  /* ── Relink — pick a replacement file for a card with missing/broken
+     media (source file moved or deleted). Same load pipeline as
+     drag-drop, just entered via a file dialog instead of a drop. ── */
+  function relinkCard(id) {
+    var card = cards[id];
+    if (!card) return;
+    KanvazBridge.openMediaDialog().then(function(p) {
+      if (!p) return;
+      KanvazMedia.loadFromPath(p, function(result, err) {
+        if (err || !result) {
+          KanvazUI.toast('Could not load replacement file', 'error');
+          return;
+        }
+        if (result.type !== card.type) {
+          KanvazUI.toast('Replacement must also be a ' + card.type + ' file', 'error');
+          return;
+        }
+        card.dataUrl  = result.dataUrl;
+        card.name     = result.name;
+        card.path     = result.originalPath;
+        card.naturalW = result.naturalW;
+        card.naturalH = result.naturalH;
+
+        var el = document.getElementById(id);
+        if (el) {
+          el.classList.remove('card-error');
+          var errBox = el.querySelector('.card-error-state');
+          if (errBox) errBox.parentNode.removeChild(errBox);
+          var relinkBtn = el.querySelector('.card-relink-btn');
+          if (relinkBtn) relinkBtn.parentNode.removeChild(relinkBtn);
+          rebuildCardMedia(el, card);
+          var nameEl = el.querySelector('.card-filename');
+          if (nameEl) nameEl.textContent = card.name;
+        }
+        KanvazApp.markDirty();
+        KanvazHistory.push();
+        KanvazUI.toast('Relinked', 'success');
+      });
+    }).catch(function(e) { console.warn('[Kanvaz] openMediaDialog IPC failed:', e); });
+  }
+
+  /* Rebuilds just the media portion of a card (image/gif/video/audio
+     element + skeleton/error state) in place, leaving the card bar,
+     tag bar, pin indicator and resize handles untouched. Used by
+     Relink after a successful reload. */
+  function rebuildCardMedia(el, card) {
+    var KEEP_CLASSES = ['card-bar', 'tag-bar', 'card-pin', 'resize-handle'];
+    var toRemove = [];
+    for (var i = 0; i < el.children.length; i++) {
+      var child = el.children[i];
+      var keep = false;
+      for (var k = 0; k < KEEP_CLASSES.length; k++) {
+        if (child.classList.contains(KEEP_CLASSES[k])) { keep = true; break; }
+      }
+      if (!keep) toRemove.push(child);
+    }
+    for (var r = 0; r < toRemove.length; r++) el.removeChild(toRemove[r]);
+
+    if (card.type === 'image')      buildImageCard(el, card);
+    else if (card.type === 'gif')   buildGifCard(el, card);
+    else if (card.type === 'video') buildVideoCard(el, card);
+    else if (card.type === 'audio') buildAudioCard(el, card);
+  }
+
   /* ── Image card ── */
 
   function buildImageCard(el, card) {
+    if (!card.objectFit) card.objectFit = 'cover';
+
+    var skeleton = document.createElement('div');
+    skeleton.className = 'card-skeleton';
+    el.appendChild(skeleton);
+
     var img = document.createElement('img');
     img.src = card.dataUrl;
-    img.style.cssText = 'display:block;width:100%;height:100%;object-fit:cover;pointer-events:none;';
-    img.onerror = function() {
-      el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:var(--color-surface);color:var(--color-text-3);font-size:12px;">Missing media</div>';
+    img.style.cssText = 'display:block;width:100%;height:100%;object-fit:' + card.objectFit + ';pointer-events:none;';
+
+    img.onload = function() {
+      removeSkeleton(el);
+      var dims = el.querySelector('.card-dims');
+      if (dims) dims.textContent = img.naturalWidth + '×' + img.naturalHeight;
     };
+    img.onerror = function() {
+      removeSkeleton(el);
+      img.style.display = 'none';
+      showMediaError(el, card);
+    };
+
     el.appendChild(img);
+    buildAnnotationDot(el, card);
+  }
+
+  /* Toggle object-fit cover ↔ contain (right-click menu, image cards only) */
+  function toggleObjectFit(id) {
+    var card = cards[id];
+    if (!card || card.type !== 'image') return;
+    card.objectFit = (card.objectFit === 'contain') ? 'cover' : 'contain';
+    var el = document.getElementById(id);
+    if (el) {
+      var img = el.querySelector('img');
+      if (img) img.style.objectFit = card.objectFit;
+    }
+    KanvazApp.markDirty();
+    KanvazHistory.push();
   }
 
   /* ── GIF card ── */
 
   function buildGifCard(el, card) {
+    var skeleton = document.createElement('div');
+    skeleton.className = 'card-skeleton';
+    el.appendChild(skeleton);
+
     var img = document.createElement('img');
     img.src = card.dataUrl;
     img.style.cssText = 'display:block;width:100%;height:calc(100% - 24px);object-fit:cover;cursor:pointer;';
     img.title = 'Click to pause / resume';
     img._origSrc = card.dataUrl;
     img._paused = false;
+
+    img.onload = function() { removeSkeleton(el); };
+    img.onerror = function() {
+      removeSkeleton(el);
+      img.style.display = 'none';
+      showMediaError(el, card);
+    };
+
     el.appendChild(img);
+
+    /* Pause/resume toggle button — same action as clicking the image,
+       just also reachable without hovering the exact frame. */
+    var toggleBtn = document.createElement('button');
+    toggleBtn.className = 'gif-toggle-btn';
+    toggleBtn.innerHTML = PAUSE_ICON;
+    toggleBtn.title = 'Play/Pause';
+    el.appendChild(toggleBtn);
+
+    /* Pause overlay — shown centered while paused, fades out on resume */
+    var overlay = document.createElement('div');
+    overlay.className = 'gif-pause-overlay';
+    overlay.innerHTML = PLAY_ICON;
+    el.appendChild(overlay);
+
+    buildAnnotationDot(el, card);
   }
 
   /* ── Video card ── */
 
   function buildVideoCard(el, card) {
+    var skeleton = document.createElement('div');
+    skeleton.className = 'card-skeleton';
+    el.appendChild(skeleton);
+
+    var spinner = document.createElement('div');
+    spinner.className = 'card-spinner';
+    el.appendChild(spinner);
+
     var vid = document.createElement('video');
     vid.preload = 'auto';
     vid.muted = true;
@@ -528,24 +887,38 @@ var KanvazCards = (function() {
     playBtn.innerHTML = PLAY_ICON; /* starts as play — video plays on loadeddata */
     playBtn.title = 'Play/Pause';
 
-    /* Error handler — show message, hide scrub bar */
+    /* Always-visible thin progress line — sits right above the card
+       bar, unlike the full scrub UI (which only shows on hover). */
+    var progressLine = document.createElement('div');
+    progressLine.className = 'video-progress-line';
+    var progressFill = document.createElement('div');
+    progressFill.className = 'video-progress-fill';
+    progressLine.appendChild(progressFill);
+
+    /* Error handler — themed broken-media state, same as image/GIF */
     vid.onerror = function() {
+      clearLoadingState(el);
       vid.style.display = 'none';
       scrub.style.display = 'none';
-      var errDiv = document.createElement('div');
-      errDiv.style.cssText = 'display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:var(--color-surface-2);color:var(--color-text-3);font-size:11px;font-family:var(--font-ui);text-align:center;padding:12px;';
-      errDiv.textContent = 'Video format not supported \u2014 try MP4 (H.264) or WebM';
-      el.insertBefore(errDiv, el.firstChild);
+      progressLine.style.display = 'none';
+      showMediaError(el, card);
     };
-
     /* Only play after data is loaded — prevents corrupt partial display */
     vid.onloadeddata = function() {
+      clearLoadingState(el);
+      vid.playbackRate = card.playbackRate || 1;
       vid.play();
       playBtn.innerHTML = PAUSE_ICON;
     };
 
+    vid.onloadedmetadata = function() {
+      var durBadge = el.querySelector('.card-duration');
+      if (durBadge && vid.duration) durBadge.textContent = KanvazMedia.formatTime(vid.duration);
+    };
+
     vid.src = card.dataUrl;
     el.appendChild(vid);
+    el.appendChild(progressLine);
 
     /* Scrub track */
     var track = document.createElement('div');
@@ -554,6 +927,10 @@ var KanvazCards = (function() {
     fill.className = 'scrub-fill';
     fill.style.width = '0%';
     track.appendChild(fill);
+    var thumb = document.createElement('div');
+    thumb.className = 'scrub-thumb';
+    thumb.style.left = '0%';
+    track.appendChild(thumb);
 
     /* Time display */
     var timeEl = document.createElement('span');
@@ -580,8 +957,72 @@ var KanvazCards = (function() {
       if (!vid.duration) return;
       var pct = (vid.currentTime / vid.duration) * 100;
       fill.style.width = pct + '%';
+      thumb.style.left = pct + '%';
+      progressFill.style.width = pct + '%';
       timeEl.textContent = KanvazMedia.formatTime(vid.currentTime) + ' / ' + KanvazMedia.formatTime(vid.duration);
     });
+
+    buildAnnotationDot(el, card);
+  }
+
+  /* Playback speed picker — same floating-panel pattern as the opacity
+     picker, reached from the "Playback speed" context menu item. */
+  function showSpeedPicker(id, x, y) {
+    var existing = document.getElementById('speed-picker');
+    if (existing) existing.parentNode.removeChild(existing);
+
+    var card = cards[id];
+    if (!card) return;
+    var el = document.getElementById(id);
+    var vid = el ? el.querySelector('video') : null;
+    if (!vid) return;
+
+    var current = card.playbackRate || 1;
+
+    var picker = document.createElement('div');
+    picker.id = 'speed-picker';
+    picker.style.cssText = [
+      'position:fixed',
+      'left:' + x + 'px',
+      'top:' + y + 'px',
+      'background:var(--color-surface)',
+      'border:1px solid var(--color-border-2)',
+      'border-radius:8px',
+      'padding:6px',
+      'z-index:20001',
+      'box-shadow:0 8px 24px rgba(0,0,0,0.6)',
+      'display:flex',
+      'gap:4px'
+    ].join(';');
+
+    var speeds = [0.5, 1, 2];
+    for (var i = 0; i < speeds.length; i++) {
+      (function(speed) {
+        var btn = document.createElement('button');
+        btn.className = 'speed-picker-btn' + (speed === current ? ' active' : '');
+        btn.textContent = speed + '×';
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          card.playbackRate = speed;
+          vid.playbackRate = speed;
+          KanvazApp.markDirty();
+          KanvazHistory.push();
+          if (picker.parentNode) picker.parentNode.removeChild(picker);
+        });
+        picker.appendChild(btn);
+      })(speeds[i]);
+    }
+
+    document.body.appendChild(picker);
+
+    setTimeout(function() {
+      document.addEventListener('mousedown', function closePicker(e) {
+        if (!picker.contains(e.target)) {
+          if (picker.parentNode) picker.parentNode.removeChild(picker);
+          document.removeEventListener('mousedown', closePicker);
+        }
+      });
+    }, 50);
   }
 
   /* ── Audio card ── */
@@ -592,6 +1033,7 @@ var KanvazCards = (function() {
     var iconArea = document.createElement('div');
     iconArea.className = 'audio-icon-area';
     iconArea.innerHTML = [
+      '<div class="audio-waveform"></div>',
       '<svg class="audio-icon-svg" viewBox="0 0 36 36" fill="none">',
         '<path d="M13 24V9.6L27 6v14.4" stroke="var(--color-accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
         '<circle cx="9" cy="24" r="4" stroke="var(--color-accent)" stroke-width="2"/>',
@@ -600,14 +1042,38 @@ var KanvazCards = (function() {
     ].join('');
     el.appendChild(iconArea);
 
-    /* Audio element — hidden, playback only. Not autoplayed/looped
-       (multiple audio cards autoplaying at once would be unpleasant). */
+    /* Best-effort — silently leaves the waveform empty if decoding
+       fails, playback via <audio> below is unaffected either way. */
+    generateWaveform(card.dataUrl, function(peaks) {
+      if (!peaks) return;
+      var wf = iconArea.querySelector('.audio-waveform');
+      if (!wf) return;
+      var bars = '';
+      for (var i = 0; i < peaks.length; i++) {
+        var h = Math.max(8, Math.round(peaks[i] * 100));
+        bars += '<span style="height:' + h + '%"></span>';
+      }
+      wf.innerHTML = bars;
+    });
+
+    /* Audio element — hidden, playback only. Not autoplayed by default
+       (multiple audio cards autoplaying at once would be unpleasant).
+       Loop is opt-in via the scrub bar toggle, off by default. */
     var aud = document.createElement('audio');
     aud.src = card.dataUrl;
     aud.preload = 'metadata';
-    aud.loop = false;
+    aud.loop = !!card.audioLoop;
     aud.style.display = 'none';
     el.appendChild(aud);
+
+    /* Pulse the icon while playing, stop when paused/ended */
+    aud.addEventListener('play',  function() { el.classList.add('audio-playing'); });
+    aud.addEventListener('pause', function() { el.classList.remove('audio-playing'); });
+
+    aud.addEventListener('loadedmetadata', function() {
+      var badge = el.querySelector('.badge-audio');
+      if (badge && aud.duration) badge.textContent = 'AUDIO · ' + KanvazMedia.formatTime(aud.duration);
+    });
 
     /* Scrub bar — always visible (no preview frame to hover-reveal it) */
     var scrub = document.createElement('div');
@@ -625,6 +1091,10 @@ var KanvazCards = (function() {
     fill.className = 'scrub-fill';
     fill.style.width = '0%';
     track.appendChild(fill);
+    var thumb = document.createElement('div');
+    thumb.className = 'scrub-thumb';
+    thumb.style.left = '0%';
+    track.appendChild(thumb);
 
     var timeEl = document.createElement('span');
     timeEl.className = 'scrub-time';
@@ -636,16 +1106,24 @@ var KanvazCards = (function() {
     muteBtn.innerHTML = MUTE_ICON; /* audio starts unmuted */
     muteBtn.title = 'Toggle mute';
 
+    var loopBtn = document.createElement('button');
+    loopBtn.className = 'media-loop-btn' + (aud.loop ? ' active' : '');
+    loopBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-text-3);padding:0;display:flex;align-items:center;';
+    loopBtn.innerHTML = LOOP_ICON;
+    loopBtn.title = 'Loop';
+
     scrub.appendChild(playBtn);
     scrub.appendChild(track);
     scrub.appendChild(timeEl);
     scrub.appendChild(muteBtn);
+    scrub.appendChild(loopBtn);
     el.appendChild(scrub);
 
     aud.addEventListener('timeupdate', function() {
       if (!aud.duration) return;
       var pct = (aud.currentTime / aud.duration) * 100;
       fill.style.width = pct + '%';
+      thumb.style.left = pct + '%';
       timeEl.textContent = KanvazMedia.formatTime(aud.currentTime) + ' / ' + KanvazMedia.formatTime(aud.duration);
     });
 
@@ -658,15 +1136,33 @@ var KanvazCards = (function() {
   /* ── Note card ── */
 
   function buildNoteCard(el, card) {
+    var accent = document.createElement('div');
+    accent.className = 'note-accent-bar';
+    el.appendChild(accent);
+
     var ta = document.createElement('textarea');
     ta.className = 'note-body';
-    ta.placeholder = 'Type a note…';
+    ta.placeholder = 'Note';
     ta.value = card.text || '';
     ta.style.cssText = 'width:100%;height:100%;padding-bottom:28px;';
 
     ta.addEventListener('input', function() {
       card.text = ta.value;
       KanvazApp.markDirty();
+
+      var count = ta.value.length;
+      var countEl = el.querySelector('.card-char-count');
+      if (countEl) countEl.textContent = count + (count === 1 ? ' char' : ' chars');
+
+      /* Live preview of the note text as the card bar "filename",
+         falling back to the card's actual name once emptied again. */
+      var nameEl = el.querySelector('.card-filename');
+      if (nameEl) {
+        var preview = ta.value.trim();
+        nameEl.textContent = preview
+          ? (preview.length > 20 ? preview.slice(0, 20) + '…' : preview)
+          : (card.name || 'Note');
+      }
     });
 
     ta.addEventListener('blur', function() {
@@ -680,14 +1176,57 @@ var KanvazCards = (function() {
 
   function buildColorCard(el, card) {
     var hex = card.color || '#9D7FFF';
+    var format = card.colorFormat || 'hex'; /* 'hex' | 'rgb' | 'hsl' */
+
     var swatch = document.createElement('div');
     swatch.className = 'color-swatch';
-    swatch.style.cssText = 'width:100%;height:calc(100% - 48px);background:' + hex + ';cursor:pointer;border-radius:6px 6px 0 0;';
+    swatch.style.background = hex;
+
+    /* Contrast checker — white/black "Aa" samples so the user can judge
+       text-on-swatch legibility at a glance without leaving the canvas. */
+    var contrast = document.createElement('div');
+    contrast.className = 'color-contrast';
+    contrast.innerHTML = '<span class="contrast-white">Aa</span><span class="contrast-black">Aa</span>';
+    swatch.appendChild(contrast);
+
+    var labelRow = document.createElement('div');
+    labelRow.className = 'color-label-row';
 
     var label = document.createElement('div');
     label.className = 'color-label';
-    label.style.cssText = 'height:24px;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:11px;color:var(--color-text-2);letter-spacing:0.05em;text-transform:uppercase;user-select:all;';
-    label.textContent = hex;
+    label.title = 'Click to switch hex / rgb / hsl';
+    label.textContent = formatColorString(hex, format);
+
+    var copyBtn = document.createElement('button');
+    copyBtn.className = 'color-copy-btn';
+    copyBtn.title = 'Copy hex to clipboard';
+    copyBtn.innerHTML = COPY_ICON;
+
+    /* Click the label to cycle display format — hex ↔ rgb ↔ hsl */
+    label.addEventListener('click', function(e) {
+      e.stopPropagation();
+      format = (format === 'hex') ? 'rgb' : (format === 'rgb' ? 'hsl' : 'hex');
+      card.colorFormat = format;
+      label.textContent = formatColorString(hex, format);
+      KanvazApp.markDirty();
+    });
+
+    /* Copy button always copies the hex value, regardless of what
+       format is currently displayed — hex is the portable/pasteable one. */
+    copyBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var toCopy = hex.toUpperCase();
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(toCopy).then(function() {
+          if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Copied ' + toCopy, 'success');
+        }).catch(function() {
+          if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Could not copy to clipboard', 'error');
+        });
+      }
+    });
+
+    labelRow.appendChild(label);
+    labelRow.appendChild(copyBtn);
 
     /* Click swatch → open native color picker */
     swatch.addEventListener('click', function(e) {
@@ -716,8 +1255,8 @@ var KanvazCards = (function() {
         card.color = newColor;
         card.name  = newColor;
         swatch.style.background = newColor;
-        label.textContent = newColor;
         hex = newColor;
+        label.textContent = formatColorString(hex, format);
         /* Update card bar name + badge */
         var barName = el.querySelector('.card-filename');
         if (barName) barName.textContent = newColor;
@@ -743,7 +1282,7 @@ var KanvazCards = (function() {
     });
 
     el.appendChild(swatch);
-    el.appendChild(label);
+    el.appendChild(labelRow);
   }
 
   /* ── Card bar (filename + badge) ── */
@@ -754,10 +1293,26 @@ var KanvazCards = (function() {
 
     var name = document.createElement('span');
     name.className = 'card-filename ellipsis';
-    name.textContent = card.name;
+    if (card.type === 'note') {
+      /* Preview the note's own text instead of the generic "Note" name,
+         once there's something to show — kept in sync live by the
+         'input' listener in buildNoteCard. */
+      var notePreview = (card.text || '').trim();
+      name.textContent = notePreview
+        ? (notePreview.length > 20 ? notePreview.slice(0, 20) + '…' : notePreview)
+        : (card.name || 'Note');
+    } else {
+      name.textContent = card.name;
+    }
     bar.appendChild(name);
 
-    if (card.type === 'gif') {
+    if (card.type === 'image') {
+      /* Populated once the image loads (see buildImageCard's onload) —
+         naturalWidth/Height aren't known until then. */
+      var dimsBadge = document.createElement('span');
+      dimsBadge.className = 'card-badge card-dims';
+      bar.appendChild(dimsBadge);
+    } else if (card.type === 'gif') {
       var badge = document.createElement('span');
       badge.className = 'card-badge badge-gif';
       badge.textContent = 'GIF';
@@ -767,6 +1322,11 @@ var KanvazCards = (function() {
       vbadge.className = 'card-badge badge-vid';
       vbadge.textContent = 'VID';
       bar.appendChild(vbadge);
+      /* Populated once metadata loads (see buildVideoCard's
+         onloadedmetadata) — duration isn't known before then. */
+      var vdur = document.createElement('span');
+      vdur.className = 'card-badge card-duration';
+      bar.appendChild(vdur);
     } else if (card.type === 'audio') {
       var abadge = document.createElement('span');
       abadge.className = 'card-badge badge-audio';
@@ -777,6 +1337,12 @@ var KanvazCards = (function() {
       nbadge.className = 'card-badge badge-note';
       nbadge.textContent = 'NOTE';
       bar.appendChild(nbadge);
+
+      var charCount = document.createElement('span');
+      charCount.className = 'card-badge card-char-count';
+      var len = (card.text || '').length;
+      charCount.textContent = len + (len === 1 ? ' char' : ' chars');
+      bar.appendChild(charCount);
     } else if (card.type === 'color') {
       var cbadge = document.createElement('span');
       cbadge.className = 'card-badge';
@@ -857,21 +1423,76 @@ var KanvazCards = (function() {
     input.placeholder = 'tag name';
     input.style.cssText = 'width:70px;padding:1px 4px;border:1px solid var(--color-accent);border-radius:3px;background:var(--color-surface-2);color:var(--color-text);font-size:10px;font-family:var(--font-ui);outline:none;';
 
-    function addTag() {
-      var val = input.value.trim().toLowerCase();
+    /* Autocomplete dropdown — suggests tags already used elsewhere on
+       the board, filtered to what's typed so far and excluding tags
+       already on this card. Floated on <body> (position:fixed), same
+       pattern as the opacity/speed pickers — `.card` has
+       overflow:hidden, so a dropdown nested inside the tag bar would
+       get clipped instead of popping out above the card. */
+    var dropdown = document.createElement('div');
+    dropdown.className = 'tag-autocomplete';
+    document.body.appendChild(dropdown);
+
+    function closeDropdown() {
+      if (dropdown.parentNode) dropdown.parentNode.removeChild(dropdown);
+    }
+
+    function addTag(val) {
+      val = (val !== undefined ? val : input.value).trim().toLowerCase();
       if (val && (!card.tags || card.tags.indexOf(val) === -1)) {
         if (!card.tags) card.tags = [];
         card.tags.push(val);
         KanvazApp.markDirty();
         KanvazHistory.push();
       }
+      closeDropdown();
       buildTagBar(cardEl, card);
     }
+
+    function positionDropdown() {
+      var rect = input.getBoundingClientRect();
+      dropdown.style.left = rect.left + 'px';
+      dropdown.style.top  = rect.top + 'px';
+    }
+
+    function updateDropdown() {
+      var query = input.value.trim().toLowerCase();
+      dropdown.innerHTML = '';
+      if (!query) { dropdown.classList.remove('visible'); return; }
+
+      var existing = card.tags || [];
+      var matches = collectAllTags().filter(function(t) {
+        return existing.indexOf(t) === -1 && t.indexOf(query) !== -1;
+      });
+      if (!matches.length) { dropdown.classList.remove('visible'); return; }
+
+      for (var i = 0; i < Math.min(matches.length, 6); i++) {
+        (function(tag) {
+          var item = document.createElement('div');
+          item.className = 'tag-autocomplete-item';
+          item.textContent = tag;
+          /* mousedown + preventDefault — stops the input from blurring,
+             so the blur handler's addTag() never fires with stale text
+             for this interaction; this handler adds the clicked tag
+             directly instead. */
+          item.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            addTag(tag);
+          });
+          dropdown.appendChild(item);
+        })(matches[i]);
+      }
+      positionDropdown();
+      dropdown.classList.add('visible');
+    }
+
+    input.addEventListener('input', updateDropdown);
 
     input.addEventListener('keydown', function(e) {
       e.stopPropagation();
       if (e.key === 'Enter') { addTag(); }
-      if (e.key === 'Escape') { buildTagBar(cardEl, card); }
+      if (e.key === 'Escape') { closeDropdown(); buildTagBar(cardEl, card); }
     });
     input.addEventListener('blur', function() { addTag(); });
 
@@ -1384,6 +2005,9 @@ var KanvazCards = (function() {
     flipCard:          flipCard,
     resetSize:         resetSize,
     showOpacityPicker: showOpacityPicker,
+    toggleObjectFit:   toggleObjectFit,
+    showSpeedPicker:   showSpeedPicker,
+    refreshAnnotationDot: refreshAnnotationDot,
     nudge:             nudge,
     serialise:         serialise,
     deserialise:       deserialise,

@@ -218,6 +218,7 @@ var KanvazAnnotate = (function() {
     var ov = overlays[activeCardId];
     if (ov) {
       ov.strokes.push(stroke);
+      if (typeof KanvazCards !== 'undefined') KanvazCards.refreshAnnotationDot(activeCardId);
     }
   }
 
@@ -304,6 +305,7 @@ var KanvazAnnotate = (function() {
             if (!ov) return;
             ov.ctx.clearRect(0, 0, ov.canvas.width, ov.canvas.height);
             ov.strokes = [];
+            if (typeof KanvazCards !== 'undefined') KanvazCards.refreshAnnotationDot(cardId);
             KanvazApp.markDirty();
             KanvazHistory.push();
             KanvazUI.toast('Annotations cleared');
