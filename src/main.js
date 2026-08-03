@@ -11,6 +11,7 @@ var fs = require('fs');
 
 var purImport = require('./pur-import');
 var boardContainer = require('./board-container');
+var pluginLoader = require('./plugin-loader');
 
 /* electron-updater is a real dependency (see package.json), but it's
    wrapped in try/catch anyway — if it's ever missing (e.g. a stripped
@@ -640,6 +641,111 @@ function registerIPC() {
       .catch(function(e) {
         return { ok: false, error: e.message };
       });
+  });
+
+  /* ── IPC: Plugins ──
+     Every handler here operates only under app.getPath('userData')/plugins
+     — never anywhere else on disk. See plugin-loader.js for the path-
+     containment checks backing removePlugin().
+
+     SECURITY NOTE (fixed after an independent audit caught this): a
+     plugin's own entry script runs in the same renderer page context as
+     the rest of the app (the chosen convention-based sandbox model —
+     see plugin-api.js), which means ANY renderer-exposed IPC method is
+     reachable by a plugin's own code, not just by the real Settings UI.
+     An earlier draft of this file had a 'plugins-approve' handler that
+     blindly wrote whatever (id, version, permissions) the renderer sent
+     — which meant a plugin could silently grant itself (or a different
+     plugin) any permission with no real consent ever happening. Fixed
+     by making 'plugins-review-and-enable' take ONLY a folder name: the
+     main process re-reads that plugin's manifest.json itself (never
+     trusts a renderer-supplied permission list or version string) and
+     gates the actual approval behind a native OS dialog.showMessageBox
+     — a real modal a co-resident script cannot script/auto-click,
+     unlike the renderer's own DOM. 'plugins-set-enabled' similarly
+     re-checks consent status fresh before honoring an enable=true
+     request, so it can't be used as a side-door around the dialog
+     either. */
+
+  ipcMain.handle('plugins-scan', function() {
+    try {
+      return { ok: true, plugins: pluginLoader.scanPlugins(app.getPath('userData')) };
+    } catch (e) {
+      return { ok: false, error: e.message, plugins: [] };
+    }
+  });
+
+  ipcMain.handle('plugins-open-folder', function() {
+    var dir = pluginLoader.ensurePluginsDir(app.getPath('userData'));
+    return shell.openPath(dir);
+  });
+
+  ipcMain.handle('plugins-review-and-enable', function(event, pluginFolder) {
+    var userData = app.getPath('userData');
+    var scanned = pluginLoader.scanPlugins(userData);
+    var plugin = scanned.filter(function(p) { return p.folder === pluginFolder; })[0];
+
+    if (!plugin || !plugin.valid) {
+      return Promise.resolve({ ok: false, error: 'plugin not found or invalid' });
+    }
+
+    var manifest = plugin.manifest;
+    var permText = pluginLoader.describePermissions(manifest.permissions);
+
+    return dialog.showMessageBox(mainWindow, {
+      type: 'question',
+      buttons: ['Cancel', 'Approve & Enable'],
+      defaultId: 0,
+      cancelId: 0,
+      title: 'Enable "' + manifest.name + '"?',
+      message: '"' + manifest.name + '" (v' + manifest.version + ') wants to: ' + permText + '.',
+      detail: 'Only approve this if you trust where it came from. Kanvaz read this permission list directly from the plugin\'s own files, not from anything already running in the app.'
+    }).then(function(result) {
+      if (result.response !== 1) {
+        return { ok: true, approved: false };
+      }
+      pluginLoader.approvePlugin(userData, manifest.id, manifest.version, manifest.permissions || []);
+      return { ok: true, approved: true };
+    });
+  });
+
+  ipcMain.handle('plugins-set-enabled', function(event, pluginId, enabled) {
+    try {
+      var userData = app.getPath('userData');
+      if (enabled) {
+        /* Re-check fresh — never trust a stored flag alone for turning
+           something ON. If this plugin currently needs consent (new
+           install, or a permission-escalating update since it was last
+           approved), refuse rather than silently enabling it. */
+        var scanned = pluginLoader.scanPlugins(userData);
+        var plugin = scanned.filter(function(p) { return p.manifest && p.manifest.id === pluginId; })[0];
+        if (!plugin || !plugin.valid || plugin.needsConsent) {
+          return { ok: false, error: 'this plugin needs to be reviewed and approved first' };
+        }
+      }
+      pluginLoader.setEnabled(userData, pluginId, !!enabled);
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  });
+
+  ipcMain.handle('plugins-remove', function(event, pluginFolder, pluginId) {
+    var userData = app.getPath('userData');
+    /* If both a folder and an id were given, make sure they actually
+       belong to each other before deleting — otherwise a caller could
+       delete one plugin's files while wiping a different plugin's
+       stored approval state. An invalid/unscannable folder (nothing
+       left to cross-check) is still removable by folder alone, so a
+       broken plugin can always be cleaned up. */
+    if (pluginId) {
+      var scanned = pluginLoader.scanPlugins(userData);
+      var match = scanned.filter(function(p) { return p.folder === pluginFolder; })[0];
+      if (match && match.valid && match.manifest.id !== pluginId) {
+        return { ok: false, error: 'folder/id mismatch — refusing to remove' };
+      }
+    }
+    return pluginLoader.removePlugin(userData, pluginFolder, pluginId);
   });
 
 }

@@ -75,8 +75,23 @@ if (fs.existsSync(path.join(__dirname, 'format-roundtrip-test.js'))) {
   console.log('  (skipped — test/format-roundtrip-test.js missing)');
 }
 
-/* 5. Version consistency */
-section('5. Version consistency');
+/* 5. Plugin loader — manifest validation, permission escalation, path safety */
+section('5. Plugin loader');
+if (fs.existsSync(path.join(__dirname, 'plugin-loader-test.js'))) {
+  try {
+    var pluginOut = cp.execSync('node "' + path.join(__dirname, 'plugin-loader-test.js') + '"', { encoding: 'utf8', timeout: 30000 });
+    if (/ALL PLUGIN LOADER TESTS PASSED/.test(pluginOut)) ok('manifest validation, permission escalation, and path-traversal guard all correct');
+    else { bad('plugin loader test failed'); console.log(pluginOut); }
+  } catch (e) {
+    bad('plugin loader test crashed');
+    console.log(e.stdout || e.message);
+  }
+} else {
+  console.log('  (skipped — test/plugin-loader-test.js missing)');
+}
+
+/* 6. Version consistency */
+section('6. Version consistency');
 var pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
 var v = pkg.version;
 var boards = fs.readFileSync(path.join(SRC, 'boards.js'), 'utf8');

@@ -47,6 +47,16 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
   openPurDialog:   function() { return ipcRenderer.invoke('dialog-open-pur'); },
   importPur:       function(p) { return ipcRenderer.invoke('pur-import', p); },
 
+  /* Plugins — reviewAndEnablePlugin takes only a folder name; the main
+     process re-reads that plugin's manifest itself and gates approval
+     behind a native OS dialog, rather than trusting a renderer-supplied
+     permission list (see the security note in main.js). */
+  scanPlugins:          function() { return ipcRenderer.invoke('plugins-scan'); },
+  openPluginsFolder:    function() { return ipcRenderer.invoke('plugins-open-folder'); },
+  reviewAndEnablePlugin: function(folder) { return ipcRenderer.invoke('plugins-review-and-enable', folder); },
+  setPluginEnabled:     function(id, enabled) { return ipcRenderer.invoke('plugins-set-enabled', id, enabled); },
+  removePlugin:         function(folder, id) { return ipcRenderer.invoke('plugins-remove', folder, id); },
+
   /* Settings */
   readSettings:    function() { return ipcRenderer.invoke('settings-read'); },
   writeSettings:   function(d) { return ipcRenderer.invoke('settings-write', d); },

@@ -679,6 +679,10 @@ var KanvazCards = (function() {
       buildUrlCard(el, card);
     } else if (card.type === 'file') {
       buildFileRefCard(el, card);
+    } else if (typeof KanvazPluginAPI !== 'undefined' && KanvazPluginAPI._hasCardType(card.type)) {
+      buildPluginCard(el, card);
+    } else {
+      buildUnknownCard(el, card);
     }
 
     buildCardBar(el, card);
@@ -686,6 +690,39 @@ var KanvazCards = (function() {
     buildResizeHandles(el);
 
     world.appendChild(el);
+  }
+
+  /* ── Plugin-registered card types (4.2.0) ──
+     Renders via the registering plugin's own render(el, card). If the
+     plugin that owns this type isn't currently loaded (disabled/removed
+     since the board was saved) — or its render() throws — this falls
+     through to buildUnknownCard() instead of taking anything else down,
+     same graceful-degradation principle as missing media. */
+  function buildPluginCard(el, card) {
+    var def = KanvazPluginAPI._getCardType(card.type);
+    try {
+      def.render(el, card);
+    } catch (e) {
+      console.error('[Kanvaz Plugin] render() failed for card type "' + card.type + '":', e.message);
+      buildUnknownCard(el, card);
+    }
+  }
+
+  /* A card whose type is neither a built-in nor a currently-registered
+     plugin type. Shows a clear, calm placeholder instead of a blank or
+     broken card — the rest of the board is unaffected. */
+  function buildUnknownCard(el, card) {
+    var wrap = document.createElement('div');
+    wrap.className = 'card-unknown-type';
+    wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%;gap:6px;padding:10px;text-align:center;color:var(--color-text-3);';
+    var icon = document.createElement('div');
+    icon.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9.5 9a2.5 2.5 0 015 0c0 1.5-2 1.8-2 3.5"/><circle cx="12.5" cy="16" r="0.6" fill="currentColor" stroke="none"/></svg>';
+    var label = document.createElement('div');
+    label.style.cssText = 'font-size:11px;line-height:1.4;';
+    label.textContent = 'Unknown card type — needs plugin: ' + card.type;
+    wrap.appendChild(icon);
+    wrap.appendChild(label);
+    el.appendChild(wrap);
   }
 
   /* ══════════════════════════════════════════════════════════════
@@ -2183,6 +2220,11 @@ var KanvazCards = (function() {
         url:         c.url         || null,
         color:       c.color       || null,
         mimeType:    c.mimeType    || null,
+        /* v4.2.0 — plugin-owned card types read/write this bucket
+           directly (render(el, card) has the whole card object); a
+           plugin's create()/render() are responsible for its shape,
+           Kanvaz core just round-trips it opaquely. */
+        pluginData:  c.pluginData  || null,
         /* v4 fields — per-card display/playback preferences. Each of
            these already has a "missing → default" fallback wherever
            it's read (objectFit in buildImageCard, playbackRate in
@@ -2214,6 +2256,7 @@ var KanvazCards = (function() {
       if (!c.url)         c.url         = null;
       if (!c.color)       c.color       = null;
       if (!c.mimeType)    c.mimeType    = null;
+      if (!c.pluginData)  c.pluginData  = null;
 
       /* v4 field defaults — ensures pre-4.0 files (and files saved by
          the buggy 4.0.0 serialise() that dropped these) load cleanly.

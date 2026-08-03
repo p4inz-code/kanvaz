@@ -133,6 +133,7 @@ var KanvazUI_Extended = (function() {
   /* ── Settings panel ── */
 
   var settingsOpen = false;
+  var currentPluginsListEl = null;
 
   var SETTINGS_VERSION = 2;
 
@@ -574,6 +575,33 @@ var KanvazUI_Extended = (function() {
       })(rows[i]);
     }
 
+    /* Plugins section (4.2.0) — not part of the generic rows[] renderer
+       above since its content is async (comes from a scan IPC call) and
+       each row needs bespoke controls (enable toggle vs. a consent
+       button, Remove). */
+    var pluginsHdr = document.createElement('div');
+    pluginsHdr.style.cssText = 'font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;color:var(--color-text-3);margin:14px 0 4px;';
+    pluginsHdr.textContent = 'Plugins';
+    panel.appendChild(pluginsHdr);
+
+    var pluginsList = document.createElement('div');
+    pluginsList.id = 'plugins-list';
+    panel.appendChild(pluginsList);
+    currentPluginsListEl = pluginsList;
+    refreshPluginsList(pluginsList);
+
+    var addPluginBtn = document.createElement('button');
+    addPluginBtn.textContent = 'Add a Plugin…';
+    addPluginBtn.style.cssText = 'margin-top:8px;width:100%;padding:6px;background:var(--color-accent-bg);border:1px solid var(--color-accent);border-radius:6px;color:var(--color-accent);font-family:var(--font-ui);font-size:12px;cursor:pointer;transition:background 0.1s;';
+    addPluginBtn.onmouseenter = function() { addPluginBtn.style.background = 'rgba(var(--color-accent-rgb),0.25)'; };
+    addPluginBtn.onmouseleave = function() { addPluginBtn.style.background = 'var(--color-accent-bg)'; };
+    addPluginBtn.onclick = function() {
+      if (typeof KanvazBridge !== 'undefined' && KanvazBridge.openPluginsFolder) {
+        KanvazBridge.openPluginsFolder();
+      }
+    };
+    panel.appendChild(addPluginBtn);
+
     /* About link */
     var aboutBtn = document.createElement('button');
     aboutBtn.textContent = 'About Kanvaz';
@@ -588,8 +616,140 @@ var KanvazUI_Extended = (function() {
 
   function closeSettings() {
     settingsOpen = false;
+    currentPluginsListEl = null;
     var el = document.getElementById('settings-panel');
     if (el && el.parentNode) el.parentNode.removeChild(el);
+  }
+
+  /* ── Plugins (4.2.0) ──
+     Add-a-Plugin flow: the button above opens the plugins folder for the
+     user to drop a folder into (no manual path-typing). This list
+     re-scans on section-open and on window focus (see init() below) so
+     a plugin dropped in while Settings is already open picks up as soon
+     as the user tabs back — no watcher, no race on a half-finished
+     copy, since the file-explorer interaction is always finished by the
+     time focus returns here. */
+
+  function refreshPluginsList(container) {
+    if (typeof KanvazBridge === 'undefined' || !KanvazBridge.scanPlugins) return;
+    KanvazBridge.scanPlugins().then(function(result) {
+      if (!container || !container.parentNode) return; /* settings closed mid-scan */
+      container.innerHTML = '';
+      var plugins = (result && result.ok) ? result.plugins : [];
+      if (!plugins.length) {
+        var empty = document.createElement('div');
+        empty.style.cssText = 'font-size:11px;color:var(--color-text-3);padding:6px 0;';
+        empty.textContent = 'No plugins installed yet.';
+        container.appendChild(empty);
+        return;
+      }
+      for (var i = 0; i < plugins.length; i++) {
+        container.appendChild(buildPluginRow(plugins[i], container));
+      }
+    }).catch(function() {});
+  }
+
+  function buildPluginRow(plugin, listContainer) {
+    var row = document.createElement('div');
+    row.style.cssText = 'padding:8px 0;border-bottom:1px solid var(--color-border);';
+
+    if (!plugin.valid) {
+      var nameEl = document.createElement('div');
+      nameEl.style.cssText = 'font-size:12px;color:var(--color-text-2);';
+      nameEl.textContent = plugin.folder;
+      var reasonEl = document.createElement('div');
+      reasonEl.style.cssText = 'font-size:11px;color:var(--color-red);margin-top:2px;';
+      reasonEl.textContent = 'Invalid: ' + plugin.reason;
+      row.appendChild(nameEl);
+      row.appendChild(reasonEl);
+      return row;
+    }
+
+    var top = document.createElement('div');
+    top.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;';
+
+    var info = document.createElement('div');
+    info.style.cssText = 'font-size:12px;color:var(--color-text);';
+    info.textContent = plugin.manifest.name + ' — v' + plugin.manifest.version;
+    top.appendChild(info);
+
+    if (plugin.needsConsent) {
+      var reviewBtn = document.createElement('button');
+      reviewBtn.textContent = 'Review & Enable';
+      reviewBtn.style.cssText = 'background:var(--color-accent-bg);border:1px solid var(--color-accent);border-radius:4px;color:var(--color-accent);padding:3px 8px;font-size:11px;font-family:var(--font-ui);cursor:pointer;flex-shrink:0;';
+      /* Calls straight through to the main process, which re-reads this
+         plugin's manifest itself and shows a native OS dialog — the
+         renderer never constructs the consent prompt or decides what
+         permissions are being requested (see the security note in
+         main.js's plugins-review-and-enable handler). */
+      reviewBtn.onclick = function() {
+        reviewBtn.disabled = true;
+        KanvazBridge.reviewAndEnablePlugin(plugin.folder).then(function(result) {
+          reviewBtn.disabled = false;
+          if (result && result.ok && result.approved) {
+            refreshPluginsList(listContainer);
+            if (typeof KanvazPluginLoader !== 'undefined') {
+              KanvazPluginLoader.loadEnabledPlugins();
+            }
+          } else if (result && !result.ok) {
+            KanvazUI.toast(result.error || 'Could not review this plugin', 'error');
+          }
+          /* result.ok && !result.approved just means the user clicked
+             Cancel on the native dialog — nothing to do. */
+        });
+      };
+      top.appendChild(reviewBtn);
+    } else {
+      var track = document.createElement('div');
+      track.style.cssText = 'position:relative;width:34px;height:18px;border-radius:9px;cursor:pointer;transition:background 0.2s;background:' + (plugin.enabled ? 'var(--color-accent)' : 'var(--color-border-2)') + ';flex-shrink:0;';
+      var thumb = document.createElement('div');
+      thumb.style.cssText = 'position:absolute;top:2px;left:' + (plugin.enabled ? '16px' : '2px') + ';width:14px;height:14px;border-radius:50%;background:#fff;transition:left 0.2s;';
+      track.appendChild(thumb);
+      track.onclick = function() {
+        var newEnabled = !plugin.enabled;
+        KanvazBridge.setPluginEnabled(plugin.manifest.id, newEnabled).then(function(result) {
+          refreshPluginsList(listContainer);
+          if (result && !result.ok) {
+            KanvazUI.toast(result.error || 'Could not update this plugin', 'error');
+          } else if (newEnabled && typeof KanvazPluginLoader !== 'undefined') {
+            KanvazPluginLoader.loadEnabledPlugins();
+          } else if (!newEnabled) {
+            KanvazUI.toast('Disabled — takes effect after restart', 'success');
+          }
+        });
+      };
+      top.appendChild(track);
+    }
+
+    row.appendChild(top);
+
+    if (plugin.manifest.author) {
+      var authorEl = document.createElement('div');
+      authorEl.style.cssText = 'font-size:10px;color:var(--color-text-3);margin-top:2px;';
+      authorEl.textContent = 'by ' + plugin.manifest.author;
+      row.appendChild(authorEl);
+    }
+
+    var removeBtn = document.createElement('button');
+    removeBtn.textContent = 'Remove';
+    removeBtn.style.cssText = 'margin-top:4px;background:none;border:none;color:var(--color-text-3);font-size:10px;font-family:var(--font-ui);cursor:pointer;padding:0;text-decoration:underline;';
+    removeBtn.onclick = function() {
+      KanvazUI.showDialog(
+        'Remove plugin?',
+        'Remove "' + plugin.manifest.name + '"? This deletes its folder from disk.',
+        [
+          { label: 'Cancel', cls: '' },
+          { label: 'Remove', cls: 'danger', action: function() {
+            KanvazBridge.removePlugin(plugin.folder, plugin.manifest.id).then(function() {
+              refreshPluginsList(listContainer);
+            });
+          } }
+        ]
+      );
+    };
+    row.appendChild(removeBtn);
+
+    return row;
   }
 
   /* ── About screen ── */
@@ -718,7 +878,7 @@ var KanvazUI_Extended = (function() {
       '</div>',
       '<div class="about-title">Kanvaz</div>',
       '<div class="about-subtitle">Your canvas. Your references.</div>',
-      '<div class="about-version">Version 4.1.0</div>',
+      '<div class="about-version">Version 4.2.0</div>',
       '<div id="about-update-status" class="about-update-status"></div>',
       '<div class="about-divider"></div>',
       '<div class="about-author">Made by <strong>Atharva Patil</strong></div>',
@@ -726,7 +886,7 @@ var KanvazUI_Extended = (function() {
       '<div class="about-desc">Built for VFX artists, 3D artists,<br>and the people who teach them.</div>',
       '<div class="about-divider"></div>',
       '<div class="about-privacy">Free forever. MIT License.<br>No telemetry, no background network activity.<br>Your files never leave your machine.</div>',
-      '<div class="about-tagline">Reference Operating System<br>Actively developed — v4.1.0</div>'
+      '<div class="about-tagline">Reference Operating System<br>Actively developed — v4.2.0</div>'
     ].join('');
 
     var updateBtn = document.createElement('button');
@@ -974,6 +1134,16 @@ var KanvazUI_Extended = (function() {
     loadSettings();
     initMinimap();
     showFirstRunIfNeeded();
+
+    /* Plugins (4.2.0): re-scan whenever the window regains focus, so a
+       plugin folder dropped in via "Add a Plugin…" is picked up as soon
+       as the user tabs back — only does anything if the Plugins section
+       is actually on screen right now. */
+    window.addEventListener('focus', function() {
+      if (settingsOpen && currentPluginsListEl) {
+        refreshPluginsList(currentPluginsListEl);
+      }
+    });
   }
 
   return {

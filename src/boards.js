@@ -7,7 +7,7 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '4.1.0';
+  var VERSION       = '4.2.0';
 
   /* ── Init ── */
 

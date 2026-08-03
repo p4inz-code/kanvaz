@@ -2,6 +2,25 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [4.2.0] — Plugin system (foundation)
+
+The first piece of a plugin system: third parties can now extend Kanvaz
+without forking it, starting with custom card types. This is the
+foundation layer only — commands, event hooks, and a command palette are
+a later phase; no first-party plugins ship yet.
+
+### Added
+- **Plugin system, Layer 1** — a plugin is a folder (`plugin.json` manifest + one plain JS entry file, no build step) dropped into a `plugins` folder Kanvaz manages for you. `window.KanvazPluginAPI.registerCardType()` is the first real API surface; a plugin's entry script loads as a normal `<script>`, same trust model as a browser extension, not an iframe-sandboxed one.
+- **Settings → Plugins** — lists installed plugins with an enable/disable toggle (once approved) or a "Review & Enable" prompt (before first approval, or after a permission-escalating update), and a Remove button. "Add a Plugin…" opens the plugins folder directly — no manual path-typing, no knowing where `%APPDATA%` is.
+- **Native consent dialog** — enabling a plugin for the first time (or after it requests new permissions) shows an OS-native dialog listing exactly what it's asking for, read directly from the plugin's own `plugin.json` at approval time.
+- **Graceful degradation for missing plugins** — a board card whose type belongs to a since-disabled or removed plugin shows a clear "Unknown card type — needs plugin: X" placeholder instead of breaking anything else on the board.
+- New test (`test/plugin-loader-test.js`, wired into `npm run validate`) covering manifest validation, permission-escalation-forces-re-consent, and path-traversal rejection in plugin removal.
+
+### Security
+- **Consent is enforced entirely in the main process, not the renderer.** An early draft had the renderer able to directly approve a plugin's permissions over IPC — since a plugin's own script runs in the same page context as the rest of the app (the deliberate, disclosed convention-based sandbox model, not iframe-isolated), that meant a plugin could in principle call the same IPC method on itself and silently self-grant permissions with no real dialog ever shown. Fixed before shipping: the approval IPC now takes only a folder name, re-reads that plugin's manifest itself, and gates the actual approval behind a native `dialog.showMessageBox` — a real OS modal a co-resident script cannot script or auto-click. Enabling a plugin is also re-checked fresh against its current consent status server-side, so it can't be used as a side door around the dialog either.
+- **CSP change, disclosed**: `script-src` gained `file:` (was `'self'` only) so a plugin's entry file can load as a real script — `'unsafe-inline'` and `'unsafe-eval'` were not added, and inline scripts/`eval`/`Function`-from-string remain fully blocked everywhere in the app, including inside plugin code.
+- Plugin removal validates that a supplied plugin id actually matches the folder being deleted before touching disk, and every filesystem path plugin-loader.js touches is checked to resolve inside the plugins directory before use.
+
 ## [4.1.0] — Reference types, safer file format, more bug fixes
 
 ### Added

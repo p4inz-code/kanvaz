@@ -16,7 +16,9 @@
 
 **Reference Operating System**
 
-> **v4.1.0** — URL and File reference cards (link/point at something without embedding it), a safer `.kanvaz` file format (zip container with per-asset integrity checks instead of one giant base64 JSON blob — old files still open fine), and another security/reliability pass. See [CHANGELOG.md](CHANGELOG.md) for the full list.
+> **v4.2.0** — The foundation of a plugin system: third parties can add new card types without forking Kanvaz, installed by dropping a folder in (no build step). Enabling a plugin always goes through a native, permission-disclosing OS dialog. See [CHANGELOG.md](CHANGELOG.md) for the full list.
+>
+> **v4.1.0** — URL and File reference cards (link/point at something without embedding it), a safer `.kanvaz` file format (zip container with per-asset integrity checks instead of one giant base64 JSON blob — old files still open fine), and another security/reliability pass.
 >
 > **v4.0.1** — Foundation hardening pass: a full bug-hunt audit across every source file, fixing a save-file data-loss bug, a broken Select All, a minimap pan bug, two Escape-key bugs, and a dozen other issues.
 >
@@ -90,6 +92,7 @@ See [CHANGELOG.md](CHANGELOG.md) for version history.
 - Color picker card type — solid color swatches with native OS color picker
 - URL reference cards — paste a link, open it in your default browser or copy it; never fetches previews/favicons, so this stays 100% offline like everything else
 - File reference cards — point at a file anywhere on disk (a source PSD, a script, a brief) without embedding it; open with its default app or re-point it to a different file anytime
+- Plugin system (foundation) — drop a folder into the plugins directory (Settings → Plugins → "Add a Plugin…") to add new card types; enabling one always goes through a native, permission-disclosing dialog, and a board never breaks even if a plugin it depends on is later disabled or removed
 
 ---
 
@@ -115,7 +118,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 4.1.0.exe` and `dist/Kanvaz 4.1.0.exe`
+Output: `dist/Kanvaz Setup 4.2.0.exe` and `dist/Kanvaz 4.2.0.exe`
 
 **macOS:**
 ```bash
@@ -179,6 +182,7 @@ Files saved by 4.0.1 and earlier (plain JSON, base64 media) still open exactly a
 - PDF reference cards aren't implemented — `pdf` is still in the type registry for a future version with real page thumbnails, but there's no creation UI for it today (unlike `url` and `file`, which fully ship as of 4.1.0).
 - Cross-board connections aren't possible from the UI — the data model doesn't prevent it, but only one board's cards are ever loaded at a time, so the "Connect to" picker can only offer cards from the board you're currently on.
 - Autosave writes to a recovery file only — "Unsaved changes" in the status bar clears only on explicit Save (Ctrl+S). The recovery file is now cleared on every clean close (v3.6.5) so the "Recover unsaved board?" prompt only appears after an actual crash, not on every launch.
+- The plugin system currently covers custom card types only — no commands, no event hooks, no command palette yet, and no first-party plugins ship in the base install. Enabling a newly-approved plugin takes effect immediately; disabling one takes effect after restart.
 
 ---
 
@@ -187,9 +191,10 @@ Files saved by 4.0.1 and earlier (plain JSON, base64 media) still open exactly a
 Kanvaz 4.x is intended to be the last major version, with only small fixes after a few more builds — so this is a short list of genuinely-still-open items rather than a long-term plan:
 
 - Real PDF reference cards (page thumbnails, not just an "open externally" pointer)
-- Richer Properties panel field types (dropdown, date, number, checkbox)
+- Richer Properties panel field types (dropdown, date, number, checkbox) — likely to ship as a plugin now that the plugin system exists, rather than a core feature
 - Cross-board connections, if it turns out to matter enough to design the UI for it
 - Map View auto-layout algorithms
+- Plugin system, next layers: a Commands API + command palette, then event hooks; a first-party theme plugin and an opt-in AI-assisted tagging plugin are planned as the first real plugins built on top of it
 
 ---
 

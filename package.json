@@ -1,6 +1,6 @@
 {
   "name": "kanvaz",
-  "version": "4.1.0",
+  "version": "4.2.0",
   "description": "Reference Operating System — collect, organize, connect, and understand your references.",
   "private": true,
   "main": "src/main.js",
@@ -21,7 +21,8 @@
     "lint": "node test/lint.js",
     "validate": "node test/validate.js",
     "test:ports": "node test/run-port-test.js",
-    "test:format": "node test/format-roundtrip-test.js"
+    "test:format": "node test/format-roundtrip-test.js",
+    "test:plugins": "node test/plugin-loader-test.js"
   },
   "devDependencies": {
     "electron": "22.3.27",
