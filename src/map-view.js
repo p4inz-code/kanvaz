@@ -17,6 +17,7 @@ var KanvazMapView = (function() {
   var lastGridTx = null;
   var lastGridTy = null;
   var lastGridScale = null;
+  var resizeRafId = null;
 
   var tx    = 0;
   var ty    = 0;
@@ -60,15 +61,21 @@ var KanvazMapView = (function() {
   var AUTO_GAP_X  = 240;
   var AUTO_GAP_Y  = 90;
 
-  /* ── Type colors ── */
+  /* ── Type colors ──
+     Polish fix: kept in sync with inspector.js's TYPE_COLORS, which has
+     the full reasoning — was a raw, unmodified Tailwind palette with no
+     relation to Kanvaz's own purple-accent identity; recolored to the
+     app's actual tokens where a fit exists, plus two new hand-picked
+     hues only where 7 distinct types need more separation than 4
+     existing tokens provide. */
   var TYPE_COLORS = {
-    RelatedTo:     '#6B7280',
-    InspiredBy:    '#8B5CF6',
-    DerivedFrom:   '#3B82F6',
-    AlternativeTo: '#F59E0B',
-    Supports:      '#10B981',
-    UsedIn:        '#EF4444',
-    References:    '#6366F1'
+    RelatedTo:     '#8F8FC2',
+    InspiredBy:    '#9D7FFF',
+    DerivedFrom:   '#5FA8E0',
+    AlternativeTo: '#F0A500',
+    Supports:      '#4CAF82',
+    UsedIn:        '#FF5A5A',
+    References:    '#E07AC0'
   };
 
   function typeColor(t) { return TYPE_COLORS[t] || '#6B7280'; }
@@ -245,7 +252,33 @@ var KanvazMapView = (function() {
     resizeMapGrid();
     window.addEventListener('resize', function() {
       resizeMapGrid();
-      if (active) drawMapGrid();
+      if (!active) return;
+      drawMapGrid();
+      /* Audit fix: connection lines were never re-derived on resize —
+         only the background grid was. domPort()'s live DOM measurement
+         (see PORT POSITIONS above) is correct at the instant it runs,
+         but a window resize (or a Windows display-scaling change, which
+         fires as a resize event too) shifts every node's
+         getBoundingClientRect() without anything telling renderLines()
+         to recompute. Cables stayed pinned to wherever they were last
+         drawn — reported as "starts at the wrong point, ends at the
+         wrong point" specifically after a resize/DPI change, not on a
+         fresh Map View open (which already re-renders via the settle
+         loop below).
+         Audit fix #2: renderLines() rebuilds every connection's DOM
+         (removes+recreates SVG elements, one getBoundingClientRect
+         pair per port) — expensive, and native OS drag-resize fires
+         'resize' continuously, once per frame. Coalescing through a
+         single in-flight rAF (same pattern applyTransform() already
+         uses for the grid below) collapses a whole burst of resize
+         events into one re-render right after the drag settles,
+         instead of rebuilding the SVG on every intermediate frame. */
+      if (!resizeRafId) {
+        resizeRafId = requestAnimationFrame(function() {
+          resizeRafId = null;
+          renderLines(false);
+        });
+      }
     });
 
     bindEvents();

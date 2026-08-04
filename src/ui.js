@@ -427,11 +427,17 @@ var KanvazUI_Extended = (function() {
       'overflow-y:auto',
       'background:var(--color-surface)',
       'border:1px solid var(--color-border-2)',
-      'border-radius:10px',
+      'border-radius:var(--radius-lg)',
       'padding:16px',
       'z-index:9000',
       'box-shadow:0 8px 32px var(--color-shadow)',
-      'font-size:13px'
+      'font-size:13px',
+      /* Polish fix: no entrance animation at all — instant pop, unlike
+         About/Dialog/Shortcuts (all now fade+scale in) and Inspector/
+         Properties (slide in from their docked edge). Settings is a
+         right-anchored panel like Inspector, so it gets the same
+         panel-slide-in-right treatment. */
+      'animation:panel-slide-in-right 0.15s ease-out'
     ].join(';');
 
     var title = document.createElement('div');
@@ -951,16 +957,16 @@ var KanvazUI_Extended = (function() {
         '<img src="../assets/icons/icon-128.png" alt="" width="44" height="44">',
       '</div>',
       '<div class="about-title">Kanvaz</div>',
-      '<div class="about-subtitle">Your canvas. Your references.</div>',
-      '<div class="about-version">Version 4.2.1</div>',
+      '<div class="about-subtitle">A visual reference workspace for creative professionals.</div>',
+      '<div class="about-version">Version 4.2.2</div>',
       '<div id="about-update-status" class="about-update-status"></div>',
       '<div class="about-divider"></div>',
-      '<div class="about-author">Made by <strong>Atharva Patil</strong></div>',
+      '<div class="about-author">Developed by <strong>Atharva Patil</strong></div>',
       '<div class="about-studio">Northbyte Studios — Navi Mumbai, India</div>',
-      '<div class="about-desc">Built for VFX artists, 3D artists,<br>and the people who teach them.</div>',
+      '<div class="about-desc">Built for VFX and 3D artists,<br>and the studios and educators who rely on them.</div>',
       '<div class="about-divider"></div>',
-      '<div class="about-privacy">Free forever. MIT License.<br>No telemetry, no background network activity.<br>Your files never leave your machine.</div>',
-      '<div class="about-tagline">Reference Operating System<br>Actively developed — v4.2.1</div>'
+      '<div class="about-privacy">Free and open source. MIT License.<br>No telemetry, no background network activity.<br>Your data stays on your machine.</div>',
+      '<div class="about-tagline">Reference Operating System<br>Actively maintained — v4.2.2</div>'
     ].join('');
 
     var updateBtn = document.createElement('button');
@@ -997,23 +1003,30 @@ var KanvazUI_Extended = (function() {
     overlay.style.cssText = [
       'position:fixed',
       'inset:0',
-      'background:rgba(0,0,0,0.65)',
+      'background:var(--color-overlay)',
       'z-index:60000',
       'display:flex',
       'align-items:center',
-      'justify-content:center'
+      'justify-content:center',
+      /* Polish fix: matches the same modal-overlay-in fade every other
+         full-screen overlay (About, Dialog) now uses, instead of
+         popping in instantly. */
+      'animation:modal-overlay-in 0.15s ease-out'
     ].join(';');
 
     var box = document.createElement('div');
     box.style.cssText = [
       'background:var(--color-surface)',
       'border:1px solid var(--color-border-2)',
-      'border-radius:12px',
+      /* Polish fix: was a one-off 12px — every other floating panel/
+         modal in the app now standardizes on --radius-lg (10px). */
+      'border-radius:var(--radius-lg)',
       'padding:24px 28px',
       'width:480px',
       'max-height:80vh',
       'overflow-y:auto',
-      'box-shadow:0 16px 48px rgba(0,0,0,0.7)'
+      'box-shadow:0 16px 48px var(--color-shadow)',
+      'animation:about-card-in 0.2s cubic-bezier(0.16,1,0.3,1)'
     ].join(';');
 
     var title = document.createElement('div');
@@ -1151,22 +1164,29 @@ var KanvazUI_Extended = (function() {
     overlay.style.cssText = [
       'position:fixed',
       'inset:0',
-      'background:rgba(14,14,16,0.94)',
+      /* Polish fix: was a bespoke near-opaque rgba() unique to this one
+         screen, not even matching --color-overlay's alpha model. This
+         is a new user's very first impression of the app — it should
+         look like it belongs to the same design system as every other
+         overlay, not a one-off. */
+      'background:var(--color-overlay)',
       'z-index:99999',
       'display:flex',
       'align-items:center',
-      'justify-content:center'
+      'justify-content:center',
+      'animation:modal-overlay-in 0.15s ease-out'
     ].join(';');
 
     var box = document.createElement('div');
     box.style.cssText = [
       'background:var(--color-surface)',
       'border:1px solid var(--color-border-2)',
-      'border-radius:14px',
+      'border-radius:var(--radius-lg)',
       'padding:36px 32px',
       'width:360px',
       'text-align:center',
-      'box-shadow:0 24px 64px rgba(0,0,0,0.8)'
+      'box-shadow:0 24px 64px var(--color-shadow)',
+      'animation:about-card-in 0.2s cubic-bezier(0.16,1,0.3,1)'
     ].join(';');
 
     /* Audit fix: this tip used to unconditionally say "Double-click /
@@ -1192,12 +1212,20 @@ var KanvazUI_Extended = (function() {
       '<div style="font-size:24px;font-weight:700;color:var(--color-text);margin-bottom:6px;">Welcome to Kanvaz</div>',
       '<div style="font-size:14px;color:var(--color-text-3);margin-bottom:28px;line-height:1.6;">Collect, connect, and understand your references — all offline.</div>',
       '<div style="text-align:left;margin-bottom:24px;">',
+        /* Polish fix: the drop/double-click tip icons were raw Unicode
+           glyphs (⬇, ✱) standing in front of what's otherwise an
+           all-vector, hand-drawn stroke-icon UI (see index.html's
+           toolbar icons — stroke-width:1.5, currentColor). Replaced
+           with small SVGs in that same convention so first-run doesn't
+           visually clash with the rest of the app. "?" in the third
+           tip is left as literal text since it names the actual key to
+           press, not a decorative stand-in. */
         '<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;">',
-          '<div style="width:28px;height:28px;border-radius:6px;background:var(--color-accent-bg);border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;">⬇</div>',
+          '<div style="width:28px;height:28px;border-radius:6px;background:var(--color-accent-bg);border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--color-accent);"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v7M4 5l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 10v1.5A1.5 1.5 0 003.5 13h7A1.5 1.5 0 0012 11.5V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>',
           '<div><div style="font-size:13px;color:var(--color-text);margin-bottom:2px;">Drop any file</div><div style="font-size:12px;color:var(--color-text-3);">Images, GIFs, and videos land right on the canvas</div></div>',
         '</div>',
         '<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;">',
-          '<div style="width:28px;height:28px;border-radius:6px;background:var(--color-surface-2);border:1px solid var(--color-border);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;">✱</div>',
+          '<div style="width:28px;height:28px;border-radius:6px;background:var(--color-surface-2);border:1px solid var(--color-border);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--color-text-2);"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="2.75" stroke="currentColor" stroke-width="1.5"/><circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.2" opacity="0.4"/></svg></div>',
           secondTipRow,
         '</div>',
         '<div style="display:flex;gap:12px;align-items:flex-start;">',

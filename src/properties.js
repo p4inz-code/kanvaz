@@ -20,8 +20,10 @@ var KanvazProperties = (function() {
     'width:280px',
     'background:var(--color-surface)',
     'border:1px solid var(--color-border-2)',
-    'border-radius:10px',
-    'box-shadow:0 8px 32px rgba(0,0,0,0.5)',
+    'border-radius:var(--radius-lg)',
+    /* Polish fix: hardcoded shadow that didn't adapt to Light theme —
+       matches the fix applied to Inspector's structurally-twin panel. */
+    'box-shadow:0 8px 32px var(--color-shadow)',
     'z-index:20000',
     'display:flex',
     'flex-direction:column',
@@ -232,7 +234,7 @@ var KanvazProperties = (function() {
         delBtn.textContent = '✕';
         delBtn.title = 'Remove property';
         delBtn.style.cssText = 'cursor:pointer;color:var(--color-text-3);font-size:11px;line-height:1;padding:2px;';
-        delBtn.onmouseenter = function() { delBtn.style.color = '#FF6B6B'; };
+        delBtn.onmouseenter = function() { delBtn.style.color = 'var(--color-red)'; };
         delBtn.onmouseleave = function() { delBtn.style.color = 'var(--color-text-3)'; };
         delBtn.onclick = function() {
           delete card.properties[key];

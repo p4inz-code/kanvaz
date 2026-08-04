@@ -545,7 +545,13 @@ html, body {
   z-index: 0;
 }
 
-/* Empty state */
+/* Empty state
+   Polish fix: this was the flattest, least-designed screen in the app —
+   static, no motion, icon at 0.18 opacity (practically invisible), and
+   it's the very next thing shown after the animated First-run screen
+   closes on a brand-new board. Brought up to the same standard as
+   .card-error-state (accent-tinted, properly visible) instead of
+   reading like a placeholder. */
 #canvas-empty {
   position: absolute;
   top: 50%;
@@ -557,6 +563,12 @@ html, body {
   gap: 12px;
   pointer-events: none;
   z-index: 1;
+  animation: canvas-empty-in 0.5s cubic-bezier(0.16,1,0.3,1);
+}
+
+@keyframes canvas-empty-in {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.94); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
 
 #canvas-empty.hidden {
@@ -566,7 +578,8 @@ html, body {
 #canvas-empty .empty-icon {
   width: 48px;
   height: 48px;
-  opacity: 0.18;
+  opacity: 0.45;
+  color: var(--color-accent);
 }
 
 #canvas-empty .empty-title {
@@ -1676,6 +1689,12 @@ html, body {
 
 #dialog-overlay.visible {
   display: flex;
+  /* Polish fix: this is the single most-seen surface in the whole app
+     (every save/delete/reset/update confirmation goes through here) and
+     it used to have zero entrance animation — instant pop while every
+     other modal-style overlay (About, below) fades and scales in.
+     Matching that same treatment here. */
+  animation: modal-overlay-in 0.15s ease-out;
 }
 
 .dialog {
@@ -1686,6 +1705,7 @@ html, body {
   min-width: 300px;
   max-width: 480px;
   box-shadow: 0 16px 48px var(--color-shadow);
+  animation: about-card-in 0.2s cubic-bezier(0.16,1,0.3,1);
 }
 
 .dialog h2 {
@@ -1798,11 +1818,11 @@ html, body {
 .about-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border-2);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   padding: 36px 32px 28px;
   width: 320px;
   text-align: center;
-  box-shadow: 0 20px 56px rgba(0, 0, 0, 0.75);
+  box-shadow: 0 20px 56px var(--color-shadow);
   animation: about-card-in 0.2s cubic-bezier(0.16,1,0.3,1);
 }
 
@@ -1919,8 +1939,20 @@ html, body {
   background: var(--color-surface-3);
 }
 
-/* ── Properties panel slide-in ── */
+/* ── Properties panel slide-in (left-anchored panel) ── */
 @keyframes panel-slide-in {
   from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Right-anchored panel slide-in (Inspector, Settings) — polish fix:
+   these two are structurally identical siblings of Properties above
+   (same fixed/right-or-left/top/bottom side-panel treatment) but had
+   no entrance animation at all, so opening Connections (C) right after
+   Properties (E) felt like two different apps. Mirrors panel-slide-in's
+   direction (nudge in from just outside the panel's own edge) but from
+   the right, matching where these two panels actually dock. ── */
+@keyframes panel-slide-in-right {
+  from { opacity: 0; transform: translateX(12px); }
   to   { opacity: 1; transform: translateX(0); }
 }

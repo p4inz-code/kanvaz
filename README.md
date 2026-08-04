@@ -16,6 +16,8 @@
 
 **Reference Operating System**
 
+> **v4.2.2** — Visual polish and reliability pass: unified modal/panel styling (radius, shadow, entrance animation) across every panel in the app, a proper design-language icon set replacing leftover emoji, native connection-type colors instead of a borrowed palette, plus fixes for Top Mode's drag-to-move losing its grip mid-drag and Map View connections drifting after a window resize. See [CHANGELOG.md](CHANGELOG.md) for the full list.
+>
 > **v4.2.1** — Full-stack audit and hardening pass across every source file: a plugin-storage race, several data-loss and XSS-adjacent bugs, Caps-Lock-broken shortcuts, and a round of UI copy that no longer matched actual behavior, all fixed. See [CHANGELOG.md](CHANGELOG.md) for the full list.
 >
 > **v4.2.0** — The foundation of a plugin system: third parties can add new card types without forking Kanvaz, installed by dropping a folder in (no build step). Enabling a plugin always goes through a native, permission-disclosing OS dialog, and Theme Creator ships as the first official plugin. See [CHANGELOG.md](CHANGELOG.md) for the full list.
@@ -120,7 +122,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 4.2.1.exe` and `dist/Kanvaz 4.2.1.exe`
+Output: `dist/Kanvaz Setup 4.2.2.exe` and `dist/Kanvaz 4.2.2.exe`
 
 **macOS:**
 ```bash

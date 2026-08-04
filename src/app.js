@@ -267,14 +267,20 @@ var KanvazApp = (function() {
       'width:320px', 'display:flex', 'align-items:center', 'gap:8px',
       'padding:8px 14px',
       'background:var(--color-surface)', 'border:1px solid var(--color-border-2)',
-      'border-radius:8px', 'box-shadow:0 8px 32px var(--color-shadow)',
+      'border-radius:var(--radius-lg)', 'box-shadow:0 8px 32px var(--color-shadow)',
       'z-index:10000',
       'animation:search-bar-in 0.2s ease-out'
     ].join(';');
 
+    /* Polish fix: was a raw magnifying-glass emoji, rendered via the OS
+       emoji font \u2014 visually clashes with every other icon in the app,
+       which is a hand-drawn stroke-based SVG set (stroke-width:1.5,
+       stroke-linecap:round, see index.html's toolbar icons). Matching
+       that convention here instead of standing out as the one emoji
+       in an otherwise all-vector UI. */
     var icon = document.createElement('span');
-    icon.style.cssText = 'color:var(--color-text-3);font-size:14px;flex-shrink:0;';
-    icon.textContent = '\uD83D\uDD0D';
+    icon.style.cssText = 'color:var(--color-text-3);flex-shrink:0;display:flex;';
+    icon.innerHTML = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.5"/><path d="M9.5 9.5L12.5 12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
 
     searchInput = document.createElement('input');
     searchInput.type = 'text';
@@ -558,13 +564,38 @@ var KanvazApp = (function() {
 
   window.KanvazUI = (function() {
 
+    /* Polish fix: .toast is already display:flex;gap:8px in main.css —
+       clearly laid out to hold an icon next to the text — but nothing
+       ever put an icon there. Toasts were the one recurring piece of
+       app chrome that was text-only while everything else (toolbar,
+       titlebar, context menu, card badges) uses the same hand-drawn
+       stroke-SVG icon language. Small check/✕/! glyphs in that same
+       convention (viewBox 14x14, stroke-width 1.5, currentColor so it
+       inherits .toast.success/.error/.warning's existing color rules
+       with zero extra color logic needed here). */
+    var TOAST_ICONS = {
+      success: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 7.5l3 3 6-6.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+      error:   '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+      warning: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5l6 10.5H1L7 1.5z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M7 5.5v3M7 10.5v.01" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>'
+    };
+
     function toast(msg, type) {
       var container = document.getElementById('toast-container');
       if (!container) return;
 
       var el = document.createElement('div');
       el.className = 'toast' + (type ? ' ' + type : '');
-      el.textContent = msg;
+
+      if (type && TOAST_ICONS[type]) {
+        var iconEl = document.createElement('span');
+        iconEl.style.cssText = 'display:flex;flex-shrink:0;';
+        iconEl.innerHTML = TOAST_ICONS[type];
+        el.appendChild(iconEl);
+      }
+      var textEl = document.createElement('span');
+      textEl.textContent = msg;
+      el.appendChild(textEl);
+
       container.appendChild(el);
 
       setTimeout(function() {
@@ -950,6 +981,22 @@ var KanvazApp = (function() {
     var chromeRevealTimer  = null;
     var moodlockBadge      = null;
 
+    /* Audit fix: the revealed top bar doubles as a real OS drag region
+       (-webkit-app-region: drag on #moodlock-hover-zone / #titlebar in
+       main.css), so grabbing it to move the window is the main reason
+       to reveal it in Top Mode at all. But once an OS-native window
+       drag starts, the OS owns the mouse — this renderer stops getting
+       reliable mouseenter/mouseleave/mousemove events on the dragged
+       element until the drag ends. The 700ms auto-hide timer below
+       doesn't know a drag is in progress, so it could (and did) fire
+       mid-drag, yanking #top-chrome (the actual drag region) out from
+       under the user's cursor — chrome vanishes almost immediately and
+       the window stops moving, since there's no drag region left to
+       drag. chromeDragGuard suspends the hide timer for the whole
+       mousedown-to-mouseup gesture on the revealed chrome, regardless
+       of what mouse events do or don't fire while the OS has control. */
+    var chromeDragGuard     = false;
+
     function chromeAutoHideActive() {
       return moodlockOn || chromeAutoHideOn;
     }
@@ -961,6 +1008,7 @@ var KanvazApp = (function() {
     }
 
     function chromeScheduleHide() {
+      if (chromeDragGuard) return; /* mid window-drag — never hide the drag region out from under the user */
       if (chromeRevealTimer) clearTimeout(chromeRevealTimer);
       /* Short grace delay so moving from the hover zone straight into
          the toolbar/titlebar doesn't immediately hide it again. */
@@ -969,6 +1017,17 @@ var KanvazApp = (function() {
         if (app) app.classList.remove('moodlock-reveal');
         chromeRevealTimer = null;
       }, 700);
+    }
+
+    function chromeDragStart() {
+      chromeDragGuard = true;
+      chromeShow();
+    }
+
+    function chromeDragEnd() {
+      if (!chromeDragGuard) return;
+      chromeDragGuard = false;
+      chromeScheduleHide();
     }
 
     /* Top Mode's reveal is intentionally more minimal than the general
@@ -1022,19 +1081,38 @@ var KanvazApp = (function() {
         chromeHoverZone.id = 'moodlock-hover-zone';
         chromeHoverZone.addEventListener('mouseenter', chromeShow);
         chromeHoverZone.addEventListener('mouseleave', chromeScheduleHide);
+        chromeHoverZone.addEventListener('mousedown', chromeDragStart);
         document.body.appendChild(chromeHoverZone);
         if (topChrome) {
           topChrome.addEventListener('mouseenter', chromeShow);
           topChrome.addEventListener('mouseleave', chromeScheduleHide);
+          topChrome.addEventListener('mousedown', chromeDragStart);
         }
+        /* window-level, capture phase — an OS-native app-region drag can
+           swallow the mouseup on whatever element it started on, so this
+           is listened for globally rather than only on chromeHoverZone/
+           topChrome to guarantee chromeDragGuard always gets cleared.
+           Audit fix: mouseup alone isn't enough — if the window loses
+           focus mid-drag (a UAC/native dialog steals focus, an OS
+           snap-assist overlay appears, an Alt+Tab lands while the button
+           is still down), the terminating mouseup may never be delivered
+           to this window's listeners at all, leaving chromeDragGuard
+           stuck true forever and permanently disabling auto-hide for
+           the rest of the session. blur is the reliable backstop. */
+        window.addEventListener('mouseup', chromeDragEnd, true);
+        window.addEventListener('blur', chromeDragEnd);
         KanvazBridge.setMoodLockSize(true);
       } else {
         app.classList.remove('moodlock-active', 'moodlock-reveal');
         if (chromeHoverZone) { chromeHoverZone.remove(); chromeHoverZone = null; }
         if (chromeRevealTimer) { clearTimeout(chromeRevealTimer); chromeRevealTimer = null; }
+        chromeDragGuard = false;
+        window.removeEventListener('mouseup', chromeDragEnd, true);
+        window.removeEventListener('blur', chromeDragEnd);
         if (topChrome) {
           topChrome.removeEventListener('mouseenter', chromeShow);
           topChrome.removeEventListener('mouseleave', chromeScheduleHide);
+          topChrome.removeEventListener('mousedown', chromeDragStart);
         }
         KanvazBridge.setMoodLockSize(false);
       }

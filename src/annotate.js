@@ -71,8 +71,18 @@ var KanvazAnnotate = (function() {
     if (!ov) return;
 
     /* w/h arrive as the card's new CSS pixel size (see cards.js call
-       sites) — the canvas BUFFER stays dpr times larger, same as attach(). */
-    var dpr = ov.dpr || window.devicePixelRatio || 1;
+       sites) — the canvas BUFFER stays dpr times larger, same as attach().
+       Audit fix: this used to prefer the dpr captured once back at
+       attach() time over a fresh read, so if the window moved to a
+       different-scaling monitor between attach() and this resize()
+       call, every future redraw kept using the stale value — the
+       overlay would render at the wrong sharpness for the display it's
+       actually on. Reading live first (and syncing ov.dpr to match)
+       means the very next resize — which fires whenever the card
+       itself is dragged to a new size, a fairly frequent event — self-
+       corrects instead of staying wrong for the rest of the session. */
+    var dpr = window.devicePixelRatio || ov.dpr || 1;
+    ov.dpr = dpr;
     var oldW = ov.canvas.width;
     var oldH = ov.canvas.height;
     var newW = Math.round(w * dpr);
@@ -401,7 +411,8 @@ var KanvazAnnotate = (function() {
       'border:1px solid var(--color-border-2)',
       'border-radius:8px',
       'padding:4px 8px',
-      'box-shadow:0 4px 16px rgba(0,0,0,0.5)',
+      /* Polish fix: hardcoded shadow that ignored Light theme. */
+      'box-shadow:0 4px 16px var(--color-shadow)',
       'font-family:var(--font-ui)',
       'font-size:11px'
     ].join(';');
@@ -505,6 +516,14 @@ var KanvazAnnotate = (function() {
       toolbarObserver = new MutationObserver(function() { repositionToolbar(); });
       toolbarObserver.observe(worldEl, { attributes: true, attributeFilter: ['style'] });
     }
+    /* Audit fix: the MutationObserver above only catches the card
+       moving relative to the screen because the canvas itself panned/
+       zoomed (transform style change on #canvas-world). A plain window
+       resize that shifts #canvas-container's own screen offset — e.g.
+       a sidebar/toolbar reflow — doesn't touch that transform at all,
+       so the toolbar could drift away from the card it's anchored to
+       until the next pan/zoom happened to nudge it back into sync. */
+    window.addEventListener('resize', repositionToolbar);
   }
 
   var toolbarCardId = null;
@@ -543,6 +562,7 @@ var KanvazAnnotate = (function() {
 
   function hideToolbar() {
     if (toolbarObserver) { toolbarObserver.disconnect(); toolbarObserver = null; }
+    window.removeEventListener('resize', repositionToolbar);
     if (toolbarEl && toolbarEl.parentNode) {
       toolbarEl.parentNode.removeChild(toolbarEl);
     }

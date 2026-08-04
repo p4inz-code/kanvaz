@@ -2,6 +2,27 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [4.2.2] — Visual polish and reliability pass
+
+No new features — a dedicated design-consistency audit (every modal, panel,
+and overlay checked against every other one) plus a reliability re-check
+specifically of the interactive/geometry-sensitive code touched in 4.2.1
+(Top Mode's chrome reveal, Map View's connection rendering).
+
+### Changed — visual polish
+- **Unified every modal/panel's border-radius, shadow, and entrance animation.** Settings, Shortcuts overlay, First-run screen, the About card, and the standard confirm/warn Dialog now all share the same 10px radius and theme-aware shadow, and none of them pop in instantly anymore — each fades and scales in like About already did. Inspector and Properties (structurally identical side panels) now both slide in from their docked edge; only Properties did before.
+- **Replaced every emoji and stray Unicode glyph with the app's own icon language.** The search bar's 🔍, and the first-run screen's ⬇/✱ tip icons, are now small hand-drawn stroke SVGs matching the toolbar's existing icon convention instead of OS-emoji-font glyphs that visually clashed with an otherwise all-vector UI.
+- **Connection-type colors are no longer a raw, unmodified Tailwind palette.** The 7 relationship-type colors (Related To, Inspired By, etc., in the Inspector and Map View) are now drawn from Kanvaz's own palette instead of stock Tailwind blue/violet/emerald/amber/red/indigo, which read as a different design system pasted into the app.
+- **Toasts get an icon.** A small check/✕ glyph now sits next to success/error toast text, matching the icon treatment already used everywhere else in the app — toasts were the one remaining text-only UI element.
+- **The empty-canvas state is no longer the flattest screen in the app.** Its icon is more visible (was practically invisible at 0.18 opacity), lightly accent-tinted, and now animates in — previously a static, undesigned drop straight after the animated First-run screen closes.
+- Fixed two mismatched "delete" hover reds (Inspector and Properties each used a different, non-token red) — both now use the same `--color-red`.
+
+### Fixed — reliability
+- **Top Mode's drag-to-move-the-window bar could vanish mid-drag**, killing the drag before the window actually moved. The auto-hide timer that reveals/hides the top chrome didn't know a native window drag was in progress and could fire in the middle of one. Now suspended for the whole mousedown-to-mouseup gesture, with a window-blur fallback so it can never get stuck permanently disabled if focus is lost mid-drag (a UAC prompt, Alt+Tab, or OS snap-assist appearing while the mouse button is still down).
+- **Map View connections could drift out of alignment after resizing the window** — only the background grid was redrawn on resize; the connection lines themselves weren't. Now re-derived from the live DOM (same source of truth as the initial render), throttled through a single animation-frame so a continuous drag-resize doesn't rebuild every connection's SVG on every intermediate frame.
+- Annotation overlays now read the display's current pixel density live instead of trusting a value cached when annotating started — dragging the window to a different-scaling monitor and then resizing a card no longer leaves that card's annotations rendered at the wrong sharpness.
+- The floating annotation toolbar now repositions on a plain window resize, not only when the canvas itself pans or zooms — previously a resize-driven layout shift (not a pan/zoom) could leave it anchored to the wrong spot.
+
 ## [4.2.1] — Full-stack audit and hardening pass
 
 No new features — a systematic audit of every source file added in the

@@ -20,8 +20,14 @@ var KanvazInspector = (function() {
     'width:300px',
     'background:var(--color-surface)',
     'border:1px solid var(--color-border-2)',
-    'border-radius:10px',
-    'box-shadow:0 8px 32px rgba(0,0,0,0.5)',
+    'border-radius:var(--radius-lg)',
+    /* Polish fix: was a hardcoded rgba(0,0,0,0.5) shadow — looked wrong
+       (too heavy) in Light theme, where every other panel already uses
+       var(--color-shadow) to adapt. Also adds an entrance animation to
+       match its structural twin, the Properties panel, which already
+       had one (panel-slide-in) and this one never did. */
+    'box-shadow:0 8px 32px var(--color-shadow)',
+    'animation:panel-slide-in-right 0.15s ease-out',
     'z-index:20000',
     'display:flex',
     'flex-direction:column',
@@ -75,14 +81,30 @@ var KanvazInspector = (function() {
 
   /* ── Connection type display ── */
 
+  /* Polish fix: these were a raw, unmodified Tailwind default palette
+     (blue-500/violet-500/emerald-500/amber-500/red-500/indigo-500),
+     completely disconnected from Kanvaz's own purple-accent identity —
+     they read as a different design system pasted in. Recolored to sit
+     in the same muted, medium-saturation register as the app's actual
+     tokens (--color-accent/amber/red/green), reusing those exact values
+     where a fit already exists and adding two new hand-picked hues
+     (a soft blue, a soft rose) only where 7 distinct types genuinely
+     need more separation than the existing 4-color token set provides.
+     Left as hex literals rather than var(--color-*) on purpose — this
+     value is concatenated with a '22' alpha suffix below (typeColor()
+     callers) to build a translucent chip background, which only works
+     on a literal hex string, not a CSS custom property reference. Known
+     trade-off: unlike the rest of the app's palette, this still won't
+     adapt to a custom plugin theme or Light theme specifically — a
+     smaller, separately-scoped follow-up if that turns out to matter. */
   var TYPE_COLORS = {
-    RelatedTo:     '#6B7280',
-    InspiredBy:    '#8B5CF6',
-    DerivedFrom:   '#3B82F6',
-    AlternativeTo: '#F59E0B',
-    Supports:      '#10B981',
-    UsedIn:        '#EF4444',
-    References:    '#6366F1'
+    RelatedTo:     '#8F8FC2',
+    InspiredBy:    '#9D7FFF',
+    DerivedFrom:   '#5FA8E0',
+    AlternativeTo: '#F0A500',
+    Supports:      '#4CAF82',
+    UsedIn:        '#FF5A5A',
+    References:    '#E07AC0'
   };
 
   function typeColor(type) {
@@ -326,7 +348,7 @@ var KanvazInspector = (function() {
     delBtn.textContent = '\u2715';
     delBtn.title = 'Remove';
     delBtn.style.cssText = 'background:none;border:none;color:var(--color-text-3);cursor:pointer;font-size:12px;padding:2px;';
-    delBtn.onmouseenter = function() { delBtn.style.color = '#EF4444'; };
+    delBtn.onmouseenter = function() { delBtn.style.color = 'var(--color-red)'; };
     delBtn.onmouseleave = function() { delBtn.style.color = 'var(--color-text-3)'; };
     (function(c) {
       delBtn.onclick = function() {
@@ -365,12 +387,12 @@ var KanvazInspector = (function() {
     dialog.style.cssText = [
       'background:var(--color-surface)',
       'border:1px solid var(--color-border-2)',
-      'border-radius:10px',
+      'border-radius:var(--radius-lg)',
       'padding:20px',
       'width:320px',
       'max-height:80vh',
       'overflow-y:auto',
-      'box-shadow:0 12px 40px rgba(0,0,0,0.6)'
+      'box-shadow:0 12px 40px var(--color-shadow)'
     ].join(';');
 
     /* Title */
@@ -529,10 +551,10 @@ var KanvazInspector = (function() {
     dialog.style.cssText = [
       'background:var(--color-surface)',
       'border:1px solid var(--color-border-2)',
-      'border-radius:10px',
+      'border-radius:var(--radius-lg)',
       'padding:20px',
       'width:300px',
-      'box-shadow:0 12px 40px rgba(0,0,0,0.6)'
+      'box-shadow:0 12px 40px var(--color-shadow)'
     ].join(';');
 
     var title = document.createElement('div');
