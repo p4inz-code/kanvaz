@@ -2,15 +2,70 @@
 
 All notable changes to Kanvaz are documented here.
 
-## [4.2.0] — Plugin system (foundation)
+## [4.2.1] — Full-stack audit and hardening pass
+
+No new features — a systematic audit of every source file added in the
+4.2.0 plugin-system work (and a re-check of everything else), followed by
+fixes for everything it found. Two independent audit passes: one for
+code-level bugs and security, a second specifically for UI copy that no
+longer matched actual app behavior.
+
+### Fixed — data loss & correctness
+- **Annotations (pen/arrow/rectangle strokes) weren't marked dirty or pushed to undo history** — closing the app right after annotating (with no other change to trigger a save prompt) silently lost the annotation. Now marks the board dirty and pushes an undo step the moment a stroke is committed.
+- **`pluginData` wasn't cloned in undo/redo snapshots** — a plugin card's data object was captured by reference, so a later in-place mutation could retroactively corrupt an already-pushed history snapshot. Now deep-cloned like every other mutable card field, with a safe fallback if the data isn't JSON-serializable.
+- **A non-serializable card (bad `pluginData`) could abort an entire save or asset-pack operation** — `JSON.stringify()` and the board-container packing loop now isolate failures to the one offending card instead of losing the whole board.
+- **`deserialise()` let one malformed card crash loading the entire board** — each card now loads inside its own try/catch; a bad card is skipped and logged, the rest of the board still opens.
+- **Windows path-separator bug in Save As** — the "Board saved as …" toast used a forward-slash-only split, so on Windows it displayed the entire absolute path instead of just the filename.
+- **Recent-boards list built its rows with string-concatenated `innerHTML`** — a board or folder name containing HTML-like characters could inject markup into the startup screen. Rebuilt with safe DOM text nodes.
+- Several silent `.catch()` blocks (save, save-as, open) now surface a toast on failure instead of failing invisibly with only a console log.
+
+### Fixed — plugin system robustness
+- **Plugin storage writes could race** — overlapping saves for the same plugin shared one temp filename; switched to a unique temp file per write plus async file I/O, and capped storage at 5MB per plugin.
+- **A plugin registering `id: "dark"` or `"light"` could silently hijack a built-in theme app-wide** — `registerTheme()` now rejects Kanvaz's own reserved theme ids.
+- **A plugin card type or Settings panel throwing during render could take down more than itself** — card rendering, context-menu building, and settings-panel rendering are now individually try/catch-isolated with a visible fallback instead of an app-wide break.
+- **Settings panels rendered by a plugin were built before being attached to the page**, breaking any `getComputedStyle`/`getBoundingClientRect` call inside a plugin's `render()`. Panel rendering is now deferred until after the container is actually in the DOM.
+- **`plugins-remove` could wipe the wrong plugin's stored data** if called with a mismatched folder/id pair — now requires a verified match before touching disk.
+- Removed the dead `pdf` ghost entry from the card-type registry (no creation path ever existed for it).
+
+### Fixed — shortcuts & input
+- **Every Ctrl-combo shortcut broke under Caps Lock** — comparisons against `e.key`'s hardcoded case silently failed when Caps Lock flipped the reported case; now compares a lowercased key against the modifier booleans only.
+- **The Properties and Inspector panels swallowed Ctrl+S/Ctrl+Z and friends while open**, so saving or undoing didn't work with a panel focused. Modifier-held shortcuts now bubble through; plain keys still don't leak into card-level handlers.
+- Pressing L to toggle theme no longer bypasses the cleanup that removes a stale plugin-theme stylesheet.
+
+### Fixed — smaller issues
+- Media metadata reads (`getNaturalSize`/`getVideoSize`) could hang indefinitely on a malformed file; now time out after 8s with a sane fallback size.
+- Map View's `setState()` and port-position math no longer accept negative/NaN/out-of-range values, and the sanity bound was widened to stop clipping ports on very large auto-laid-out boards (2,700+ cards).
+- `formatTime()` no longer prints garbage for a non-finite duration.
+- Fixed two dead/duplicate CSS rules and hardcoded color literals in the light theme that should have referenced the shared accent-color variable.
+
+### Security
+- Added `will-navigate` and `setWindowOpenHandler` guards in the main process, closing off a class of exfiltration/redirect attempts a compromised renderer script could otherwise attempt.
+- Added `worker-src 'self'` to the CSP.
+- Rewrote the plugin-permission code comments, the install-consent dialog text, and a new "Plugin System — trust model" section in [SECURITY.md](SECURITY.md) to honestly state that the declared permission list is not currently enforced at the IPC layer — an approved plugin has the same practical access as Kanvaz's own code. This was previously implied to be more restrictive than it actually is; nothing about the underlying behavior changed, only the documentation now matches it.
+
+### Fixed — UI copy & documentation accuracy
+A dedicated pass checked every user-facing claim (tooltips, the Shortcuts overlay, the first-run screen, context menus, README/CHANGELOG/SECURITY.md) against what the app actually does:
+- The Shortcuts overlay, the canvas right-click menu, and the first-run welcome screen all described double-click-to-create-a-note as if it always works — it's off by default (`doubleClickCreatesNote` in Settings). All three now reflect the actual setting, or hide the hint when it doesn't apply.
+- Added the missing `Ctrl+F` / `/` search shortcut and the `Ctrl+Shift+F` Top Mode alternate binding to the Shortcuts overlay.
+- The titlebar's "Export board" button actually performs a Save As to the same `.kanvaz` format (not a format conversion) — relabeled to "Save board as…".
+- README and SECURITY.md both claimed the update check was "a single request" to GitHub — it's actually two independent requests per click (the bundled updater's own check, plus a separate version-info lookup). Both docs now say so.
+- SECURITY.md still described `.kanvaz` files as "plain JSON with base64 media" — stale since 4.1.0's zip-container format change. Corrected.
+- README described the `pdf` card type as "still in the type registry" — it was removed this pass (see above); README updated to match, and no longer calls Theme Creator "planned" now that it has shipped.
+- CHANGELOG's 4.2.0 entry said "no first-party plugins ship yet," directly contradicting the Theme Creator plugin that shipped in that same release — corrected, and the 4.2.0 entry now actually lists everything that shipped in it (registerTheme, registerSettingsPanel, storage API, Theme Creator).
+
+## [4.2.0] — Plugin system (foundation) + Theme Creator
 
 The first piece of a plugin system: third parties can now extend Kanvaz
-without forking it, starting with custom card types. This is the
-foundation layer only — commands, event hooks, and a command palette are
-a later phase; no first-party plugins ship yet.
+without forking it — custom card types, full-peer themes, and settings
+panels. This is the foundation layer only — commands, event hooks, and a
+command palette are a later phase. Theme Creator ships alongside it as
+Kanvaz's first official plugin, proving the API end-to-end with something
+genuinely useful rather than a toy example.
 
 ### Added
-- **Plugin system, Layer 1** — a plugin is a folder (`plugin.json` manifest + one plain JS entry file, no build step) dropped into a `plugins` folder Kanvaz manages for you. `window.KanvazPluginAPI.registerCardType()` is the first real API surface; a plugin's entry script loads as a normal `<script>`, same trust model as a browser extension, not an iframe-sandboxed one.
+- **Plugin system, Layer 1** — a plugin is a folder (`plugin.json` manifest + one plain JS entry file, no build step) dropped into a `plugins` folder Kanvaz manages for you. A plugin's entry script loads as a normal `<script>`, same trust model as a browser extension, not an iframe-sandboxed one.
+- **`window.KanvazPluginAPI`** — `registerCardType()` (new card types with a working create/render/context-menu path), `registerTheme()` + `applyTheme()` (a plugin theme is a full peer of the built-in dark/light themes, not a partial override layered on top of one), `registerSettingsPanel()` (a plugin can add its own labeled section to Settings), and size-capped per-plugin persistent storage (`storage.load`/`storage.save`).
+- **Theme Creator (official plugin)** — a full in-app theme editor: live color pickers with instant preview across the whole app, save-as-preset, a presets list with pin/star/rename/apply/edit/delete, and one-click reset to Kanvaz's own defaults. Installs the same way any plugin does (Settings → Plugins → Add a Plugin…) — not bundled into the base installer, ships as a separate release asset.
 - **Settings → Plugins** — lists installed plugins with an enable/disable toggle (once approved) or a "Review & Enable" prompt (before first approval, or after a permission-escalating update), and a Remove button. "Add a Plugin…" opens the plugins folder directly — no manual path-typing, no knowing where `%APPDATA%` is.
 - **Native consent dialog** — enabling a plugin for the first time (or after it requests new permissions) shows an OS-native dialog listing exactly what it's asking for, read directly from the plugin's own `plugin.json` at approval time.
 - **Graceful degradation for missing plugins** — a board card whose type belongs to a since-disabled or removed plugin shows a clear "Unknown card type — needs plugin: X" placeholder instead of breaking anything else on the board.

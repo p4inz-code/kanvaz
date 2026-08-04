@@ -61,16 +61,42 @@ function packBoard(jsonString) {
     for (var i = 0; i < list.length; i++) {
       (function(card) {
         if (!card.dataUrl || typeof card.dataUrl !== 'string') return;
-        var match = /^data:([^;]+);base64,([\s\S]*)$/.exec(card.dataUrl);
-        if (!match) return; /* not a data URL we recognize — leave as-is */
-        var mime = match[1];
-        var buf = Buffer.from(match[2], 'base64');
-        var ext = MIME_TO_EXT[mime] || 'bin';
-        var assetName = card.id + '.' + ext;
-        assets.file(assetName, buf);
-        card.dataUrl   = null;
-        card.assetRef  = 'assets/' + assetName;
-        card.assetHash = crypto.createHash('sha256').update(buf).digest('hex');
+        /* Audit fix: this whole per-card block used to have no try/catch.
+           A single malformed card (unexpected dataUrl shape, corrupt
+           base64, anything Buffer.from/crypto could choke on) threw
+           uncaught here, aborting THIS ENTIRE FUNCTION — and therefore
+           the whole board save, not just that one card's asset —
+           directly contradicting this module's own design goal (see the
+           file header: "this is the only place a mistake could do any
+           damage", meant as damage contained to one asset, never to the
+           whole save). Falls back to leaving that one card's dataUrl
+           exactly as it was (embedded inline, same as a pre-4.1.0 file)
+           rather than losing the save entirely. */
+        try {
+          var match = /^data:([^;]+);base64,([\s\S]*)$/.exec(card.dataUrl);
+          if (!match) return; /* not a data URL we recognize — leave as-is */
+          var mime = match[1];
+          var buf = Buffer.from(match[2], 'base64');
+          var ext = MIME_TO_EXT[mime] || 'bin';
+          var assetName = card.id + '.' + ext;
+          assets.file(assetName, buf);
+          card.dataUrl   = null;
+          card.assetRef  = 'assets/' + assetName;
+          card.assetHash = crypto.createHash('sha256').update(buf).digest('hex');
+          /* Audit fix: MIME_TO_EXT only covers Kanvaz's own built-in
+             media types. A plugin-authored card's dataUrl can carry any
+             MIME string (e.g. a plugin embedding image/svg+xml) — without
+             this, such a card fell back to ext:'bin' here and was
+             silently reconstructed as the generic application/octet-
+             stream on the next load, permanently losing the real MIME
+             type and breaking anything (like an <img src>) that depends
+             on it. Stored as a separate field so the exact original MIME
+             survives the round trip regardless of whether it's in
+             MIME_TO_EXT at all. */
+          card.assetMime = mime;
+        } catch (e) {
+          console.error('[Kanvaz] could not pack asset for card "' + (card.id || '?') + '", saving it inline instead:', e.message);
+        }
       })(list[i]);
     }
   }
@@ -104,14 +130,22 @@ function unpackBoard(buf) {
         for (var i = 0; i < list.length; i++) {
           (function(card) {
             if (!card.assetRef) return;
-            var ref = card.assetRef;
+            var ref  = card.assetRef;
             var hash = card.assetHash;
+            /* Audit fix: prefer the exact MIME recorded at pack time
+               (see packBoard() above) over guessing from the file
+               extension — the extension-based EXT_TO_MIME lookup only
+               covers Kanvaz's own built-in media types and is now just
+               the backward-compat fallback for assets packed by an
+               older Kanvaz version that didn't record assetMime yet. */
+            var explicitMime = card.assetMime;
             /* Clear the container-only bookkeeping fields immediately —
                the card object handed back to the renderer should look
                exactly like it always has (dataUrl populated, nothing
                else), regardless of which branch below runs. */
             delete card.assetRef;
             delete card.assetHash;
+            delete card.assetMime;
             var entry = zip.file(ref);
             if (!entry) { card.dataUrl = null; return; }
             pending.push(entry.async('nodebuffer').then(function(assetBuf) {
@@ -120,7 +154,7 @@ function unpackBoard(buf) {
                 if (actual !== hash) { card.dataUrl = null; return; }
               }
               var ext = ref.split('.').pop().toLowerCase();
-              var mime = EXT_TO_MIME[ext] || 'application/octet-stream';
+              var mime = explicitMime || EXT_TO_MIME[ext] || 'application/octet-stream';
               card.dataUrl = 'data:' + mime + ';base64,' + assetBuf.toString('base64');
             }));
           })(list[i]);

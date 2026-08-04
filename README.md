@@ -16,7 +16,9 @@
 
 **Reference Operating System**
 
-> **v4.2.0** — The foundation of a plugin system: third parties can add new card types without forking Kanvaz, installed by dropping a folder in (no build step). Enabling a plugin always goes through a native, permission-disclosing OS dialog. See [CHANGELOG.md](CHANGELOG.md) for the full list.
+> **v4.2.1** — Full-stack audit and hardening pass across every source file: a plugin-storage race, several data-loss and XSS-adjacent bugs, Caps-Lock-broken shortcuts, and a round of UI copy that no longer matched actual behavior, all fixed. See [CHANGELOG.md](CHANGELOG.md) for the full list.
+>
+> **v4.2.0** — The foundation of a plugin system: third parties can add new card types without forking Kanvaz, installed by dropping a folder in (no build step). Enabling a plugin always goes through a native, permission-disclosing OS dialog, and Theme Creator ships as the first official plugin. See [CHANGELOG.md](CHANGELOG.md) for the full list.
 >
 > **v4.1.0** — URL and File reference cards (link/point at something without embedding it), a safer `.kanvaz` file format (zip container with per-asset integrity checks instead of one giant base64 JSON blob — old files still open fine), and another security/reliability pass.
 >
@@ -55,7 +57,7 @@ See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 **Connection Inspector** — select any reference and press C to see all its incoming and outgoing connections. Create, edit, and delete relationships from a side panel.
 
-**100% Offline** — no accounts, no telemetry, no internet required. Your `.kanvaz` files never leave your machine. The one exception: an optional "Check for updates" button in the About screen makes a single request to GitHub — only if you click it, never automatically.
+**100% Offline** — no accounts, no telemetry, no internet required. Your `.kanvaz` files never leave your machine. The one exception: an optional "Check for updates" button in the About screen, which fires two GitHub requests (the built-in updater's own check, plus a version-info lookup for the About screen) — only if you click it, never automatically.
 
 ---
 
@@ -77,7 +79,7 @@ See [CHANGELOG.md](CHANGELOG.md) for version history.
 - Developer settings (Settings → Developer) — FPS/render-time overlay, card/connection ID overlay, manual diagnostics trigger, bulk test-card generator, one-click debug-info export for bug reports
 - Top Mode auto-enables Always on Top (Settings → Behavior, off by default) — restores your prior Always-on-Top state when you exit Top Mode
 - Tab+MMB whole-window drag — hold Tab and drag with the middle mouse button to move the window from anywhere on screen
-- Optional update check (About screen) — the one network call in the entire app, fires only when you click it, never automatically
+- Optional update check (About screen) — the only network activity in the entire app (two GitHub requests: the built-in updater's own check, plus a version-info lookup), fires only when you click it, never automatically
 - Reset Kanvaz (Settings → Reset) — clears settings, recent-files list, and autosave/recovery cache, then restarts. Never touches saved `.kanvaz` boards, which always live outside the app's own data folder regardless of where you save them
 - Tag editing — add/remove tags directly on any card, shown as chips on hover/selection
 - Search/filter (`/` or Ctrl+F) — live filter by name, type, or tag; matches stay full-opacity, everything else dims so you keep spatial context
@@ -118,7 +120,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 4.2.0.exe` and `dist/Kanvaz 4.2.0.exe`
+Output: `dist/Kanvaz Setup 4.2.1.exe` and `dist/Kanvaz 4.2.1.exe`
 
 **macOS:**
 ```bash
@@ -179,10 +181,10 @@ Files saved by 4.0.1 and earlier (plain JSON, base64 media) still open exactly a
 
 - Properties panel is basic key-value editing only (text values) — no dropdown/date/number field types yet.
 - MKV and AVI video files may not play (Chromium codec limitation) — MP4 (H.264) and WebM recommended. Kanvaz now tells you plainly when this is why a video card failed, instead of a generic "missing media" message.
-- PDF reference cards aren't implemented — `pdf` is still in the type registry for a future version with real page thumbnails, but there's no creation UI for it today (unlike `url` and `file`, which fully ship as of 4.1.0).
+- PDF reference cards aren't implemented — there's no `pdf` card type or creation UI today (unlike `url` and `file`, which fully ship as of 4.1.0). A real PDF card type (with page thumbnails) is a possible future addition, not something partially built.
 - Cross-board connections aren't possible from the UI — the data model doesn't prevent it, but only one board's cards are ever loaded at a time, so the "Connect to" picker can only offer cards from the board you're currently on.
 - Autosave writes to a recovery file only — "Unsaved changes" in the status bar clears only on explicit Save (Ctrl+S). The recovery file is now cleared on every clean close (v3.6.5) so the "Recover unsaved board?" prompt only appears after an actual crash, not on every launch.
-- The plugin system currently covers custom card types only — no commands, no event hooks, no command palette yet, and no first-party plugins ship in the base install. Enabling a newly-approved plugin takes effect immediately; disabling one takes effect after restart.
+- The plugin system currently covers custom card types, full-peer themes, and a settings-panel API only — no commands, no event hooks, no command palette yet. The base installer itself still bundles zero plugins by design (see the Plugin System section of [SECURITY.md](SECURITY.md)); Kanvaz's first official plugin, Theme Creator, installs separately the same way any third-party plugin does. Enabling a newly-approved plugin takes effect immediately; disabling one takes effect after restart.
 
 ---
 
@@ -194,7 +196,7 @@ Kanvaz 4.x is intended to be the last major version, with only small fixes after
 - Richer Properties panel field types (dropdown, date, number, checkbox) — likely to ship as a plugin now that the plugin system exists, rather than a core feature
 - Cross-board connections, if it turns out to matter enough to design the UI for it
 - Map View auto-layout algorithms
-- Plugin system, next layers: a Commands API + command palette, then event hooks; a first-party theme plugin and an opt-in AI-assisted tagging plugin are planned as the first real plugins built on top of it
+- Plugin system, next layers: a Commands API + command palette, then event hooks. Theme Creator (full in-app theme editor with live preview, presets, and pin/star) already ships as the first official plugin; an opt-in AI-assisted tagging plugin is planned as the next one
 
 ---
 

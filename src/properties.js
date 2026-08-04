@@ -110,7 +110,19 @@ var KanvazProperties = (function() {
         close();
         return;
       }
-      e.stopPropagation();
+      /* Audit fix: this used to stop propagation unconditionally, which
+         also swallowed the Ctrl/Cmd-modified shortcuts shortcuts.js
+         documents as "always fire regardless of focus" (Ctrl+S, Ctrl+O,
+         Ctrl+Shift+S, Ctrl+F) — Save silently did nothing while focus
+         happened to be on a property value input inside this panel, no
+         error or feedback shown. Only swallow plain, unmodified keys —
+         this panel's actual concern is stopping something like a bare
+         "p" or Delete from leaking through to the global per-card
+         shortcuts dispatcher while the user is interacting with this
+         panel's own controls, not intercepting app-level shortcuts. */
+      if (!e.ctrlKey && !e.metaKey) {
+        e.stopPropagation();
+      }
     });
 
     /* ── Header ── */

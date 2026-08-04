@@ -56,6 +56,8 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
   reviewAndEnablePlugin: function(folder) { return ipcRenderer.invoke('plugins-review-and-enable', folder); },
   setPluginEnabled:     function(id, enabled) { return ipcRenderer.invoke('plugins-set-enabled', id, enabled); },
   removePlugin:         function(folder, id) { return ipcRenderer.invoke('plugins-remove', folder, id); },
+  getPluginStorage:     function(id) { return ipcRenderer.invoke('plugins-storage-get', id); },
+  setPluginStorage:     function(id, data) { return ipcRenderer.invoke('plugins-storage-set', id, data); },
 
   /* Settings */
   readSettings:    function() { return ipcRenderer.invoke('settings-read'); },

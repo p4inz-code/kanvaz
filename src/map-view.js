@@ -162,9 +162,20 @@ var KanvazMapView = (function() {
     if (wRect.width === 0 || wRect.height === 0) return null;
     var x = (dRect.left + dRect.width / 2 - wRect.left) / scale;
     var y = (dRect.top  + dRect.height / 2 - wRect.top) / scale;
-    /* Sanity: if the computed position is wildly outside the
-       expected range, the DOM read was unreliable — fall back. */
-    if (x < -5000 || x > 50000 || y < -5000 || y > 50000) return null;
+    /* Sanity: if the computed position is wildly outside the expected
+       range, the DOM read was unreliable — fall back to math instead.
+       Audit fix: this was a flat 50000 constant, never checked against
+       the auto-layout math below (AUTO_COLS=5, AUTO_GAP_Y=90 → any card
+       without a manual mapPosition gets y = floor(idx/5)*90+60). Solving
+       for where that first exceeds 50000 gives row 556, i.e. card index
+       ~2780 — past that point, EVERY auto-laid-out card on a large board
+       permanently fell back to the less-accurate math-based port
+       position instead of the real DOM one, a correctness cliff that
+       gets worse the bigger the board. Raised generously so it only
+       ever catches genuinely bogus values (corruption, a stray NaN/
+       Infinity slipping through), not legitimate large-board layouts —
+       comfortably covers tens of thousands of auto-positioned cards. */
+    if (x < -5000 || x > 500000 || y < -5000 || y > 500000) return null;
     return { x: x, y: y };
   }
 
@@ -1432,7 +1443,19 @@ var KanvazMapView = (function() {
   function getState()  { return { tx: tx, ty: ty, scale: scale }; }
   function setState(s) {
     if (!s) return;
-    tx = s.tx || 0; ty = s.ty || 0; scale = s.scale || 1.0;
+    /* Audit fix: this restores tx/ty/scale from board-file data that
+       could be corrupted, hand-edited, or from a version-skewed file —
+       `s.scale || 1.0` only caught falsy/0/NaN, not a negative number
+       (mirrors the whole map via a negative CSS scale()) or a value
+       wildly outside the normal zoom range. Unlike canvas.js's
+       clampTranslate(), Map View had no equivalent sanitization
+       anywhere — this is the missing counterpart. */
+    var newTx    = Number(s.tx);
+    var newTy    = Number(s.ty);
+    var newScale = Number(s.scale);
+    tx    = isFinite(newTx) ? newTx : 0;
+    ty    = isFinite(newTy) ? newTy : 0;
+    scale = (isFinite(newScale) && newScale > 0) ? Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, newScale)) : 1.0;
     if (active) { applyTransform(); updateZoomDisplay(); }
   }
   function resetView() {

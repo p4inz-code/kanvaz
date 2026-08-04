@@ -260,6 +260,17 @@ var KanvazAnnotate = (function() {
     if (ov) {
       ov.strokes.push(stroke);
       if (typeof KanvazCards !== 'undefined') KanvazCards.refreshAnnotationDot(activeCardId);
+      /* Audit fix (CRITICAL): drawing a stroke is a real, savable edit —
+         same as moving/resizing/deleting a card — but this never marked
+         the board dirty or pushed undo history, unlike clearAnnotations()
+         just below, which correctly does both. A session where the ONLY
+         edits were annotations would take the close dialog's "no unsaved
+         changes" fast path (which also wipes the crash-recovery cache),
+         permanently losing every stroke with no save prompt at all, and
+         Ctrl+Z right after drawing would silently do nothing (or undo
+         something unrelated) instead of removing the stroke. */
+      KanvazApp.markDirty();
+      KanvazHistory.push();
     }
   }
 

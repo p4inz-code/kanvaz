@@ -74,27 +74,42 @@
   --color-overlay:   rgba(0, 0, 0, 0.25);
 }
 
-/* ── Light theme: specific overrides ── */
+/* ── Light theme: specific overrides ──
+   KNOWN LIMITATION (documented during the 4.2.0 plugin-system audit):
+   these 8 rules are scoped to the literal selector [data-theme="light"]
+   — they are NOT part of the --color-* variable system, so a plugin
+   theme (which sets data-theme to its own id, e.g. via the Theme
+   Creator plugin) can never match them, even one the user deliberately
+   designs with a light/white background. That theme falls back to
+   these dark-tuned defaults instead (e.g. a heavier box-shadow tuned
+   for dark backgrounds instead of the softer one below). The variable-
+   level audit for this file found the CSS variable set itself is fully
+   complete for plugin themes (25/25 match, see the Theme Creator's
+   buildThemeCss()) — this is a separate, smaller cosmetic gap at the
+   selector level, not a missing-variable bug. Fixing it properly would
+   mean deriving these few rules from computed luminance in JS rather
+   than a hardcoded selector — noted here as a scoped future
+   improvement, not attempted in this pass. */
 :root[data-theme="light"] .card.selected {
   border-color: var(--color-accent) !important;
-  box-shadow: 0 0 0 2px rgba(43, 127, 212, 0.25), 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+  /* Audit fix: was a hardcoded rgba(43,127,212,...) literal duplicating
+     --color-accent-rgb's light-theme value above — real drift risk if
+     the light accent color is ever edited without remembering to also
+     update this literal. Uses the variable instead, like every other
+     accent-tinted rule in this file. */
+  box-shadow: 0 0 0 2px rgba(var(--color-accent-rgb), 0.25), 0 2px 8px rgba(0, 0, 0, 0.08) !important;
 }
 
 :root[data-theme="light"] .card {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
-:root[data-theme="light"] #titlebar {
-  border-bottom: 1px solid var(--color-border);
-}
-
-:root[data-theme="light"] #toolbar {
-  border-bottom: 1px solid var(--color-border);
-}
-
-:root[data-theme="light"] #statusbar {
-  border-top: 1px solid var(--color-border);
-}
+/* Audit fix: removed 3 dead/redundant rules that used to sit here
+   (#titlebar, #toolbar, #statusbar border overrides) — each was
+   byte-identical to its own already-unconditional base rule elsewhere
+   in this file (border-bottom/border-top: 1px solid var(--color-border)),
+   which already resolves to the correct per-theme color via the
+   variable regardless of data-theme. They had zero effect. */
 
 :root[data-theme="light"] #context-menu {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
@@ -102,7 +117,8 @@
 }
 
 :root[data-theme="light"] .ctx-item:hover {
-  background: rgba(43, 127, 212, 0.08);
+  /* Audit fix: same hardcoded-literal drift risk as .card.selected above. */
+  background: rgba(var(--color-accent-rgb), 0.08);
 }
 
 :root[data-theme="light"] .view-toggle-btn.view-toggle-active {

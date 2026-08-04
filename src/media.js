@@ -42,12 +42,35 @@ var KanvazMedia = (function() {
 
   /* ── Natural size from image/gif dataUrl ── */
 
+  /* Audit fix: both size-detection functions below relied solely on
+     onload/onerror (or onloadedmetadata/onerror) firing — for a
+     malformed/truncated file that the decoder neither accepts nor
+     definitively rejects, neither ever fires, and the drop/paste
+     operation just silently hangs forever with no toast, no fallback,
+     nothing. A timeout guarantees the callback always eventually runs.
+     8s mirrors the same reasoning already used for checkForUpdates()'s
+     fetch() timeout in ui.js ("fetch never times out on its own"). */
+  var MEDIA_METADATA_TIMEOUT_MS = 8000;
+
   function getNaturalSize(dataUrl, callback) {
     var img = new Image();
+    var done = false;
+    var timer = setTimeout(function() {
+      if (done) return;
+      done = true;
+      console.warn('[Kanvaz] image metadata load timed out, using fallback size');
+      callback(300, 200);
+    }, MEDIA_METADATA_TIMEOUT_MS);
     img.onload = function() {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
       callback(img.naturalWidth, img.naturalHeight);
     };
     img.onerror = function() {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
       callback(300, 200);
     };
     img.src = dataUrl;
@@ -57,13 +80,27 @@ var KanvazMedia = (function() {
 
   function getVideoSize(dataUrl, callback) {
     var vid = document.createElement('video');
+    var done = false;
+    var timer = setTimeout(function() {
+      if (done) return;
+      done = true;
+      console.warn('[Kanvaz] video metadata load timed out, using fallback size');
+      callback(400, 300);
+      vid.src = '';
+    }, MEDIA_METADATA_TIMEOUT_MS);
     vid.onloadedmetadata = function() {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
       var w = vid.videoWidth  || 400;
       var h = vid.videoHeight || 300;
       callback(w, h);
       vid.src = '';
     };
     vid.onerror = function() {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
       callback(400, 300);
     };
     vid.src = dataUrl;
@@ -199,6 +236,10 @@ var KanvazMedia = (function() {
   }
 
   function formatTime(seconds) {
+    /* Audit fix: some malformed/streamed video files report duration as
+       NaN or Infinity — this had no guard, producing a literal "NaN:NaN"
+       label instead of a sensible placeholder. */
+    if (!isFinite(seconds) || seconds < 0) return '--:--';
     var m = Math.floor(seconds / 60);
     var s = Math.floor(seconds % 60);
     return m + ':' + (s < 10 ? '0' : '') + s;

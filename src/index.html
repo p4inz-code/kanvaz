@@ -7,9 +7,21 @@
        <script src="file://..."> pointing at a user-installed plugin's entry
        file, and nothing else. It does NOT add 'unsafe-inline' or
        'unsafe-eval' — inline scripts and eval/Function-from-string are still
-       fully blocked everywhere in the app, including inside plugin code. -->
+       fully blocked everywhere in the app, including inside plugin code.
+       worker-src is set explicitly to 'self' (audit fix, 4.2.0) — without
+       it, an unset worker-src falls back through child-src to script-src,
+       which would implicitly let the same file: grant spin up a
+       new Worker('file:///...') too. Nothing in the app does this today,
+       but there's no reason to leave that door open. -->
+  <!-- Note on defense-in-depth vs. the plugin trust model: CSP protects
+       against script/content INJECTION (e.g. a stray innerHTML bug). It
+       does not and cannot sandbox an APPROVED plugin's own code — that
+       plugin's script is intentionally allowed to run, same page context
+       as the rest of the app. See SECURITY.md and the comment above the
+       plugin IPC handlers in main.js for the actual trust boundary. -->
+
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; script-src 'self' file:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://api.github.com; object-src 'none'; base-uri 'self';">
+    content="default-src 'self'; script-src 'self' file:; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://api.github.com; object-src 'none'; base-uri 'self';">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kanvaz</title>
   <link rel="stylesheet" href="main.css">
@@ -30,7 +42,13 @@
     <div id="titlebar-title">Untitled Board</div>
 
     <div id="titlebar-controls">
-      <button class="titlebar-btn" id="btn-export" title="Export board (Ctrl+Shift+S)">
+      <!-- Audit fix: this button calls KanvazBoards.saveBoardAs(), which
+           writes a new .kanvaz file (same native format, new path/name) —
+           it does not convert to any other file format, so "Export" was
+           misleading. Left the element id as btn-export (internal only,
+           app.js wires it via getElementById) to avoid an unrelated
+           id-rename diff; only the user-facing label changed. -->
+      <button class="titlebar-btn" id="btn-export" title="Save board as… (Ctrl+Shift+S)">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
           <path d="M7 1v8M4 4l3-3 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           <path d="M2 9v2.5A1.5 1.5 0 003.5 13h7A1.5 1.5 0 0012 11.5V9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>

@@ -94,6 +94,28 @@ var KanvazInspector = (function() {
     return type.replace(/([A-Z])/g, ' $1').trim();
   }
 
+  /* Audit fix: every icon lookup in this panel went straight to
+     KanvazRefTypes.getIcon(), which only knows about the built-in
+     types and gracefully falls back to a generic ❓ for anything else —
+     including a plugin card type, even though the plugin declared its
+     own real icon via registerCardType(id, { icon, ... }), exposed
+     through KanvazPluginAPI._getAllCardTypeDefs(). Every plugin card
+     showed as "❓ My Widget" here (title row, connection rows, and the
+     "Connect to" picker) even though the card's own face — rendered by
+     the plugin's render() — presumably shows the real icon correctly.
+     This checks the plugin registry first, falling back to
+     KanvazRefTypes for built-ins (and to that module's own ❓ default
+     if a type is genuinely unknown to both). */
+  function getTypeIcon(type) {
+    if (typeof KanvazPluginAPI !== 'undefined' && KanvazPluginAPI._getAllCardTypeDefs) {
+      var defs = KanvazPluginAPI._getAllCardTypeDefs();
+      for (var i = 0; i < defs.length; i++) {
+        if (defs[i].id === type && defs[i].icon) return defs[i].icon;
+      }
+    }
+    return (typeof KanvazRefTypes !== 'undefined') ? KanvazRefTypes.getIcon(type) : '❓';
+  }
+
   /* ── Open / Close ── */
 
   function open(refId) {
@@ -119,10 +141,7 @@ var KanvazInspector = (function() {
     var titleRow = document.createElement('div');
     titleRow.style.cssText = 'font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
 
-    var icon = '';
-    if (typeof KanvazRefTypes !== 'undefined') {
-      icon = KanvazRefTypes.getIcon(ref.type) + ' ';
-    }
+    var icon = getTypeIcon(ref.type) + ' ';
     titleRow.textContent = icon + (ref.name || 'Untitled');
     titleWrap.appendChild(titleRow);
 
@@ -276,10 +295,7 @@ var KanvazInspector = (function() {
     nameRow.style.cssText = 'margin-top:6px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
 
     var arrow = direction === 'to' ? '\u2192 ' : '\u2190 ';
-    var icon  = '';
-    if (target && typeof KanvazRefTypes !== 'undefined') {
-      icon = KanvazRefTypes.getIcon(target.type) + ' ';
-    }
+    var icon  = target ? (getTypeIcon(target.type) + ' ') : '';
     nameRow.textContent = arrow + icon + targetName;
     row.appendChild(nameRow);
 
@@ -383,10 +399,7 @@ var KanvazInspector = (function() {
       var c = cards[id];
       var opt = document.createElement('option');
       opt.value = id;
-      var icon = '';
-      if (typeof KanvazRefTypes !== 'undefined') {
-        icon = KanvazRefTypes.getIcon(c.type) + ' ';
-      }
+      var icon = getTypeIcon(c.type) + ' ';
       opt.textContent = icon + (c.name || 'Untitled');
       targetSelect.appendChild(opt);
     }
@@ -476,6 +489,31 @@ var KanvazInspector = (function() {
     overlay.onclick = function(e) {
       if (e.target === overlay) overlay.parentNode.removeChild(overlay);
     };
+
+    /* Audit fix: this dialog previously had NO keydown handling at all,
+       unlike properties.js's panel, which already stops shortcuts from
+       leaking through. Concretely: select a card, press C to open
+       Connections, click "+ Add connection" (auto-focuses targetSelect,
+       a <select> — shortcuts.js's own text-input check doesn't cover
+       SELECT either, see the matching fix there), then press
+       Backspace/Delete out of habit to "back out" — that fired the
+       global deleteSelected() and deleted the very card this dialog is
+       about to connect, while the dialog stayed open pointing at a now-
+       dead id. Same pattern as properties.js: swallow plain keys so
+       they can't reach the global per-card dispatcher, allow Ctrl/Cmd
+       shortcuts (Save, etc.) to still bubble through, and handle Escape
+       here directly so it closes this dialog instead of doing nothing
+       useful via the global handler. */
+    overlay.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        return;
+      }
+      if (!e.ctrlKey && !e.metaKey) {
+        e.stopPropagation();
+      }
+    });
 
     document.body.appendChild(overlay);
     targetSelect.focus();
@@ -583,6 +621,21 @@ var KanvazInspector = (function() {
     overlay.onclick = function(e) {
       if (e.target === overlay) overlay.parentNode.removeChild(overlay);
     };
+
+    /* Audit fix — same reasoning as showAddDialog() above: without this,
+       Delete/Backspace/P/etc. leaked through to the global per-card
+       shortcuts dispatcher while this dialog was open, able to delete
+       or pin the very card this connection belongs to mid-edit. */
+    overlay.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        return;
+      }
+      if (!e.ctrlKey && !e.metaKey) {
+        e.stopPropagation();
+      }
+    });
 
     document.body.appendChild(overlay);
   }

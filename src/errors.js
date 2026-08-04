@@ -89,6 +89,18 @@ var KanvazErrors = (function() {
   }
 
   function init() {
+    /* Audit fix: these two handlers used to build their own toast text
+       by hand from the raw JS error message + file:line, instead of
+       calling handle('UNKNOWN', ...) like every other failure path in
+       the app — which produces the polished "E999: An unexpected error
+       occurred... [action]" message this module's own catalog already
+       defines for exactly this case. That inconsistency matters more
+       now than it used to: since a plugin's entry script runs in the
+       same page context as the rest of the app (see plugin-api.js), a
+       plugin's own uncaught top-level error is a real, live path into
+       window.onerror — and users were seeing raw technical stack text
+       here instead of the same guidance every other error in Kanvaz
+       gives them. */
     window.onerror = function(message, source, lineno, colno, error) {
       console.error('[Kanvaz Uncaught]', message, 'at', source + ':' + lineno);
       var detail = String(message || 'unknown');
@@ -96,10 +108,7 @@ var KanvazErrors = (function() {
         var file = source.split(/[\\/]/).pop();
         detail += ' (' + file + ':' + lineno + ')';
       }
-      if (typeof KanvazUI !== 'undefined' && KanvazUI.toast) {
-        KanvazUI.toast(detail, 'error');
-      }
-      console.error('[Kanvaz E999] ' + detail);
+      handle('UNKNOWN', detail);
       return true;
     };
 
@@ -107,9 +116,7 @@ var KanvazErrors = (function() {
       var reason = event.reason;
       var detail = (reason && reason.message) ? reason.message : String(reason || 'promise rejected');
       console.error('[Kanvaz Unhandled Promise]', detail, reason);
-      if (typeof KanvazUI !== 'undefined' && KanvazUI.toast) {
-        KanvazUI.toast(detail, 'error');
-      }
+      handle('UNKNOWN', detail);
     };
   }
 

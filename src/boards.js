@@ -7,7 +7,7 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '4.2.0';
+  var VERSION       = '4.2.1';
 
   /* ── Init ── */
 
@@ -152,7 +152,15 @@ var KanvazBoards = (function() {
     renderTabs();
     updateTitle();
 
-    if (!silent) KanvazUI.toast('New board created');
+    /* Audit fix: a new tab is a real content change to the file (it
+       will be saved as part of boards[] next time), but this never
+       marked the file dirty — silent(true) call sites are internal
+       (app startup, legacy-file recovery) where there's nothing to
+       lose yet, so only the user-initiated (!silent) path counts. */
+    if (!silent) {
+      KanvazUI.toast('New board created');
+      if (typeof KanvazApp !== 'undefined' && KanvazApp.markDirty) KanvazApp.markDirty();
+    }
   }
 
   /* ── Switch board ── */
@@ -225,8 +233,14 @@ var KanvazBoards = (function() {
 
     function commit() {
       var val = input.value.trim() || boards[idx].name;
+      var changed = (val !== boards[idx].name);
       boards[idx].name = val;
       renderTabs();
+      /* Audit fix: renaming a tab is a real, savable content change and
+         was never marked dirty — a rename right before closing the app
+         would take the !boardDirty fast-close path (no save prompt) and
+         be silently lost. */
+      if (changed && typeof KanvazApp !== 'undefined' && KanvazApp.markDirty) KanvazApp.markDirty();
     }
 
     input.onblur = commit;
@@ -311,6 +325,54 @@ var KanvazBoards = (function() {
     );
   }
 
+  /* ── Guard against silently discarding unsaved work ──
+     Audit fix: opening a different board (via the toolbar Open button,
+     a recent-file click, or double-clicking a .kanvaz file / handing
+     one off from a second app instance while Kanvaz is already running)
+     used to call straight into readFile()+loadFromJSON(), which does a
+     full `boards = data.boards` replace with zero check for unsaved
+     work on the board currently open — unlike window close, which
+     already prompts via handleCloseRequest() in app.js. This mirrors
+     that same Save / Don't Save / Cancel pattern for the "open" path. */
+  function confirmDiscardIfDirty(proceed) {
+    var dirty = (typeof KanvazApp !== 'undefined' && KanvazApp.isDirty) ? KanvazApp.isDirty() : false;
+    if (!dirty) { proceed(); return; }
+
+    KanvazUI.showDialog(
+      'Unsaved changes',
+      'Opening a different board will discard unsaved changes here. Save first?',
+      [
+        {
+          label: 'Save',
+          cls: 'primary',
+          action: function() {
+            saveBoard(function(ok) { if (ok) proceed(); });
+          }
+        },
+        {
+          label: "Don't Save",
+          cls: 'danger',
+          action: function() { proceed(); }
+        },
+        { label: 'Cancel', cls: '', action: function() {} }
+      ]
+    );
+  }
+
+  /* Warn (never block) if a file was saved by a newer major version of
+     Kanvaz than is currently running — VERSION was previously write-only
+     (stamped into every save, never read back for any compatibility
+     decision). This doesn't attempt real migration, just an honest
+     heads-up instead of silently loading a possibly-mismatched shape. */
+  function warnIfNewerVersion(data) {
+    if (!data || typeof data.version !== 'string') return;
+    var fileMajor = parseInt(data.version.split('.')[0], 10);
+    var appMajor  = parseInt(VERSION.split('.')[0], 10);
+    if (!isNaN(fileMajor) && !isNaN(appMajor) && fileMajor > appMajor) {
+      KanvazUI.toast('This file was saved by a newer version of Kanvaz (v' + data.version + ') — some data may not display correctly.', 'error');
+    }
+  }
+
   /* ── Save to file ── */
 
   function saveBoard(onDone) {
@@ -327,7 +389,25 @@ var KanvazBoards = (function() {
       KanvazApp.setCurrentPath(p);
 
       var data = serialise();
-      KanvazBridge.writeFile(p, JSON.stringify(data, null, 2)).then(function(result) {
+      var json;
+      try {
+        json = JSON.stringify(data, null, 2);
+      } catch (e) {
+        /* Audit fix: a plugin card's pluginData is arbitrary, plugin-
+           controlled data with no guarantee of being JSON-safe (circular
+           reference, a function, etc.) — an uncaught throw here used to
+           mean Save could fail with zero feedback (an uncaught exception
+           inside a directly-invoked function, not a promise chain, so
+           there was no .catch() to reach). doAutosave() below already
+           guards its own JSON.stringify this same way; Save/Save As
+           didn't. Now: log which card, tell the user clearly, don't
+           silently fail. */
+        console.error('[Kanvaz] could not serialize board for save:', e.message);
+        KanvazUI.toast('Save failed — a card\'s data could not be saved (see console)', 'error');
+        if (onDone) onDone(false);
+        return;
+      }
+      KanvazBridge.writeFile(p, json).then(function(result) {
         if (result.ok) {
           KanvazBridge.addRecent(p);
           KanvazApp.markClean();
@@ -338,7 +418,11 @@ var KanvazBoards = (function() {
           KanvazUI.toast('Save failed: ' + result.error, 'error');
           if (onDone) onDone(false);
         }
-      }).catch(function(e) { console.warn('[Kanvaz] writeFile IPC failed:', e); });
+      }).catch(function(e) {
+        console.warn('[Kanvaz] writeFile IPC failed:', e);
+        KanvazUI.toast('Save failed — could not reach the file system', 'error');
+        if (onDone) onDone(false);
+      });
     }
 
     if (savePath) {
@@ -347,7 +431,11 @@ var KanvazBoards = (function() {
       var defaultName = (boards[activeIdx] ? boards[activeIdx].name : 'untitled') + '.kanvaz';
       KanvazBridge.saveFileDialog(defaultName).then(function(p) {
         doSave(p);
-      }).catch(function(e) { console.warn('[Kanvaz] saveFileDialog IPC failed:', e); });
+      }).catch(function(e) {
+        console.warn('[Kanvaz] saveFileDialog IPC failed:', e);
+        KanvazUI.toast('Could not open the save dialog', 'error');
+        if (onDone) onDone(false);
+      });
     }
   }
 
@@ -360,18 +448,38 @@ var KanvazBoards = (function() {
       if (!p) return;
       currentPath = p;
       KanvazApp.setCurrentPath(p);
-      var data = JSON.stringify(serialise(), null, 2);
+      var data;
+      try {
+        data = JSON.stringify(serialise(), null, 2);
+      } catch (e) {
+        /* Audit fix — same reasoning as saveBoard()'s doSave() above. */
+        console.error('[Kanvaz] could not serialize board for save:', e.message);
+        KanvazUI.toast('Save failed — a card\'s data could not be saved (see console)', 'error');
+        return;
+      }
       KanvazBridge.writeFile(p, data).then(function(result) {
         if (result.ok) {
           KanvazBridge.addRecent(p);
           KanvazApp.markClean();
           KanvazBridge.clearRecovery();
-          KanvazUI.toast('Board saved as ' + p.split(/[\/]/).pop(), 'success');
+          /* Fixed: was /[\/]/ (forward-slash only) — on Windows a path
+             like C:\Users\name\project.kanvaz has no forward slash to
+             split on, so .pop() returned the WHOLE absolute path
+             instead of just the filename in the toast. */
+          KanvazUI.toast('Board saved as ' + p.split(/[\\/]/).pop(), 'success');
         } else {
-          KanvazUI.toast('Save failed', 'error');
+          /* Was a bare "Save failed" — dropped the actual reason, unlike
+             saveBoard()'s equivalent toast just above. */
+          KanvazUI.toast('Save failed: ' + result.error, 'error');
         }
-      }).catch(function(e) { console.warn('[Kanvaz] writeFile IPC failed:', e); });
-    }).catch(function(e) { console.warn('[Kanvaz] saveFileDialog IPC failed:', e); });
+      }).catch(function(e) {
+        console.warn('[Kanvaz] writeFile IPC failed:', e);
+        KanvazUI.toast('Save failed — could not reach the file system', 'error');
+      });
+    }).catch(function(e) {
+      console.warn('[Kanvaz] saveFileDialog IPC failed:', e);
+      KanvazUI.toast('Could not open the save dialog', 'error');
+    });
   }
 
   /* ── Open board ── */
@@ -380,42 +488,53 @@ var KanvazBoards = (function() {
     KanvazBridge.openFileDialog().then(function(p) {
       if (!p) return;
       openFilePath(p);
-    }).catch(function(e) { console.warn('[Kanvaz] openFileDialog IPC failed:', e); });
+    }).catch(function(e) {
+      console.warn('[Kanvaz] openFileDialog IPC failed:', e);
+      KanvazUI.toast('Could not open the file dialog', 'error');
+    });
   }
 
   /* ── Open a board given a path directly ──
-     Shared by openBoard() (picked via dialog) and the BUG 5 argv/
-     open-file handler (double-clicking a .kanvaz file, or a second
-     instance handing off its file to this one). */
+     Shared by openBoard() (picked via dialog), the BUG 5 argv/open-file
+     handler (double-clicking a .kanvaz file, or a second instance
+     handing off its file to this one), and the startup screen's recent-
+     boards list. Gated behind confirmDiscardIfDirty() (audit fix) so
+     none of those paths can silently blow away unsaved work. */
   function openFilePath(p) {
-    KanvazBridge.readFile(p).then(function(result) {
-      if (!result.ok) {
-        KanvazUI.toast('Could not open file', 'error');
-        return;
-      }
-      try {
-        var data = JSON.parse(result.data);
-        /* Schema validation — accept current shape (data.boards) or a
-           flat legacy shape (data.cards at top level); loadFromJSON
-           migrates the legacy shape automatically. Anything else is
-           genuinely not a Kanvaz file. */
-        if (!data || (!Array.isArray(data.boards) && !Array.isArray(data.cards))) {
-          KanvazUI.toast('File format not recognised', 'error');
+    confirmDiscardIfDirty(function() {
+      KanvazBridge.readFile(p).then(function(result) {
+        if (!result.ok) {
+          KanvazUI.toast('Could not open file', 'error');
           return;
         }
-        loadFromJSON(data);
-        currentPath = p;
-        KanvazApp.setCurrentPath(p);
-        KanvazBridge.addRecent(p);
-        KanvazApp.markClean();
-        KanvazBridge.clearRecovery();
-        /* Zoom to fit so cards are always visible */
-        setTimeout(function() { KanvazCanvas.zoomFit(); }, 100);
-        KanvazUI.toast('Board opened', 'success');
-      } catch (e) {
-        KanvazUI.toast('File appears corrupted', 'error');
-      }
-    }).catch(function(e) { console.warn('[Kanvaz] readFile IPC failed:', e); });
+        try {
+          var data = JSON.parse(result.data);
+          /* Schema validation — accept current shape (data.boards) or a
+             flat legacy shape (data.cards at top level); loadFromJSON
+             migrates the legacy shape automatically. Anything else is
+             genuinely not a Kanvaz file. */
+          if (!data || (!Array.isArray(data.boards) && !Array.isArray(data.cards))) {
+            KanvazUI.toast('File format not recognised', 'error');
+            return;
+          }
+          warnIfNewerVersion(data);
+          loadFromJSON(data);
+          currentPath = p;
+          KanvazApp.setCurrentPath(p);
+          KanvazBridge.addRecent(p);
+          KanvazApp.markClean();
+          KanvazBridge.clearRecovery();
+          /* Zoom to fit so cards are always visible */
+          setTimeout(function() { KanvazCanvas.zoomFit(); }, 100);
+          KanvazUI.toast('Board opened', 'success');
+        } catch (e) {
+          KanvazUI.toast('File appears corrupted', 'error');
+        }
+      }).catch(function(e) {
+        console.warn('[Kanvaz] readFile IPC failed:', e);
+        KanvazUI.toast('Could not read that file', 'error');
+      });
+    });
   }
 
   /* ── Load from JSON data ── */
@@ -627,41 +746,46 @@ var KanvazBoards = (function() {
           var fname = parts[parts.length - 1];
           var dir   = parts.slice(0, -1).join('/');
 
-          row.innerHTML = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 3.5A1.5 1.5 0 013.5 2h2.086a1 1 0 01.707.293l.914.914H10.5A1.5 1.5 0 0112 4.707V9.5A1.5 1.5 0 0110.5 11h-8A1.5 1.5 0 011 9.5V3.5z" stroke="var(--color-text-3)" stroke-width="1.2"/></svg>'
-            + '<div style="flex:1;overflow:hidden;">'
-            + '<div style="font-size:13px;color:var(--color-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + fname + '</div>'
-            + '<div style="font-size:10px;color:var(--color-text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--font-mono);">' + dir + '</div>'
-            + '</div>';
+          /* Security fix: fname/dir come from a filesystem path that can
+             originate from a .kanvaz file someone else shared (added to
+             recent.json via the argv/open-file handoff, not just the
+             user's own Save dialog). This used to be concatenated
+             straight into row.innerHTML with no escaping — a crafted
+             filename could inject HTML/script, and since 4.2.0's CSP
+             allows script-src file:, an injected <script src="file://...">
+             would actually execute. The icon SVG is static/trusted
+             markup so it's still set via innerHTML; the two untrusted
+             strings are now set via textContent, which can never be
+             interpreted as markup. */
+          var iconHolder = document.createElement('div');
+          iconHolder.innerHTML = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 3.5A1.5 1.5 0 013.5 2h2.086a1 1 0 01.707.293l.914.914H10.5A1.5 1.5 0 0112 4.707V9.5A1.5 1.5 0 0110.5 11h-8A1.5 1.5 0 011 9.5V3.5z" stroke="var(--color-text-3)" stroke-width="1.2"/></svg>';
+          row.appendChild(iconHolder.firstChild);
+
+          var textCol = document.createElement('div');
+          textCol.style.cssText = 'flex:1;overflow:hidden;';
+
+          var fnameEl = document.createElement('div');
+          fnameEl.style.cssText = 'font-size:13px;color:var(--color-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+          fnameEl.textContent = fname;
+
+          var dirEl = document.createElement('div');
+          dirEl.style.cssText = 'font-size:10px;color:var(--color-text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--font-mono);';
+          dirEl.textContent = dir;
+
+          textCol.appendChild(fnameEl);
+          textCol.appendChild(dirEl);
+          row.appendChild(textCol);
 
           row.onmouseenter = function() { row.style.background = 'var(--color-surface-2)'; };
           row.onmouseleave = function() { row.style.background = 'transparent'; };
 
+          /* Reuses openFilePath() (was previously a duplicate inline
+             copy of its readFile/parse/load logic) — picks up the same
+             unsaved-changes guard and newer-version warning for free,
+             and removes the drift risk of two copies of this logic. */
           row.onclick = function() {
             closeStartup();
-            KanvazBridge.readFile(p).then(function(result) {
-              if (!result.ok) {
-                KanvazUI.toast('File not found', 'error');
-                KanvazBridge.removeRecent(p);
-                return;
-              }
-              try {
-                var data = JSON.parse(result.data);
-                if (!data || (!Array.isArray(data.boards) && !Array.isArray(data.cards))) {
-                  KanvazUI.toast('File format not recognised', 'error');
-                  return;
-                }
-                loadFromJSON(data);
-                currentPath = p;
-                KanvazApp.setCurrentPath(p);
-                KanvazBridge.addRecent(p);
-                KanvazApp.markClean();
-                KanvazBridge.clearRecovery();
-                setTimeout(function() { KanvazCanvas.zoomFit(); }, 100);
-                KanvazUI.toast('Board opened', 'success');
-              } catch (e) {
-                KanvazUI.toast('File appears corrupted', 'error');
-              }
-            }).catch(function(e) { console.warn('[Kanvaz] readFile IPC failed:', e); });
+            openFilePath(p);
           };
 
           panel.appendChild(row);

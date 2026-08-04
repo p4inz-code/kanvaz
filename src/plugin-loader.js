@@ -36,7 +36,7 @@ var PERMISSION_DESCRIPTIONS = {
 
 function describePermissions(permissions) {
   if (!permissions || !permissions.length) {
-    return 'nothing beyond adding card types to the app';
+    return 'nothing requiring special access (no network, no filesystem)';
   }
   return permissions.map(function(p) { return PERMISSION_DESCRIPTIONS[p] || p; }).join(', ');
 }
@@ -258,6 +258,94 @@ function removePlugin(userDataPath, pluginFolder, pluginId) {
   }
 }
 
+/* ── Per-plugin persistent storage ──
+   One small JSON blob per plugin, namespaced by its manifest id, for
+   things like the Theme Creator's saved presets. encodeURIComponent()
+   turns any '/' or '..' in a crafted id into literal, harmless
+   characters (e.g. "%2F", "%2E%2E") rather than real path separators,
+   so the resulting filename can never escape the storage directory —
+   confirmed with a real resolved-path containment check below anyway,
+   same defense-in-depth pattern used everywhere else in this file. */
+function getPluginStorageDir(userDataPath) {
+  return path.join(userDataPath, 'plugin-storage');
+}
+
+function getPluginStoragePath(userDataPath, pluginId) {
+  var dir = getPluginStorageDir(userDataPath);
+  var fileName = encodeURIComponent(String(pluginId)) + '.json';
+  var target = path.join(dir, fileName);
+
+  var resolvedDir = path.resolve(dir) + path.sep;
+  var resolvedTarget = path.resolve(target);
+  if (resolvedTarget.indexOf(resolvedDir) !== 0) {
+    return null; /* should be unreachable given encodeURIComponent, kept as a hard backstop */
+  }
+  return resolvedTarget;
+}
+
+function readPluginStorage(userDataPath, pluginId) {
+  var storagePath = getPluginStoragePath(userDataPath, pluginId);
+  if (!storagePath) return {};
+  try {
+    if (!fs.existsSync(storagePath)) return {};
+    return JSON.parse(fs.readFileSync(storagePath, 'utf8'));
+  } catch (e) {
+    return {};
+  }
+}
+
+/* Generous but real cap — protects against a runaway/misbehaving plugin
+   (or one deliberately abusing storage.save in a tight loop, see the
+   4.2.0 audit's note above plugins-storage-set in main.js) freezing the
+   main process on a giant synchronous-feeling write or slowly filling
+   the disk. Presets/settings-shaped data is nowhere near this size. */
+var MAX_PLUGIN_STORAGE_BYTES = 5 * 1024 * 1024; /* 5MB */
+
+function writePluginStorage(userDataPath, pluginId, data) {
+  var storagePath = getPluginStoragePath(userDataPath, pluginId);
+  if (!storagePath) return Promise.resolve({ ok: false, error: 'invalid plugin id' });
+
+  var json;
+  try {
+    json = JSON.stringify(data);
+  } catch (e) {
+    /* e.g. a circular structure — fails synchronously and safely here,
+       never reaches disk I/O. */
+    return Promise.resolve({ ok: false, error: 'data could not be saved: ' + e.message });
+  }
+  if (Buffer.byteLength(json, 'utf8') > MAX_PLUGIN_STORAGE_BYTES) {
+    return Promise.resolve({
+      ok: false,
+      error: 'storage write rejected — exceeds the ' + (MAX_PLUGIN_STORAGE_BYTES / (1024 * 1024)) + 'MB per-plugin limit'
+    });
+  }
+
+  var dir = getPluginStorageDir(userDataPath);
+  /* Unique per-call tmp name (pid + high-res time), not just
+     "<file>.tmp" — this write is now async (fs.promises), matching
+     every other write path in main.js, so unlike the old synchronous
+     version the event loop CAN yield mid-write; two overlapping saves
+     for the same plugin must not be able to collide on one shared tmp
+     path and corrupt each other. */
+  var tmp = storagePath + '.' + process.pid + '.' + Date.now() + '.' + Math.random().toString(36).slice(2) + '.tmp';
+
+  return Promise.resolve()
+    .then(function() {
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      return fs.promises.writeFile(tmp, json, 'utf8');
+    })
+    .then(function() {
+      return fs.promises.rename(tmp, storagePath);
+    })
+    .then(function() {
+      return { ok: true };
+    })
+    .catch(function(e) {
+      try { fs.unlinkSync(tmp); } catch (_) {}
+      return { ok: false, error: e.message };
+    });
+}
+
 module.exports = {
   PLUGIN_API_VERSION: PLUGIN_API_VERSION,
   ALLOWED_PERMISSIONS: ALLOWED_PERMISSIONS,
@@ -268,5 +356,7 @@ module.exports = {
   approvePlugin: approvePlugin,
   setEnabled: setEnabled,
   removePlugin: removePlugin,
-  describePermissions: describePermissions
+  describePermissions: describePermissions,
+  readPluginStorage: readPluginStorage,
+  writePluginStorage: writePluginStorage
 };

@@ -29,6 +29,19 @@ jobs:
 
       - run: npm ci
 
+      # Audit fix (4.2.0): the port-alignment regression test (test/
+      # run-port-test.js) needs a real Chrome/Chromium binary and was
+      # silently SKIPping on every single CI run — ubuntu-latest has no
+      # browser installed by default, and validate.js treats SKIP as
+      # non-failing, so this test — which covers a real bug that shipped
+      # before (see CHANGELOG 4.1.0) — never actually executed here.
+      # @puppeteer/browsers is Puppeteer's own official browser-installer
+      # CLI; installing into ~/.cache/puppeteer/chrome is the exact path
+      # run-port-test.js's findChrome() already scans as a fallback, so
+      # no extra env var wiring is needed for it to be picked up.
+      - name: Install Chrome for the port-alignment test
+        run: npx @puppeteer/browsers install chrome@stable --path ~/.cache/puppeteer
+
       - run: npm run validate
 
   build:

@@ -24,14 +24,25 @@ var KanvazRefTypes = (function() {
     audio:   { label: 'Audio',   icon: '\uD83C\uDFB5',       category: 'media',    hasMedia: true,  fields: [] },
     note:    { label: 'Note',    icon: '\uD83D\uDCDD',       category: 'abstract', hasMedia: false, fields: [] },
     url:     { label: 'URL',     icon: '\uD83D\uDD17',       category: 'link',     hasMedia: false, fields: ['url'] },
-    pdf:     { label: 'PDF',     icon: '\uD83D\uDCC4',       category: 'media',    hasMedia: true,  fields: ['pageCount'] },
     color:   { label: 'Color',   icon: '\uD83C\uDFA8',       category: 'abstract', hasMedia: false, fields: ['color'] },
     file:    { label: 'File',    icon: '\uD83D\uDCC1',       category: 'link',     hasMedia: false, fields: ['fileSize', 'mimeType'] }
     /* 'outcome' removed (v4.0.2) \u2014 was registered with an icon and no
        defined fields, no creation UI, and no spec for what it was meant
        to do differently from a Note. Rather than leave a permanent ghost
        entry in the type registry, it's gone; if a real use case shows up
-       later it can be designed and added properly then. */
+       later it can be designed and added properly then.
+       'pdf' removed (4.2.0 audit) \u2014 same problem: registered here with
+       an icon and a fields:['pageCount'] that was never populated, but
+       had NO creation path anywhere (media.js never accepted a .pdf
+       extension, and renderCard()'s dispatch in cards.js never had a
+       'pdf' branch \u2014 it only ever routes card.type==='file' to
+       buildFileRefCard()). A hand-edited or legacy file with
+       card.type:'pdf' would silently fall through to buildUnknownCard()
+       and show "Unknown card type \u2014 needs plugin: pdf", actively
+       misleading since it's a half-removed built-in, not a real plugin
+       opportunity. PDF reference support may return properly-specified
+       later (as a 'file' card, or a real plugin), but not as this ghost
+       entry. */
   };
 
   /* ── Queries ── */

@@ -639,6 +639,62 @@ var KanvazCards = (function() {
     }).catch(function(e) { console.warn('[Kanvaz] openRefFileDialog IPC failed:', e); });
   }
 
+  /* ── Create a plugin-registered card type ──
+     typeId must be currently registered via KanvazPluginAPI.registerCardType
+     with a create(x,y) function. The plugin's create() supplies whatever
+     content fields it wants (name, w, h, pluginData); Kanvaz always
+     assigns id/type/z/pinned/annotations itself so a plugin can never
+     collide with another card's id or corrupt z-order bookkeeping. */
+  function createPluginCard(typeId, x, y) {
+    if (typeof KanvazPluginAPI === 'undefined' || !KanvazPluginAPI._createCard) return null;
+    var partial = KanvazPluginAPI._createCard(typeId, x, y) || {};
+
+    /* Audit fix: `partial.w || 200` only caught falsy values (0, NaN,
+       undefined) — a negative number or a non-numeric string like
+       "200px" passed straight through. A string w/h silently corrupts
+       startResize()'s aspectRatio math (string concatenation instead of
+       division → NaN/Infinity) and canvas.js's zoomFit() bounding box
+       (c.x + c.w becomes string concat, so that card is silently
+       excluded from the fit-all bounds) on every subsequent resize/fit.
+       Number(...) + isFinite(...) rejects anything that isn't a real,
+       usable number, and the CARD_MIN_W/H floor (already enforced on
+       every other creation path — see createFromMedia above) stops a
+       plugin from creating a degenerate near-zero card with broken
+       resize-handle geometry. */
+    var w = Number(partial.w);
+    if (!isFinite(w) || w <= 0) w = 200;
+    w = Math.max(CARD_MIN_W, w);
+
+    var h = Number(partial.h);
+    if (!isFinite(h) || h <= 0) h = 150;
+    h = Math.max(CARD_MIN_H, h);
+
+    var id = nextId();
+    var card = {
+      id:          id,
+      type:        typeId,
+      dataUrl:     partial.dataUrl !== undefined ? partial.dataUrl : null,
+      name:        partial.name !== undefined ? partial.name : typeId,
+      path:        partial.path !== undefined ? partial.path : null,
+      x:           x,
+      y:           y,
+      w:           w,
+      h:           h,
+      z:           ++zCounter,
+      pinned:      false,
+      pluginData:  partial.pluginData || null,
+      annotations: []
+    };
+
+    cards[id] = card;
+    renderCard(card);
+    selectCard(id);
+    updateEmptyState();
+    updateCount();
+    if (typeof KanvazHistory !== 'undefined') KanvazHistory.push();
+    return card;
+  }
+
   /* No Node `path` module in the renderer (contextIsolation) — just
      split on whichever slash the OS used. */
   function basenameOf(p) {
@@ -699,8 +755,17 @@ var KanvazCards = (function() {
      through to buildUnknownCard() instead of taking anything else down,
      same graceful-degradation principle as missing media. */
   function buildPluginCard(el, card) {
-    var def = KanvazPluginAPI._getCardType(card.type);
     try {
+      /* Audit fix: the def lookup itself used to run OUTSIDE this try
+         block — if _getCardType ever returned something without a
+         .render method (or threw), the exception escaped buildPluginCard
+         entirely and propagated up into renderCard()/deserialise()'s
+         load loop, uncaught. Moved inside so ANY failure in this
+         function — lookup or render — degrades to buildUnknownCard. */
+      var def = KanvazPluginAPI._getCardType(card.type);
+      if (!def || typeof def.render !== 'function') {
+        throw new Error('no render() registered for type "' + card.type + '"');
+      }
       def.render(el, card);
     } catch (e) {
       console.error('[Kanvaz Plugin] render() failed for card type "' + card.type + '":', e.message);
@@ -712,6 +777,16 @@ var KanvazCards = (function() {
      plugin type. Shows a clear, calm placeholder instead of a blank or
      broken card — the rest of the board is unaffected. */
   function buildUnknownCard(el, card) {
+    /* Audit fix: buildUnknownCard() can now be reached AFTER a plugin's
+       render() already partially built content and then threw partway
+       through (e.g. appended a <video>, set .src, started playback,
+       then threw on a later line) — without clearing first, the
+       placeholder was simply appended alongside whatever the broken
+       render left behind, showing both at once and leaking any
+       listeners/media the partial render started. Clearing first is a
+       harmless no-op on the normal "type was never registered at all"
+       path, since el is already empty there. */
+    el.innerHTML = '';
     var wrap = document.createElement('div');
     wrap.className = 'card-unknown-type';
     wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%;gap:6px;padding:10px;text-align:center;color:var(--color-text-3);';
@@ -1585,7 +1660,12 @@ var KanvazCards = (function() {
     changeBtn.addEventListener('click', function(e) {
       e.stopPropagation();
       if (el.dataset.justDragged) { delete el.dataset.justDragged; return; }
-      var ext = (card.type === 'pdf') ? 'pdf' : null;
+      /* buildFileRefCard() is only ever reached via renderCard()'s
+         card.type === 'file' branch — a 'pdf' card.type was a ghost
+         registry entry with no creation path, now removed (see
+         reference-types.js), so this was permanently dead code. No
+         extension filter for a generic file reference. */
+      var ext = null;
       KanvazBridge.openRefFileDialog(ext).then(function(p) {
         if (!p) return;
         card.path = p;
@@ -2080,7 +2160,26 @@ var KanvazCards = (function() {
     var src = cards[id];
     if (!src) return null;
 
-    var newCard = JSON.parse(JSON.stringify(src));
+    var newCard;
+    try {
+      newCard = JSON.parse(JSON.stringify(src));
+    } catch (e) {
+      /* Audit fix: pluginData is arbitrary, plugin-controlled data with
+         no guarantee of being JSON-safe (circular reference, a
+         function, etc.). An uncaught clone failure here used to abort
+         duplicateCardCore() entirely — and duplicateSelected()'s batch
+         loop has no per-item try/catch, so one bad plugin card inside a
+         multi-select duplicate silently aborted the WHOLE batch partway
+         through, with nothing added and no error shown for that or any
+         later card in the selection. Fall back to a shallow copy with
+         pluginData dropped rather than hard-failing the batch. */
+      console.error('[Kanvaz] duplicate: card "' + id + '" could not be deep-cloned (likely non-JSON-safe pluginData) — duplicating without it:', e.message);
+      newCard = {};
+      for (var k in src) {
+        if (Object.prototype.hasOwnProperty.call(src, k)) newCard[k] = src[k];
+      }
+      newCard.pluginData = null;
+    }
     newCard.id  = nextId();
     newCard.x  += 20;
     newCard.y  += 20;
@@ -2248,53 +2347,69 @@ var KanvazCards = (function() {
     if (!arr) return;
     for (var i = 0; i < arr.length; i++) {
       var c = arr[i];
+      /* Audit fix: this loop used to have no per-card isolation —
+         `cards[c.id] = c` ran, then renderCard(c) ran, with nothing
+         catching a throw from either. Since buildPluginCard() already
+         has its own try/catch (a plugin render() failure degrades to
+         buildUnknownCard and can't escape here), this is now a second,
+         outer safety net for anything else that could throw in this
+         loop body — without it, ANY uncaught exception partway through
+         would silently truncate the board: every card at or after the
+         failure point would never be added to cards{} at all, and a
+         save right after would write a silently-shortened file. Wrap
+         each card's full restore in try/catch so one bad entry is
+         skipped (with a console error) instead of taking the rest of
+         the board down with it. */
+      try {
+        /* v3 field defaults — ensures v2.x files load cleanly */
+        if (!c.tags)        c.tags        = [];
+        if (!c.properties)  c.properties  = {};
+        if (!c.mapPosition) c.mapPosition = null;
+        if (!c.url)         c.url         = null;
+        if (!c.color)       c.color       = null;
+        if (!c.mimeType)    c.mimeType    = null;
+        if (!c.pluginData)  c.pluginData  = null;
 
-      /* v3 field defaults — ensures v2.x files load cleanly */
-      if (!c.tags)        c.tags        = [];
-      if (!c.properties)  c.properties  = {};
-      if (!c.mapPosition) c.mapPosition = null;
-      if (!c.url)         c.url         = null;
-      if (!c.color)       c.color       = null;
-      if (!c.mimeType)    c.mimeType    = null;
-      if (!c.pluginData)  c.pluginData  = null;
+        /* v4 field defaults — ensures pre-4.0 files (and files saved by
+           the buggy 4.0.0 serialise() that dropped these) load cleanly.
+           Render-time code also falls back per-field, this just keeps
+           the in-memory card object's shape consistent right after load. */
+        if (!c.objectFit)    c.objectFit    = null;
+        if (!c.playbackRate) c.playbackRate = null;
+        if (!c.audioLoop)    c.audioLoop    = false;
+        if (!c.colorFormat)  c.colorFormat  = null;
+        if (c.muted === undefined) c.muted  = null;
 
-      /* v4 field defaults — ensures pre-4.0 files (and files saved by
-         the buggy 4.0.0 serialise() that dropped these) load cleanly.
-         Render-time code also falls back per-field, this just keeps
-         the in-memory card object's shape consistent right after load. */
-      if (!c.objectFit)    c.objectFit    = null;
-      if (!c.playbackRate) c.playbackRate = null;
-      if (!c.audioLoop)    c.audioLoop    = false;
-      if (!c.colorFormat)  c.colorFormat  = null;
-      if (c.muted === undefined) c.muted  = null;
+        cards[c.id] = c;
+        renderCard(c);
+        if (c.z > zCounter) zCounter = c.z;
 
-      cards[c.id] = c;
-      renderCard(c);
-      if (c.z > zCounter) zCounter = c.z;
+        /* Restore opacity */
+        if (c.opacity !== undefined && c.opacity !== 1.0) {
+          var el = document.getElementById(c.id);
+          if (el) el.style.opacity = c.opacity;
+        }
 
-      /* Restore opacity */
-      if (c.opacity !== undefined && c.opacity !== 1.0) {
-        var el = document.getElementById(c.id);
-        if (el) el.style.opacity = c.opacity;
-      }
-
-      /* Restore flip */
-      if (c.flipH || c.flipV) {
-        var fel = document.getElementById(c.id);
-        if (fel) {
-          var media = fel.querySelector('img, video');
-          if (media) {
-            var sx = c.flipH ? -1 : 1;
-            var sy = c.flipV ? -1 : 1;
-            media.style.transform = 'scale(' + sx + ',' + sy + ')';
+        /* Restore flip */
+        if (c.flipH || c.flipV) {
+          var fel = document.getElementById(c.id);
+          if (fel) {
+            var media = fel.querySelector('img, video');
+            if (media) {
+              var sx = c.flipH ? -1 : 1;
+              var sy = c.flipV ? -1 : 1;
+              media.style.transform = 'scale(' + sx + ',' + sy + ')';
+            }
           }
         }
-      }
 
-      /* Restore annotations */
-      if (c.annotations && c.annotations.length && typeof KanvazAnnotate !== 'undefined') {
-        var cardEl = document.getElementById(c.id);
-        if (cardEl) KanvazAnnotate.loadStrokes(c.id, c.annotations, cardEl);
+        /* Restore annotations */
+        if (c.annotations && c.annotations.length && typeof KanvazAnnotate !== 'undefined') {
+          var cardEl = document.getElementById(c.id);
+          if (cardEl) KanvazAnnotate.loadStrokes(c.id, c.annotations, cardEl);
+        }
+      } catch (e) {
+        console.error('[Kanvaz] failed to load card' + (c && c.id ? ' "' + c.id + '"' : '') + ' — skipping it, the rest of the board will still load:', e.message);
       }
     }
     updateEmptyState();
@@ -2531,6 +2646,7 @@ var KanvazCards = (function() {
     createColorCard:   createColorCard,
     createUrlCard:     createUrlCard,
     createFileRefCard: createFileRefCard,
+    createPluginCard: createPluginCard,
     generateTestCards: generateTestCards,
     selectCard:        selectCard,
     selectAll:         selectAll,

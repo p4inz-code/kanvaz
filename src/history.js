@@ -10,6 +10,23 @@ var KanvazHistory = (function() {
   var MAX     = 50;
   var locked  = false;
 
+  /* Plugin cards' pluginData is arbitrary, opaque data a third-party
+     plugin controls — unlike every other field snapshotted below, it
+     isn't guaranteed to be JSON-safe (a careless plugin could put a
+     function, DOM reference, or circular structure in there). Clone it
+     defensively so one bad plugin card can't throw inside snapshot()
+     and break undo/redo for the ENTIRE board — it just loses its own
+     plugin data on that one snapshot instead. */
+  function cloneJsonSafe(v) {
+    if (v === null || v === undefined) return v;
+    try {
+      return JSON.parse(JSON.stringify(v));
+    } catch (e) {
+      console.error('[Kanvaz] a plugin card\'s pluginData could not be cloned for undo history (not JSON-safe) — it will be lost on undo/redo for this step:', e.message);
+      return null;
+    }
+  }
+
   /* ── Snapshot ──
      KanvazCards.serialise() includes each card's full dataUrl (base64
      media, can be tens of MB per card). A naive JSON.parse(JSON.stringify
@@ -63,7 +80,18 @@ var KanvazHistory = (function() {
         annotations: JSON.parse(JSON.stringify(c.annotations || [])),
         tags:        c.tags ? c.tags.slice() : [],
         properties:  c.properties ? JSON.parse(JSON.stringify(c.properties)) : {},
-        mapPosition: c.mapPosition ? { x: c.mapPosition.x, y: c.mapPosition.y } : null
+        mapPosition: c.mapPosition ? { x: c.mapPosition.x, y: c.mapPosition.y } : null,
+        /* Audit fix (CRITICAL): pluginData was added to KanvazCards.
+           serialise()'s save-file whitelist in 4.2.0 but never added
+           here — every undo snapshot silently omitted it, so a single
+           Ctrl+Z after ANY edit anywhere on the board (not just on a
+           plugin card) would call KanvazCards.deserialise() with
+           pluginData missing on every card, wiping it app-wide. Cloned
+           (not shared by reference) since a plugin's render() has
+           direct access to card.pluginData and can mutate it in place —
+           sharing a reference would allow a later in-place mutation to
+           retroactively corrupt earlier, already-pushed undo steps. */
+        pluginData: cloneJsonSafe(c.pluginData)
       });
     }
 

@@ -17,9 +17,33 @@ var KanvazShortcuts = (function() {
     var activeEl = document.activeElement;
     var tag      = activeEl && activeEl.tagName;
     var isTextInput = tag === 'INPUT' && NON_TEXT_INPUT_TYPES.indexOf(activeEl.type) === -1;
-    var inText   = (tag === 'TEXTAREA' || isTextInput);
+    /* Audit fix: a focused <select> (e.g. the Theme or Snap-increment
+       dropdown in Settings) wasn't covered here. The canvas can still
+       have a card selected while Settings is open, so pressing
+       ArrowUp/ArrowDown intending to cycle the dropdown's options fell
+       through to the arrow-key nudge branch below instead — which calls
+       e.preventDefault(), silently nudging the (possibly hidden-behind-
+       the-panel) selected card instead of changing the dropdown value.
+       Every other global single-key shortcut below this point already
+       intentionally skips while inText is true (e.g. so "t" typed into
+       a note doesn't toggle Always-on-Top); a focused select belongs in
+       that same category. */
+    var inText   = (tag === 'TEXTAREA' || isTextInput || tag === 'SELECT');
     var ctrl     = e.ctrlKey || e.metaKey;
     var shift    = e.shiftKey;
+    /* Audit fix: every ctrl-combo check below used to compare e.key
+       directly against a hardcoded case ('s' for plain Ctrl+S, 'S' for
+       Ctrl+Shift+S), assuming Shift-off implies lowercase. That's false
+       under Caps Lock — the browser reports e.key as uppercase while
+       e.shiftKey stays false. Concretely, with Caps Lock on: Ctrl+S
+       (save) failed to match, fell through, and was caught by the
+       unconditional lowercase/uppercase 's'/'S' check further down that
+       opens Settings instead — no save happened, no error shown.
+       Ctrl+A (Select All) similarly fell through into the 'a'/'A'
+       annotate-mode shortcut. Comparing against a lowercased key and
+       relying solely on the real e.shiftKey/ctrl booleans for modifier
+       state (never on the letter's case) is Caps-Lock-independent. */
+    var keyLower = (e.key || '').toLowerCase();
 
     /* Ignore OS key-repeat (holding a key down) for everything except
        arrow-key nudge. Without this, holding Ctrl+D creates several
@@ -35,31 +59,31 @@ var KanvazShortcuts = (function() {
 
     /* ── Always fire regardless of focus ── */
 
-    if (ctrl && shift && e.key === 'S') {
+    if (ctrl && shift && keyLower === 's') {
       e.preventDefault();
       KanvazBoards.saveBoardAs();
       return;
     }
 
-    if (ctrl && !shift && e.key === 's') {
+    if (ctrl && !shift && keyLower === 's') {
       e.preventDefault();
       KanvazBoards.saveBoard();
       return;
     }
 
-    if (ctrl && !shift && e.key === 'o') {
+    if (ctrl && !shift && keyLower === 'o') {
       e.preventDefault();
       KanvazBoards.openBoard();
       return;
     }
 
-    if (ctrl && !shift && e.key === 'f') {
+    if (ctrl && !shift && keyLower === 'f') {
       e.preventDefault();
       KanvazUI.showSearchBar();
       return;
     }
 
-    if (ctrl && shift && e.key === 'F') {
+    if (ctrl && shift && keyLower === 'f') {
       e.preventDefault();
       KanvazUI.toggleMoodLock();
       return;
@@ -92,19 +116,19 @@ var KanvazShortcuts = (function() {
       return;
     }
 
-    if (ctrl && !shift && e.key === 'z') {
+    if (ctrl && !shift && keyLower === 'z') {
       e.preventDefault();
       KanvazHistory.undo();
       return;
     }
 
-    if ((ctrl && !shift && e.key === 'y') || (ctrl && shift && e.key === 'Z')) {
+    if ((ctrl && !shift && keyLower === 'y') || (ctrl && shift && keyLower === 'z')) {
       e.preventDefault();
       KanvazHistory.redo();
       return;
     }
 
-    if (ctrl && !shift && e.key === 'a') {
+    if (ctrl && !shift && keyLower === 'a') {
       e.preventDefault();
       KanvazCards.selectAll();
       return;
@@ -113,16 +137,34 @@ var KanvazShortcuts = (function() {
     /* Always on top — works in both views */
     if (e.key === 't' || e.key === 'T') { KanvazApp.toggleAlwaysOnTop(); return; }
 
-    /* Theme toggle — works in both views */
+    /* Theme toggle — works in both views. Binary dark/light toggle, same
+       as before (a plugin theme still collapses to 'light' on press —
+       cycling through every registered theme is a possible future
+       enhancement, not attempted here). */
     if (e.key === 'l' || e.key === 'L') {
       if (typeof KanvazUI_Extended !== 'undefined') {
         var s = KanvazUI_Extended.getSettings();
         if (s) {
-          s.theme = s.theme === 'light' ? 'dark' : 'light';
-          document.documentElement.setAttribute('data-theme', s.theme);
-          KanvazBridge.writeSettings(JSON.stringify(s));
+          var nextTheme = s.theme === 'light' ? 'dark' : 'light';
+          /* Audit fix: this used to set data-theme directly, bypassing
+             KanvazPluginAPI._applyTheme() — the path applySettings()
+             (ui.js) correctly uses for the Settings dropdown. Setting
+             the attribute directly meant any previously-injected
+             <style data-plugin-theme> element from a plugin theme was
+             never removed, just left inert in <head>. Going through
+             KanvazUI_Extended.setTheme() persists AND applies through
+             that same correct path — it internally calls
+             KanvazPluginAPI._applyTheme(), which cleans up any stale
+             plugin theme <style> tag before setting data-theme. */
+          if (typeof KanvazUI_Extended.setTheme === 'function') {
+            KanvazUI_Extended.setTheme(nextTheme);
+          } else {
+            s.theme = nextTheme;
+            document.documentElement.setAttribute('data-theme', nextTheme);
+            KanvazBridge.writeSettings(JSON.stringify(s));
+          }
           KanvazCanvas.drawGrid();
-          KanvazUI.toast('Theme: ' + s.theme);
+          KanvazUI.toast('Theme: ' + nextTheme);
         }
       }
       return;
@@ -187,7 +229,7 @@ var KanvazShortcuts = (function() {
       return;
     }
 
-    if (ctrl && e.key === 'd') {
+    if (ctrl && keyLower === 'd') {
       e.preventDefault();
       KanvazCards.duplicateSelected();
       return;

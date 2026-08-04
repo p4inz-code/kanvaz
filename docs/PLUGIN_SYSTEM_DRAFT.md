@@ -2,6 +2,41 @@
 
 > Status: planning only, no implementation yet. This is a living doc, not a spec commitment.
 
+## Implementation status as of 4.2.0 (read this first)
+
+This doc is the original design vision and predates the actual build — treat
+everything below as aspirational unless listed here as shipped. What's real
+in 4.2.0:
+
+- **Shipped:** manifest scan/validation, permission-escalation-forces-
+  re-consent, native-dialog-mediated install consent, `registerCardType`
+  (with a working create/render/context-menu path), `registerTheme` +
+  `applyTheme` (full-peer theme model, live-preview draft convention),
+  `registerSettingsPanel`, per-plugin persistent storage
+  (`storage.load`/`storage.save`, size-capped), Settings → Plugins UI
+  (list/enable/disable/remove/Add-a-Plugin), graceful degradation for
+  missing/broken plugin types, a first official plugin (Theme Creator).
+- **NOT yet shipped**, despite being sketched below: `registerCommand` +
+  Command Palette, `KanvazPluginAPI.on(event, ...)` hooks,
+  `registerPropertyFieldType`, `KanvazPluginAPI.network`/`.fs` namespaces,
+  "Load unpacked plugin" dev-mode workflow. The "Runtime API surface" and
+  "Command Palette" sections below are the plan for later layers, not
+  current API.
+- **Important correction to the permission model described below:** the
+  original plan (and the "If a permission isn't declared... not present to
+  call at all" line under Runtime API surface) describes function-level
+  permission gating that was NOT implemented this way. The sandbox model
+  that actually shipped is convention-based (a plugin's script runs in the
+  same renderer page context as the rest of the app, not a separate
+  process/context per plugin) — meaning an approved plugin currently has the
+  same practical access to `window.KanvazBridge` as Kanvaz's own code,
+  regardless of declared permissions. The permission list in the consent
+  dialog describes intent, it isn't a technical enforcement boundary yet.
+  See SECURITY.md's "Plugin System — trust model" section for the full,
+  honest writeup, and the security-note comment block above the plugin IPC
+  handlers in `src/main.js`. True per-permission enforcement (one isolated
+  context per plugin) is tracked as real future work, not a 4.2.0 claim.
+
 ## Design goal
 
 Simple as After Effects *scripting* (drop-in `.jsx`-style scripts, ScriptUI panels) —
@@ -202,6 +237,34 @@ install with no folder-dragging, for the official pack specifically.
 
 Steps 1–2 are load-bearing. Everything after is additive and can slip without
 blocking the rest.
+
+## Official plugin code style (decided during the 4.2.0 audit)
+
+`test/lint.js`'s strict "var-only" ES5 rule (no `const`/`let`/arrow
+functions/`.forEach`) applies only to `src/` — it does NOT apply to
+`official-plugins/`, and this is a deliberate decision, not an oversight the
+lint scope happened to miss. The var-only rule exists for `src/`'s own
+long-term maintainability under Kanvaz's specific historical ES5 constraint;
+it isn't a requirement Kanvaz imposes on plugin authors (third-party plugins
+obviously aren't bound by it either — a plugin is just a `<script>` tag, it
+can use whatever JS the target Electron/Chromium version supports). The
+Theme Creator plugin (`official-plugins/theme-creator/main.js`) uses
+`.forEach` freely for exactly this reason.
+
+## Known limitation: theme completeness for non-default color schemes
+
+`main.css` has a handful of rules (selected-card shadow softening,
+context-menu shadow, hover tint, etc.) scoped to the literal selector
+`[data-theme="light"]` rather than driven by the `--color-*` variable
+system. A plugin theme (Theme Creator or otherwise) sets `data-theme` to its
+own id, never literally `"light"` — so even a deliberately light/white
+plugin theme falls back to the dark-tuned versions of those few rules. The
+CSS *variable* set itself is complete and verified 1:1 against the Theme
+Creator's generator (25/25 color variables match) — this is a smaller,
+purely cosmetic gap at the selector level, not a missing-variable bug.
+Fixing it properly means deriving those rules from computed luminance in JS
+rather than a hardcoded theme-id selector — a scoped future improvement, not
+done in 4.2.0.
 
 ## Open questions
 

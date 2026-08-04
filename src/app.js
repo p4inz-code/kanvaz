@@ -814,7 +814,17 @@ var KanvazApp = (function() {
       var items = [];
       if (type === 'canvas') {
         items = [
-          { label: 'New note', shortcut: 'Dbl-click', action: function() {
+          { label: 'New note', shortcut: (function() {
+              /* Audit fix: this used to unconditionally show "Dbl-click"
+                 as if it always worked — doubleClickCreatesNote defaults
+                 to false, so for most users double-clicking the canvas
+                 does nothing. Only show the hint when it's actually true. */
+              if (typeof KanvazUI_Extended !== 'undefined') {
+                var s = KanvazUI_Extended.getSettings();
+                if (s && s.doubleClickCreatesNote) return 'Dbl-click';
+              }
+              return undefined;
+            })(), action: function() {
             var pos = KanvazCanvas.screenToWorld(x, y);
             if (typeof KanvazCards !== 'undefined') KanvazCards.createNote(pos.x, pos.y);
           }},
@@ -836,6 +846,44 @@ var KanvazApp = (function() {
           { label: 'Reset zoom', shortcut: '0', action: function() { KanvazCanvas.zoomReset(); }},
           { label: 'Fit all cards', shortcut: 'F', action: function() { KanvazCanvas.zoomFit(); }}
         ];
+
+        /* Plugin-registered card types with a create(x,y) — inserted
+           right after the built-in "New ..." entries, before the
+           Import .pur separator. Without this, registerCardType() had
+           no user-facing way to actually instantiate one.
+
+           Audit fix: this whole block used to run with no try/catch.
+           This function fires on EVERY right-click on the canvas, and
+           by this point menu.innerHTML/.className above have already
+           made #context-menu visible — if _getAllCardTypeDefs() ever
+           returned something malformed (e.g. an entry missing .label/
+           .id from a plugin mid-unregister, or simply not an array),
+           the exception would abort showContextMenu() before the render
+           loop below ever runs, leaving the menu flagged visible but
+           empty/mispositioned — and since nothing here is transient,
+           EVERY subsequent right-click would repeat the same throw,
+           permanently breaking the entire canvas context menu (built-
+           ins included) for the rest of the session. Wrapping it means
+           a bad plugin registration degrades to "no plugin items this
+           time", never to "no context menu at all". */
+        try {
+          if (typeof KanvazPluginAPI !== 'undefined' && KanvazPluginAPI._getAllCardTypeDefs) {
+            var pluginTypes = (KanvazPluginAPI._getAllCardTypeDefs() || []).filter(function(t) {
+              return t && t.hasCreate && typeof t.id === 'string' && typeof t.label === 'string';
+            });
+            if (pluginTypes.length) {
+              var pluginItems = pluginTypes.map(function(t) {
+                return { label: 'New ' + t.label, action: function() {
+                  var pos = KanvazCanvas.screenToWorld(x, y);
+                  if (typeof KanvazCards !== 'undefined') KanvazCards.createPluginCard(t.id, pos.x, pos.y);
+                }};
+              });
+              items = items.slice(0, 4).concat([{ sep: true }], pluginItems, items.slice(4));
+            }
+          }
+        } catch (e) {
+          console.error('[Kanvaz Plugin] failed to build plugin context-menu items, showing built-in items only:', e.message);
+        }
       }
 
       for (var i = 0; i < items.length; i++) {
@@ -1156,6 +1204,14 @@ var KanvazApp = (function() {
       }).catch(function(e) {
         KanvazErrors.handle('LOAD_FAIL', e);
       });
+    }).catch(function(e) {
+      /* Audit fix: the outer openPurDialog() chain had no .catch at
+         all — every other promise chain in this file at least logs on
+         a transport-level rejection; this one was a genuine unhandled
+         rejection with zero logging and zero user feedback if the
+         dialog IPC call itself failed. */
+      console.warn('[Kanvaz] openPurDialog IPC failed:', e);
+      KanvazUI.toast('Could not open the file dialog', 'error');
     });
   }
 

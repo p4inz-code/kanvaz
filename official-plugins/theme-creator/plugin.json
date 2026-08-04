@@ -1,0 +1,10 @@
+{
+  "id": "studio.northbyte.theme-creator",
+  "name": "Theme Creator",
+  "version": "1.0.0",
+  "kanvazApiVersion": 1,
+  "entry": "main.js",
+  "permissions": [],
+  "description": "Design your own Kanvaz color theme with live preview, save it as a named preset (rename, pin, star), and reset to Kanvaz's defaults anytime.",
+  "author": "Northbyte Studios"
+}

@@ -293,7 +293,11 @@ var KanvazUI_Extended = (function() {
 
     /* Theme — apply to root element */
     var theme = settings.theme || 'dark';
-    document.documentElement.setAttribute('data-theme', theme);
+    if (typeof KanvazPluginAPI !== 'undefined' && KanvazPluginAPI._applyTheme) {
+      KanvazPluginAPI._applyTheme(theme);
+    } else {
+      document.documentElement.setAttribute('data-theme', theme);
+    }
 
     /* Restart autosave timer with current interval setting */
     if (typeof KanvazBoards !== 'undefined' && KanvazBoards.startAutosave) {
@@ -445,9 +449,17 @@ var KanvazUI_Extended = (function() {
 
     panel.appendChild(title);
 
+    var themeOptions = [['dark', 'Dark'], ['light', 'Light']];
+    if (typeof KanvazPluginAPI !== 'undefined' && KanvazPluginAPI._getAllThemes) {
+      var pluginThemeList = KanvazPluginAPI._getAllThemes();
+      for (var ti = 0; ti < pluginThemeList.length; ti++) {
+        themeOptions.push([pluginThemeList[ti].id, pluginThemeList[ti].name]);
+      }
+    }
+
     var rows = [
       { section: 'Appearance' },
-      { key: 'theme',           label: 'Theme',                 type: 'select', options: [['dark','Dark'],['light','Light']] },
+      { key: 'theme',           label: 'Theme',                 type: 'select', options: themeOptions },
       { key: 'showMinimap',     label: 'Show minimap',          type: 'toggle' },
       { key: 'dotGridVisible',  label: 'Grid lines',            type: 'toggle' },
       { key: 'cardShadows',     label: 'Card shadows',          type: 'toggle' },
@@ -602,6 +614,37 @@ var KanvazUI_Extended = (function() {
     };
     panel.appendChild(addPluginBtn);
 
+    /* Plugin-registered settings panels (e.g. Theme Creator) — each
+       gets its own labeled section and a plain empty container the
+       plugin fills in itself via render(container). The header + empty
+       container are built and placed here (so ordering in the panel
+       stays right after the plugin list / Add button and before About),
+       but the actual render(container) calls are deferred until AFTER
+       document.body.appendChild(panel) below — see pendingPluginPanelRenders.
+       Audit fix: this used to call render(container) immediately, while
+       `panel` was still an off-DOM, detached subtree. Any plugin whose
+       render() reads layout (getBoundingClientRect/offsetWidth, both 0
+       on a detached element) or resolves a CSS custom property via
+       getComputedStyle (which can't see :root while disconnected from
+       document) — exactly the kind of thing a theme-reading Theme
+       Creator plausibly does — would silently get wrong/empty values. */
+    var pendingPluginPanelRenders = [];
+    if (typeof KanvazPluginAPI !== 'undefined' && KanvazPluginAPI._getAllSettingsPanels) {
+      var panels = KanvazPluginAPI._getAllSettingsPanels();
+      for (var pi = 0; pi < panels.length; pi++) {
+        (function(panelEntry) {
+          var hdr = document.createElement('div');
+          hdr.style.cssText = 'font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;color:var(--color-text-3);margin:14px 0 4px;';
+          hdr.textContent = panelEntry.def.label;
+          panel.appendChild(hdr);
+
+          var container = document.createElement('div');
+          panel.appendChild(container);
+          pendingPluginPanelRenders.push(panelEntry, container);
+        })(panels[pi]);
+      }
+    }
+
     /* About link */
     var aboutBtn = document.createElement('button');
     aboutBtn.textContent = 'About Kanvaz';
@@ -612,6 +655,26 @@ var KanvazUI_Extended = (function() {
     panel.appendChild(aboutBtn);
 
     document.body.appendChild(panel);
+
+    /* Now that the panel is attached to document.body, run each plugin
+       settings panel's render(container) — getComputedStyle/getBoundingClientRect
+       inside a plugin's render() now behave normally. Still individually
+       try/catch-wrapped so one broken plugin panel can't break the rest
+       of Settings; on failure the container gets a small visible note
+       instead of being silently empty (was console-only before). */
+    for (var ppi = 0; ppi < pendingPluginPanelRenders.length; ppi += 2) {
+      (function(panelEntry, container) {
+        try {
+          panelEntry.def.render(container);
+        } catch (e) {
+          console.error('[Kanvaz Plugin] settings panel "' + panelEntry.id + '" render() failed:', e.message);
+          var errNote = document.createElement('div');
+          errNote.style.cssText = 'font-size:11px;color:var(--color-red);';
+          errNote.textContent = 'This plugin panel failed to load.';
+          container.appendChild(errNote);
+        }
+      })(pendingPluginPanelRenders[ppi], pendingPluginPanelRenders[ppi + 1]);
+    }
   }
 
   function closeSettings() {
@@ -633,7 +696,18 @@ var KanvazUI_Extended = (function() {
   function refreshPluginsList(container) {
     if (typeof KanvazBridge === 'undefined' || !KanvazBridge.scanPlugins) return;
     KanvazBridge.scanPlugins().then(function(result) {
-      if (!container || !container.parentNode) return; /* settings closed mid-scan */
+      /* Audit fix: closeSettings() removes #settings-panel from
+         document.body, which only nulls THAT panel's parentNode —
+         `container` (the #plugins-list div passed in here) still has
+         its own parentNode pointing at the now-detached panel element,
+         which is still truthy. So the old `!container.parentNode` check
+         never actually caught "Settings was closed while this scan was
+         in flight". Comparing identity against the current
+         currentPluginsListEl (reset to null by closeSettings(), and
+         reassigned to a brand-new element by the next showSettings())
+         correctly detects both cases: Settings closed entirely, or
+         closed and reopened before this older scan resolved. */
+      if (container !== currentPluginsListEl) return;
       container.innerHTML = '';
       var plugins = (result && result.ok) ? result.plugins : [];
       if (!plugins.length) {
@@ -878,7 +952,7 @@ var KanvazUI_Extended = (function() {
       '</div>',
       '<div class="about-title">Kanvaz</div>',
       '<div class="about-subtitle">Your canvas. Your references.</div>',
-      '<div class="about-version">Version 4.2.0</div>',
+      '<div class="about-version">Version 4.2.1</div>',
       '<div id="about-update-status" class="about-update-status"></div>',
       '<div class="about-divider"></div>',
       '<div class="about-author">Made by <strong>Atharva Patil</strong></div>',
@@ -886,7 +960,7 @@ var KanvazUI_Extended = (function() {
       '<div class="about-desc">Built for VFX artists, 3D artists,<br>and the people who teach them.</div>',
       '<div class="about-divider"></div>',
       '<div class="about-privacy">Free forever. MIT License.<br>No telemetry, no background network activity.<br>Your files never leave your machine.</div>',
-      '<div class="about-tagline">Reference Operating System<br>Actively developed — v4.2.0</div>'
+      '<div class="about-tagline">Reference Operating System<br>Actively developed — v4.2.1</div>'
     ].join('');
 
     var updateBtn = document.createElement('button');
@@ -958,7 +1032,13 @@ var KanvazUI_Extended = (function() {
           ['0',                'Reset zoom'],
           ['+ / -',            'Zoom step'],
           ['F',                'Fit all cards'],
-          ['Dbl-click canvas', 'New note']
+          /* Audit fix: this row used to unconditionally say "New note",
+             but doubleClickCreatesNote defaults to false (see settings
+             default above) — for most users double-clicking the canvas
+             does nothing, so an unqualified claim here is actively
+             wrong for the common case. */
+          ['Dbl-click canvas', 'New note (if enabled in Settings)'],
+          ['Ctrl+F or /',      'Search']
         ]
       },
       {
@@ -994,7 +1074,7 @@ var KanvazUI_Extended = (function() {
           ['M',           'Board \u2194 Map view'],
           ['L',           'Light \u2194 Dark theme'],
           ['T',           'Always on top'],
-          ['Tab',         'Top Mode'],
+          ['Tab',         'Top Mode (also Ctrl+Shift+F)'],
           ['S',           'Settings'],
           ['I',           'About'],
           ['?',           'This screen'],
@@ -1089,6 +1169,19 @@ var KanvazUI_Extended = (function() {
       'box-shadow:0 24px 64px rgba(0,0,0,0.8)'
     ].join(';');
 
+    /* Audit fix: this tip used to unconditionally say "Double-click /
+       Create a sticky note anywhere on the canvas" — but
+       doubleClickCreatesNote defaults to false (see ui.js settings
+       schema), so a brand-new user following this exact first-run tip
+       would double-click and see nothing happen. Mirror the same
+       settings-aware branching already used for the empty-canvas hint
+       text above, so first-run only ever describes what will actually
+       occur. */
+    var firstRunSettings = (typeof KanvazUI_Extended !== 'undefined' && KanvazUI_Extended.getSettings) ? KanvazUI_Extended.getSettings() : null;
+    var secondTipRow = (firstRunSettings && firstRunSettings.doubleClickCreatesNote)
+      ? '<div><div style="font-size:13px;color:var(--color-text);margin-bottom:2px;">Double-click</div><div style="font-size:12px;color:var(--color-text-3);">Create a sticky note anywhere on the canvas</div></div>'
+      : '<div><div style="font-size:13px;color:var(--color-text);margin-bottom:2px;">Right-click</div><div style="font-size:12px;color:var(--color-text-3);">Open the canvas menu to add a note or reference</div></div>';
+
     box.innerHTML = [
       '<svg width="52" height="52" viewBox="0 0 18 18" fill="none" style="margin-bottom:16px;">',
         '<rect x="2" y="6" width="12" height="9" rx="2" fill="#2A2A35"/>',
@@ -1105,7 +1198,7 @@ var KanvazUI_Extended = (function() {
         '</div>',
         '<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;">',
           '<div style="width:28px;height:28px;border-radius:6px;background:var(--color-surface-2);border:1px solid var(--color-border);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;">✱</div>',
-          '<div><div style="font-size:13px;color:var(--color-text);margin-bottom:2px;">Double-click</div><div style="font-size:12px;color:var(--color-text-3);">Create a sticky note anywhere on the canvas</div></div>',
+          secondTipRow,
         '</div>',
         '<div style="display:flex;gap:12px;align-items:flex-start;">',
           '<div style="width:28px;height:28px;border-radius:6px;background:var(--color-surface-2);border:1px solid var(--color-border);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;">?</div>',
@@ -1144,6 +1237,31 @@ var KanvazUI_Extended = (function() {
         refreshPluginsList(currentPluginsListEl);
       }
     });
+
+    /* A plugin (e.g. Theme Creator) can register a new theme after
+       Settings has already been built once — rebuild the panel so its
+       Theme dropdown picks up the addition, rather than requiring the
+       user to close and reopen Settings themselves.
+
+       Audit fix: registerTheme()'s own "__"-prefixed-id convention marks
+       an id as an internal/ephemeral live-preview draft (see plugin-api.js's
+       getAllThemes(), which already filters these out of anything user-
+       facing) — but this listener didn't check e.detail.id before
+       reacting, even though the CustomEvent carries it. A live color-
+       picker preview (exactly the pattern that convention exists for —
+       see the Theme Creator plugin) calls registerTheme('__draft__', ...)
+       on every slider tick; each one fully closed and rebuilt Settings,
+       destroying any open dropdown/native color picker and discarding
+       whatever the user was mid-typing in an unrelated field. Only real,
+       user-facing theme registrations should trigger a rebuild. */
+    document.addEventListener('kanvaz-theme-registered', function(e) {
+      var id = e && e.detail && e.detail.id;
+      if (id && id.indexOf('__') === 0) return;
+      if (settingsOpen) {
+        closeSettings();
+        showSettings();
+      }
+    });
   }
 
   return {
@@ -1153,7 +1271,15 @@ var KanvazUI_Extended = (function() {
     showAbout:      showAbout,
     showShortcuts:  showShortcuts,
     loadSettings:   loadSettings,
-    getSettings:    function() { return settings; }
+    getSettings:    function() { return settings; },
+    /* Narrow, deliberate setter for plugins (e.g. Theme Creator) that
+       need to change the active theme and have it persist + apply
+       through the exact same path the Settings dropdown itself uses —
+       not a generic "set any setting" hook, just this one field. */
+    setTheme: function(themeId) {
+      settings.theme = themeId;
+      saveSettings();
+    }
   };
 
 })();

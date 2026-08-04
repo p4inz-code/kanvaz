@@ -186,6 +186,24 @@ function createWindow() {
   mainWindow.webContents.on('did-finish-load', function() {
     checkCrashRecovery();
   });
+
+  /* SECURITY (added during the 4.2.0 plugin-system audit): Kanvaz is a
+     single-page app — index.html never legitimately navigates itself,
+     and nothing in the renderer ever legitimately opens a child window.
+     Without these two guards, a malicious/compromised script running in
+     the renderer (a plugin abusing the disclosed convention-based
+     sandbox model, or any future DOM-injection bug) could navigate the
+     whole window to an attacker page — e.g. reading a local file via
+     KanvazBridge and exfiltrating it via location.href — completely
+     bypassing the CSP's connect-src allowlist, since CSP governs
+     fetch/XHR/WebSocket, not top-level navigation or window.open(). */
+  mainWindow.webContents.on('will-navigate', function(event) {
+    event.preventDefault();
+  });
+
+  mainWindow.webContents.setWindowOpenHandler(function() {
+    return { action: 'deny' };
+  });
 }
 
 /* ── Directories ── */
@@ -665,7 +683,26 @@ function registerIPC() {
      unlike the renderer's own DOM. 'plugins-set-enabled' similarly
      re-checks consent status fresh before honoring an enable=true
      request, so it can't be used as a side-door around the dialog
-     either. */
+     either.
+
+     A SEPARATE, STILL-OPEN LIMITATION (found on a later audit pass,
+     documented rather than silently left implicit): the permission list
+     shown in that consent dialog (network/filesystem/cardTypes/etc.) is
+     not actually enforced at the IPC layer below — it exists to inform
+     the user's decision, not to sandbox what an approved plugin's code
+     can call. Because a plugin's script shares the renderer's page
+     context, once approved it can call ANY KanvazBridge method exposed
+     on window (readFile, writeFile, resetAppData, relaunchApp, etc.),
+     regardless of which permissions it declared or was shown approving.
+     True per-permission enforcement would require running each plugin
+     in its own isolated JS context (e.g. one BrowserView/contextBridge
+     per plugin) rather than the current same-page convention-based
+     model — a larger architecture change tracked as a future layer, not
+     done in 4.2.0. This is disclosed in SECURITY.md; the practical
+     guidance for users is the same as VS Code extensions or browser
+     extensions: only approve plugins from developers you trust, the
+     displayed permission list is a description of intent, not a
+     technical guarantee. */
 
   ipcMain.handle('plugins-scan', function() {
     try {
@@ -699,7 +736,7 @@ function registerIPC() {
       cancelId: 0,
       title: 'Enable "' + manifest.name + '"?',
       message: '"' + manifest.name + '" (v' + manifest.version + ') wants to: ' + permText + '.',
-      detail: 'Only approve this if you trust where it came from. Kanvaz read this permission list directly from the plugin\'s own files, not from anything already running in the app.'
+      detail: 'Only approve this if you trust where it came from — like a browser extension, an approved plugin runs with the same access to your computer as Kanvaz itself, not just what\'s listed above. Kanvaz read this permission list directly from the plugin\'s own files, not from anything already running in the app.'
     }).then(function(result) {
       if (result.response !== 1) {
         return { ok: true, approved: false };
@@ -732,20 +769,64 @@ function registerIPC() {
 
   ipcMain.handle('plugins-remove', function(event, pluginFolder, pluginId) {
     var userData = app.getPath('userData');
-    /* If both a folder and an id were given, make sure they actually
-       belong to each other before deleting — otherwise a caller could
-       delete one plugin's files while wiping a different plugin's
-       stored approval state. An invalid/unscannable folder (nothing
-       left to cross-check) is still removable by folder alone, so a
-       broken plugin can always be cleaned up. */
+    /* If both a folder and an id were given, only clear that id's stored
+       approval state if we can POSITIVELY confirm folder and id belong
+       to each other — never on the mere absence of a proven mismatch.
+       (Security fix, found during the 4.2.0 audit: the original version
+       only refused when a scanned entry for pluginFolder existed AND its
+       id differed. A folder name that matched no real plugin at all —
+       e.g. already deleted, or simply made up — fell through that check
+       and still passed pluginId straight to removePlugin(), which
+       unconditionally deletes state[pluginId]. That allowed any caller
+       to wipe a completely unrelated, real plugin's approval/enabled state —
+       silently forcing it back to needsConsent — via
+       removePlugin('bogus-folder', 'victim.plugin.id').) */
+    var idToClear = null;
     if (pluginId) {
       var scanned = pluginLoader.scanPlugins(userData);
       var match = scanned.filter(function(p) { return p.folder === pluginFolder; })[0];
-      if (match && match.valid && match.manifest.id !== pluginId) {
-        return { ok: false, error: 'folder/id mismatch — refusing to remove' };
+      if (match && match.valid) {
+        if (match.manifest.id !== pluginId) {
+          return { ok: false, error: 'folder/id mismatch — refusing to remove' };
+        }
+        idToClear = pluginId; /* positively confirmed — safe to clear */
       }
+      /* No scanned entry for pluginFolder (already broken/missing
+         manifest): fall through and remove the folder only. Never clear
+         a caller-supplied pluginId's state without a verified match. */
     }
-    return pluginLoader.removePlugin(userData, pluginFolder, pluginId);
+    return pluginLoader.removePlugin(userData, pluginFolder, idToClear);
+  });
+
+  /* Per-plugin storage — used by e.g. the Theme Creator plugin to
+     persist saved presets across restarts.
+
+     HONEST SECURITY NOTE (corrected during the 4.2.0 audit — the
+     original comment here overstated what this actually guarantees):
+     the path-safety handling in plugin-loader.js guarantees a plugin's
+     storage file can never escape its own namespaced location on disk
+     (no path traversal). It does NOT verify which plugin's script is
+     actually making a given call. Because every plugin's entry script
+     runs in the same renderer page context as the rest of the app (the
+     disclosed convention-based sandbox model — see plugin-api.js), any
+     loaded plugin can, in principle, call this with a different
+     plugin's id and read or overwrite its stored data. This is the same
+     trust boundary as every other KanvazBridge method: approving a
+     plugin grants it the same practical access as Kanvaz's own code,
+     regardless of which permissions it declared or what the consent
+     dialog listed. See SECURITY.md. writePluginStorage() itself does
+     cap payload size (see plugin-loader.js) so a runaway/malicious
+     write can't freeze the main process or exhaust disk. */
+  ipcMain.handle('plugins-storage-get', function(event, pluginId) {
+    try {
+      return { ok: true, data: pluginLoader.readPluginStorage(app.getPath('userData'), pluginId) };
+    } catch (e) {
+      return { ok: false, error: e.message, data: {} };
+    }
+  });
+
+  ipcMain.handle('plugins-storage-set', function(event, pluginId, data) {
+    return pluginLoader.writePluginStorage(app.getPath('userData'), pluginId, data);
   });
 
 }
