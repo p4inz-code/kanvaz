@@ -67,6 +67,16 @@ const fakeServer = net.createServer((socket) => {
       result = fakeCards[req.params.id] || null;
     } else if (req.method === 'createCard') {
       result = { id: 'card-2', type: req.params.type, name: 'created', hasMedia: false };
+    } else if (req.method === 'listBoards') {
+      result = [{ id: 'board-1', name: 'Test Board', cardCount: 1, active: true }];
+    } else if (req.method === 'deleteBoard') {
+      result = req.params.confirm
+        ? { ok: true, deleted: true, id: req.params.id, name: 'Board 2' }
+        : { ok: true, needsConfirmation: true, id: req.params.id, name: 'Board 2', cardCount: 3, message: 'confirm to proceed' };
+    } else if (req.method === 'getSettings') {
+      result = { theme: 'dark', autosaveInterval: 30 };
+    } else if (req.method === 'undo') {
+      result = { ok: true };
     } else {
       error = 'fake server: unhandled method ' + req.method;
     }
@@ -96,10 +106,15 @@ await client.connect(transport);
 
 const toolsResult = await client.listTools();
 const toolNames = toolsResult.tools.map((t) => t.name).sort();
-check('all 11 tools registered', toolNames.length === 11);
+check('all 30 tools registered (11 original + 19 from the 4.5.0 whole-app expansion)', toolNames.length === 30);
 check('getActiveBoard present', toolNames.includes('getActiveBoard'));
 check('createCard present', toolNames.includes('createCard'));
 check('connectCards present', toolNames.includes('connectCards'));
+check('deleteBoard present (board management)', toolNames.includes('deleteBoard'));
+check('undo present (history)', toolNames.includes('undo'));
+check('zoomFit present (view control)', toolNames.includes('zoomFit'));
+check('updateSettings present (settings, minus plugin management)', toolNames.includes('updateSettings'));
+check('no plugin-management tool exists (install/enable/disable a plugin stays UI-only)', !toolNames.some((n) => /plugin/i.test(n)));
 
 const r1 = await client.callTool({ name: 'getActiveBoard', arguments: {} });
 check('getActiveBoard round-trips real data', JSON.parse(r1.content[0].text).name === 'Test Board');
@@ -116,6 +131,23 @@ check('createCard round-trips the fake created card', JSON.parse(r4.content[0].t
 
 const r5 = await client.callTool({ name: 'getConnections', arguments: {} });
 check('an unhandled/erroring method surfaces as isError:true, not a crash', r5.isError === true && /unhandled method/.test(r5.content[0].text));
+
+const r6 = await client.callTool({ name: 'listBoards', arguments: {} });
+check('listBoards round-trips real data', Array.isArray(JSON.parse(r6.content[0].text)) && JSON.parse(r6.content[0].text)[0].name === 'Test Board');
+
+const r7 = await client.callTool({ name: 'deleteBoard', arguments: { id: 'board-2' } });
+const r7data = JSON.parse(r7.content[0].text);
+check('deleteBoard without confirm returns needsConfirmation, does not delete', r7data.needsConfirmation === true && !r7data.deleted);
+
+const r8 = await client.callTool({ name: 'deleteBoard', arguments: { id: 'board-2', confirm: true } });
+const r8data = JSON.parse(r8.content[0].text);
+check('deleteBoard with confirm:true actually deletes', r8data.deleted === true);
+
+const r9 = await client.callTool({ name: 'getSettings', arguments: {} });
+check('getSettings round-trips real data', JSON.parse(r9.content[0].text).theme === 'dark');
+
+const r10 = await client.callTool({ name: 'undo', arguments: {} });
+check('undo round-trips ok:true', JSON.parse(r10.content[0].text).ok === true);
 
 await client.close();
 fakeServer.close();

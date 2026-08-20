@@ -2242,8 +2242,15 @@ var KanvazCards = (function() {
   /* Kept in sync BY HAND with the zod `patch` schema in
      official-plugins/mcp-bridge/server.js's updateCard tool — that's a
      separate, standalone Node/ESM script with no way to import this
-     array directly. Update both if this list ever changes. */
-  var UPDATABLE_FIELDS = ['name', 'text', 'url', 'color', 'tags', 'x', 'y', 'w', 'h', 'pinned'];
+     array directly. Update both if this list ever changes.
+     'properties' (4.5.0) — the same custom key-value object the
+     Properties panel (properties.js) edits in place; there's no
+     dedicated get/set API for it, it's just a plain object field on
+     the card, exactly like `tags`. If the Properties panel happens to
+     be open for this exact card when a caller patches it this way,
+     the panel's own DOM won't refresh until it's reopened — a known,
+     minor gap, not something this pass fixes. */
+  var UPDATABLE_FIELDS = ['name', 'text', 'url', 'color', 'tags', 'properties', 'x', 'y', 'w', 'h', 'pinned'];
 
   function updateCardData(id, patch) {
     var card = cards[id];

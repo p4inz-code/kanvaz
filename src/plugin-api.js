@@ -338,6 +338,111 @@ var KanvazPluginAPI = (function() {
     return KanvazCards.search(query);
   }
 
+  /* ── Card extras (4.5.0) — not reachable through updateCard's patch ──
+     flip/duplicate/z-order aren't plain field assignments the way
+     pinned/tags/properties are (flipCard toggles an axis, duplicate
+     creates a NEW card, z-order is relative "front"/"back" not an
+     absolute value) — each keeps its own KanvazCards function and gets
+     a thin same-shape wrapper here instead of an awkward patch-object
+     encoding. */
+  function flipCard(id, axis) {
+    if (typeof KanvazCards === 'undefined') return;
+    KanvazCards.flipCard(id, axis);
+  }
+
+  function duplicateCard(id) {
+    if (typeof KanvazCards === 'undefined') return null;
+    return KanvazCards.duplicateCard(id);
+  }
+
+  function bringCardToFront(id) {
+    if (typeof KanvazCards === 'undefined') return;
+    KanvazCards.bringToFront(id);
+  }
+
+  function sendCardToBack(id) {
+    if (typeof KanvazCards === 'undefined') return;
+    KanvazCards.sendToBack(id);
+  }
+
+  /* ── Board management (4.5.0) ──
+     Thin wrappers over boards.js's own by-id functions (see their much
+     longer comments there for the actual reasoning — by-id not by-
+     index, board deletion's stateless confirm gate, saveBoardToPath
+     never popping the native OS dialog). Nothing here is gated on any
+     permission — same as every method above except mcpBridge. */
+  function createBoard(name) {
+    if (typeof KanvazBoards === 'undefined') return null;
+    KanvazBoards.newBoard(false, name);
+    return KanvazBoards.getActiveBoardInfo();
+  }
+
+  function listBoards() {
+    if (typeof KanvazBoards === 'undefined' || !KanvazBoards.listBoardsInfo) return [];
+    return KanvazBoards.listBoardsInfo();
+  }
+
+  function switchBoard(id) {
+    if (typeof KanvazBoards === 'undefined' || !KanvazBoards.switchBoardById) return { ok: false, error: 'unavailable in this build' };
+    return KanvazBoards.switchBoardById(id);
+  }
+
+  function renameBoard(id, name) {
+    if (typeof KanvazBoards === 'undefined' || !KanvazBoards.renameBoardById) return { ok: false, error: 'unavailable in this build' };
+    return KanvazBoards.renameBoardById(id, name);
+  }
+
+  function deleteBoard(id, confirm) {
+    if (typeof KanvazBoards === 'undefined' || !KanvazBoards.deleteBoardById) return { ok: false, error: 'unavailable in this build' };
+    return KanvazBoards.deleteBoardById(id, confirm);
+  }
+
+  function saveBoard(path) {
+    if (typeof KanvazBoards === 'undefined' || !KanvazBoards.saveBoardToPath) {
+      return Promise.resolve({ ok: false, error: 'unavailable in this build' });
+    }
+    return KanvazBoards.saveBoardToPath(path);
+  }
+
+  /* ── History / view control (4.5.0) — direct pass-throughs, nothing
+     to wrap beyond an existence guard; every one of these already does
+     its own no-op-when-nothing-to-do handling (e.g. undo() with an
+     empty stack). */
+  function undo() { if (typeof KanvazHistory !== 'undefined') KanvazHistory.undo(); }
+  function redo() { if (typeof KanvazHistory !== 'undefined') KanvazHistory.redo(); }
+  function zoomIn() { if (typeof KanvazCanvas !== 'undefined') KanvazCanvas.zoomIn(); }
+  function zoomOut() { if (typeof KanvazCanvas !== 'undefined') KanvazCanvas.zoomOut(); }
+  function zoomReset() { if (typeof KanvazCanvas !== 'undefined') KanvazCanvas.zoomReset(); }
+  function zoomFit() { if (typeof KanvazCanvas !== 'undefined') KanvazCanvas.zoomFit(); }
+  function toggleMapView() { if (typeof KanvazMapView !== 'undefined') KanvazMapView.toggle(); }
+
+  /* ── Settings (4.5.0) — everything except plugin management, which
+     was never reachable through this path in the first place: plugin
+     enable/disable/approval state lives entirely in plugin-state.json,
+     a separate main-process-only file `KanvazUI_Extended.updateSettings`
+     (ui.js) has no access to and never touches. The exclusion is
+     structural, not a checklist this function has to remember. Returns
+     a CLONE, not KanvazUI_Extended.getSettings()'s live reference —
+     same reasoning as getCards()/getSelected() above: a caller
+     mutating the object it got back directly, instead of going through
+     updateSettings(), would silently desync from the real settings
+     with no persist and no live apply. */
+  function getSettings() {
+    if (typeof KanvazUI_Extended === 'undefined') return {};
+    try {
+      return JSON.parse(JSON.stringify(KanvazUI_Extended.getSettings()));
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function updateSettings(patch) {
+    if (typeof KanvazUI_Extended === 'undefined' || !KanvazUI_Extended.updateSettings) {
+      return { ok: false, error: 'unavailable in this build' };
+    }
+    return KanvazUI_Extended.updateSettings(patch);
+  }
+
   var storage = {
     load: function(pluginId) {
       if (typeof KanvazBridge === 'undefined' || !KanvazBridge.getPluginStorage) {
@@ -493,6 +598,25 @@ var KanvazPluginAPI = (function() {
     setCardTags: setCardTags,
     deleteCard: deleteCard,
     searchCards: searchCards,
+    flipCard: flipCard,
+    duplicateCard: duplicateCard,
+    bringCardToFront: bringCardToFront,
+    sendCardToBack: sendCardToBack,
+    createBoard: createBoard,
+    listBoards: listBoards,
+    switchBoard: switchBoard,
+    renameBoard: renameBoard,
+    deleteBoard: deleteBoard,
+    saveBoard: saveBoard,
+    undo: undo,
+    redo: redo,
+    zoomIn: zoomIn,
+    zoomOut: zoomOut,
+    zoomReset: zoomReset,
+    zoomFit: zoomFit,
+    toggleMapView: toggleMapView,
+    getSettings: getSettings,
+    updateSettings: updateSettings,
     storage: storage,
     /* Public — a plugin (e.g. a theme creator/editor) can call this
        directly to preview or switch to any registered theme, including

@@ -70,19 +70,67 @@ client. Not needed on Windows — named pipes don't depend on that at all.
 
 ## Tools
 
+30 tools, covering nearly the whole app — everything except plugin
+management (install/enable/disable/remove a plugin), which stays UI-only on
+purpose (see "Scope" below).
+
+**Cards & connections**
+
 | Tool | Does |
 |---|---|
 | `getActiveBoard` | Returns the open board's id/name/path |
 | `listCards` | Lists cards, optionally filtered by `type` or `tag` |
 | `getCard` | Gets one card by id |
 | `createCard` | Creates a note/color/url/file card |
-| `updateCard` | Partial update (name/text/url/color/tags/position/size/pinned) |
+| `updateCard` | Partial update (name/text/url/color/tags/**properties**/position/size/pinned) |
 | `deleteCard` | Deletes a card (undo-reversible) |
 | `addReference` | Creates a card from a local file path or a URL |
 | `tagCard` | Sets a card's full tag list |
 | `search` | Searches by name/type/tag |
 | `getConnections` | Lists connections on the board |
 | `connectCards` | Creates a directional connection between two cards |
+| `flipCard` | Flips a card horizontally or vertically |
+| `duplicateCard` | Duplicates a card |
+| `bringCardToFront` / `sendCardToBack` | Z-order |
+
+**Boards** — `deleteBoard` is the one tool on this whole surface that is
+**not** undo-reversible (undo history is per-board, cleared on every
+switch/load) — call it once without `confirm` to see what would be deleted,
+again with `confirm:true` to actually delete it.
+
+| Tool | Does |
+|---|---|
+| `createBoard` | Creates a new, empty board and switches to it |
+| `listBoards` | Lists every open board (not just the active one) |
+| `switchBoard` | Switches to a different open board by id |
+| `renameBoard` | Renames a board |
+| `deleteBoard` | Deletes a board — confirm-gated, see above |
+| `saveBoard` | Saves the active board; needs a `path` only if it doesn't have one yet — never opens a native file dialog |
+
+**History & view**
+
+| Tool | Does |
+|---|---|
+| `undo` / `redo` | Undo/redo the last change |
+| `zoomIn` / `zoomOut` / `zoomReset` / `zoomFit` | Canvas zoom |
+| `toggleMapView` | Switches between Board view and Map view |
+
+**Settings** — everything Settings covers except plugin management.
+
+| Tool | Does |
+|---|---|
+| `getSettings` | Returns current settings (theme, autosave interval, grid snap, etc.) |
+| `updateSettings` | Applies a partial settings update, live |
+
+## Scope
+
+The one thing deliberately left out: **plugin management** — installing,
+enabling, disabling, or removing a plugin, Browse Official Plugins, Load
+unpacked plugin. That's not an arbitrary line drawn in the tool list; plugin
+enable/disable/approval state lives entirely in `plugin-state.json`, a file
+only Kanvaz's main process ever touches, completely separate from the
+settings and card data this plugin's tools actually read and write. There's
+no path from any tool above into that file, by construction.
 
 A card's `dataUrl` (the actual embedded image/video/audio bytes) is never
 sent over the bridge — you'll see `hasMedia: true/false` instead. Nothing

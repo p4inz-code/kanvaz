@@ -1,13 +1,26 @@
-/* MCP Bridge — an official Kanvaz plugin (4.4.0)
+/* MCP Bridge — an official Kanvaz plugin (4.4.0, expanded 4.5.0)
 
-   Exposes the active board to any MCP-compatible AI client (Claude
+   Exposes almost the whole app to any MCP-compatible AI client (Claude
    Desktop, Claude Code, etc.) via a local-only named pipe / Unix socket
    that Kanvaz's main process listens on (see src/main.js's mcp-bridge-*
    IPC handlers) — this file is the renderer-side half: it registers the
    Settings toggle and the actual tool-call handler that answers every
-   request with real data by calling the exact same KanvazCards/
-   KanvazConnections functions the UI itself uses, so every AI-driven
-   change lands in undo history exactly like a manual edit.
+   request with real data by calling the exact same KanvazPluginAPI/
+   KanvazCards/KanvazConnections functions the UI itself uses, so every
+   AI-driven change lands in undo history exactly like a manual edit
+   wherever undo applies at all (board-level actions — create/switch/
+   rename/delete/save a board — are NOT undo-tracked the way card edits
+   are; see boards.js's own comments on deleteBoardById for why board
+   deletion specifically requires an explicit confirm step as a result).
+
+   4.5.0 widened the surface from "read/write cards" to nearly the full
+   app, deliberately excluding ONE thing: plugin management (install/
+   enable/disable/remove a plugin, Browse Official Plugins, Load
+   unpacked plugin). That's not a checklist exclusion — plugin
+   enable/disable state lives entirely in plugin-state.json, a separate
+   main-process-only file nothing in KanvazPluginAPI ever touches, so
+   there was never a path from this plugin's tool calls to that file in
+   the first place.
 
    Requests a single permission: "server" (run a local listener). See
    README.md in this folder for the Claude Desktop / Claude Code setup
@@ -228,6 +241,34 @@
       case 'search':          return search(args.query);
       case 'getConnections':  return MCP_API.getConnections();
       case 'connectCards':    return connectCards(args.fromId, args.toId, args.type);
+
+      /* Card extras (4.5.0) */
+      case 'flipCard':          MCP_API.flipCard(args.id, args.axis); return { ok: true };
+      case 'duplicateCard':     return sanitizeCard(MCP_API.duplicateCard(args.id));
+      case 'bringCardToFront':  MCP_API.bringCardToFront(args.id); return { ok: true };
+      case 'sendCardToBack':    MCP_API.sendCardToBack(args.id); return { ok: true };
+
+      /* Board management (4.5.0) */
+      case 'createBoard':  return MCP_API.createBoard(args.name);
+      case 'listBoards':   return MCP_API.listBoards();
+      case 'switchBoard':  return MCP_API.switchBoard(args.id);
+      case 'renameBoard':  return MCP_API.renameBoard(args.id, args.name);
+      case 'deleteBoard':  return MCP_API.deleteBoard(args.id, !!args.confirm);
+      case 'saveBoard':    return MCP_API.saveBoard(args.path);
+
+      /* History / view (4.5.0) */
+      case 'undo':           MCP_API.undo(); return { ok: true };
+      case 'redo':           MCP_API.redo(); return { ok: true };
+      case 'zoomIn':         MCP_API.zoomIn(); return { ok: true };
+      case 'zoomOut':        MCP_API.zoomOut(); return { ok: true };
+      case 'zoomReset':      MCP_API.zoomReset(); return { ok: true };
+      case 'zoomFit':        MCP_API.zoomFit(); return { ok: true };
+      case 'toggleMapView':  MCP_API.toggleMapView(); return { ok: true };
+
+      /* Settings (4.5.0) — everything except plugin management */
+      case 'getSettings':     return MCP_API.getSettings();
+      case 'updateSettings':  return MCP_API.updateSettings(args.patch);
+
       default:
         throw new Error('unknown MCP Bridge method: "' + method + '"');
     }

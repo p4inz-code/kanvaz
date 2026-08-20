@@ -7,7 +7,7 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '4.4.0';
+  var VERSION       = '4.5.0';
 
   /* ── Plugin event hooks (4.3.0) ──
      Fired at the two points that mean "the active board's identity or
@@ -147,13 +147,13 @@ var KanvazBoards = (function() {
 
   /* ── New board ── */
 
-  function newBoard(silent) {
+  function newBoard(silent, name) {
     saveCurrentBoardState();
 
     var id = 'board-' + Date.now();
     var board = {
       id:       id,
-      name:     'Board ' + (boards.length + 1),
+      name:     (name && name.trim()) || ('Board ' + (boards.length + 1)),
       cards:    [],
       canvasTx: 0,
       canvasTy: 0,
@@ -346,6 +346,117 @@ var KanvazBoards = (function() {
     );
   }
 
+  /* ── MCP Bridge / plugin-facing board management (4.5.0) ──
+     Everything below operates by board ID, never by array index — an
+     index is only ever meaningful for as long as nothing else has
+     changed the boards array, which is exactly the kind of assumption
+     an AI-driven caller (issuing calls one at a time, with a human or
+     another process potentially acting on the app in between) can't
+     safely rely on. Human-facing UI code above (renameBoard,
+     deleteBoard, switchBoard) keeps using indices — it's driven
+     directly by click handlers on the tab bar, which already knows its
+     own index; changing that path isn't in scope here. */
+
+  function findBoardIndexById(id) {
+    for (var i = 0; i < boards.length; i++) {
+      if (boards[i].id === id) return i;
+    }
+    return -1;
+  }
+
+  function listBoardsInfo() {
+    /* Card counts for every board except the active one come from each
+       board's last-synced `.cards` snapshot (only refreshed on
+       switch/save, per saveCurrentBoardState's own doc comment above)
+       — sync the ACTIVE board's snapshot first so its own count is
+       exact, not stale from the last time something else was active. */
+    saveCurrentBoardState();
+    return boards.map(function(b, i) {
+      return { id: b.id, name: b.name, cardCount: (b.cards || []).length, active: i === activeIdx };
+    });
+  }
+
+  function switchBoardById(id) {
+    var idx = findBoardIndexById(id);
+    if (idx === -1) return { ok: false, error: 'no board with that id' };
+    switchBoard(idx);
+    return { ok: true };
+  }
+
+  function renameBoardById(id, newName) {
+    var idx = findBoardIndexById(id);
+    if (idx === -1) return { ok: false, error: 'no board with that id' };
+    var val = (newName || '').trim();
+    if (!val) return { ok: false, error: 'name cannot be empty' };
+    var changed = (val !== boards[idx].name);
+    boards[idx].name = val;
+    if (idx === activeIdx) updateTitle();
+    renderTabs();
+    if (changed && typeof KanvazApp !== 'undefined' && KanvazApp.markDirty) KanvazApp.markDirty();
+    return { ok: true, id: boards[idx].id, name: boards[idx].name };
+  }
+
+  /* Stateless confirm gate — no server-side token/session to track and
+     nothing to expire. Without confirm:true, returns what WOULD be
+     deleted (name + card count) and stops there; the caller has to
+     deliberately re-issue the call with confirm:true to actually do
+     it. Board deletion — unlike every card-level MCP tool — is NOT
+     undo-reversible: KanvazHistory is scoped per-board and is cleared
+     outright on every board switch/load (see loadBoardState above), so
+     there's no undo stack left to roll a deleted board back from once
+     you've navigated away from the confirm response. That asymmetry
+     with the rest of this tool surface is exactly why this one gets
+     an explicit confirmation step and the others don't. */
+  function deleteBoardById(id, confirm) {
+    var idx = findBoardIndexById(id);
+    if (idx === -1) return { ok: false, error: 'no board with that id' };
+    if (boards.length <= 1) return { ok: false, error: 'cannot delete the last board' };
+
+    var target = boards[idx];
+    var cardCount = (idx === activeIdx) ? Object.keys(KanvazCards.getAll()).length : (target.cards || []).length;
+
+    if (!confirm) {
+      return {
+        ok: true,
+        needsConfirmation: true,
+        id: target.id,
+        name: target.name,
+        cardCount: cardCount,
+        message: 'This will permanently delete "' + target.name + '" and its ' + cardCount + ' card(s) — not undo-reversible. Call again with confirm:true to proceed.'
+      };
+    }
+
+    var wasActive = (idx === activeIdx);
+
+    /* Same cascade-delete-connections logic as the dialog-driven
+       deleteBoard() above — see its own comment for why the active
+       board reads its live card list instead of the possibly-stale
+       serialised snapshot. */
+    if (typeof KanvazConnections !== 'undefined') {
+      var cardIdsToClean = [];
+      if (wasActive) {
+        cardIdsToClean = Object.keys(KanvazCards.getAll());
+      } else if (target.cards) {
+        for (var ci = 0; ci < target.cards.length; ci++) cardIdsToClean.push(target.cards[ci].id);
+      }
+      for (var cj = 0; cj < cardIdsToClean.length; cj++) KanvazConnections.removeAllFor(cardIdsToClean[cj]);
+    }
+
+    boards.splice(idx, 1);
+
+    if (wasActive) {
+      if (activeIdx >= boards.length) activeIdx = boards.length - 1;
+      loadBoardState(boards[activeIdx]);
+    } else if (idx < activeIdx) {
+      activeIdx -= 1;
+    }
+
+    renderTabs();
+    updateTitle();
+    if (typeof KanvazApp !== 'undefined' && KanvazApp.markDirty) KanvazApp.markDirty();
+    return { ok: true, deleted: true, id: target.id, name: target.name };
+  }
+
   /* ── Guard against silently discarding unsaved work ──
      Audit fix: opening a different board (via the toolbar Open button,
      a recent-file click, or double-clicking a .kanvaz file / handing
@@ -396,69 +507,97 @@ var KanvazBoards = (function() {
 
   /* ── Save to file ── */
 
+  /* Extracted from saveBoard() below so a caller that already HAS a
+     path (saveBoard's own currentPath branch, and the new MCP-Bridge-
+     facing saveBoardToPath() further down) can write without ever
+     going through the native OS Save dialog — that dialog requires a
+     human mouse click, which an AI-driven call has no way to supply;
+     a plugin calling it would just hang forever. */
+  function writeSerialisedBoardTo(p, onDone) {
+    if (!p) {
+      if (onDone) onDone(false);
+      return;
+    }
+    currentPath = p;
+    KanvazApp.setCurrentPath(p);
+
+    var data = serialise();
+    var json;
+    try {
+      json = JSON.stringify(data, null, 2);
+    } catch (e) {
+      /* Audit fix: a plugin card's pluginData is arbitrary, plugin-
+         controlled data with no guarantee of being JSON-safe (circular
+         reference, a function, etc.) — an uncaught throw here used to
+         mean Save could fail with zero feedback (an uncaught exception
+         inside a directly-invoked function, not a promise chain, so
+         there was no .catch() to reach). doAutosave() below already
+         guards its own JSON.stringify this same way; Save/Save As
+         didn't. Now: log which card, tell the user clearly, don't
+         silently fail. */
+      console.error('[Kanvaz] could not serialize board for save:', e.message);
+      KanvazUI.toast('Save failed — a card\'s data could not be saved (see console)', 'error');
+      if (onDone) onDone(false);
+      return;
+    }
+    KanvazBridge.writeFile(p, json).then(function(result) {
+      if (result.ok) {
+        KanvazBridge.addRecent(p);
+        KanvazApp.markClean();
+        KanvazBridge.clearRecovery();
+        KanvazUI.toast('Board saved', 'success');
+        emitBoardEvent('boardSave');
+        if (onDone) onDone(true);
+      } else {
+        KanvazUI.toast('Save failed: ' + result.error, 'error');
+        if (onDone) onDone(false);
+      }
+    }).catch(function(e) {
+      console.warn('[Kanvaz] writeFile IPC failed:', e);
+      KanvazUI.toast('Save failed — could not reach the file system', 'error');
+      if (onDone) onDone(false);
+    });
+  }
+
   function saveBoard(onDone) {
     saveCurrentBoardState();
 
     var savePath = currentPath;
 
-    function doSave(p) {
-      if (!p) {
-        if (onDone) onDone(false);
-        return;
-      }
-      currentPath = p;
-      KanvazApp.setCurrentPath(p);
-
-      var data = serialise();
-      var json;
-      try {
-        json = JSON.stringify(data, null, 2);
-      } catch (e) {
-        /* Audit fix: a plugin card's pluginData is arbitrary, plugin-
-           controlled data with no guarantee of being JSON-safe (circular
-           reference, a function, etc.) — an uncaught throw here used to
-           mean Save could fail with zero feedback (an uncaught exception
-           inside a directly-invoked function, not a promise chain, so
-           there was no .catch() to reach). doAutosave() below already
-           guards its own JSON.stringify this same way; Save/Save As
-           didn't. Now: log which card, tell the user clearly, don't
-           silently fail. */
-        console.error('[Kanvaz] could not serialize board for save:', e.message);
-        KanvazUI.toast('Save failed — a card\'s data could not be saved (see console)', 'error');
-        if (onDone) onDone(false);
-        return;
-      }
-      KanvazBridge.writeFile(p, json).then(function(result) {
-        if (result.ok) {
-          KanvazBridge.addRecent(p);
-          KanvazApp.markClean();
-          KanvazBridge.clearRecovery();
-          KanvazUI.toast('Board saved', 'success');
-          emitBoardEvent('boardSave');
-          if (onDone) onDone(true);
-        } else {
-          KanvazUI.toast('Save failed: ' + result.error, 'error');
-          if (onDone) onDone(false);
-        }
-      }).catch(function(e) {
-        console.warn('[Kanvaz] writeFile IPC failed:', e);
-        KanvazUI.toast('Save failed — could not reach the file system', 'error');
-        if (onDone) onDone(false);
-      });
-    }
-
     if (savePath) {
-      doSave(savePath);
+      writeSerialisedBoardTo(savePath, onDone);
     } else {
       var defaultName = (boards[activeIdx] ? boards[activeIdx].name : 'untitled') + '.kanvaz';
       KanvazBridge.saveFileDialog(defaultName).then(function(p) {
-        doSave(p);
+        writeSerialisedBoardTo(p, onDone);
       }).catch(function(e) {
         console.warn('[Kanvaz] saveFileDialog IPC failed:', e);
         KanvazUI.toast('Could not open the save dialog', 'error');
         if (onDone) onDone(false);
       });
     }
+  }
+
+  /* ── MCP Bridge / plugin-facing save (4.5.0) ──
+     Same underlying write path as saveBoard() above, but NEVER opens
+     the native OS Save dialog even on a first-time save — uses the
+     board's existing currentPath if it has one (explicitPath is then
+     ignored, same "don't silently redirect an already-placed file"
+     behavior a human clicking plain Save would expect), otherwise
+     requires explicitPath to establish one. Returns a Promise so the
+     MCP tool handler can await a clean {ok, path} result instead of
+     the callback style the rest of this file already uses internally. */
+  function saveBoardToPath(explicitPath) {
+    saveCurrentBoardState();
+    var p = currentPath || explicitPath;
+    if (!p) {
+      return Promise.resolve({ ok: false, error: 'this board has no file path yet — pass a path to create one' });
+    }
+    return new Promise(function(resolve) {
+      writeSerialisedBoardTo(p, function(ok) {
+        resolve(ok ? { ok: true, path: p } : { ok: false, error: 'save failed — see Kanvaz for the exact reason' });
+      });
+    });
   }
 
   /* ── Save As ── */
@@ -891,7 +1030,12 @@ var KanvazBoards = (function() {
     doAutosave:      doAutosave,
     startAutosave:   startAutosave,
     getVersion:      function() { return VERSION; },
-    getActiveBoardInfo: getActiveBoardInfo
+    getActiveBoardInfo: getActiveBoardInfo,
+    saveBoardToPath:  saveBoardToPath,
+    listBoardsInfo:   listBoardsInfo,
+    switchBoardById:  switchBoardById,
+    renameBoardById:  renameBoardById,
+    deleteBoardById:  deleteBoardById
   };
 
 })();

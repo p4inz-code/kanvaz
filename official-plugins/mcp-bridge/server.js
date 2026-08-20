@@ -222,5 +222,123 @@ server.registerTool('connectCards', {
   }
 }, tool('connectCards'));
 
+/* ── Card extras (4.5.0) ── */
+
+server.registerTool('flipCard', {
+  title: 'Flip card',
+  description: 'Flips an image/video/gif card horizontally or vertically.',
+  inputSchema: { id: z.string(), axis: z.enum(['h', 'v']) }
+}, tool('flipCard'));
+
+server.registerTool('duplicateCard', {
+  title: 'Duplicate card',
+  description: 'Duplicates a card, offset slightly from the original.',
+  inputSchema: { id: z.string() }
+}, tool('duplicateCard'));
+
+server.registerTool('bringCardToFront', {
+  title: 'Bring card to front',
+  description: 'Raises a card to the top of the z-order.',
+  inputSchema: { id: z.string() }
+}, tool('bringCardToFront'));
+
+server.registerTool('sendCardToBack', {
+  title: 'Send card to back',
+  description: 'Lowers a card to the bottom of the z-order.',
+  inputSchema: { id: z.string() }
+}, tool('sendCardToBack'));
+
+/* ── Board management (4.5.0) ──
+   deleteBoard is NOT undo-reversible (undo history is per-board and is
+   cleared on every board switch/load) — the two-step confirm pattern
+   below exists specifically because of that, unlike every card tool
+   above. Call it once without confirm to see what would be deleted,
+   then again with confirm:true to actually delete it. */
+
+server.registerTool('createBoard', {
+  title: 'Create board',
+  description: 'Creates a new, empty board and switches to it.',
+  inputSchema: { name: z.string().optional() }
+}, tool('createBoard'));
+
+server.registerTool('listBoards', {
+  title: 'List boards',
+  description: 'Lists every open board (id, name, card count, which one is active) — not just the active one.'
+}, tool('listBoards'));
+
+server.registerTool('switchBoard', {
+  title: 'Switch board',
+  description: 'Switches to a different open board by id.',
+  inputSchema: { id: z.string() }
+}, tool('switchBoard'));
+
+server.registerTool('renameBoard', {
+  title: 'Rename board',
+  description: 'Renames a board by id.',
+  inputSchema: { id: z.string(), name: z.string() }
+}, tool('renameBoard'));
+
+server.registerTool('deleteBoard', {
+  title: 'Delete board',
+  description: 'Deletes a board by id. NOT undo-reversible. Call once without confirm to see what would be deleted (name, card count); call again with confirm:true to actually delete it.',
+  inputSchema: { id: z.string(), confirm: z.boolean().optional() }
+}, tool('deleteBoard'));
+
+server.registerTool('saveBoard', {
+  title: 'Save board',
+  description: 'Saves the active board. Uses its existing file path if it has one (path is ignored in that case); otherwise path is required to establish one. Never opens a native file-picker dialog.',
+  inputSchema: { path: z.string().optional() }
+}, tool('saveBoard'));
+
+/* ── History / view control (4.5.0) ── */
+
+server.registerTool('undo', { title: 'Undo', description: 'Undoes the last change on the active board.' }, tool('undo'));
+server.registerTool('redo', { title: 'Redo', description: 'Redoes the last undone change on the active board.' }, tool('redo'));
+server.registerTool('zoomIn', { title: 'Zoom in', description: 'Zooms the canvas in one step.' }, tool('zoomIn'));
+server.registerTool('zoomOut', { title: 'Zoom out', description: 'Zooms the canvas out one step.' }, tool('zoomOut'));
+server.registerTool('zoomReset', { title: 'Reset zoom', description: 'Resets canvas zoom to 100%.' }, tool('zoomReset'));
+server.registerTool('zoomFit', { title: 'Zoom to fit', description: 'Zooms/pans the canvas so every card is visible.' }, tool('zoomFit'));
+server.registerTool('toggleMapView', { title: 'Toggle map view', description: 'Switches between Board view and Map view.' }, tool('toggleMapView'));
+
+/* ── Settings (4.5.0) — everything except plugin management ──
+   This field list is a hand-kept duplicate of src/ui.js's own
+   SETTINGS_DEFAULTS object (same reasoning as updateCard's patch
+   schema above — separate standalone script, no way to import it
+   directly). Plugin enable/disable/approval state was never part of
+   this object at all; the exclusion is structural, not enforced by
+   this schema. */
+
+server.registerTool('getSettings', {
+  title: 'Get settings',
+  description: 'Returns the current app settings (theme, autosave interval, grid snap, etc. — everything except plugin management).'
+}, tool('getSettings'));
+
+server.registerTool('updateSettings', {
+  title: 'Update settings',
+  description: 'Applies a partial settings update, live. Everything Settings -> Appearance/Behavior/Files/Developer covers except plugin management.',
+  inputSchema: {
+    patch: z.object({
+      theme: z.string().optional().describe('"dark", "light", or a registered plugin theme id'),
+      autosaveInterval: z.number().optional().describe('seconds, minimum 10'),
+      showMinimap: z.boolean().optional(),
+      cardShadows: z.boolean().optional(),
+      dotGridVisible: z.boolean().optional(),
+      openOnStartup: z.boolean().optional(),
+      confirmDelete: z.boolean().optional(),
+      defaultCardW: z.number().optional(),
+      animationsOn: z.boolean().optional(),
+      alwaysOnTop: z.boolean().optional(),
+      doubleClickCreatesNote: z.boolean().optional(),
+      leftDragPan: z.boolean().optional(),
+      autoHideChrome: z.boolean().optional(),
+      gridSnapEnabled: z.boolean().optional(),
+      gridSnapIncrement: z.enum(['minor', 'major']).optional(),
+      topModeAutoOnTop: z.boolean().optional(),
+      devShowFPS: z.boolean().optional(),
+      devShowIds: z.boolean().optional()
+    })
+  }
+}, tool('updateSettings'));
+
 const transport = new StdioServerTransport();
 await server.connect(transport);

@@ -173,10 +173,25 @@ official-plugins releases.
   (macOS/Linux) — never a TCP port. Nothing outside this machine's kernel can
   reach it, full stop; there is no "bound to the wrong interface"
   misconfiguration possible the way there would be with a TCP listener.
-- **Every change lands in undo history.** The tool handlers call the exact
-  same `KanvazCards`/`KanvazConnections` functions the UI itself uses — an
+- **Card and connection edits land in undo history; board-level and settings
+  actions do not.** The card/connection tool handlers call the exact same
+  `KanvazCards`/`KanvazConnections` functions the UI itself uses — an
   AI-driven edit is `Ctrl+Z`-reversible exactly like a manual one, by
-  construction, not by a separate safety net bolted on afterward.
+  construction, not by a separate safety net bolted on afterward. `KanvazHistory`
+  is per-board and is cleared on every board switch, so this guarantee does
+  NOT extend to `deleteBoard`, `renameBoard`, `switchBoard`, or `updateSettings`
+  — there is no undo stack for those. `deleteBoard` specifically requires two
+  calls (once without `confirm`, which only returns what would be deleted;
+  once with `confirm:true`, which actually deletes) as the safety net instead.
+- **As of 4.5.0, the bridge exposes whole-app access** — board management
+  (create/list/switch/rename/delete/save), undo/redo, zoom/map-view control,
+  and settings (`getSettings`/`updateSettings`) — not just card/connection
+  editing. The only carve-out is plugin management itself (installing,
+  approving, or toggling plugins): that state lives in a main-process-only
+  `plugin-state.json` that `KanvazPluginAPI` has no path to, so it's
+  structurally unreachable from any plugin, not merely policy-excluded.
+  `updateSettings` is whitelisted to the same `SETTINGS_DEFAULTS` keys the
+  Settings UI itself exposes — it cannot write arbitrary keys.
 - **A card's embedded media is never sent over the bridge.** `dataUrl` is
   stripped to a boolean `hasMedia` flag before anything crosses the pipe — see
   `official-plugins/mcp-bridge/main.js`'s `sanitizeCard()`.

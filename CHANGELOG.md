@@ -2,6 +2,63 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [4.5.0] — MCP Bridge: Whole-App Access
+
+Widens MCP Bridge from "read/write cards" to nearly the entire app, on
+request, once the goal became clear: automate as much of Kanvaz as possible
+from an AI agent. One deliberate exclusion — plugin management — kept for
+the same reason it's always been off-limits, and structurally enforced, not
+just a rule nobody's supposed to break: plugin enable/disable/approval state
+lives entirely in `plugin-state.json`, a file nothing in `KanvazPluginAPI`
+has ever had a path to touch.
+
+### Added — 19 new MCP tools (30 total)
+- **Board management**: `createBoard`, `listBoards`, `switchBoard`,
+  `renameBoard`, `deleteBoard`, `saveBoard`. Everything operates by board id,
+  never array index — an index isn't safe to assume stable across separate
+  AI-issued calls. `deleteBoard` is the one tool on the whole surface that
+  isn't undo-reversible (undo history is per-board, wiped on every
+  switch/load) — it's stateless-confirm-gated as a result: call once without
+  `confirm` to see what would be deleted, again with `confirm:true` to
+  actually delete it. `saveBoard` never opens the native OS Save dialog
+  (which would just hang waiting for a mouse click that isn't coming) —
+  it uses the board's existing path if it has one, otherwise takes an
+  explicit `path` argument to establish one.
+- **History & view**: `undo`, `redo`, `zoomIn`/`zoomOut`/`zoomReset`/
+  `zoomFit`, `toggleMapView`.
+- **Card extras**: `flipCard`, `duplicateCard`, `bringCardToFront`/
+  `sendCardToBack`. `updateCard`'s patch also gained a `properties` field
+  (the same custom key-value object the Properties panel edits — no new
+  plumbing needed, it was already a plain object field on the card, exactly
+  like `tags`).
+- **Settings**: `getSettings`/`updateSettings`, covering everything Settings
+  → Appearance/Behavior/Files/Developer exposes except plugin management.
+
+### Meta
+- Wrote up the multi-lens review process from 4.4.0 as a standing practice —
+  `docs/AUDIT_METHODOLOGY.md` — instead of a one-off, per explicit request to
+  keep running it every time.
+- **Run for this release, with one deviation worth recording honestly**: the
+  usual 8-parallel-agent fan-out (one per lens) hit a background-agent
+  session capacity limit and every agent failed before producing findings.
+  Rather than skip the pass, it ran as a single-threaded manual review
+  covering the same lenses — security, correctness, Electron/IPC boundary,
+  privacy/offline-ethos, end-user QA, and cross-file consistency (plugin
+  ergonomics and performance were reasoned through but less exhaustively
+  than a dedicated pass would). Verified directly: the confirm-gate on
+  `deleteBoard` can't be bypassed; `updateSettings`'s key whitelist holds
+  against unknown/prototype-style keys; `switchBoard` reuses the same
+  non-destructive path the tab bar already uses (no data-loss risk);
+  `saveBoard`'s Promise correctly resolves before crossing the IPC pipe
+  (traced through the existing `onInvoke` promise-chain wrapper); the
+  hand-kept settings zod schema in `server.js` matches `SETTINGS_DEFAULTS`
+  in `src/ui.js` key-for-key (18/18); every `server.registerTool` call has
+  exactly one matching `case` in `main.js`'s `handleInvoke` and vice versa
+  (30/30, no orphans either direction); `listBoards` doesn't leak file
+  paths the way card tools intentionally do. No defects found — a clean
+  result, not a skipped one. Full test suite (`validate.js`, the MCP
+  bridge e2e test, `format-roundtrip-test.js`) reconfirmed passing after.
+
 ## [4.4.0] — Plugin Ecosystem: Hardening, Distribution & MCP Bridge
 
 The flagship reference plugin the plugin system was always building toward:

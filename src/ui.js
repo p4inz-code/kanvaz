@@ -1157,7 +1157,7 @@ var KanvazUI_Extended = (function() {
       '</div>',
       '<div class="about-title">Kanvaz</div>',
       '<div class="about-subtitle">A visual reference workspace for creative professionals.</div>',
-      '<div class="about-version">Version 4.4.0</div>',
+      '<div class="about-version">Version 4.5.0</div>',
       '<div id="about-update-status" class="about-update-status"></div>',
       '<div class="about-divider"></div>',
       '<div class="about-author">Developed by <strong>Atharva Patil</strong></div>',
@@ -1165,7 +1165,7 @@ var KanvazUI_Extended = (function() {
       '<div class="about-desc">Built for VFX and 3D artists,<br>and the studios and educators who rely on them.</div>',
       '<div class="about-divider"></div>',
       '<div class="about-privacy">Free and open source. MIT License.<br>No telemetry, no background network activity.<br>Your data stays on your machine.</div>',
-      '<div class="about-tagline">Reference Operating System<br>Actively maintained — v4.4.0</div>'
+      '<div class="about-tagline">Reference Operating System<br>Actively maintained — v4.5.0</div>'
     ].join('');
 
     var updateBtn = document.createElement('button');
@@ -1506,6 +1506,32 @@ var KanvazUI_Extended = (function() {
     setTheme: function(themeId) {
       settings.theme = themeId;
       saveSettings();
+    },
+    /* Generic settings patch (4.5.0, MCP Bridge) — whitelisted against
+       SETTINGS_DEFAULTS (never `_version`, that's internal migration
+       bookkeeping, not a user-facing setting) so an unknown or
+       plugin-management-adjacent key can't sneak in even if a caller
+       tried. `theme` needs no special-casing despite setTheme()
+       existing above it — that function is just `settings.theme = x;
+       saveSettings()`, and applySettings() (called by saveSettings())
+       already re-applies whatever settings.theme currently holds via
+       KanvazPluginAPI._applyTheme() every time it runs, regardless of
+       which code path set that field. One saveSettings() call at the
+       end batches every changed field into a single persist + apply,
+       not one per field. Returns which keys were actually applied vs.
+       ignored, so a caller can tell a typo'd key from a real failure. */
+    updateSettings: function(patch) {
+      if (!patch || typeof patch !== 'object') return { ok: false, error: 'patch must be an object' };
+      var applied = [];
+      var ignored = [];
+      for (var key in patch) {
+        if (!Object.prototype.hasOwnProperty.call(patch, key)) continue;
+        if (key === '_version' || !SETTINGS_DEFAULTS.hasOwnProperty(key)) { ignored.push(key); continue; }
+        settings[key] = patch[key];
+        applied.push(key);
+      }
+      if (applied.length) saveSettings();
+      return { ok: true, applied: applied, ignored: ignored };
     }
   };
 
