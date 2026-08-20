@@ -90,8 +90,23 @@ if (fs.existsSync(path.join(__dirname, 'plugin-loader-test.js'))) {
   console.log('  (skipped — test/plugin-loader-test.js missing)');
 }
 
-/* 6. Version consistency */
-section('6. Version consistency');
+/* 6. Command registry — registration validation, palette filtering, fuzzy match */
+section('6. Command registry');
+if (fs.existsSync(path.join(__dirname, 'command-registry-test.js'))) {
+  try {
+    var cmdOut = cp.execSync('node "' + path.join(__dirname, 'command-registry-test.js') + '"', { encoding: 'utf8', timeout: 30000 });
+    if (/ALL COMMAND REGISTRY TESTS PASSED/.test(cmdOut)) ok('registerCommand validation, palette filtering, and fuzzy match all correct');
+    else { bad('command registry test failed'); console.log(cmdOut); }
+  } catch (e) {
+    bad('command registry test crashed');
+    console.log(e.stdout || e.message);
+  }
+} else {
+  console.log('  (skipped — test/command-registry-test.js missing)');
+}
+
+/* 7. Version consistency */
+section('7. Version consistency');
 var pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
 var v = pkg.version;
 var boards = fs.readFileSync(path.join(SRC, 'boards.js'), 'utf8');

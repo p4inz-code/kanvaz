@@ -185,6 +185,7 @@ var KanvazCards = (function() {
       if (moved) {
         KanvazApp.markDirty();
         KanvazHistory.push();
+        emitCardEvent('cardUpdate', card);
       }
     }
 
@@ -269,6 +270,7 @@ var KanvazCards = (function() {
       }
       KanvazApp.markDirty();
       KanvazHistory.push();
+      emitCardEvent('cardUpdate', card);
     }
 
     window.addEventListener('mousemove', onMove);
@@ -427,6 +429,33 @@ var KanvazCards = (function() {
     return 'card-' + Date.now() + '-' + cardCount;
   }
 
+  /* ── Plugin event hooks (4.3.0) ──
+     cardCreate/cardUpdate/cardDelete fire at the exact points that
+     already trigger an undo-history push in THIS file — the same
+     "this is a real, committed change" boundary the app already relies
+     on for undo, reused rather than inventing a second, possibly
+     inconsistent notion of what counts as a change. Covers every
+     creation/deletion path (all six create*Card functions plus
+     duplicateCardCore, and removeCardCore/finishDelete respectively)
+     and cards.js's own field/geometry mutations (drag, resize, flip,
+     pin, resize-to-natural, nudge, z-order, relink, object-fit, speed,
+     and note/url/color content commits).
+     Deliberately NOT wired into annotate.js, map-view.js, inspector.js,
+     or properties.js's own KanvazHistory.push() call sites yet — those
+     modules own their own state outside the canonical card object this
+     event carries, and covering them is real follow-up work, not
+     something forgotten. selectionChange fires from selectCard/
+     selectAll/deselectAll/setMultiSelection below. */
+  function emitCardEvent(type, card) {
+    if (typeof KanvazPluginAPI === 'undefined' || !KanvazPluginAPI._emit) return;
+    KanvazPluginAPI._emit(type, card);
+  }
+
+  function emitSelectionChange() {
+    if (typeof KanvazPluginAPI === 'undefined' || !KanvazPluginAPI._emit) return;
+    KanvazPluginAPI._emit('selectionChange', getSelectedIds());
+  }
+
   /* ── Create from media result ── */
 
   function createFromMedia(mediaResult, pos) {
@@ -463,6 +492,7 @@ var KanvazCards = (function() {
     if (typeof KanvazHistory !== 'undefined') {
       KanvazHistory.push();
     }
+    emitCardEvent('cardCreate', card);
 
     return card;
   }
@@ -518,6 +548,7 @@ var KanvazCards = (function() {
     if (typeof KanvazHistory !== 'undefined') {
       KanvazHistory.push();
     }
+    emitCardEvent('cardCreate', card);
 
     return card;
   }
@@ -561,6 +592,7 @@ var KanvazCards = (function() {
     if (typeof KanvazHistory !== 'undefined') {
       KanvazHistory.push();
     }
+    emitCardEvent('cardCreate', card);
 
     return card;
   }
@@ -603,6 +635,7 @@ var KanvazCards = (function() {
     if (typeof KanvazHistory !== 'undefined') {
       KanvazHistory.push();
     }
+    emitCardEvent('cardCreate', card);
 
     return card;
   }
@@ -636,6 +669,7 @@ var KanvazCards = (function() {
       updateEmptyState();
       updateCount();
       if (typeof KanvazHistory !== 'undefined') KanvazHistory.push();
+      emitCardEvent('cardCreate', card);
     }).catch(function(e) { console.warn('[Kanvaz] openRefFileDialog IPC failed:', e); });
   }
 
@@ -692,6 +726,7 @@ var KanvazCards = (function() {
     updateEmptyState();
     updateCount();
     if (typeof KanvazHistory !== 'undefined') KanvazHistory.push();
+    emitCardEvent('cardCreate', card);
     return card;
   }
 
@@ -980,6 +1015,7 @@ var KanvazCards = (function() {
         }
         KanvazApp.markDirty();
         KanvazHistory.push();
+        emitCardEvent('cardUpdate', card);
         KanvazUI.toast('Relinked', 'success');
       });
     }).catch(function(e) { console.warn('[Kanvaz] openMediaDialog IPC failed:', e); });
@@ -1048,6 +1084,7 @@ var KanvazCards = (function() {
     }
     KanvazApp.markDirty();
     KanvazHistory.push();
+    emitCardEvent('cardUpdate', card);
   }
 
   /* ── GIF card ── */
@@ -1257,6 +1294,7 @@ var KanvazCards = (function() {
           vid.playbackRate = speed;
           KanvazApp.markDirty();
           KanvazHistory.push();
+          emitCardEvent('cardUpdate', card);
           if (picker.parentNode) picker.parentNode.removeChild(picker);
         });
         picker.appendChild(btn);
@@ -1422,6 +1460,7 @@ var KanvazCards = (function() {
 
     ta.addEventListener('blur', function() {
       KanvazHistory.push();
+      emitCardEvent('cardUpdate', card);
     });
 
     el.appendChild(ta);
@@ -1525,6 +1564,7 @@ var KanvazCards = (function() {
 
       picker.addEventListener('change', function() {
         KanvazHistory.push();
+        emitCardEvent('cardUpdate', card);
         removePicker();
       });
 
@@ -1598,6 +1638,7 @@ var KanvazCards = (function() {
     input.addEventListener('blur', function() {
       if (el.dataset.justDragged) { delete el.dataset.justDragged; return; }
       KanvazHistory.push();
+      emitCardEvent('cardUpdate', card);
     });
 
     /* mousedown on the input must not start a card drag — same pattern
@@ -1676,6 +1717,7 @@ var KanvazCards = (function() {
         if (barName) barName.textContent = card.name;
         KanvazApp.markDirty();
         KanvazHistory.push();
+        emitCardEvent('cardUpdate', card);
       }).catch(function(e) { console.warn('[Kanvaz] openRefFileDialog IPC failed:', e); });
     });
     changeBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
@@ -1794,6 +1836,7 @@ var KanvazCards = (function() {
             buildTagBar(el, card);
             KanvazApp.markDirty();
             KanvazHistory.push();
+            emitCardEvent('cardUpdate', card);
           });
           chip.appendChild(removeBtn);
           tagBar.appendChild(chip);
@@ -1845,6 +1888,7 @@ var KanvazCards = (function() {
         card.tags.push(val);
         KanvazApp.markDirty();
         KanvazHistory.push();
+        emitCardEvent('cardUpdate', card);
       }
       closeDropdown();
       buildTagBar(cardEl, card);
@@ -1965,6 +2009,7 @@ var KanvazCards = (function() {
     multiSelectedIds = [id];
     var el = document.getElementById(id);
     if (el) el.classList.add('selected');
+    emitSelectionChange();
   }
 
   /* Remove the '.selected' class from every card currently wearing it,
@@ -1994,6 +2039,7 @@ var KanvazCards = (function() {
     }
     multiSelectedIds = applied;
     selectedId = applied.length ? applied[applied.length - 1] : null;
+    emitSelectionChange();
   }
 
   /* Returns every currently-selected id (length 0, 1, or many). This is
@@ -2073,6 +2119,7 @@ var KanvazCards = (function() {
       if (idx !== -1) multiSelectedIds.splice(idx, 1);
     }
     if (selectedId === id) selectedId = null;
+    emitCardEvent('cardDelete', card);
     return true;
   }
 
@@ -2091,6 +2138,7 @@ var KanvazCards = (function() {
         selectCard(remainingIds[remainingIds.length - 1]);
       } else {
         multiSelectedIds = [];
+        emitSelectionChange();
       }
     }
 
@@ -2187,6 +2235,7 @@ var KanvazCards = (function() {
 
     cards[newCard.id] = newCard;
     renderCard(newCard);
+    emitCardEvent('cardCreate', newCard);
     return newCard.id;
   }
 
@@ -2240,6 +2289,7 @@ var KanvazCards = (function() {
     KanvazUI.toast(card.pinned ? 'Card pinned' : 'Card unpinned');
     KanvazApp.markDirty();
     KanvazHistory.push();
+    emitCardEvent('cardUpdate', card);
   }
 
   /* Multi-select aware pin toggle: one card behaves exactly as before
@@ -2264,6 +2314,7 @@ var KanvazCards = (function() {
       var el = document.getElementById(ids[i]);
       if (el) el.classList[target ? 'add' : 'remove']('pinned');
       changed++;
+      emitCardEvent('cardUpdate', card);
     }
 
     if (!changed) return;
@@ -2456,6 +2507,7 @@ var KanvazCards = (function() {
     nudgeTimer = setTimeout(function() {
       nudgeTimer = null;
       KanvazHistory.push();
+      emitCardEvent('cardUpdate', card);
     }, 300);
   }
 
@@ -2469,6 +2521,7 @@ var KanvazCards = (function() {
     if (el) el.style.zIndex = 0;
     KanvazApp.markDirty();
     KanvazHistory.push();
+    emitCardEvent('cardUpdate', card);
   }
 
   /* ── Flip ── */
@@ -2493,6 +2546,7 @@ var KanvazCards = (function() {
     }
     KanvazApp.markDirty();
     KanvazHistory.push();
+    emitCardEvent('cardUpdate', card);
   }
 
   /* ── Reset size to natural dimensions capped at 600px ── */
@@ -2515,6 +2569,7 @@ var KanvazCards = (function() {
     }
     KanvazApp.markDirty();
     KanvazHistory.push();
+    emitCardEvent('cardUpdate', card);
   }
 
   /* ── Opacity picker ── */
@@ -2583,6 +2638,7 @@ var KanvazCards = (function() {
           if (picker.parentNode) picker.parentNode.removeChild(picker);
           document.removeEventListener('mousedown', closePicker);
           KanvazHistory.push();
+          emitCardEvent('cardUpdate', card);
         }
       });
     }, 50);
@@ -2600,12 +2656,14 @@ var KanvazCards = (function() {
     multiSelectedIds = ids.slice();
     selectedId = ids[ids.length - 1];
     KanvazUI.toast('All ' + ids.length + ' cards selected');
+    emitSelectionChange();
   }
 
   function deselectAll() {
     clearSelectionVisuals();
     selectedId = null;
     multiSelectedIds = [];
+    emitSelectionChange();
   }
 
   /* Dev Mode — bulk-generate N synthetic note cards for stress-testing

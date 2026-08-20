@@ -20,6 +20,7 @@ var KanvazApp = (function() {
       KanvazCards.init(world);
       KanvazHistory.init();
       KanvazShortcuts.init();
+      if (typeof KanvazCommands !== 'undefined') KanvazCommands.init();
       KanvazBoards.init();
       if (typeof KanvazMapView !== 'undefined') KanvazMapView.init();
       KanvazUI_Extended.init();

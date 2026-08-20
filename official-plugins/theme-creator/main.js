@@ -368,4 +368,28 @@
     }
   });
 
+  /* ── Command Palette registration (4.3.0 dogfood) ──
+     Proves KanvazPluginAPI.registerCommand isn't just theoretical: a
+     real official plugin using it for a real action, discoverable via
+     Ctrl+K without ever opening Settings. Randomizes the live draft
+     preview the same way dragging every color swatch by hand would —
+     open Settings → Theme Creator afterward to save it as a preset or
+     keep tweaking. Guarded so an older Kanvaz build without
+     registerCommand yet just silently skips this, same defensive
+     pattern the rest of this file already uses for optional globals. */
+  if (typeof KanvazPluginAPI.registerCommand === 'function') {
+    KanvazPluginAPI.registerCommand('theme-creator.randomizePreview', {
+      label: 'Theme Creator: Randomize Preview',
+      run: function() {
+        COLOR_FIELDS.forEach(function(f) {
+          draft[f.key] = rgbToHex(Math.random() * 255, Math.random() * 255, Math.random() * 255);
+        });
+        previewDraft();
+        if (typeof KanvazUI !== 'undefined' && KanvazUI.toast) {
+          KanvazUI.toast('Randomized theme preview — open Settings → Theme Creator to save it', 'success');
+        }
+      }
+    });
+  }
+
 })();

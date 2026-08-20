@@ -15,10 +15,15 @@
    filesystem) will exist on this object only if the plugin declared and
    the user approved that permission — but nothing here physically
    prevents a plugin's script from reaching other page globals directly.
-   Layer 1 ships exactly one real method: registerCardType. Commands,
-   property field types, and events are not implemented yet — nothing is
-   stubbed as a silent no-op, since a half-working method is worse than
-   an honest "not available yet". */
+   Layer 1 (4.2.0) shipped registerCardType, registerTheme, and
+   registerSettingsPanel. 4.3.0 adds registerCommand, on(event, handler),
+   and the read-only Runtime Data API (getCards/getSelected/
+   getConnections/getActiveBoard) — see commands.js for the command
+   registry + Ctrl+K palette these commands appear in. Property field
+   types (registerPropertyFieldType) and the network/fs permissioned
+   namespaces are still not implemented — nothing is stubbed as a silent
+   no-op, since a half-working method is worse than an honest "not
+   available yet". */
 
 var KanvazPluginAPI = (function() {
 
@@ -180,6 +185,126 @@ var KanvazPluginAPI = (function() {
      document.currentScript is only reliably set during a script's own
      initial synchronous run, not later inside callbacks — hence
      capturing it once up front rather than re-reading it on demand. */
+  /* ── registerCommand (4.3.0) — thin pass-through to KanvazCommands,
+     the same registry Kanvaz's own core actions register into (see
+     commands.js). A plugin command and a core command are
+     indistinguishable once registered — both show up in the Ctrl+K
+     palette automatically. */
+  function registerCommand(id, def) {
+    if (typeof KanvazCommands === 'undefined') {
+      console.error('[Kanvaz Plugin] registerCommand is unavailable (KanvazCommands not loaded)');
+      return;
+    }
+    if (!id || typeof id !== 'string') {
+      console.error('[Kanvaz Plugin] registerCommand requires a string id');
+      return;
+    }
+    if (!def || typeof def.run !== 'function' || !def.label) {
+      console.error('[Kanvaz Plugin] registerCommand("' + id + '") requires { label, run(context) }');
+      return;
+    }
+    KanvazCommands.registerCommand(id, def);
+  }
+
+  /* ── Event hooks (4.3.0) — KanvazPluginAPI.on(event, handler).
+     cards.js/boards.js call _emit() below at the exact points that
+     already trigger an undo-history push (cards.js) or a real board
+     load/save (boards.js) — see the comment above emitCardEvent() in
+     cards.js for the precise, deliberately scoped list of mutation
+     points this covers. Returns an unsubscribe function, same shape as
+     a DOM EventTarget convenience wrapper would. */
+  var EVENT_NAMES = { cardCreate: true, cardUpdate: true, cardDelete: true, boardLoad: true, boardSave: true, selectionChange: true };
+  var eventHandlers = {};
+
+  function on(event, handler) {
+    if (!EVENT_NAMES[event]) {
+      console.error('[Kanvaz Plugin] on("' + event + '") — unknown event. Valid events: ' + Object.keys(EVENT_NAMES).join(', '));
+      return function() {};
+    }
+    if (typeof handler !== 'function') {
+      console.error('[Kanvaz Plugin] on("' + event + '") requires a handler function');
+      return function() {};
+    }
+    if (!eventHandlers[event]) eventHandlers[event] = [];
+    eventHandlers[event].push(handler);
+    return function off() {
+      var arr = eventHandlers[event];
+      if (!arr) return;
+      var idx = arr.indexOf(handler);
+      if (idx !== -1) arr.splice(idx, 1);
+    };
+  }
+
+  /* Internal — not part of the documented plugin-facing surface (see
+     the _-prefix convention already used by _getCardType etc. below).
+     Each handler runs isolated in its own try/catch so one broken
+     plugin listener can't stop the others, or the core mutation that
+     triggered this, from completing. */
+  function _emit(event, data) {
+    var handlers = eventHandlers[event];
+    if (!handlers || !handlers.length) return;
+    var snapshot = handlers.slice();
+    for (var i = 0; i < snapshot.length; i++) {
+      try {
+        snapshot[i](data);
+      } catch (e) {
+        console.error('[Kanvaz Plugin] "' + event + '" handler threw:', e.message);
+      }
+    }
+  }
+
+  /* ── Runtime Data API (4.3.0) — read-only snapshots, not live
+     references. A plugin mutating a card object it got back from
+     getCards()/getSelected() directly (instead of going through a
+     future write API) would silently desync from the real card — no
+     re-render, no history push, no persisted change. Returning a clone
+     closes that footgun off entirely; see cloneCard()'s own fallback
+     for the same non-JSON-safe-pluginData edge case duplicateCardCore()
+     in cards.js already guards against. */
+  function cloneCard(card) {
+    try {
+      return JSON.parse(JSON.stringify(card));
+    } catch (e) {
+      var copy = {};
+      for (var k in card) {
+        if (Object.prototype.hasOwnProperty.call(card, k)) copy[k] = card[k];
+      }
+      copy.pluginData = null;
+      return copy;
+    }
+  }
+
+  function getCards() {
+    if (typeof KanvazCards === 'undefined') return [];
+    var all = KanvazCards.getAll();
+    var out = [];
+    for (var id in all) {
+      if (Object.prototype.hasOwnProperty.call(all, id)) out.push(cloneCard(all[id]));
+    }
+    return out;
+  }
+
+  function getSelected() {
+    if (typeof KanvazCards === 'undefined') return [];
+    var ids = KanvazCards.getSelectedIds();
+    var all = KanvazCards.getAll();
+    var out = [];
+    for (var i = 0; i < ids.length; i++) {
+      if (all[ids[i]]) out.push(cloneCard(all[ids[i]]));
+    }
+    return out;
+  }
+
+  function getConnections() {
+    if (typeof KanvazConnections === 'undefined') return [];
+    return KanvazConnections.serialise();
+  }
+
+  function getActiveBoard() {
+    if (typeof KanvazBoards === 'undefined' || !KanvazBoards.getActiveBoardInfo) return null;
+    return KanvazBoards.getActiveBoardInfo();
+  }
+
   var storage = {
     load: function(pluginId) {
       if (typeof KanvazBridge === 'undefined' || !KanvazBridge.getPluginStorage) {
@@ -201,6 +326,12 @@ var KanvazPluginAPI = (function() {
     registerCardType: registerCardType,
     registerTheme: registerTheme,
     registerSettingsPanel: registerSettingsPanel,
+    registerCommand: registerCommand,
+    on: on,
+    getCards: getCards,
+    getSelected: getSelected,
+    getConnections: getConnections,
+    getActiveBoard: getActiveBoard,
     storage: storage,
     /* Public — a plugin (e.g. a theme creator/editor) can call this
        directly to preview or switch to any registered theme, including
@@ -217,7 +348,8 @@ var KanvazPluginAPI = (function() {
     _createCard: createCard,
     _getAllThemes: getAllThemes,
     _applyTheme: applyTheme,
-    _getAllSettingsPanels: getAllSettingsPanels
+    _getAllSettingsPanels: getAllSettingsPanels,
+    _emit: _emit
   };
 })();
 

@@ -89,6 +89,18 @@ var KanvazShortcuts = (function() {
       return;
     }
 
+    /* Command Palette — Ctrl+K, unclaimed in Kanvaz today (see
+       ROADMAP.md's v4.3.0 section for why Ctrl+K over Ctrl+Shift+P).
+       "Always fire" like Save/Open/Search above it: a palette should be
+       reachable even while a text field is focused. The palette's own
+       input traps its keydown events (see commands.js) so this can't
+       double-fire once it's open. */
+    if (ctrl && !shift && keyLower === 'k') {
+      e.preventDefault();
+      if (typeof KanvazCommands !== 'undefined') KanvazCommands.togglePalette();
+      return;
+    }
+
     /* ── Skip text inputs below this line ──
        Ctrl+Z/Ctrl+Y/Ctrl+Shift+Z/Ctrl+A have native meanings inside a
        textarea (undo typing, redo, select all text) — they must NOT be

@@ -2,6 +2,37 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [4.3.0] — Command Palette & Plugin Runtime API
+
+The load-bearing layer of the plugin system that everything else (including
+v4.4's planned MCP Bridge) depends on — sketched in `docs/PLUGIN_SYSTEM_DRAFT.md`
+back in 4.2.0, never shipped until now.
+
+### Added
+- **Command Palette — Ctrl+K.** Type to fuzzy-search and run any command by
+  name: every one of Kanvaz's own shortcuts (Save, Undo, Select All, Zoom to
+  Fit, Toggle Theme, and more) plus anything a plugin registers. Arrow keys
+  to navigate, Enter to run, Escape to close.
+- **`KanvazPluginAPI.registerCommand(id, { label, run, shortcut, showInPalette, contextMenu })`** —
+  a plugin command and a core Kanvaz command are indistinguishable once
+  registered; both show up in the palette automatically. Theme Creator now
+  registers one ("Randomize Preview") as a working reference example, not
+  just a doc sketch.
+- **`KanvazPluginAPI.on(event, handler)`** — react to `cardCreate`,
+  `cardUpdate`, `cardDelete`, `boardLoad`, `boardSave`, and
+  `selectionChange`. Returns an unsubscribe function. A handler that throws
+  is isolated — it can't take down the other handlers or the core mutation
+  that triggered it.
+- **Runtime Data API** — `KanvazPluginAPI.getCards()`, `getSelected()`,
+  `getConnections()`, `getActiveBoard()`. Read-only snapshots (cloned, not
+  live references), so a plugin can inspect board state without risking a
+  silent desync from mutating what it got back.
+
+### Changed
+- Settings → Plugins consent model, storage, and every previously-shipped
+  `registerCardType`/`registerTheme`/`registerSettingsPanel` API are
+  unchanged — this release is purely additive to the plugin surface.
+
 ## [4.2.2] — Visual polish and reliability pass
 
 No new features — a dedicated design-consistency audit (every modal, panel,

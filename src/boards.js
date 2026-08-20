@@ -7,7 +7,26 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '4.2.2';
+  var VERSION       = '4.3.0';
+
+  /* ── Plugin event hooks (4.3.0) ──
+     Fired at the two points that mean "the active board's identity or
+     on-disk state actually changed" — a new/switched/opened board
+     (boardLoad) or a real Save/Save As landing on disk (boardSave).
+     Autosave's recovery-file write deliberately does NOT fire boardSave
+     — see doAutosave()'s own comment on why it never touches
+     currentPath; firing boardSave there would misrepresent a crash-
+     recovery snapshot as a real save to a plugin listening for one. */
+  function emitBoardEvent(type) {
+    if (typeof KanvazPluginAPI === 'undefined' || !KanvazPluginAPI._emit) return;
+    KanvazPluginAPI._emit(type, getActiveBoardInfo());
+  }
+
+  function getActiveBoardInfo() {
+    var b = boards[activeIdx];
+    if (!b) return null;
+    return { id: b.id, name: b.name, path: currentPath };
+  }
 
   /* ── Init ── */
 
@@ -148,6 +167,7 @@ var KanvazBoards = (function() {
     if (typeof KanvazConnections !== 'undefined') KanvazConnections.clear();
     KanvazCanvas.zoomReset();
     KanvazHistory.clear();
+    emitBoardEvent('boardLoad');
 
     renderTabs();
     updateTitle();
@@ -217,6 +237,7 @@ var KanvazBoards = (function() {
     }
 
     KanvazHistory.clear();
+    emitBoardEvent('boardLoad');
   }
 
   /* ── Rename board ── */
@@ -413,6 +434,7 @@ var KanvazBoards = (function() {
           KanvazApp.markClean();
           KanvazBridge.clearRecovery();
           KanvazUI.toast('Board saved', 'success');
+          emitBoardEvent('boardSave');
           if (onDone) onDone(true);
         } else {
           KanvazUI.toast('Save failed: ' + result.error, 'error');
@@ -467,6 +489,7 @@ var KanvazBoards = (function() {
              split on, so .pop() returned the WHOLE absolute path
              instead of just the filename in the toast. */
           KanvazUI.toast('Board saved as ' + p.split(/[\\/]/).pop(), 'success');
+          emitBoardEvent('boardSave');
         } else {
           /* Was a bare "Save failed" — dropped the actual reason, unlike
              saveBoard()'s equivalent toast just above. */
@@ -867,7 +890,8 @@ var KanvazBoards = (function() {
     serialise:    serialise,
     doAutosave:      doAutosave,
     startAutosave:   startAutosave,
-    getVersion:      function() { return VERSION; }
+    getVersion:      function() { return VERSION; },
+    getActiveBoardInfo: getActiveBoardInfo
   };
 
 })();

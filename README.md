@@ -16,6 +16,8 @@
 
 **Reference Operating System**
 
+> **v4.3.0** — Command Palette & Plugin Runtime API: press Ctrl+K to run any Kanvaz shortcut or plugin-registered command by name, plugins can now register their own commands and react to app events (card create/update/delete, board load/save, selection change), and a read-only Runtime Data API (`getCards`/`getSelected`/`getConnections`/`getActiveBoard`) lays the groundwork for v4.4's MCP Bridge. See [CHANGELOG.md](CHANGELOG.md) for the full list.
+>
 > **v4.2.2** — Visual polish and reliability pass: unified modal/panel styling (radius, shadow, entrance animation) across every panel in the app, a proper design-language icon set replacing leftover emoji, native connection-type colors instead of a borrowed palette, plus fixes for Top Mode's drag-to-move losing its grip mid-drag and Map View connections drifting after a window resize. See [CHANGELOG.md](CHANGELOG.md) for the full list.
 >
 > **v4.2.1** — Full-stack audit and hardening pass across every source file: a plugin-storage race, several data-loss and XSS-adjacent bugs, Caps-Lock-broken shortcuts, and a round of UI copy that no longer matched actual behavior, all fixed. See [CHANGELOG.md](CHANGELOG.md) for the full list.
@@ -122,7 +124,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 4.2.2.exe` and `dist/Kanvaz 4.2.2.exe`
+Output: `dist/Kanvaz Setup 4.3.0.exe` and `dist/Kanvaz 4.3.0.exe`
 
 **macOS:**
 ```bash

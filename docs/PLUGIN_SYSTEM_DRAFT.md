@@ -2,26 +2,29 @@
 
 > Status: planning only, no implementation yet. This is a living doc, not a spec commitment.
 
-## Implementation status as of 4.2.0 (read this first)
+## Implementation status as of 4.3.0 (read this first)
 
 This doc is the original design vision and predates the actual build — treat
-everything below as aspirational unless listed here as shipped. What's real
-in 4.2.0:
+everything below as aspirational unless listed here as shipped.
 
-- **Shipped:** manifest scan/validation, permission-escalation-forces-
-  re-consent, native-dialog-mediated install consent, `registerCardType`
-  (with a working create/render/context-menu path), `registerTheme` +
-  `applyTheme` (full-peer theme model, live-preview draft convention),
-  `registerSettingsPanel`, per-plugin persistent storage
+- **Shipped in 4.2.0:** manifest scan/validation, permission-escalation-
+  forces-re-consent, native-dialog-mediated install consent,
+  `registerCardType` (with a working create/render/context-menu path),
+  `registerTheme` + `applyTheme` (full-peer theme model, live-preview draft
+  convention), `registerSettingsPanel`, per-plugin persistent storage
   (`storage.load`/`storage.save`, size-capped), Settings → Plugins UI
   (list/enable/disable/remove/Add-a-Plugin), graceful degradation for
   missing/broken plugin types, a first official plugin (Theme Creator).
-- **NOT yet shipped**, despite being sketched below: `registerCommand` +
-  Command Palette, `KanvazPluginAPI.on(event, ...)` hooks,
-  `registerPropertyFieldType`, `KanvazPluginAPI.network`/`.fs` namespaces,
-  "Load unpacked plugin" dev-mode workflow. The "Runtime API surface" and
-  "Command Palette" sections below are the plan for later layers, not
-  current API.
+- **Shipped in 4.3.0:** `registerCommand` + the Ctrl+K Command Palette (see
+  `src/commands.js`), `KanvazPluginAPI.on(event, handler)` for `cardCreate`/
+  `cardUpdate`/`cardDelete`/`boardLoad`/`boardSave`/`selectionChange`, and
+  the read-only Runtime Data API (`getCards`/`getSelected`/
+  `getConnections`/`getActiveBoard`). Theme Creator registers one real
+  command ("Randomize Preview") as a working reference example.
+- **NOT yet shipped**, despite being sketched below: `registerPropertyFieldType`,
+  `KanvazPluginAPI.network`/`.fs`/server-listening namespaces (planned for
+  v4.4's MCP Bridge, alongside actually enforcing the permission model
+  described just below), "Load unpacked plugin" dev-mode workflow.
 - **Important correction to the permission model described below:** the
   original plan (and the "If a permission isn't declared... not present to
   call at all" line under Runtime API surface) describes function-level
