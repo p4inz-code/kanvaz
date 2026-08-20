@@ -16,7 +16,7 @@
 
 **Reference Operating System**
 
-> **v4.5.0** — MCP Bridge goes from "edit cards" to nearly the whole app: board management (create/switch/rename/save/delete — deletion confirm-gated, since it's the one action on this whole surface that isn't undo-reversible), undo/redo, view control, card extras (flip/duplicate/z-order), and every app setting except plugin management, all now AI-drivable through the same 30-tool MCP surface. See [CHANGELOG.md](CHANGELOG.md) for the full list.
+> **v4.5.1** — MCP Bridge goes from "edit cards" to nearly the whole app: board management (create/switch/rename/save/delete — deletion confirm-gated, since it's the one action on this whole surface that isn't undo-reversible), undo/redo, view control, card extras (flip/duplicate/z-order), and every app setting except plugin management, all now AI-drivable through the same 30-tool MCP surface. (4.5.1 is a CI-only follow-up — same app, fixes the macOS release build.) See [CHANGELOG.md](CHANGELOG.md) for the full list.
 >
 > **v4.4.0** — Plugin ecosystem: hardening, distribution & MCP Bridge. Kanvaz becomes agent-controllable: the new MCP Bridge official plugin lets Claude Desktop, Claude Code, or any MCP client read and edit your active board over a local-only connection (off by default, every change undo-reversible). Ships alongside real per-plugin permission enforcement (a gated capability is now genuinely absent from a plugin's API view unless declared and approved, not just undocumented), CI packaging automation for official plugins, a one-click "Browse Official Plugins" tab, and a "Load unpacked plugin" dev workflow. See [CHANGELOG.md](CHANGELOG.md) for the full list.
 >
@@ -130,7 +130,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 4.5.0.exe` and `dist/Kanvaz 4.5.0.exe`
+Output: `dist/Kanvaz Setup 4.5.1.exe` and `dist/Kanvaz 4.5.1.exe`
 
 **macOS:**
 ```bash

@@ -2,6 +2,33 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [4.5.1] — Release build fix (CI only, no app changes)
+
+v4.4.0 and v4.5.0's GitHub Release builds never actually finished: the
+macOS leg of CI failed identically on all three of the last three tag
+pushes (v4.3.0, v4.4.0, v4.5.0) with `EEXIST: file already exists, link
+'...icon.icns' -> '...icon.icns'` — a long-standing, still-unfixed
+electron-builder bug where its hard-link-instead-of-copy optimization
+collides with an already-existing target file
+([electron-builder#6570](https://github.com/electron-userland/electron-builder/issues/6570)
+and related reports going back to the 22.x line). Windows and Linux built
+fine every time; only the mac `.dmg` was ever missing, which is why v4.4.0
+and v4.5.0's releases sat stuck as incomplete drafts instead of publishing.
+
+### Fixed
+- `.github/workflows/build.yml` now sets `USE_HARD_LINKS: false` on the
+  build step — the documented community workaround, forcing electron-builder
+  to copy instead of hard-link. Costs a little extra CI disk I/O, not worth
+  caring about.
+- The `v4.4.0` and `v4.5.0` tags are left exactly as they were (never
+  rewritten — they're the accurate historical record of that code); their
+  incomplete draft releases were deleted since they were never public and
+  this release supersedes them as the first one that actually publishes
+  cleanly with all three platform installers plus the official plugin zips.
+
+No application code changed in this release — see the 4.5.0 entry below for
+what's actually new to use.
+
 ## [4.5.0] — MCP Bridge: Whole-App Access
 
 Widens MCP Bridge from "read/write cards" to nearly the entire app, on

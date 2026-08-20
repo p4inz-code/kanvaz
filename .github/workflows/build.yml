@@ -86,11 +86,22 @@ jobs:
       # from searching the runner's empty keychain for one, so the mac
       # leg produces a normal *unsigned* dmg instead of erroring. Users
       # will see a Gatekeeper warning until a paid Apple cert is added.
+      # USE_HARD_LINKS=false: electron-builder's default hard-link-instead-
+      # of-copy optimization has a long-standing, still-unfixed upstream bug
+      # (electron-userland/electron-builder#6570 and related issues going
+      # back to 22.x) where it collides with an already-existing target file
+      # — "EEXIST: file already exists, link '...icon.icns' -> '...icon.icns'"
+      # — and fails the whole job. Hit this identically on the macOS leg of
+      # the last three tag pushes (v4.3.0, v4.4.0, v4.5.0), Windows/Linux
+      # unaffected each time. No known fix in any 2x release; the documented
+      # community workaround is forcing plain copies instead of hard links.
+      # Costs a little more disk I/O on a CI runner — not worth caring about.
       - name: Build and publish installers
         run: npm run ${{ matrix.script }} -- --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
+          USE_HARD_LINKS: false
 
       # Official-plugin release assets — audit-flagged for two releases
       # running (4.2.1, 4.4.0 roadmap) as "never actually built by CI".
