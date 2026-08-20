@@ -105,8 +105,40 @@ if (fs.existsSync(path.join(__dirname, 'command-registry-test.js'))) {
   console.log('  (skipped — test/command-registry-test.js missing)');
 }
 
-/* 7. Version consistency */
-section('7. Version consistency');
+/* 7. MCP Bridge end-to-end (real MCP protocol, both ends) */
+section('7. MCP Bridge end-to-end');
+if (fs.existsSync(path.join(__dirname, 'mcp-bridge-e2e-test.mjs'))) {
+  try {
+    var mcpOut = cp.execSync('node "' + path.join(__dirname, 'mcp-bridge-e2e-test.mjs') + '"', { encoding: 'utf8', timeout: 30000 });
+    if (/ALL MCP BRIDGE E2E TESTS PASSED/.test(mcpOut)) ok('real MCP client <-> server.js <-> fake Kanvaz round trip all correct');
+    else if (/^SKIP/m.test(mcpOut)) console.log('  ' + mcpOut.trim().split('\n').join('\n  '));
+    else { bad('MCP Bridge e2e test failed'); console.log(mcpOut); }
+  } catch (e) {
+    bad('MCP Bridge e2e test crashed');
+    console.log(e.stdout || e.message);
+  }
+} else {
+  console.log('  (skipped — test/mcp-bridge-e2e-test.mjs missing)');
+}
+
+/* 8. Plugin permission scoping (real browser) */
+section('8. Plugin permission scoping');
+if (fs.existsSync(path.join(__dirname, 'plugin-scope-test.js'))) {
+  try {
+    var scopeOut = cp.execSync('node "' + path.join(__dirname, 'plugin-scope-test.js') + '"', { encoding: 'utf8', timeout: 30000 });
+    if (/ALL PLUGIN SCOPE TESTS PASSED/.test(scopeOut)) ok('gated namespaces are correctly scoped per plugin, resting global is never left mis-scoped');
+    else if (/^SKIP/m.test(scopeOut)) console.log('  ' + scopeOut.trim().split('\n').join('\n  '));
+    else { bad('plugin scope test failed'); console.log(scopeOut); }
+  } catch (e) {
+    bad('plugin scope test crashed');
+    console.log(e.stdout || e.message);
+  }
+} else {
+  console.log('  (skipped — test/plugin-scope-test.js missing)');
+}
+
+/* 9. Version consistency */
+section('9. Version consistency');
 var pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
 var v = pkg.version;
 var boards = fs.readFileSync(path.join(SRC, 'boards.js'), 'utf8');

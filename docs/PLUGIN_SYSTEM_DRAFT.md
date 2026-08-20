@@ -2,7 +2,7 @@
 
 > Status: planning only, no implementation yet. This is a living doc, not a spec commitment.
 
-## Implementation status as of 4.3.0 (read this first)
+## Implementation status as of 4.4.0 (read this first)
 
 This doc is the original design vision and predates the actual build — treat
 everything below as aspirational unless listed here as shipped.
@@ -21,24 +21,41 @@ everything below as aspirational unless listed here as shipped.
   the read-only Runtime Data API (`getCards`/`getSelected`/
   `getConnections`/`getActiveBoard`). Theme Creator registers one real
   command ("Randomize Preview") as a working reference example.
+- **Shipped in 4.4.0:** a second official plugin, MCP Bridge (local-only MCP
+  server exposing the active board to an AI client — see its own README);
+  a real, verified `server` permission gate (see the corrected section just
+  below — this is narrower than, and architecturally different from, what
+  the original "Runtime API surface" section below describes, but it's real
+  where the 4.2.0/4.3.0 note below said nothing was); CI packaging of
+  official-plugin release assets; the "Browse Official Plugins" catalog tab;
+  "Load unpacked plugin" dev-mode loading.
 - **NOT yet shipped**, despite being sketched below: `registerPropertyFieldType`,
-  `KanvazPluginAPI.network`/`.fs`/server-listening namespaces (planned for
-  v4.4's MCP Bridge, alongside actually enforcing the permission model
-  described just below), "Load unpacked plugin" dev-mode workflow.
-- **Important correction to the permission model described below:** the
-  original plan (and the "If a permission isn't declared... not present to
-  call at all" line under Runtime API surface) describes function-level
-  permission gating that was NOT implemented this way. The sandbox model
-  that actually shipped is convention-based (a plugin's script runs in the
-  same renderer page context as the rest of the app, not a separate
-  process/context per plugin) — meaning an approved plugin currently has the
-  same practical access to `window.KanvazBridge` as Kanvaz's own code,
-  regardless of declared permissions. The permission list in the consent
-  dialog describes intent, it isn't a technical enforcement boundary yet.
-  See SECURITY.md's "Plugin System — trust model" section for the full,
-  honest writeup, and the security-note comment block above the plugin IPC
-  handlers in `src/main.js`. True per-permission enforcement (one isolated
-  context per plugin) is tracked as real future work, not a 4.2.0 claim.
+  generic `KanvazPluginAPI.network`/`.fs` namespaces (nothing in scope
+  through 4.4.0 has needed them — see the correction below for why building
+  unused permission surface isn't free).
+- **Corrected permission model, current as of 4.4.0:** the original plan's
+  "If a permission isn't declared... not present to call at all" line under
+  Runtime API surface is now real, but narrower and differently-shaped than
+  originally sketched. What actually shipped: `KanvazPluginLoader` injects
+  plugins ONE AT A TIME and points the bare `window.KanvazPluginAPI` global
+  at a scope built specifically for whichever plugin's script is currently
+  executing — a permission-gated namespace (today: `mcpBridge`, gated on
+  `server`) is genuinely absent from that scope unless declared and
+  approved. This is real (verified in a real browser by
+  `test/plugin-scope-test.js`, including a regression an early draft
+  actually shipped and that test caught), but it is NOT process isolation —
+  a plugin's script still shares the renderer's page context and can reach
+  `window.KanvazBridge`/`window.KanvazCards`/etc. directly if it goes
+  looking, same as always. And it only covers `mcpBridge` today —
+  `cardTypes`/`commands`/`network`/`filesystem` remain informational-only in
+  the consent dialog text, unchanged from 4.2.0–4.3.0, because nothing
+  gates on them and building that gate before anything actually needs it
+  would just be unused, untested surface area. See SECURITY.md's "Plugin
+  System — trust model" section for the full, current, honest writeup, and
+  the security-note comment blocks above the plugin IPC handlers in
+  `src/main.js` and above `buildScopedAPI()` in `src/plugin-api.js`. True
+  per-plugin process isolation remains tracked as real future work, not a
+  4.4.0 claim.
 
 ## Design goal
 
@@ -150,6 +167,47 @@ KanvazPluginAPI.getCards();
 KanvazPluginAPI.getSelected();
 KanvazPluginAPI.getConnections();
 KanvazPluginAPI.getActiveBoard();
+
+// Real as of 4.4.0, not in the original sketch — added once MCP Bridge
+// needed write access and there was no reason to make it reach around
+// to the bare KanvazCards global to get it:
+KanvazPluginAPI.updateCard(id, patch);   // -> updated card, or null if id doesn't exist
+KanvazPluginAPI.setCardTags(id, tags);   // -> updated card, or null if id doesn't exist
+KanvazPluginAPI.deleteCard(id);          // undo-reversible, no confirm dialog (that's deliberate — see cards.js)
+KanvazPluginAPI.searchCards(query);      // -> matching cards, name/type/tag substring match
+
+// ── Using a GATED namespace (only mcpBridge exists today) ──
+// A gated namespace is present on window.KanvazPluginAPI ONLY during
+// your own plugin's synchronous top-level script execution — capture
+// it into a local variable right away, at the top of your entry file,
+// exactly like the existing PLUGIN_ID/document.currentScript
+// convention below. Re-reading the bare `KanvazPluginAPI` identifier
+// later (inside a button click handler, a registerCommand's run(), a
+// storage.load().then(...) callback — anything that runs after your
+// own script's initial synchronous pass) will NOT reliably see your
+// scope; loading may have moved on to a different plugin's scope, or
+// been restored to the base (ungated) one, by the time that callback
+// actually runs. Get this wrong and a gated call just throws
+// "Cannot read properties of undefined" with no hint why — there's no
+// friendlier error, because by the time it happens the reference you
+// captured (or didn't) is long gone. This is exactly the same
+// reasoning storage's PLUGIN_ID capture already documents, applied to
+// a case where getting it wrong doesn't just break one call, it makes
+// the whole feature look silently absent.
+//
+//   (function() {
+//     var MY_API = window.KanvazPluginAPI;   // capture NOW, synchronously
+//     var PLUGIN_ID = document.currentScript.getAttribute('data-plugin-id');
+//
+//     someButton.onclick = function() {
+//       MY_API.mcpBridge.start();   // correct — uses the captured reference
+//       // window.KanvazPluginAPI.mcpBridge.start() here would be WRONG —
+//       // don't re-read the bare global from inside a deferred callback.
+//     };
+//   })();
+//
+// See official-plugins/mcp-bridge/main.js for the real, working example
+// this pattern is drawn from.
 
 KanvazPluginAPI.settings.get(key);
 KanvazPluginAPI.settings.set(key, value);

@@ -16,6 +16,8 @@
 
 **Reference Operating System**
 
+> **v4.4.0** — Plugin ecosystem: hardening, distribution & MCP Bridge. Kanvaz becomes agent-controllable: the new MCP Bridge official plugin lets Claude Desktop, Claude Code, or any MCP client read and edit your active board over a local-only connection (off by default, every change undo-reversible). Ships alongside real per-plugin permission enforcement (a gated capability is now genuinely absent from a plugin's API view unless declared and approved, not just undocumented), CI packaging automation for official plugins, a one-click "Browse Official Plugins" tab, and a "Load unpacked plugin" dev workflow. See [CHANGELOG.md](CHANGELOG.md) for the full list.
+>
 > **v4.3.0** — Command Palette & Plugin Runtime API: press Ctrl+K to run any Kanvaz shortcut or plugin-registered command by name, plugins can now register their own commands and react to app events (card create/update/delete, board load/save, selection change), and a read-only Runtime Data API (`getCards`/`getSelected`/`getConnections`/`getActiveBoard`) lays the groundwork for v4.4's MCP Bridge. See [CHANGELOG.md](CHANGELOG.md) for the full list.
 >
 > **v4.2.2** — Visual polish and reliability pass: unified modal/panel styling (radius, shadow, entrance animation) across every panel in the app, a proper design-language icon set replacing leftover emoji, native connection-type colors instead of a borrowed palette, plus fixes for Top Mode's drag-to-move losing its grip mid-drag and Map View connections drifting after a window resize. See [CHANGELOG.md](CHANGELOG.md) for the full list.
@@ -98,7 +100,9 @@ See [CHANGELOG.md](CHANGELOG.md) for version history.
 - Color picker card type — solid color swatches with native OS color picker
 - URL reference cards — paste a link, open it in your default browser or copy it; never fetches previews/favicons, so this stays 100% offline like everything else
 - File reference cards — point at a file anywhere on disk (a source PSD, a script, a brief) without embedding it; open with its default app or re-point it to a different file anytime
-- Plugin system (foundation) — drop a folder into the plugins directory (Settings → Plugins → "Add a Plugin…") to add new card types; enabling one always goes through a native, permission-disclosing dialog, and a board never breaks even if a plugin it depends on is later disabled or removed
+- Plugin system — drop a folder in or use the one-click "Browse Official Plugins" tab (Settings → Plugins) to add new card types, commands, event hooks, or full themes; enabling one always goes through a native, permission-disclosing dialog, and a board never breaks even if a plugin it depends on is later disabled or removed
+- Command Palette (Ctrl+K) — fuzzy-search and run any Kanvaz shortcut or plugin-registered command by name
+- MCP Bridge (official plugin, off by default) — lets an MCP-compatible AI client (Claude Desktop, Claude Code, ...) read and edit your active board over a local-only connection; every change lands in undo history like a manual edit
 
 ---
 
@@ -124,7 +128,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 4.3.0.exe` and `dist/Kanvaz 4.3.0.exe`
+Output: `dist/Kanvaz Setup 4.4.0.exe` and `dist/Kanvaz 4.4.0.exe`
 
 **macOS:**
 ```bash
@@ -188,7 +192,8 @@ Files saved by 4.0.1 and earlier (plain JSON, base64 media) still open exactly a
 - PDF reference cards aren't implemented — there's no `pdf` card type or creation UI today (unlike `url` and `file`, which fully ship as of 4.1.0). A real PDF card type (with page thumbnails) is a possible future addition, not something partially built.
 - Cross-board connections aren't possible from the UI — the data model doesn't prevent it, but only one board's cards are ever loaded at a time, so the "Connect to" picker can only offer cards from the board you're currently on.
 - Autosave writes to a recovery file only — "Unsaved changes" in the status bar clears only on explicit Save (Ctrl+S). The recovery file is now cleared on every clean close (v3.6.5) so the "Recover unsaved board?" prompt only appears after an actual crash, not on every launch.
-- The plugin system currently covers custom card types, full-peer themes, and a settings-panel API only — no commands, no event hooks, no command palette yet. The base installer itself still bundles zero plugins by design (see the Plugin System section of [SECURITY.md](SECURITY.md)); Kanvaz's first official plugin, Theme Creator, installs separately the same way any third-party plugin does. Enabling a newly-approved plugin takes effect immediately; disabling one takes effect after restart.
+- The base installer itself still bundles zero plugins by design (see the Plugin System section of [SECURITY.md](SECURITY.md)) — Theme Creator and MCP Bridge, Kanvaz's two official plugins, both install separately (folder-drop or the one-click Browse Official Plugins tab), the same way any third-party plugin does. Enabling a newly-approved plugin takes effect immediately; disabling one takes effect after restart. Per-permission enforcement is real for the `server` capability (MCP Bridge's) as of 4.4.0, but not yet for `network`/`filesystem` — see SECURITY.md's trust-model section for exactly what that does and doesn't cover today.
+- `registerPropertyFieldType` (custom Properties panel field types via a plugin) is still unimplemented — the API sketch exists in `docs/PLUGIN_SYSTEM_DRAFT.md` but nothing calls it yet.
 
 ---
 
@@ -200,7 +205,8 @@ Kanvaz 4.x is intended to be the last major version, with only small fixes after
 - Richer Properties panel field types (dropdown, date, number, checkbox) — likely to ship as a plugin now that the plugin system exists, rather than a core feature
 - Cross-board connections, if it turns out to matter enough to design the UI for it
 - Map View auto-layout algorithms
-- Plugin system, next layers: a Commands API + command palette, then event hooks. Theme Creator (full in-app theme editor with live preview, presets, and pin/star) already ships as the first official plugin; an opt-in AI-assisted tagging plugin is planned as the next one
+- Plugin authoring docs + a scaffold template (there's a design draft and two real official plugins to learn from — Theme Creator and MCP Bridge — but no "start here" template yet), planned for v5.0
+- `registerPropertyFieldType` (custom Properties panel field types via a plugin)
 
 ---
 

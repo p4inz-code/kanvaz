@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html><head></head><body>
+<script>
+  window.__log = [];
+  window.KanvazCards = { getAll: function(){ return {}; }, getSelectedIds: function(){ return []; } };
+  window.KanvazConnections = { serialise: function(){ return []; } };
+  window.KanvazBoards = { getActiveBoardInfo: function(){ return null; } };
+  window.KanvazUI = { toast: function(){} };
+  /* CONCURRENT_DELAY_MS lets test/plugin-scope-test.js's own concurrency
+     check control how long scanPlugins()/loadUnpackedPlugin() take to
+     resolve — driven explicitly from the test script (via
+     window.__setConcurrentDelay), not from page-load timing, so the
+     race window is deterministic instead of relying on how fast this
+     particular machine happens to parse/load a script tag. */
+  /* Not an unconditional reset — a concurrency test drives this via
+     page.evaluateOnNewDocument(), which runs BEFORE this inline script,
+     so it must win here rather than being clobbered back to 0. */
+  window.__concurrentDelayMs = window.__concurrentDelayMs || 0;
+  window.__setConcurrentDelay = function(ms) { window.__concurrentDelayMs = ms; };
+
+  window.KanvazBridge = {
+    scanPlugins: function() {
+      return new Promise(function(resolve) {
+        setTimeout(function() {
+          resolve({ ok: true, plugins: [
+            { valid: true, enabled: true, needsConsent: false,
+              manifest: { id: 'plugin.no-server', name: 'NoServer', permissions: [] },
+              entryUrl: 'plugin-a.js' },
+            { valid: true, enabled: true, needsConsent: false,
+              manifest: { id: 'plugin.with-server', name: 'WithServer', permissions: ['server'] },
+              entryUrl: 'plugin-b.js' }
+          ]});
+        }, window.__concurrentDelayMs);
+      });
+    },
+    loadUnpackedPlugin: function() {
+      return new Promise(function(resolve) {
+        setTimeout(function() {
+          resolve({
+            ok: true,
+            manifest: { id: 'plugin.concurrent-c', name: 'ConcurrentC', permissions: ['server'] },
+            entryUrl: 'plugin-c.js'
+          });
+        }, window.__concurrentDelayMs);
+      });
+    },
+    startMcpBridge: function() { return Promise.resolve({ ok: true }); },
+    stopMcpBridge: function() { return Promise.resolve({ ok: true }); },
+    on: function() {},
+    off: function() {}
+  };
+</script>
+<script src="../../src/commands.js"></script>
+<script src="../../src/plugin-api.js"></script>
+</body></html>

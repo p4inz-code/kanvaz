@@ -1,0 +1,20 @@
+[
+  {
+    "id": "studio.northbyte.theme-creator",
+    "name": "Theme Creator",
+    "description": "Design your own Kanvaz color theme with live preview, save it as a named preset, and reset to Kanvaz's defaults anytime.",
+    "version": "1.0.0",
+    "author": "Northbyte Studios",
+    "permissions": [],
+    "downloadUrl": "https://github.com/p4inz-code/kanvaz/releases/download/v4.4.0/kanvaz-theme-creator-4.4.0.zip"
+  },
+  {
+    "id": "studio.northbyte.mcp-bridge",
+    "name": "MCP Bridge",
+    "description": "Lets Claude Desktop, Claude Code, or any other MCP-compatible AI tool read and edit your active board over a local-only connection. Off by default — every change lands in undo history like a manual edit.",
+    "version": "1.0.0",
+    "author": "Northbyte Studios",
+    "permissions": ["server"],
+    "downloadUrl": "https://github.com/p4inz-code/kanvaz/releases/download/v4.4.0/kanvaz-mcp-bridge-4.4.0.zip"
+  }
+]

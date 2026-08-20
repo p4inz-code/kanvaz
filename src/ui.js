@@ -508,7 +508,23 @@ var KanvazUI_Extended = (function() {
           }
         } },
       { label: 'Export debug info', type: 'button', buttonLabel: 'Copy',
-        action: function() { exportDebugInfo(); } }
+        action: function() { exportDebugInfo(); } },
+      { label: 'Load unpacked plugin…', type: 'button', buttonLabel: 'Load',
+        action: function() {
+          if (typeof KanvazPluginLoader === 'undefined' || !KanvazPluginLoader.loadUnpacked) {
+            KanvazUI.toast('Not available in this build', 'error');
+            return;
+          }
+          KanvazPluginLoader.loadUnpacked().then(function(result) {
+            if (!result || result.cancelled) return;
+            if (result.ok) {
+              KanvazUI.toast('Loaded "' + result.manifest.name + '" (dev mode — click Load again to reload after edits)');
+              if (currentPluginsListEl) refreshPluginsList(currentPluginsListEl);
+            } else {
+              KanvazUI.toast(result.error || 'Could not load that folder', 'error');
+            }
+          });
+        } }
     ];
 
     for (var i = 0; i < rows.length; i++) {
@@ -619,6 +635,14 @@ var KanvazUI_Extended = (function() {
       }
     };
     panel.appendChild(addPluginBtn);
+
+    var browseBtn = document.createElement('button');
+    browseBtn.textContent = 'Browse Official Plugins…';
+    browseBtn.style.cssText = 'margin-top:6px;width:100%;padding:6px;background:transparent;border:1px solid var(--color-border);border-radius:6px;color:var(--color-text-2);font-family:var(--font-ui);font-size:12px;cursor:pointer;transition:background 0.1s;';
+    browseBtn.onmouseenter = function() { browseBtn.style.background = 'var(--color-surface-2)'; };
+    browseBtn.onmouseleave = function() { browseBtn.style.background = 'transparent'; };
+    browseBtn.onclick = function() { showOfficialPluginsBrowser(); };
+    panel.appendChild(browseBtn);
 
     /* Plugin-registered settings panels (e.g. Theme Creator) — each
        gets its own labeled section and a plain empty container the
@@ -832,6 +856,181 @@ var KanvazUI_Extended = (function() {
     return row;
   }
 
+  /* ── Browse Official Plugins (4.4.0) ──
+     One deliberate network call (see main.js's catalog-fetch handler —
+     same disclosure discipline as Check for Updates), fired only when
+     this button is clicked. Overlay built lazily on first open, same
+     inline-cssText pattern as the Command Palette / search bar / opacity
+     picker rather than a permanent DOM fixture. */
+  function showOfficialPluginsBrowser() {
+    /* Audit fix: a double-click (or open/close/reopen in quick
+       succession, before the previous overlay's own close() finished
+       removing it) used to stack a second full-screen overlay on top of
+       the first — closing the front one left the first still sitting
+       underneath, looking like the dialog didn't actually close, and
+       two independent "Install" buttons for the same entry could fire
+       concurrently. A fixed id + an early return if one's already open
+       is simpler and safer than trying to track open/close state. */
+    var existing = document.getElementById('official-plugins-overlay');
+    if (existing) return;
+
+    var overlay = document.createElement('div');
+    overlay.id = 'official-plugins-overlay';
+    overlay.style.cssText = [
+      'position:fixed', 'inset:0', 'background:var(--color-overlay)',
+      'z-index:60000', 'display:flex', 'align-items:center',
+      'justify-content:center'
+    ].join(';');
+    overlay.onclick = function(e) { if (e.target === overlay) close(); };
+
+    var panel = document.createElement('div');
+    panel.style.cssText = [
+      'width:420px', 'max-width:90vw', 'max-height:70vh', 'overflow-y:auto',
+      'background:var(--color-surface)', 'border:1px solid var(--color-border-2)',
+      'border-radius:var(--radius-lg)', 'box-shadow:0 16px 48px var(--color-shadow)',
+      'padding:20px', 'animation:about-card-in 0.15s cubic-bezier(0.16,1,0.3,1)'
+    ].join(';');
+    panel.onclick = function(e) { e.stopPropagation(); };
+
+    var title = document.createElement('div');
+    title.style.cssText = 'font-size:14px;font-weight:600;color:var(--color-text);margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;';
+    var titleText = document.createElement('span');
+    titleText.textContent = 'Official Plugins';
+    title.appendChild(titleText);
+    var closeX = document.createElement('button');
+    closeX.innerHTML = '&times;';
+    closeX.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-text-3);font-size:16px;padding:0;line-height:1;';
+    closeX.onclick = function() { close(); };
+    title.appendChild(closeX);
+    panel.appendChild(title);
+
+    var sub = document.createElement('div');
+    sub.style.cssText = 'font-size:11px;color:var(--color-text-3);margin-bottom:14px;';
+    sub.textContent = 'Fetched once, just now, from Kanvaz’s own GitHub repo — the only network call this makes.';
+    panel.appendChild(sub);
+
+    var listEl = document.createElement('div');
+    listEl.textContent = 'Loading…';
+    listEl.style.cssText = 'font-size:12px;color:var(--color-text-3);';
+    panel.appendChild(listEl);
+
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+
+    function close() {
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    }
+
+    if (typeof KanvazBridge === 'undefined' || !KanvazBridge.fetchOfficialCatalog) {
+      listEl.textContent = 'Not available in this build.';
+      return;
+    }
+
+    KanvazBridge.fetchOfficialCatalog().then(function(result) {
+      if (!result || !result.ok) {
+        listEl.textContent = 'Could not fetch the catalog' + (result && result.error ? ': ' + result.error : '.');
+        return;
+      }
+      var installedIds = {};
+      if (typeof KanvazPluginLoader !== 'undefined') {
+        var scanned = KanvazPluginLoader.getLastScanResult() || [];
+        for (var s = 0; s < scanned.length; s++) {
+          if (scanned[s].valid) installedIds[scanned[s].manifest.id] = true;
+        }
+      }
+
+      listEl.textContent = '';
+      listEl.style.color = '';
+      var catalog = result.catalog || [];
+      if (!catalog.length) {
+        listEl.textContent = 'No official plugins listed right now.';
+        return;
+      }
+
+      for (var i = 0; i < catalog.length; i++) {
+        (function(entry) {
+          var row = document.createElement('div');
+          row.style.cssText = 'padding:10px 0;border-bottom:1px solid var(--color-border);';
+
+          var top = document.createElement('div');
+          top.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;';
+
+          var name = document.createElement('div');
+          name.style.cssText = 'font-size:12px;color:var(--color-text);font-weight:500;';
+          name.textContent = entry.name + ' — v' + entry.version;
+          top.appendChild(name);
+
+          var alreadyIn = !!installedIds[entry.id];
+          var installBtn = document.createElement('button');
+          installBtn.textContent = alreadyIn ? 'Installed' : 'Install';
+          installBtn.disabled = alreadyIn;
+          installBtn.style.cssText = 'background:' + (alreadyIn ? 'transparent' : 'var(--color-accent-bg)') + ';border:1px solid ' + (alreadyIn ? 'var(--color-border)' : 'var(--color-accent)') + ';border-radius:4px;color:' + (alreadyIn ? 'var(--color-text-3)' : 'var(--color-accent)') + ';padding:3px 10px;font-size:11px;font-family:var(--font-ui);cursor:' + (alreadyIn ? 'default' : 'pointer') + ';flex-shrink:0;';
+          if (!alreadyIn) {
+            installBtn.onclick = function() {
+              installBtn.disabled = true;
+              installBtn.textContent = 'Installing…';
+              KanvazBridge.installFromCatalog(entry).then(function(res) {
+                if (res && res.ok) {
+                  installBtn.textContent = 'Installed';
+                  KanvazUI.toast(entry.name + ' installed — review & enable it below', 'success');
+                  if (currentPluginsListEl) refreshPluginsList(currentPluginsListEl);
+                  /* Audit fix: refreshPluginsList() above does its OWN
+                     independent KanvazBridge.scanPlugins() call to
+                     render the Settings plugin list — it does NOT
+                     update KanvazPluginLoader's cached lastScanResult,
+                     which is what THIS browser's installedIds map reads
+                     from (see below). Without also calling this, a
+                     plugin installed just now still shows a clickable
+                     "Install" button (inviting a redundant re-download)
+                     if the user closes and reopens Browse Official
+                     Plugins before enabling anything else in the
+                     meantime. */
+                  if (typeof KanvazPluginLoader !== 'undefined') KanvazPluginLoader.loadEnabledPlugins();
+                } else {
+                  installBtn.disabled = false;
+                  installBtn.textContent = 'Install';
+                  KanvazUI.toast((res && res.error) || 'Install failed', 'error');
+                }
+              }).catch(function() {
+                installBtn.disabled = false;
+                installBtn.textContent = 'Install';
+                KanvazUI.toast('Install failed', 'error');
+              });
+            };
+          }
+          top.appendChild(installBtn);
+          row.appendChild(top);
+
+          if (entry.description) {
+            var desc = document.createElement('div');
+            desc.style.cssText = 'font-size:11px;color:var(--color-text-3);margin-top:3px;line-height:1.4;';
+            desc.textContent = entry.description;
+            row.appendChild(desc);
+          }
+
+          if (entry.permissions && entry.permissions.length) {
+            /* Plain permission-string list, not the friendlier prose the
+               real consent dialog shows — that prose (describePermissions())
+               only exists main-process-side (plugin-loader.js) and is
+               generated fresh from the plugin's OWN manifest at approval
+               time, never from anything the renderer fetched over the
+               network. This is just a heads-up before installing, not a
+               substitute for that real consent step, which still happens
+               afterward via the normal Review & Enable flow below. */
+            var perms = document.createElement('div');
+            perms.style.cssText = 'font-size:10px;color:var(--color-text-3);margin-top:3px;';
+            perms.textContent = 'Requests: ' + entry.permissions.join(', ');
+            row.appendChild(perms);
+          }
+
+          listEl.appendChild(row);
+        })(catalog[i]);
+      }
+    }).catch(function(e) {
+      listEl.textContent = 'Could not fetch the catalog: ' + e.message;
+    });
+  }
+
   /* ── About screen ── */
 
   /* ── Check for updates ──
@@ -958,7 +1157,7 @@ var KanvazUI_Extended = (function() {
       '</div>',
       '<div class="about-title">Kanvaz</div>',
       '<div class="about-subtitle">A visual reference workspace for creative professionals.</div>',
-      '<div class="about-version">Version 4.3.0</div>',
+      '<div class="about-version">Version 4.4.0</div>',
       '<div id="about-update-status" class="about-update-status"></div>',
       '<div class="about-divider"></div>',
       '<div class="about-author">Developed by <strong>Atharva Patil</strong></div>',
@@ -966,7 +1165,7 @@ var KanvazUI_Extended = (function() {
       '<div class="about-desc">Built for VFX and 3D artists,<br>and the studios and educators who rely on them.</div>',
       '<div class="about-divider"></div>',
       '<div class="about-privacy">Free and open source. MIT License.<br>No telemetry, no background network activity.<br>Your data stays on your machine.</div>',
-      '<div class="about-tagline">Reference Operating System<br>Actively maintained — v4.3.0</div>'
+      '<div class="about-tagline">Reference Operating System<br>Actively maintained — v4.4.0</div>'
     ].join('');
 
     var updateBtn = document.createElement('button');

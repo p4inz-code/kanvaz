@@ -4,8 +4,8 @@
 
 | Version | Supported |
 |---------|-----------|
-| 4.2.x   | Yes       |
-| < 4.2   | No        |
+| 4.4.x   | Yes       |
+| < 4.4   | No        |
 
 Only the latest release receives security updates. Kanvaz is a solo-maintained
 open-source project — backporting fixes to older versions is not feasible.
@@ -29,11 +29,24 @@ changelog (unless you prefer to remain anonymous).
 
 Kanvaz is a **100% offline desktop application**. Key points:
 
-- **No network calls** except an optional, user-initiated "Check for updates"
-  button in the About screen. Clicking it fires two independent requests to
-  `api.github.com` — the bundled auto-updater's own release check, and a
-  separate version-info lookup for the About screen's display — never
-  automatically, and never anything else.
+- **No network calls** except a small, fixed set of user-initiated ones, never
+  automatic, never anything else:
+  - "Check for updates" (About screen) — two requests to `api.github.com`.
+  - "Browse Official Plugins" (Settings → Plugins, added 4.4.0) — one request
+    to `raw.githubusercontent.com` for a small, static plugin-catalog JSON
+    file, plus one more per plugin you actually choose to install (a
+    `github.com/.../releases/download/...` zip; the main process refuses any
+    `downloadUrl` that isn't `https://` on `github.com`).
+  - Every network call is made by the **main process**, never a raw `fetch()`
+    from the renderer or a plugin's own script — see the CSP note below.
+- **MCP Bridge (added 4.4.0, off by default) is local-only, never a network
+  feature.** When enabled, Kanvaz listens on a named pipe (Windows) or a Unix
+  domain socket (macOS/Linux) for an already-running MCP client on the same
+  machine — never a TCP port, never reachable from another computer, and nothing
+  it does makes an outbound connection either. See its own README
+  (`official-plugins/mcp-bridge/README.md`) for exactly what it can do once
+  enabled: every change it makes goes through the same functions the UI itself
+  uses, so it's undo-reversible like any manual edit.
 - **No telemetry, analytics, or tracking** of any kind.
 - **No accounts or authentication** — there's nothing to log into.
 - **No remote code execution** — as of 4.1.0, a `.kanvaz` file is a zip
@@ -47,7 +60,12 @@ Kanvaz is a **100% offline desktop application**. Key points:
   inline scripts and restricting network access. As of 4.2.0, `script-src`
   also allows `file:` — narrowly, only to load a user-installed plugin's own
   entry script (see the Plugin System section below). This did not add
-  `unsafe-inline` or `unsafe-eval`; those remain fully blocked.
+  `unsafe-inline` or `unsafe-eval`; those remain fully blocked. `connect-src`
+  is still scoped to exactly `'self' https://api.github.com` — the 4.4.0
+  catalog fetch deliberately does NOT add `raw.githubusercontent.com` there;
+  it's fetched by the main process (which isn't CSP-constrained) specifically
+  so no renderer/plugin script gains a new fetchable host as a side effect of
+  this feature existing.
 - **All data stays local** — your `.kanvaz` files never leave your machine.
 
 ## Plugin System (added in 4.2.0) — trust model
@@ -64,15 +82,65 @@ official-plugins releases.
   deliberate design choice, the same trust model browser extensions and VS
   Code extensions use — not an oversight. A plugin's entry script runs in the
   same renderer page context as the rest of Kanvaz, not in a separate
-  sandboxed process, iframe, or worker.
-- **What that means in practice: an approved plugin has the same access to
-  your computer as Kanvaz itself.** The permission list shown in the consent
-  dialog (`cardTypes`, `commands`, `network`, `filesystem`) describes what the
-  plugin's author *says* it needs — it is not a technical enforcement
-  boundary. Kanvaz does not currently sandbox a plugin's code down to only
-  its declared permissions. A plugin that declares zero permissions is, from
-  a security standpoint, not meaningfully more restricted than one that
-  declares all of them.
+  sandboxed process, iframe, or worker. Full per-plugin process isolation was
+  evaluated for the 4.4.0 stretch and explicitly declined (multi-week
+  rearchitect, not worth it against a two-version budget and a two-plugin
+  official ecosystem) — tracked as deliberate future work, not a gap anyone
+  missed.
+- **As of 4.4.0, permission-gated capabilities are genuinely absent from an
+  unapproved plugin's own view of `KanvazPluginAPI` — not just undocumented,
+  and not just at the object-property level.** Concretely: `KanvazPluginAPI.
+  mcpBridge` (the only gated namespace that exists today, unlocked by the
+  `server` permission) is a real object on the API view a plugin's own script
+  sees ONLY if its manifest declares `server` and the user approved it.
+  Closes the specific honesty gap the 4.2.0 release first disclosed below,
+  verified by an automated browser test (`test/plugin-scope-test.js`) that
+  loads two plugins side by side, one with the permission and one without,
+  and asserts the one without it truly cannot reach it — including the
+  specific bypass an early draft of this actually shipped with and the test
+  now guards against: the scope-builder function itself used to be copied
+  into every plugin's own scoped object, so ANY plugin could call it on
+  itself with a forged permission list and synthesize full access. Caught
+  and fixed before release, not after; the test asserts that path is closed.
+- **What this does NOT change, and where the real remaining exposure is: a
+  plugin's script still shares the renderer's page context**, and the
+  `KanvazPluginAPI` scoping above is enforced only at the JS-object level —
+  by which object the bare `window.KanvazPluginAPI` identifier happens to
+  resolve to at the moment a plugin's own top-level code runs synchronously,
+  not by any process, memory, or IPC-transport boundary. `window.KanvazBridge`
+  itself — the underlying preload-exposed bridge `KanvazPluginAPI.mcpBridge`
+  is a thin wrapper over — is **not** scoped per plugin; it's the one flat
+  object every loaded script shares. Concretely, this means:
+  - Any plugin, even one declaring zero permissions, can call
+    `window.KanvazBridge.on('mcp-invoke', ...)` directly and receive every
+    request meant for the approved MCP Bridge plugin, or call
+    `window.KanvazBridge.startMcpBridge()` directly and succeed once MCP
+    Bridge has ever been approved+enabled — bypassing `KanvazPluginAPI.
+    mcpBridge`'s gating entirely, because Electron gives the main process no
+    way to tell WHICH script in a shared page context made a given IPC call.
+    This is genuinely new risk, not the pre-existing "shared page context"
+    trade-off restated: before 4.4.0 there was no channel to an external,
+    off-machine process at all. **If you enable MCP Bridge, only install
+    OTHER plugins you trust just as much — not only the plugin declaring
+    `server`.** Reducing this further requires the same real per-process
+    isolation declined below; nothing short of that fully closes it, though
+    `KanvazPluginAPI.mcpBridge.onInvoke()` replacing (not stacking) the
+    previous listener at least means only one script's handler is ever live
+    at a time, not an open-ended broadcast to N simultaneous listeners.
+  - `cardTypes`/`commands`/`network`/`filesystem` in the manifest remain
+    informational-only in the consent dialog text, exactly as before —
+    `server` is the only namespace with real object-level gating, because
+    it's the only capability dangerous enough (a local listener another
+    process can connect to and drive your board through) to be worth
+    building that for in this pass. A plugin declaring zero permissions is
+    still, for everything except reaching `mcpBridge` at load time, not
+    meaningfully more restricted at the code level than one declaring
+    several.
+  - Once MCP Bridge is running, the pipe/socket itself has no per-connection
+    authentication beyond "you're a process on this machine" — any local
+    process running as the same OS user can connect and issue tool calls,
+    not only the intended `server.js` shim. This is what "local IPC only"
+    protects against network exposure, not against another local program.
 - **The practical guidance: only approve plugins from developers you trust**,
   the same way you'd vet a browser extension before installing it. Kanvaz's
   own official plugins (published as separate, independently-versioned
@@ -80,8 +148,47 @@ official-plugins releases.
   starting point.
 - **This is disclosed, not hidden**, because pretending otherwise would be
   worse than the limitation itself. Real per-plugin isolation (e.g. one
-  sandboxed process/context per plugin) is a larger architecture change
-  tracked as possible future work, not implemented as of 4.2.0.
+  sandboxed process/context per plugin) remains a larger architecture change
+  tracked as possible future work, not implemented as of 4.4.0.
+
+### MCP Bridge — a high-permission official plugin, read this if you enable it
+
+`official-plugins/mcp-bridge` is the first official plugin to request the
+`server` permission — worth calling out on its own given what that grants.
+
+- **Off by default. Three separate steps to ever turn it on the FIRST time**
+  (install, approve the consent dialog, flip the Settings → Plugins → MCP
+  Bridge toggle) — none of it auto-starts on its own. After that first time,
+  it remembers your own choice and reopens the listener automatically on
+  every subsequent launch, the same way autosave-interval or any other
+  persisted setting does — it does not re-ask on every single launch. If you
+  want it off again, you have to explicitly disable it once; it then stays
+  off until you re-enable it.
+- **Main-process re-verification, not just the consent dialog.** Every start
+  request is re-checked against the plugin's actual on-disk approval state
+  (`main.js`'s `mcp-bridge-start` handler) before anything opens — the
+  renderer's own say-so is never trusted alone, same discipline as every
+  other plugin IPC handler in this codebase.
+- **Local IPC only.** A named pipe (Windows) or Unix domain socket
+  (macOS/Linux) — never a TCP port. Nothing outside this machine's kernel can
+  reach it, full stop; there is no "bound to the wrong interface"
+  misconfiguration possible the way there would be with a TCP listener.
+- **Every change lands in undo history.** The tool handlers call the exact
+  same `KanvazCards`/`KanvazConnections` functions the UI itself uses — an
+  AI-driven edit is `Ctrl+Z`-reversible exactly like a manual one, by
+  construction, not by a separate safety net bolted on afterward.
+- **A card's embedded media is never sent over the bridge.** `dataUrl` is
+  stripped to a boolean `hasMedia` flag before anything crosses the pipe — see
+  `official-plugins/mcp-bridge/main.js`'s `sanitizeCard()`.
+- **A card's local file path IS sent, on every `listCards`/`getCard`/`search`
+  call that touches a file-reference card — not only when you explicitly add
+  one.** `sanitizeCard()` redacts `dataUrl` and drops `pluginData`, but does
+  NOT redact `card.path` (an absolute OS path — on Windows this reveals your
+  username via the home-directory prefix, plus whatever folder structure the
+  path implies). This is by design — `addReference`/`createCard type:"file"`
+  round-trip a path on purpose — but it's worth stating plainly next to the
+  media-stripping bullet above rather than only being implied by the tool
+  descriptions in `official-plugins/mcp-bridge/README.md`.
 
 ## Known Build-Time Vulnerabilities
 

@@ -2,6 +2,120 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [4.4.0] — Plugin Ecosystem: Hardening, Distribution & MCP Bridge
+
+The flagship reference plugin the plugin system was always building toward:
+Kanvaz becomes agent-controllable via MCP, not just AI-assisted. Ships
+alongside the audit-flagged gaps (permission enforcement, CI packaging) that
+made sense to finally close now that a high-permission official plugin
+exists to actually test them against.
+
+### Added — MCP Bridge (flagship official plugin)
+- **A local MCP server** (`official-plugins/mcp-bridge`) exposing the active
+  board to any MCP-compatible AI client (Claude Desktop, Claude Code, ...) —
+  list/get/create/update/delete/tag cards, add a reference from a file path
+  or URL, search, list/create connections. **Off by default** — installing
+  it does nothing, approving it does nothing, the local listener itself only
+  opens once you separately flip it on in Settings → Plugins.
+- **Local IPC only, never a network port.** A named pipe on Windows, a Unix
+  domain socket on macOS/Linux — nothing outside this machine's kernel can
+  reach it. Kanvaz doesn't call out; an already-running AI client's own
+  stdio MCP process (`server.js`, spawned by that client, not by Kanvaz)
+  connects in.
+- **Every AI-driven change lands in undo history exactly like a manual
+  edit** — the tool handlers call the same `KanvazCards`/`KanvazConnections`
+  functions the UI itself already uses, by construction, not a bolted-on
+  safety net.
+- A card's embedded media (`dataUrl`) is never sent over the bridge — only a
+  `hasMedia` boolean. Verified end-to-end (`test/mcp-bridge-e2e-test.mjs`) with
+  a real MCP client driving the real, unmodified `server.js`.
+
+### Added — Runtime API extensions (support for the above)
+- `KanvazCards.updateCardData(id, patch)`, `setTags(id, tags)`,
+  `deleteCardImmediate(id)`, `search(query)`, `createFileRefCardAtPath(x, y, p)`
+  — general-purpose additions (not MCP-only), reusable by any future plugin
+  or internal feature that needs to mutate a card programmatically.
+
+### Added — real per-plugin permission enforcement
+- **A permission-gated capability (currently: `KanvazPluginAPI.mcpBridge`,
+  unlocked by the new `server` permission) is now genuinely absent from an
+  unapproved plugin's own view of the API** — not just undocumented, as it
+  was for every permission through 4.3.0. `KanvazPluginLoader` now injects
+  plugins one at a time and points `window.KanvazPluginAPI` at a scope built
+  for whichever plugin is currently loading; each plugin captures its own
+  scoped reference at top-level load time (the same convention already used
+  for per-plugin storage's `PLUGIN_ID`). Verified in a real browser
+  (`test/plugin-scope-test.js`) — including the specific regression a global-
+  scope aliasing bug caused during development, caught by that same test
+  before it ever shipped.
+- This closes the honesty gap for the one capability dangerous enough to be
+  worth it this pass; `cardTypes`/`commands`/`network`/`filesystem` remain
+  informational-only in the consent dialog, as documented in SECURITY.md.
+  Full per-plugin process isolation remains explicitly out of scope (see
+  SECURITY.md).
+
+### Added — distribution
+- **CI now actually builds official-plugin release assets** on every tagged
+  release (audit-flagged for two releases running as never built) — zips
+  each `official-plugins/*` folder and uploads it alongside the installers.
+- **"Browse Official Plugins" tab** (Settings → Plugins) — one deliberate
+  network call (same disclosure discipline as Check for Updates, routed
+  through the main process so no new CSP `connect-src` host becomes
+  fetchable from the renderer) fetches a small catalog JSON and installs
+  with one click. Raw-URL/folder-drop install remains the escape hatch.
+- **"Load unpacked plugin"** (Settings → Developer) — Chrome-extension-dev-
+  mode pattern: point at any folder with a `plugin.json`, it loads
+  immediately, bypassing both the real plugins directory and the consent
+  dialog. Clicking it again after editing the plugin's files reloads it.
+
+### Fixed — found and fixed before release, via a structured multi-lens review
+The MCP Bridge/permission-scoping work above was checked by an independent
+security, correctness, Electron/IPC, plugin-ergonomics, privacy, performance,
+and end-user-flow pass before anything shipped. What it found and what
+changed as a result:
+- **Critical: the permission scope builder leaked itself into every plugin's
+  own scoped API**, letting ANY plugin (regardless of declared permissions)
+  call it on itself with a forged manifest and synthesize full `mcpBridge`
+  access — completely defeating the gate. Fixed by excluding the builder from
+  the copy; `test/plugin-scope-test.js` now asserts this specific bypass is
+  closed.
+- **Two independent plugin-loading operations could corrupt each other's
+  permission scoping** if triggered concurrently (e.g. "Load unpacked plugin"
+  clicked while startup's plugin scan was still in flight) — there was only
+  one `window.KanvazPluginAPI` slot and no coordination between the two
+  callers mutating it. Fixed with a shared queue serializing every
+  scope-swapping operation; `test/plugin-scope-test.js` now includes a
+  deliberately-engineered concurrent-load race, checked against a temporarily
+  reverted build to confirm it actually fails without the fix.
+- **Re-enabling MCP Bridge stacked a duplicate IPC listener**, silently
+  double-firing every tool call (two cards created instead of one, etc.) on
+  a disable→enable cycle. Fixed — registering a new handler now replaces the
+  last, and the plugin properly releases its own listener on disable.
+- **The `mcp-invoke` channel is a shared broadcast any loaded plugin can
+  subscribe to**, not scoped per-permission the way `KanvazPluginAPI.
+  mcpBridge` is — Electron gives no way to tell which script in a shared
+  page context made an IPC call. This is a real, disclosed limitation, not
+  something this pass could fully close (would require the per-process
+  isolation already declined for this stretch) — see SECURITY.md's MCP
+  Bridge section for the full disclosure and the "only install plugins you
+  trust just as much" guidance that follows from it.
+- **The `server` permission read as generic but only ever authorized one
+  hardcoded plugin id** — a well-behaved third-party plugin declaring it
+  got a misleading "not approved" error. Now fails with an honest
+  explanation of the single-tenant restriction.
+- Zip-bomb protection (decompressed-size cap, not just compressed-download
+  cap), redirect-target host re-validation, and an unbounded-buffer cap
+  added to the catalog install and MCP listener paths.
+- `stopMcpBridgeServer()` now actually waits for the OS handle to release
+  before a restart is allowed, instead of racing a fast disable→enable click.
+- `addReference`'s "fall back to a plain file-reference card" path was dead
+  code for the missing-file case (checked an error string the real code path
+  never produces) — broadened so it actually works as documented.
+- Several smaller fixes: `updateCardData`/`setTags`/`deleteCardImmediate`
+  now log a clear error on an unknown card id instead of failing silently;
+  duplicate-overlay and stale-"Install"-button bugs in Browse Official
+  Plugins; a few copy tightenings.
+
 ## [4.3.0] — Command Palette & Plugin Runtime API
 
 The load-bearing layer of the plugin system that everything else (including

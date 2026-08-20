@@ -14,6 +14,20 @@
      to re-read it later from inside a button click handler. */
   var PLUGIN_ID = document.currentScript ? document.currentScript.getAttribute('data-plugin-id') : 'studio.northbyte.theme-creator';
 
+  /* This file reads the bare `KanvazPluginAPI` global directly from
+     inside deferred callbacks (button clicks, storage.load().then, a
+     registerCommand's run()) further down, rather than capturing a
+     local reference the way official-plugins/mcp-bridge/main.js does.
+     That's safe HERE, specifically, only because this plugin declares
+     zero permissions and never touches a gated namespace (`mcpBridge`
+     is the only one that exists as of 4.4.0) — if you're copying this
+     file as a starting point for a plugin that DOES declare a gated
+     permission, capture `window.KanvazPluginAPI` into a local variable
+     up here instead, same as PLUGIN_ID above, and use that everywhere
+     below. See docs/PLUGIN_SYSTEM_DRAFT.md's Runtime API surface
+     section and mcp-bridge/main.js for why re-reading the bare global
+     later is unsafe once a gated namespace is involved. */
+
   var KANVAZ_DEFAULTS = {
     bg: '#0E0E10', surface: '#1A1A22', accent: '#9D7FFF',
     text: '#DCDCE8', text2: '#A0A0B8',

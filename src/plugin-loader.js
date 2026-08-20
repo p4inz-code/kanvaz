@@ -17,7 +17,32 @@ var path = require('path');
 var url = require('url');
 
 var PLUGIN_API_VERSION = 1;
-var ALLOWED_PERMISSIONS = ['cardTypes', 'commands', 'network', 'filesystem'];
+/* 'server' (4.4.0) — run a local listener external tools can connect to.
+   Different in kind from 'network' (outbound requests) and 'filesystem'
+   (read/write local files): a listener accepts INBOUND connections, which
+   is why it's its own permission rather than folded into 'network'. The
+   only official plugin declaring it today is MCP Bridge (see
+   official-plugins/mcp-bridge) — see plugin-api.js's buildScopedAPI() for
+   where this actually gates something (KanvazPluginAPI.mcpBridge is
+   simply absent from a plugin's own scoped API object unless its
+   manifest declares 'server'), and main.js's mcp-bridge-start handler for
+   the real, main-process-side re-check that backs it (never trust the
+   renderer's say-so alone — same pattern as plugins-set-enabled below).
+
+   HONEST LIMITATION, worth stating plainly here since the permission
+   name itself reads as generic: as implemented, only ONE specific
+   plugin id (main.js's MCP_BRIDGE_PLUGIN_ID) can actually start the
+   listener — this is single-tenant infrastructure built for one
+   official plugin, not a generic per-plugin local-server framework. A
+   third-party plugin CAN declare 'server', get approved, and see
+   KanvazPluginAPI.mcpBridge present on its own scoped API (this file
+   and buildScopedAPI() don't know or care about the id restriction) —
+   but calling .start() will fail with a clear, honest error explaining
+   why, rather than the vague permission-sounding error an earlier
+   draft of this shipped with. Building real multi-tenant support (each
+   plugin gets its own local endpoint) is real future work, not
+   attempted this pass. */
+var ALLOWED_PERMISSIONS = ['cardTypes', 'commands', 'network', 'filesystem', 'server'];
 var MANIFEST_FILE = 'plugin.json';
 var STATE_FILE = 'plugin-state.json';
 
@@ -31,7 +56,8 @@ var PERMISSION_DESCRIPTIONS = {
   cardTypes:  'add new card types to boards',
   commands:   'add commands/actions you can run',
   network:    'make network requests',
-  filesystem: 'read and write files on your computer'
+  filesystem: 'read and write files on your computer',
+  server:     'run a local server other apps on this computer can connect to and control your board through'
 };
 
 function describePermissions(permissions) {

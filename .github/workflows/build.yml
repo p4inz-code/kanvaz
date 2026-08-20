@@ -91,3 +91,30 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      # Official-plugin release assets — audit-flagged for two releases
+      # running (4.2.1, 4.4.0 roadmap) as "never actually built by CI".
+      # Only one matrix leg needs to do this (the zip contents are pure
+      # JS/JSON, identical regardless of which OS zipped them) — picked
+      # ubuntu-latest arbitrarily since `zip` is preinstalled there.
+      # node_modules is deliberately excluded from these zips (matches
+      # normal npm package distribution — see official-plugins/mcp-
+      # bridge/README.md's own `npm install` setup step for why bundling
+      # it in wouldn't even help, that script needs installing wherever
+      # the user's MCP client runs it from, not wherever it was zipped).
+      - name: Package official plugins
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          mkdir -p dist-plugins
+          version="${GITHUB_REF_NAME#v}"
+          for dir in official-plugins/*/; do
+            name=$(basename "$dir")
+            (cd "$dir" && zip -r "../../dist-plugins/kanvaz-${name}-${version}.zip" . -x 'node_modules/*')
+          done
+          ls -la dist-plugins
+
+      - name: Publish official plugin assets
+        if: matrix.os == 'ubuntu-latest'
+        run: gh release upload "${GITHUB_REF_NAME}" dist-plugins/*.zip --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

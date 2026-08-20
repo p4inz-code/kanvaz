@@ -648,29 +648,40 @@ var KanvazCards = (function() {
   function createFileRefCard(x, y) {
     KanvazBridge.openRefFileDialog(null).then(function(p) {
       if (!p) return; /* cancelled — never create an empty, useless card */
-      var id = nextId();
-      var card = {
-        id:       id,
-        type:     'file',
-        dataUrl:  null,
-        name:     basenameOf(p),
-        path:     p,
-        x:        x,
-        y:        y,
-        w:        220,
-        h:        90,
-        z:        ++zCounter,
-        pinned:   false,
-        annotations: []
-      };
-      cards[id] = card;
-      renderCard(card);
-      selectCard(id);
-      updateEmptyState();
-      updateCount();
-      if (typeof KanvazHistory !== 'undefined') KanvazHistory.push();
-      emitCardEvent('cardCreate', card);
+      createFileRefCardAtPath(x, y, p);
     }).catch(function(e) { console.warn('[Kanvaz] openRefFileDialog IPC failed:', e); });
+  }
+
+  /* Extracted from createFileRefCard() above so a caller that already
+     HAS a path (the MCP Bridge official plugin's addReference tool —
+     see official-plugins/mcp-bridge — is the reason this exists) can
+     build the exact same card without an OS file-picker dialog in the
+     way. Returns the new card, or null if p is falsy. */
+  function createFileRefCardAtPath(x, y, p) {
+    if (!p) return null;
+    var id = nextId();
+    var card = {
+      id:       id,
+      type:     'file',
+      dataUrl:  null,
+      name:     basenameOf(p),
+      path:     p,
+      x:        x,
+      y:        y,
+      w:        220,
+      h:        90,
+      z:        ++zCounter,
+      pinned:   false,
+      annotations: []
+    };
+    cards[id] = card;
+    renderCard(card);
+    selectCard(id);
+    updateEmptyState();
+    updateCount();
+    if (typeof KanvazHistory !== 'undefined') KanvazHistory.push();
+    emitCardEvent('cardCreate', card);
+    return card;
   }
 
   /* ── Create a plugin-registered card type ──
@@ -2158,6 +2169,23 @@ var KanvazCards = (function() {
     finishDelete();
   }
 
+  /* Public alias for doDelete() — deletes immediately, skipping the
+     optional confirm-dialog gate deleteCard() applies for human
+     misclicks. Meant for programmatic callers (the MCP Bridge official
+     plugin's deleteCard tool is the reason this exists) where the
+     caller's own action already WAS the deliberate confirmation — a
+     blocking dialog only a human can see would hang an AI-driven
+     request waiting for a click that will never come. Still lands in
+     undo history exactly like a manual delete, so it's just as
+     reversible either way. */
+  function deleteCardImmediate(id) {
+    if (!cards[id]) {
+      console.error('[Kanvaz] deleteCardImmediate("' + id + '") — no card with that id, nothing deleted');
+      return;
+    }
+    doDelete(id);
+  }
+
   /* Deletes every id in the array with exactly one history push / dirty
      flag / count refresh at the end, instead of one per card — the same
      pattern generateTestCards() already uses for bulk creation. */
@@ -2197,6 +2225,129 @@ var KanvazCards = (function() {
     } else {
       deleteMultiple(ids);
     }
+  }
+
+  /* ── Programmatic update (MCP Bridge / plugins) ──
+     A generic partial-update entry point for callers that don't come
+     through any of the specific hand-built UI mutators above (drag,
+     resize, the note textarea, the color picker, ...). Rather than
+     replicate each of those mutators' own surgical DOM patching for
+     every possible field, this whitelists the fields a caller may set,
+     mutates the card object, then rebuilds its DOM element from scratch
+     via the same renderCard() every creation/deserialise path already
+     uses — correct and simple, at the cost of being a full teardown/
+     rebuild instead of an in-place patch (fine for an occasional
+     programmatic edit; NOT what drag/resize should use, which is why
+     they keep their own lighter-weight paths). */
+  /* Kept in sync BY HAND with the zod `patch` schema in
+     official-plugins/mcp-bridge/server.js's updateCard tool — that's a
+     separate, standalone Node/ESM script with no way to import this
+     array directly. Update both if this list ever changes. */
+  var UPDATABLE_FIELDS = ['name', 'text', 'url', 'color', 'tags', 'x', 'y', 'w', 'h', 'pinned'];
+
+  function updateCardData(id, patch) {
+    var card = cards[id];
+    if (!card) {
+      console.error('[Kanvaz] updateCardData("' + id + '") — no card with that id, nothing changed');
+      return null;
+    }
+    if (!patch || typeof patch !== 'object') {
+      console.error('[Kanvaz] updateCardData("' + id + '") requires a patch object');
+      return null;
+    }
+
+    var changed = false;
+    var ignored = [];
+    for (var k in patch) {
+      if (Object.prototype.hasOwnProperty.call(patch, k) && UPDATABLE_FIELDS.indexOf(k) === -1) ignored.push(k);
+    }
+    if (ignored.length) {
+      console.warn('[Kanvaz] updateCardData("' + id + '") — ignoring field(s) not in UPDATABLE_FIELDS: ' + ignored.join(', '));
+    }
+
+    for (var i = 0; i < UPDATABLE_FIELDS.length; i++) {
+      var f = UPDATABLE_FIELDS[i];
+      if (Object.prototype.hasOwnProperty.call(patch, f)) {
+        card[f] = patch[f];
+        changed = true;
+      }
+    }
+    if (!changed) return card;
+
+    /* w/h go through the same floor every other resize path enforces —
+       a caller-supplied patch is exactly the kind of unchecked input
+       createPluginCard() already has a near-identical guard for. */
+    if (patch.w !== undefined) {
+      var w = Number(card.w);
+      card.w = (isFinite(w) && w > 0) ? Math.max(CARD_MIN_W, w) : CARD_MIN_W;
+    }
+    if (patch.h !== undefined) {
+      var h = Number(card.h);
+      card.h = (isFinite(h) && h > 0) ? Math.max(CARD_MIN_H, h) : CARD_MIN_H;
+    }
+
+    var wasSelected = (selectedId === id);
+    var el = document.getElementById(id);
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+    renderCard(card);
+    if (card.pinned) {
+      var newEl = document.getElementById(id);
+      if (newEl) newEl.classList.add('pinned');
+    }
+    if (wasSelected) selectCard(id);
+
+    KanvazApp.markDirty();
+    if (typeof KanvazHistory !== 'undefined') KanvazHistory.push();
+    emitCardEvent('cardUpdate', card);
+    return card;
+  }
+
+  /* Tag mutation currently only exists as a UI-input side effect buried
+     inside buildTagBar()'s closures (see showTagInput's addTag() and the
+     per-chip remove handler) — this is the standalone equivalent for a
+     programmatic caller that just wants to set the full tag list. */
+  function setTags(id, tags) {
+    var card = cards[id];
+    if (!card) {
+      console.error('[Kanvaz] setTags("' + id + '") — no card with that id, nothing changed');
+      return null;
+    }
+    card.tags = Array.isArray(tags) ? tags.slice() : [];
+    var el = document.getElementById(id);
+    if (el) {
+      var existingBar = el.querySelector('.tag-bar');
+      if (existingBar) buildTagBar(el, card);
+    }
+    KanvazApp.markDirty();
+    if (typeof KanvazHistory !== 'undefined') KanvazHistory.push();
+    emitCardEvent('cardUpdate', card);
+    return card;
+  }
+
+  /* Pure, read-only — mirrors app.js's applySearchFilter() matching
+     logic (name/type/tag substring, case-insensitive) but RETURNS
+     matches instead of dimming DOM elements, since a programmatic
+     caller (or a future in-app search-that-returns-results feature)
+     needs data back, not a visual side effect. Deliberately not shared
+     code with applySearchFilter() — that one is tightly coupled to
+     el.style.opacity DOM mutation, this one has zero DOM dependency. */
+  function search(query) {
+    var q = (query || '').trim().toLowerCase();
+    if (!q) return [];
+    var out = [];
+    for (var id in cards) {
+      var c = cards[id];
+      var nameMatch = (c.name || '').toLowerCase().indexOf(q) !== -1;
+      var typeMatch = (c.type || '').toLowerCase().indexOf(q) !== -1;
+      var tagMatch = false;
+      if (c.tags && c.tags.length) {
+        for (var t = 0; t < c.tags.length; t++) {
+          if (c.tags[t].toLowerCase().indexOf(q) !== -1) { tagMatch = true; break; }
+        }
+      }
+      if (nameMatch || typeMatch || tagMatch) out.push(c);
+    }
+    return out;
   }
 
   /* ── Duplicate ── */
@@ -2704,13 +2855,18 @@ var KanvazCards = (function() {
     createColorCard:   createColorCard,
     createUrlCard:     createUrlCard,
     createFileRefCard: createFileRefCard,
+    createFileRefCardAtPath: createFileRefCardAtPath,
     createPluginCard: createPluginCard,
     generateTestCards: generateTestCards,
     selectCard:        selectCard,
     selectAll:         selectAll,
     deselectAll:       deselectAll,
     deleteCard:        deleteCard,
+    deleteCardImmediate: deleteCardImmediate,
     deleteSelected:    deleteSelected,
+    updateCardData:    updateCardData,
+    setTags:           setTags,
+    search:            search,
     duplicateCard:     duplicateCard,
     duplicateSelected: duplicateSelected,
     togglePin:         togglePin,

@@ -58,6 +58,20 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
   removePlugin:         function(folder, id) { return ipcRenderer.invoke('plugins-remove', folder, id); },
   getPluginStorage:     function(id) { return ipcRenderer.invoke('plugins-storage-get', id); },
   setPluginStorage:     function(id, data) { return ipcRenderer.invoke('plugins-storage-set', id, data); },
+  loadUnpackedPlugin:   function() { return ipcRenderer.invoke('plugins-load-unpacked'); },
+  fetchOfficialCatalog: function() { return ipcRenderer.invoke('catalog-fetch'); },
+  installFromCatalog:   function(entry) { return ipcRenderer.invoke('plugins-install-from-catalog', entry); },
+
+  /* MCP Bridge (4.4.0) — startMcpBridge/stopMcpBridge re-verify main-
+     process-side that the calling context actually has an approved,
+     enabled plugin declaring the 'server' permission before opening
+     anything (see main.js) — these two methods alone grant nothing.
+     mcpInvokeResult is the renderer's reply half of the main→renderer
+     round trip that 'mcp-invoke' (added to the on()/off() allowlist
+     below) is the push half of; see plugin-api.js's mcpBridge.onInvoke(). */
+  startMcpBridge:  function() { return ipcRenderer.invoke('mcp-bridge-start'); },
+  stopMcpBridge:   function() { return ipcRenderer.invoke('mcp-bridge-stop'); },
+  mcpInvokeResult: function(payload) { ipcRenderer.send('mcp-invoke-result', payload); },
 
   /* Settings */
   readSettings:    function() { return ipcRenderer.invoke('settings-read'); },
@@ -72,7 +86,7 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
 
   /* Main → Renderer events */
   on: function(channel, fn) {
-    var allowed = ['recovery-available', 'window-maximized-changed', 'check-unsaved-before-close', 'open-file-from-argv', 'update-available', 'update-downloaded'];
+    var allowed = ['recovery-available', 'window-maximized-changed', 'check-unsaved-before-close', 'open-file-from-argv', 'update-available', 'update-downloaded', 'mcp-invoke'];
     if (allowed.indexOf(channel) !== -1) {
       ipcRenderer.on(channel, function(event, data) { fn(data); });
     }
@@ -84,7 +98,7 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
        subscribe to in the first place. Not currently exploited anywhere
        (nothing in the renderer calls off() with an arbitrary channel),
        just closing the gap between the two. */
-    var allowed = ['recovery-available', 'window-maximized-changed', 'check-unsaved-before-close', 'open-file-from-argv', 'update-available', 'update-downloaded'];
+    var allowed = ['recovery-available', 'window-maximized-changed', 'check-unsaved-before-close', 'open-file-from-argv', 'update-available', 'update-downloaded', 'mcp-invoke'];
     if (allowed.indexOf(channel) !== -1) {
       ipcRenderer.removeAllListeners(channel);
     }

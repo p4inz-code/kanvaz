@@ -8,6 +8,10 @@ var dialog = electron.dialog;
 var shell = electron.shell;
 var path = require('path');
 var fs = require('fs');
+var net = require('net');
+var https = require('https');
+var nodeUrl = require('url');
+var JSZip = require('jszip');
 
 var purImport = require('./pur-import');
 var boardContainer = require('./board-container');
@@ -32,6 +36,234 @@ var RECENT_FILES_PATH = path.join(app.getPath('userData'), 'recent.json');
 var MAX_RECENT = 8;
 var LARGE_FILE_WARN_MB = 200;
 var MAX_FILE_SIZE_MB   = 500;
+
+/* ── MCP Bridge (4.4.0) — main-process side ──
+   The only official plugin allowed to open this listener; checked by
+   id, never by anything a renderer/plugin claims about itself (same
+   "never trust the renderer's say-so" discipline as the rest of the
+   plugin IPC surface below). Local IPC only — a named pipe on Windows,
+   a Unix domain socket on macOS/Linux — never a TCP port, so there is
+   no "bound to the wrong interface" failure mode to even worry about:
+   nothing outside this machine's own kernel can ever reach it. */
+var MCP_BRIDGE_PLUGIN_ID = 'studio.northbyte.mcp-bridge';
+var MCP_BRIDGE_TIMEOUT_MS = 15000;
+var mcpBridgeServer = null;
+var mcpBridgePending = {};
+var mcpBridgeRequestSeq = 0;
+
+function getMcpBridgeSocketPath() {
+  if (process.platform === 'win32') return '\\\\.\\pipe\\kanvaz-mcp-bridge';
+  return path.join(app.getPath('userData'), 'mcp-bridge.sock');
+}
+
+/* Asks the renderer to run one MCP tool call (createCard, listCards,
+   ...) and resolves with its result. No existing IPC pattern in this
+   file does a main→renderer→main round trip (every other push here —
+   'update-available', 'recovery-available', etc. — is fire-and-forget),
+   so this builds the small amount of correlation plumbing that needs:
+   a generated request id, a pending-promise map, and a timeout so one
+   stuck/ignored request can't leak a promise forever. */
+function invokeRenderer(method, args) {
+  return new Promise(function(resolve, reject) {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      reject(new Error('Kanvaz window is not available'));
+      return;
+    }
+    mcpBridgeRequestSeq++;
+    var requestId = 'mcp-' + Date.now() + '-' + mcpBridgeRequestSeq;
+    var timer = setTimeout(function() {
+      delete mcpBridgePending[requestId];
+      reject(new Error('renderer did not respond within ' + (MCP_BRIDGE_TIMEOUT_MS / 1000) + 's'));
+    }, MCP_BRIDGE_TIMEOUT_MS);
+    mcpBridgePending[requestId] = { resolve: resolve, reject: reject, timer: timer };
+    mainWindow.webContents.send('mcp-invoke', { requestId: requestId, method: method, args: args });
+  });
+}
+
+/* One connection = one client session (the standalone stdio shim script
+   in official-plugins/mcp-bridge/server.js, spawned by Claude Desktop/
+   Code's own MCP client machinery — Kanvaz itself never spawns or
+   manages that process). Framing is newline-delimited JSON, one request
+   or response object per line — deliberately the simplest thing that
+   works rather than a heavier framed-binary protocol.
+
+   Audit correction: the line above used to call this "a trusted same-
+   machine, already-permissioned local channel, not anything untrusted
+   input needs defending against at the byte level" — true for WHO can
+   reach this listener at all (see SECURITY.md's MCP Bridge section for
+   the honest, current statement of that), but not a reason to skip a
+   basic resource-safety cap: a connecting process that simply never
+   sends '\n' would previously grow `buffer` unbounded, a memory-
+   exhaustion DoS against the main process. MAX_LINE_BUFFER_BYTES below
+   closes that regardless of how trusted the caller is meant to be. */
+var MAX_LINE_BUFFER_BYTES = 10 * 1024 * 1024;
+
+function handleMcpBridgeConnection(socket) {
+  var buffer = '';
+  socket.setEncoding('utf8');
+  socket.on('data', function(chunk) {
+    buffer += chunk;
+    if (buffer.length > MAX_LINE_BUFFER_BYTES) {
+      socket.destroy();
+      return;
+    }
+    var lines = buffer.split('\n');
+    buffer = lines.pop();
+    for (var i = 0; i < lines.length; i++) {
+      (function(line) {
+        line = line.trim();
+        if (!line) return;
+        var req;
+        try {
+          req = JSON.parse(line);
+        } catch (e) {
+          socket.write(JSON.stringify({ id: null, error: 'invalid JSON: ' + e.message }) + '\n');
+          return;
+        }
+        invokeRenderer(req.method, req.params).then(function(result) {
+          socket.write(JSON.stringify({ id: req.id, result: result }) + '\n');
+        }).catch(function(e) {
+          socket.write(JSON.stringify({ id: req.id, error: e.message }) + '\n');
+        });
+      })(lines[i]);
+    }
+  });
+  socket.on('error', function() { /* client disconnected mid-write, etc. — nothing to clean up per-socket */ });
+}
+
+function startMcpBridgeServer() {
+  if (mcpBridgeServer) return Promise.resolve({ ok: true, alreadyRunning: true });
+
+  var socketPath = getMcpBridgeSocketPath();
+
+  function listen() {
+    return new Promise(function(resolve, reject) {
+      var server = net.createServer(handleMcpBridgeConnection);
+      server.on('error', function(e) { reject(e); });
+      server.listen(socketPath, function() {
+        mcpBridgeServer = server;
+        resolve({ ok: true });
+      });
+    });
+  }
+
+  if (process.platform === 'win32') return listen();
+
+  /* POSIX only: a stale socket FILE left behind by an unclean previous
+     shutdown makes listen() fail with EADDRINUSE even though nothing is
+     actually using it — Windows named pipes have no such filesystem
+     artifact to clean up, hence the branch above skipping this. */
+  return new Promise(function(resolve) {
+    fs.unlink(socketPath, function() { resolve(); });
+  }).then(listen);
+}
+
+/* ── Browse Official Plugins (4.4.0) ──
+   The one deliberate network call this feature makes, same disclosure
+   discipline as "Check for updates": fires ONLY when the user clicks
+   "Browse Official Plugins" (never on a timer or at startup), and stays
+   in the main process rather than adding a new CSP connect-src entry
+   that would make raw.githubusercontent.com trivially fetchable from
+   ANY renderer/plugin code going forward — routing it through one
+   narrow IPC handler keeps the same "only main process reaches the
+   network" discipline every other Kanvaz network call already follows. */
+var OFFICIAL_CATALOG_URL = 'https://raw.githubusercontent.com/p4inz-code/kanvaz/main/official-plugins/catalog.json';
+var MAX_CATALOG_BYTES = 256 * 1024;
+var MAX_PLUGIN_ZIP_BYTES = 25 * 1024 * 1024;
+/* Decompressed-output cap — see plugins-install-from-catalog's own
+   comment for why MAX_PLUGIN_ZIP_BYTES (compressed) alone doesn't
+   protect against a zip bomb. Generous relative to any real plugin
+   (Kanvaz's own official plugins are a few hundred KB uncompressed). */
+var MAX_PLUGIN_EXTRACTED_BYTES = 200 * 1024 * 1024;
+/* Plural — see httpsGetBuffer()'s comment on why a redirect target
+   (GitHub's own asset CDN) needs its own entry here too. */
+var ALLOWED_DOWNLOAD_HOSTS = ['github.com', 'objects.githubusercontent.com', 'github-releases.githubusercontent.com'];
+
+/* allowedHosts (array), when passed, is re-checked against EVERY hop,
+   not just the initial URL — audit fix: the original version only
+   validated entry.downloadUrl's host at the plugins-install-from-
+   catalog call site, before ever calling this function; a redirect's
+   Location header was followed unconditionally regardless of where it
+   pointed. Currently benign (GitHub's own release-asset redirects stay
+   on GitHub-operated infra) but the allowlist's actual guarantee was
+   weaker than its stated purpose — an open redirect anywhere in the
+   chain, or a future catalog format change, could otherwise silently
+   send a "github.com-only" download somewhere else entirely. Plural
+   because GitHub's own release-download flow redirects github.com ->
+   objects.githubusercontent.com (a signed, time-limited S3 URL) — a
+   single-host check would break real downloads, not just attacker-
+   controlled ones. */
+function httpsGetBuffer(urlStr, maxBytes, allowedHosts, redirectsLeft) {
+  if (redirectsLeft === undefined) redirectsLeft = 3;
+  if (allowedHosts) {
+    var checkUrl;
+    try { checkUrl = new nodeUrl.URL(urlStr); } catch (e) { return Promise.reject(new Error('invalid URL')); }
+    if (checkUrl.protocol !== 'https:' || allowedHosts.indexOf(checkUrl.hostname) === -1) {
+      return Promise.reject(new Error('refused: "' + checkUrl.hostname + '" is not an allowed host'));
+    }
+  }
+  return new Promise(function(resolve, reject) {
+    var req = https.get(urlStr, { headers: { 'User-Agent': 'Kanvaz' } }, function(res) {
+      /* GitHub release assets are served via a redirect to a signed S3
+         URL — a small, capped number of hops, never an open-ended chain. */
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        res.resume();
+        if (redirectsLeft <= 0) { reject(new Error('too many redirects')); return; }
+        httpsGetBuffer(res.headers.location, maxBytes, allowedHosts, redirectsLeft - 1).then(resolve, reject);
+        return;
+      }
+      if (res.statusCode !== 200) {
+        res.resume();
+        reject(new Error('HTTP ' + res.statusCode));
+        return;
+      }
+      var chunks = [];
+      var total = 0;
+      var tooLarge = false;
+      res.on('data', function(chunk) {
+        if (tooLarge) return;
+        total += chunk.length;
+        if (total > maxBytes) {
+          tooLarge = true;
+          reject(new Error('response exceeded the ' + Math.round(maxBytes / 1024) + 'KB limit'));
+          res.destroy();
+          return;
+        }
+        chunks.push(chunk);
+      });
+      res.on('end', function() { if (!tooLarge) resolve(Buffer.concat(chunks)); });
+      res.on('error', reject);
+    });
+    req.on('error', reject);
+    req.setTimeout(15000, function() { req.destroy(new Error('request timed out')); });
+  });
+}
+
+/* Returns a Promise that resolves once the OS handle is actually
+   released, not just once .close() was called — audit fix: the
+   original version nulled mcpBridgeServer and returned right away,
+   fire-and-forget. That allowed mcp-bridge-stop's IPC handler to resolve (and
+   the Settings toggle re-enable itself) before the underlying pipe/
+   socket had actually finished closing; a fast Disable-then-Enable
+   click could hit the still-closing handle and fail to (re)listen for
+   no reason a user could understand. net.Server#close() accepts a
+   callback fired once every connection is closed and the server has
+   stopped listening — awaiting that removes the self-race entirely.
+   window-all-closed/before-quit call this without awaiting the
+   result, which is fine — the app is exiting either way. */
+function stopMcpBridgeServer() {
+  for (var id in mcpBridgePending) {
+    clearTimeout(mcpBridgePending[id].timer);
+    mcpBridgePending[id].reject(new Error('MCP Bridge stopped'));
+  }
+  mcpBridgePending = {};
+  if (!mcpBridgeServer) return Promise.resolve();
+  var server = mcpBridgeServer;
+  mcpBridgeServer = null;
+  return new Promise(function(resolve) {
+    server.close(function() { resolve(); });
+  });
+}
 
 /* ── argv / file-open helper (BUG 5) ── */
 
@@ -80,7 +312,16 @@ if (!gotLock) {
   });
 
   app.on('window-all-closed', function() {
+    stopMcpBridgeServer();
     if (process.platform !== 'darwin') app.quit();
+  });
+
+  /* Covers the darwin case above (window-all-closed doesn't quit there)
+     and every other quit path (Cmd/Ctrl+Q, dock/taskbar quit, OS
+     shutdown) — a stray open pipe/socket surviving the app itself would
+     be a genuinely confusing state for the next launch to find. */
+  app.on('before-quit', function() {
+    stopMcpBridgeServer();
   });
 
   app.on('activate', function() {
@@ -827,6 +1068,221 @@ function registerIPC() {
 
   ipcMain.handle('plugins-storage-set', function(event, pluginId, data) {
     return pluginLoader.writePluginStorage(app.getPath('userData'), pluginId, data);
+  });
+
+  /* Settings -> Developer "Load unpacked plugin" (4.4.0) — dev-mode only,
+     deliberately bypasses BOTH the real plugins directory and the
+     consent dialog, same as Chrome extension dev mode. Still runs the
+     exact same validateManifest() every real plugin goes through — a
+     malformed plugin.json degrades the same way here as anywhere else,
+     it just never asks the user to approve permissions first. The
+     folder is picked via a native dialog (a real user gesture), so this
+     can't be triggered by anything a plugin's own script does. */
+  ipcMain.handle('plugins-load-unpacked', function() {
+    var dirs = dialog.showOpenDialogSync(mainWindow, {
+      title: 'Load unpacked Kanvaz plugin',
+      properties: ['openDirectory']
+    });
+    if (!dirs || !dirs.length) return { ok: false, cancelled: true };
+
+    var pluginDir = dirs[0];
+    var manifestPath = path.join(pluginDir, 'plugin.json');
+    if (!fs.existsSync(manifestPath)) {
+      return { ok: false, error: 'No plugin.json found in that folder' };
+    }
+
+    var manifest;
+    try {
+      manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    } catch (e) {
+      return { ok: false, error: 'plugin.json is not valid JSON' };
+    }
+
+    var validation = pluginLoader.validateManifest(manifest);
+    if (!validation.ok) {
+      return { ok: false, error: validation.reason };
+    }
+
+    var entryPath = path.resolve(path.join(pluginDir, manifest.entry));
+    var resolvedPluginDir = path.resolve(pluginDir) + path.sep;
+    if (entryPath.indexOf(resolvedPluginDir) !== 0 || !fs.existsSync(entryPath)) {
+      return { ok: false, error: 'entry file "' + manifest.entry + '" not found' };
+    }
+
+    return {
+      ok: true,
+      manifest: manifest,
+      entryUrl: nodeUrl.pathToFileURL(entryPath).href
+    };
+  });
+
+  /* ── IPC: Browse Official Plugins (4.4.0) ── */
+
+  ipcMain.handle('catalog-fetch', function() {
+    return httpsGetBuffer(OFFICIAL_CATALOG_URL, MAX_CATALOG_BYTES).then(function(buf) {
+      var parsed = JSON.parse(buf.toString('utf8'));
+      if (!Array.isArray(parsed)) throw new Error('catalog is not a list');
+      return { ok: true, catalog: parsed };
+    }).catch(function(e) {
+      return { ok: false, error: e.message };
+    });
+  });
+
+  /* Installs straight from a catalog entry — no folder-dragging. The
+     entry itself came from OFFICIAL_CATALOG_URL above (this repo's own
+     main branch), but downloadUrl is checked again here independently
+     rather than trusted blind, in case a future catalog format ever
+     lets it point somewhere else. Extraction guards against zip-slip
+     (a crafted entry path escaping the target folder) the same way
+     board-container.js's own unpack path does — resolve every entry's
+     real destination and refuse (skip, not abort the whole install) any
+     that resolve outside pluginDir. Still goes through the exact same
+     scanPlugins()/consent-dialog path as any other plugin afterward —
+     this only places files on disk, it never enables anything. */
+  ipcMain.handle('plugins-install-from-catalog', function(event, entry) {
+    if (!entry || typeof entry.downloadUrl !== 'string' || typeof entry.id !== 'string' || !entry.id) {
+      return Promise.resolve({ ok: false, error: 'invalid catalog entry' });
+    }
+    var parsedUrl;
+    try {
+      parsedUrl = new nodeUrl.URL(entry.downloadUrl);
+    } catch (e) {
+      return Promise.resolve({ ok: false, error: 'invalid download URL' });
+    }
+    if (parsedUrl.protocol !== 'https:' || ALLOWED_DOWNLOAD_HOSTS.indexOf(parsedUrl.hostname) === -1) {
+      return Promise.resolve({ ok: false, error: 'downloads are only allowed from github.com releases' });
+    }
+
+    var pluginsDir = pluginLoader.ensurePluginsDir(app.getPath('userData'));
+    var folderName = entry.id.replace(/[^a-zA-Z0-9._-]/g, '_');
+    var targetDir = path.join(pluginsDir, folderName);
+    var resolvedTargetDir = path.resolve(targetDir) + path.sep;
+
+    return httpsGetBuffer(entry.downloadUrl, MAX_PLUGIN_ZIP_BYTES, ALLOWED_DOWNLOAD_HOSTS).then(function(buf) {
+      return JSZip.loadAsync(buf);
+    }).then(function(zip) {
+      var names = Object.keys(zip.files);
+
+      /* Audit fix — zip bomb: MAX_PLUGIN_ZIP_BYTES above only caps the
+         COMPRESSED download; nothing previously capped decompressed
+         output, so a small crafted zip could expand to gigabytes and
+         exhaust disk during extraction, the exact DoS a size cap is
+         supposed to prevent. Two layers: reject upfront using each
+         entry's declared uncompressed size (no decompression needed —
+         cheap, catches almost everything) via JSZip's internal
+         `_data.uncompressedSize` (not a stable public API, hence the
+         defensive fallback to 0 if the shape ever changes), THEN keep a
+         running total of ACTUAL decompressed bytes as they resolve, so
+         a zip that lies about its own declared size still gets caught
+         before too much lands on disk. */
+      var declaredTotal = 0;
+      for (var d = 0; d < names.length; d++) {
+        var f = zip.files[names[d]];
+        if (!f.dir) declaredTotal += (f._data && f._data.uncompressedSize) || 0;
+      }
+      if (declaredTotal > MAX_PLUGIN_EXTRACTED_BYTES) {
+        return Promise.reject(new Error('plugin archive declares ' + Math.round(declaredTotal / (1024 * 1024)) + 'MB uncompressed — exceeds the ' + Math.round(MAX_PLUGIN_EXTRACTED_BYTES / (1024 * 1024)) + 'MB limit'));
+      }
+
+      var writtenTotal = 0;
+      var aborted = false;
+      var writes = [];
+      for (var i = 0; i < names.length; i++) {
+        (function(relPath) {
+          var file = zip.files[relPath];
+          if (file.dir) return;
+          var destPath = path.resolve(path.join(targetDir, relPath));
+          if (destPath.indexOf(resolvedTargetDir) !== 0) return; /* zip-slip guard — skip, don't abort the whole install */
+          writes.push(file.async('nodebuffer').then(function(data) {
+            if (aborted) return;
+            writtenTotal += data.length;
+            if (writtenTotal > MAX_PLUGIN_EXTRACTED_BYTES) {
+              aborted = true;
+              throw new Error('plugin archive exceeded the ' + Math.round(MAX_PLUGIN_EXTRACTED_BYTES / (1024 * 1024)) + 'MB decompressed limit');
+            }
+            fs.mkdirSync(path.dirname(destPath), { recursive: true });
+            fs.writeFileSync(destPath, data);
+          }));
+        })(names[i]);
+      }
+      return Promise.all(writes).catch(function(e) {
+        /* Clean up whatever partial folder this attempt created —
+           never leave a half-extracted (or bomb-truncated) plugin
+           folder sitting in the real plugins directory. */
+        try { fs.rmSync(targetDir, { recursive: true, force: true }); } catch (cleanupErr) { /* best effort */ }
+        throw e;
+      });
+    }).then(function() {
+      return { ok: true, folder: folderName };
+    }).catch(function(e) {
+      return { ok: false, error: e.message };
+    });
+  });
+
+  /* ── IPC: MCP Bridge (4.4.0) ──
+     Real enforcement, not just consent-dialog text: start/stop only
+     honor the request if THE OFFICIAL MCP Bridge plugin specifically
+     (MCP_BRIDGE_PLUGIN_ID) is actually approved AND enabled right now —
+     re-checked fresh against disk every time, exactly like
+     plugins-set-enabled above never trusts a stored flag alone. A
+     plugin's own renderer-side code calling KanvazBridge.startMcpBridge()
+     directly (bypassing KanvazPluginAPI.mcpBridge entirely) gains
+     nothing from doing so — this is the real gate, that was only ever
+     the documented surface.
+
+     Audit fix — honesty gap in the ERROR message, not the gate itself:
+     the 'server' permission (plugin-loader.js) is worded generically,
+     as if any plugin declaring it gets a working local listener. It
+     doesn't — this single listener is reserved for one specific
+     plugin id, full stop, a single-tenant piece of infrastructure, not
+     a generic per-plugin local-server framework (that's real future
+     work, not attempted this pass). A well-behaved THIRD-PARTY plugin
+     that honestly declares 'server', gets consent, and sees
+     KanvazPluginAPI.mcpBridge present (buildScopedAPI() doesn't know
+     about this single-tenant restriction — only main.js does) would
+     previously see "not approved and enabled with the server
+     permission" here, worded as if ITS OWN approval were the problem,
+     when the real reason is this handler simply doesn't authorize any
+     id but MCP_BRIDGE_PLUGIN_ID. Distinguishing the two honestly below. */
+  ipcMain.handle('mcp-bridge-start', function() {
+    var scanned = pluginLoader.scanPlugins(app.getPath('userData'));
+    var plugin = scanned.filter(function(p) {
+      return p.manifest && p.manifest.id === MCP_BRIDGE_PLUGIN_ID;
+    })[0];
+    if (!plugin) {
+      return Promise.resolve({
+        ok: false,
+        error: 'This build\'s local MCP listener is reserved for the official MCP Bridge plugin (' + MCP_BRIDGE_PLUGIN_ID + '). A generic per-plugin local-server capability isn\'t implemented yet — declaring the "server" permission unlocks KanvazPluginAPI.mcpBridge, but only that one plugin id can actually start the listener.'
+      });
+    }
+    var authorized = plugin.valid && plugin.enabled &&
+      plugin.approvedPermissions && plugin.approvedPermissions.indexOf('server') !== -1;
+    if (!authorized) {
+      return Promise.resolve({ ok: false, error: 'MCP Bridge isn\'t approved and enabled yet — go to Settings → Plugins, approve it, then turn it on.' });
+    }
+    return startMcpBridgeServer().catch(function(e) {
+      return { ok: false, error: e.message };
+    });
+  });
+
+  ipcMain.handle('mcp-bridge-stop', function() {
+    return stopMcpBridgeServer().then(function() {
+      return { ok: true };
+    });
+  });
+
+  /* One-way reply half of the mcp-invoke round trip (see invokeRenderer
+     above) — ipcMain.on, not .handle, because the renderer already sent
+     its result value directly in the payload; there's nothing for THIS
+     message to return. */
+  ipcMain.on('mcp-invoke-result', function(event, payload) {
+    if (!payload || !payload.requestId) return;
+    var pending = mcpBridgePending[payload.requestId];
+    if (!pending) return; /* already timed out, or an unrecognized/duplicate reply */
+    delete mcpBridgePending[payload.requestId];
+    clearTimeout(pending.timer);
+    if (payload.error) pending.reject(new Error(payload.error));
+    else pending.resolve(payload.result);
   });
 
 }

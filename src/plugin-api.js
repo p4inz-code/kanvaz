@@ -305,6 +305,39 @@ var KanvazPluginAPI = (function() {
     return KanvazBoards.getActiveBoardInfo();
   }
 
+  /* ── Write functions (4.4.0) ──
+     Audit fix: updateCardData/setTags/deleteCardImmediate/search were
+     added to cards.js for the MCP Bridge official plugin, but only ever
+     reachable via the bare KanvazCards global — nowhere on the
+     documented KanvazPluginAPI surface, unlike every READ function
+     above. A plugin author reading only this file's public methods
+     would have no way to discover board-mutation was possible at all.
+     These are thin, ungated wrappers (matching getCards/getSelected/
+     etc. above — general-purpose Runtime API, not MCP-Bridge-specific,
+     and not gated on any permission, same as every other method in
+     this file except mcpBridge) that just forward to the real
+     cards.js functions, which already do their own id/argument
+     validation and console.error on misuse. */
+  function updateCard(id, patch) {
+    if (typeof KanvazCards === 'undefined') return null;
+    return KanvazCards.updateCardData(id, patch);
+  }
+
+  function setCardTags(id, tags) {
+    if (typeof KanvazCards === 'undefined') return null;
+    return KanvazCards.setTags(id, tags);
+  }
+
+  function deleteCard(id) {
+    if (typeof KanvazCards === 'undefined') return;
+    KanvazCards.deleteCardImmediate(id);
+  }
+
+  function searchCards(query) {
+    if (typeof KanvazCards === 'undefined') return [];
+    return KanvazCards.search(query);
+  }
+
   var storage = {
     load: function(pluginId) {
       if (typeof KanvazBridge === 'undefined' || !KanvazBridge.getPluginStorage) {
@@ -322,7 +355,131 @@ var KanvazPluginAPI = (function() {
     }
   };
 
-  return {
+  /* ── Scoped per-plugin API (4.4.0) ──
+     Everything above this point is universally available to every
+     plugin regardless of declared permissions — registerCardType/
+     registerTheme/registerSettingsPanel/registerCommand/on/the Runtime
+     Data API/storage were all already shipped un-gated (4.2.0–4.3.0)
+     and changing that now would be a bigger, riskier behavioral change
+     than this pass is trying to make (it would, for instance, silently
+     break Theme Creator's own registerCommand call unless its manifest
+     also declared a "commands" permission it doesn't request today).
+
+     What's new here is narrower and more honest about what it actually
+     achieves: PERMISSION-GATED namespaces (currently just `mcpBridge`,
+     gated on the 'server' permission — see plugin-loader.js) are
+     conditionally present on the object a given plugin's own script
+     sees. "Sees" is doing real work in that sentence and deserves the
+     same honesty as everywhere else in this file: KanvazPluginLoader
+     (below) loads plugins ONE AT A TIME and points the bare
+     `window.KanvazPluginAPI` global at a scope built specifically for
+     whichever plugin's <script> tag is currently executing — but that
+     binding is only guaranteed correct DURING that plugin's own
+     synchronous top-level execution (the documented "runs top-level and
+     registers itself synchronously" convention every plugin already
+     follows for the exact same reason `document.currentScript` is only
+     reliable then — see storage's PLUGIN_ID convention above). A plugin
+     that wants to use a gated namespace later (e.g. inside a Settings-
+     panel button's click handler) must capture it into a local variable
+     at the top of its entry file, same as PLUGIN_ID — re-reading the
+     bare `KanvazPluginAPI` global from inside a deferred callback will
+     see whatever plugin loaded most recently, not necessarily its own
+     scope, once loading has moved on. This closes the specific honesty
+     gap the 4.4.0 roadmap flagged (a gated namespace is now genuinely
+     ABSENT, not just undocumented, from what a plugin sees at
+     registration time) without claiming the full per-process isolation
+     that was explicitly declined for this stretch (see SECURITY.md) —
+     a plugin's script still shares the renderer's page context and can,
+     if it goes looking, reach `window.KanvazBridge` or another global
+     directly. Convention-based, disclosed, not hidden — same trust
+     model as everything else in this file. */
+  var GATED_NAMESPACES = {
+    server: function(scoped) { scoped.mcpBridge = mcpBridge; }
+  };
+
+  /* Audit fix (caught before ship, not after): buildScopedAPI() used to
+     copy EVERY key of fullAPI into the object handed to a plugin,
+     including `_buildScopedAPI` itself — fullAPI._buildScopedAPI IS this
+     very function. Any plugin, regardless of its own declared
+     permissions, could therefore call
+     `KanvazPluginAPI._buildScopedAPI({permissions:['server']})` on
+     itself and get back a fully-privileged scope with `mcpBridge`
+     attached, completely defeating the gate this whole mechanism exists
+     to enforce — the builder was trusting whatever `manifest` object the
+     CALLER handed it, not anything actually recorded about that caller.
+     `_buildScopedAPI` (and anything else a plugin could use to re-
+     derive a privileged scope for itself) must never appear in a scoped
+     copy — it's for KanvazPluginLoader's own internal use only, via the
+     `baseAPI` reference it captures once at its own module-init time,
+     never via a scope a plugin's script can see. */
+  var NEVER_SCOPED = { _buildScopedAPI: true };
+
+  function buildScopedAPI(manifest) {
+    var scoped = {};
+    for (var key in fullAPI) {
+      if (!Object.prototype.hasOwnProperty.call(fullAPI, key)) continue;
+      if (NEVER_SCOPED[key]) continue;
+      scoped[key] = fullAPI[key];
+    }
+    var permissions = (manifest && manifest.permissions) || [];
+    for (var i = 0; i < permissions.length; i++) {
+      var grant = GATED_NAMESPACES[permissions[i]];
+      if (grant) grant(scoped);
+    }
+    return scoped;
+  }
+
+  /* ── mcpBridge namespace (4.4.0) — only reachable by a plugin that
+     declared the 'server' permission (see buildScopedAPI above). Thin
+     wrapper over KanvazBridge's own mcp-bridge-* IPC methods; the REAL
+     gate is main-process-side (main.js's mcp-bridge-start handler
+     re-verifies this plugin is actually approved+enabled with 'server'
+     before opening anything — never trusts the renderer's say-so alone,
+     same pattern as every other plugin IPC handler). */
+  var mcpBridge = {
+    start: function() {
+      if (typeof KanvazBridge === 'undefined' || !KanvazBridge.startMcpBridge) {
+        return Promise.resolve({ ok: false, error: 'MCP Bridge is unavailable in this build' });
+      }
+      return KanvazBridge.startMcpBridge();
+    },
+    stop: function() {
+      if (typeof KanvazBridge === 'undefined' || !KanvazBridge.stopMcpBridge) {
+        return Promise.resolve({ ok: false, error: 'MCP Bridge is unavailable in this build' });
+      }
+      return KanvazBridge.stopMcpBridge();
+    },
+    /* Registers the function that answers every incoming tool call —
+       see official-plugins/mcp-bridge/main.js for the real handler.
+       Only one handler at a time; registering a new one replaces the
+       last (a plugin toggling MCP Bridge off/on, or re-registering via
+       "Load unpacked plugin" dev-mode reload, must never end up with
+       two competing handlers each answering — and each REPLYING to —
+       the same incoming request).
+       Audit fix (caught before ship): this used to just call
+       KanvazBridge.on(...), which ADDS a listener — ipcRenderer.on does
+       not dedupe. The comment above already claimed "replaces the
+       last"; the code didn't. KanvazBridge.off('mcp-invoke') first
+       (removeAllListeners on that channel — safe, since nothing else in
+       Kanvaz core or any other plugin listens on it) makes that true. */
+    onInvoke: function(handler) {
+      if (typeof KanvazBridge === 'undefined' || !KanvazBridge.on) return function() {};
+      if (KanvazBridge.off) KanvazBridge.off('mcp-invoke');
+      KanvazBridge.on('mcp-invoke', function(payload) {
+        Promise.resolve()
+          .then(function() { return handler(payload.method, payload.args); })
+          .then(function(result) {
+            KanvazBridge.mcpInvokeResult({ requestId: payload.requestId, result: result });
+          })
+          .catch(function(e) {
+            KanvazBridge.mcpInvokeResult({ requestId: payload.requestId, error: (e && e.message) || String(e) });
+          });
+      });
+      return function off() { if (KanvazBridge.off) KanvazBridge.off('mcp-invoke'); };
+    }
+  };
+
+  var fullAPI = {
     registerCardType: registerCardType,
     registerTheme: registerTheme,
     registerSettingsPanel: registerSettingsPanel,
@@ -332,6 +489,10 @@ var KanvazPluginAPI = (function() {
     getSelected: getSelected,
     getConnections: getConnections,
     getActiveBoard: getActiveBoard,
+    updateCard: updateCard,
+    setCardTags: setCardTags,
+    deleteCard: deleteCard,
+    searchCards: searchCards,
     storage: storage,
     /* Public — a plugin (e.g. a theme creator/editor) can call this
        directly to preview or switch to any registered theme, including
@@ -349,8 +510,11 @@ var KanvazPluginAPI = (function() {
     _getAllThemes: getAllThemes,
     _applyTheme: applyTheme,
     _getAllSettingsPanels: getAllSettingsPanels,
-    _emit: _emit
+    _emit: _emit,
+    _buildScopedAPI: buildScopedAPI
   };
+
+  return fullAPI;
 })();
 
 window.KanvazPluginAPI = KanvazPluginAPI;
@@ -360,40 +524,169 @@ var KanvazPluginLoader = (function() {
   var loadedIds = {};
   var lastScanResult = [];
 
-  function injectPlugin(plugin) {
-    if (loadedIds[plugin.manifest.id]) return;
-    var script = document.createElement('script');
-    script.setAttribute('data-plugin-id', plugin.manifest.id);
-    script.src = plugin.entryUrl;
-    script.onerror = function() {
-      console.error('[Kanvaz Plugin] Failed to load "' + plugin.manifest.name + '" from ' + plugin.entryUrl);
-    };
-    document.body.appendChild(script);
-    loadedIds[plugin.manifest.id] = true;
+  /* The TRUE, never-scoped API object — captured once, right now,
+     before any plugin has had a chance to load. This is NOT the same
+     as writing `KanvazPluginAPI` everywhere below and hoping it stays
+     put: `var KanvazPluginAPI = ...` at this file's top level is a
+     plain script (not a module), so that binding IS window.
+     KanvazPluginAPI — the bare identifier and the window property are
+     one and the same storage slot, not two independent references to
+     it. The very first version of this scope-swap mechanism used the
+     bare identifier for the "restore the full API" step and silently
+     restored whichever plugin's SCOPED object happened to be sitting
+     in that slot at the time instead of the real base object — caught
+     by a headless-Chromium test asserting the resting global actually
+     lacked a gated namespace after loading finished. baseAPI below is
+     a plain local variable in THIS closure, never itself the target of
+     a `window.KanvazPluginAPI = ...` assignment, so it can't suffer
+     the same aliasing. */
+  var baseAPI = window.KanvazPluginAPI;
+
+  /* Per-plugin scope injection timeout — a defensive backstop only.
+     Loading is now SEQUENTIAL (see loadEnabledPlugins below): each
+     plugin's <script> tag must finish (onload OR onerror) before the
+     next one is injected, so window.KanvazPluginAPI reliably points at
+     the scope built for whichever plugin is currently executing. If a
+     script somehow never fires either event, this timeout moves on
+     anyway rather than blocking every plugin after it from ever loading. */
+  var INJECT_TIMEOUT_MS = 5000;
+
+  /* Audit fix (caught before ship): loadEnabledPlugins() and
+     loadUnpacked() each built their OWN independent promise chain
+     around the window.KanvazPluginAPI scope-swap, with no coordination
+     between them — there is exactly ONE window.KanvazPluginAPI slot,
+     and nothing stopped, say, a Settings-panel "Load unpacked plugin"
+     click from swapping the scope mid-way through startup's
+     loadEnabledPlugins() chain still being in flight for a DIFFERENT
+     plugin, corrupting which scope that other plugin's script actually
+     saw. All scope-swapping operations now funnel through this single
+     shared queue — enqueue() — so at most one is ever touching
+     window.KanvazPluginAPI at a time, regardless of which of the two
+     public entry points below triggered it or how many times either is
+     called concurrently. */
+  var loadQueue = Promise.resolve();
+
+  function enqueue(work) {
+    var result = loadQueue.then(work, work);
+    /* Keep the queue alive even if `work` rejects — swallow the error
+       for the QUEUE's sake only; `result` (returned to the actual
+       caller below) still carries the real rejection. */
+    loadQueue = result.then(function() {}, function() {});
+    return result;
   }
 
-  function loadEnabledPlugins() {
-    if (typeof KanvazBridge === 'undefined' || !KanvazBridge.scanPlugins) {
-      return Promise.resolve({ ok: false, plugins: [] });
-    }
-    return KanvazBridge.scanPlugins().then(function(result) {
-      if (!result || !result.ok) return result;
-      lastScanResult = result.plugins || [];
-      for (var i = 0; i < lastScanResult.length; i++) {
-        var p = lastScanResult[i];
-        if (p.valid && p.enabled && !p.needsConsent) {
-          injectPlugin(p);
-        }
+  /* Returns a Promise that resolves once this one plugin's script has
+     either loaded or failed to. Swaps window.KanvazPluginAPI to a scope
+     built specifically for this plugin's declared permissions
+     immediately before injecting — see buildScopedAPI()'s big comment
+     above for exactly what that does and doesn't guarantee. */
+  function injectPlugin(plugin) {
+    if (loadedIds[plugin.manifest.id]) return Promise.resolve();
+    loadedIds[plugin.manifest.id] = true;
+
+    window.KanvazPluginAPI = baseAPI._buildScopedAPI(plugin.manifest);
+
+    return new Promise(function(resolve) {
+      var done = false;
+      function finish() {
+        if (done) return;
+        done = true;
+        resolve();
       }
-      return result;
-    }).catch(function(e) {
-      console.error('[Kanvaz Plugin] loadEnabledPlugins failed:', e.message);
-      return { ok: false, plugins: [] };
+
+      var script = document.createElement('script');
+      script.setAttribute('data-plugin-id', plugin.manifest.id);
+      script.src = plugin.entryUrl;
+      script.onload = finish;
+      script.onerror = function() {
+        console.error('[Kanvaz Plugin] Failed to load "' + plugin.manifest.name + '" from ' + plugin.entryUrl);
+        finish();
+      };
+      document.body.appendChild(script);
+      setTimeout(finish, INJECT_TIMEOUT_MS);
+    });
+  }
+
+  /* Chains each plugin's injectPlugin() one after another (not
+     Promise.all — that would go back to injecting everything at once,
+     defeating the whole point of the scope swap above) so plugin B
+     never starts loading while plugin A's scoped window.KanvazPluginAPI
+     is still the active one. Restores the full, ungated API as the
+     resting global state once every plugin has finished, exactly as
+     before this change — Kanvaz's own core code (ui.js/cards.js calling
+     KanvazPluginAPI._getAllCardTypeDefs() etc.) never sees a scoped
+     view, only a plugin's own script does, and only while it's loading. */
+  function loadEnabledPlugins() {
+    return enqueue(function() {
+      if (typeof KanvazBridge === 'undefined' || !KanvazBridge.scanPlugins) {
+        return Promise.resolve({ ok: false, plugins: [] });
+      }
+      return KanvazBridge.scanPlugins().then(function(result) {
+        if (!result || !result.ok) return result;
+        lastScanResult = result.plugins || [];
+        var toLoad = lastScanResult.filter(function(p) { return p.valid && p.enabled && !p.needsConsent; });
+
+        var chain = Promise.resolve();
+        for (var i = 0; i < toLoad.length; i++) {
+          (function(p) {
+            chain = chain.then(function() { return injectPlugin(p); });
+          })(toLoad[i]);
+        }
+        return chain.then(function() {
+          window.KanvazPluginAPI = baseAPI;
+          return result;
+        });
+      }).catch(function(e) {
+        console.error('[Kanvaz Plugin] loadEnabledPlugins failed:', e.message);
+        window.KanvazPluginAPI = baseAPI;
+        return { ok: false, plugins: [] };
+      });
+    });
+  }
+
+  /* ── "Load unpacked plugin" dev workflow (4.4.0) ──
+     Settings -> Developer. Bypasses BOTH the real plugins directory and
+     the consent dialog on purpose (main.js's plugins-load-unpacked
+     handler does the same manifest validation every real plugin goes
+     through, just skips scanPlugins()'s directory-listing and the
+     native approval dialog) — this is a developer opting into running
+     their own in-progress code, the same trust level as opening a
+     terminal, not something an ordinary install flow should ever do.
+     Re-running this (e.g. after editing the plugin's own files) always
+     re-injects — deletes any prior loadedIds entry for this exact id
+     first — which is what makes clicking the button again after an
+     edit work as a lightweight "reload this plugin" without needing a
+     separate hot-reload-everything mechanism. */
+  function loadUnpacked() {
+    if (typeof KanvazBridge === 'undefined' || !KanvazBridge.loadUnpackedPlugin) {
+      return Promise.resolve({ ok: false, error: 'unavailable in this build' });
+    }
+    /* The native folder-picker dialog itself runs OUTSIDE the queue —
+       there's no scope-swapping happening yet, and queuing it would
+       block every other pending plugin-load operation on however long
+       the user takes to pick a folder or cancel. Only the actual
+       injection (from here through the restore) needs the shared queue
+       from enqueue() above, for the same reason loadEnabledPlugins()
+       does. */
+    return KanvazBridge.loadUnpackedPlugin().then(function(result) {
+      if (!result || !result.ok || result.cancelled) return result;
+      return enqueue(function() {
+        delete loadedIds[result.manifest.id];
+        return injectPlugin({ manifest: result.manifest, entryUrl: result.entryUrl }).then(function() {
+          /* One-off injection outside the normal sequential startup
+             chain — restore the full, ungated API as the resting global
+             state immediately after, same as loadEnabledPlugins() does
+             once ITS chain finishes. */
+          window.KanvazPluginAPI = baseAPI;
+          return result;
+        });
+      });
     });
   }
 
   return {
     loadEnabledPlugins: loadEnabledPlugins,
+    loadUnpacked: loadUnpacked,
     isLoaded: function(id) { return !!loadedIds[id]; },
     getLastScanResult: function() { return lastScanResult; }
   };

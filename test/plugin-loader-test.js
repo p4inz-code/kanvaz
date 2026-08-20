@@ -94,6 +94,36 @@ function run() {
   assert.strictEqual(legitResult.ok, true, 'removing a plugin\'s own folder must succeed');
   assert.ok(!fs.existsSync(path.join(TMP, 'plugins', 'valid-plugin')), 'the plugin folder must actually be gone');
   console.log('  ✓ removing a plugin\'s own folder works correctly');
+
+  /* 6. 'server' permission (4.4.0, MCP Bridge) — accepted, escalation
+     re-triggers consent exactly like every other permission, and an
+     unknown permission string is still rejected regardless. */
+  assert.ok(pluginLoader.ALLOWED_PERMISSIONS.indexOf('server') !== -1, '"server" must be a recognized permission');
+
+  writePlugin('com.test.mcpbridgelike', 'mcp-bridge-like-plugin', { permissions: ['server'] });
+  var afterServerScan = pluginLoader.scanPlugins(TMP);
+  var serverPlugin = afterServerScan.filter(function(p) { return p.folder === 'mcp-bridge-like-plugin'; })[0];
+  assert.strictEqual(serverPlugin.valid, true, 'a manifest declaring "server" must validate');
+  assert.strictEqual(serverPlugin.needsConsent, true, 'a never-approved "server" plugin must need consent, same as any other permission');
+  console.log('  ✓ "server" permission validates and requires consent like any other');
+
+  pluginLoader.approvePlugin(TMP, 'com.test.mcpbridgelike', '1.0.0', ['server']);
+  var afterServerApprove = pluginLoader.scanPlugins(TMP);
+  var approvedServerPlugin = afterServerApprove.filter(function(p) { return p.folder === 'mcp-bridge-like-plugin'; })[0];
+  assert.strictEqual(approvedServerPlugin.needsConsent, false, 'approving "server" must clear needsConsent');
+  assert.ok(approvedServerPlugin.approvedPermissions.indexOf('server') !== -1, 'approvedPermissions must record "server"');
+  console.log('  ✓ "server" permission, once approved, is recorded and consent is not re-asked');
+
+  writePlugin('com.test.badperm', 'bad-permission-plugin', { permissions: ['server', 'nonsense-permission'] });
+  var afterBadPerm = pluginLoader.scanPlugins(TMP);
+  var badPermPlugin = afterBadPerm.filter(function(p) { return p.folder === 'bad-permission-plugin'; })[0];
+  assert.strictEqual(badPermPlugin.valid, false, 'an unrecognized permission string must still be rejected even alongside a valid one');
+  assert.ok(/nonsense-permission/.test(badPermPlugin.reason), 'reason should name the unrecognized permission: ' + badPermPlugin.reason);
+  console.log('  ✓ an unrecognized permission is rejected even when "server" is also present');
+
+  var serverDescription = pluginLoader.describePermissions(['server']);
+  assert.ok(/local server/.test(serverDescription), '"server" must have a human-readable description in the consent dialog text: ' + serverDescription);
+  console.log('  ✓ describePermissions() has real prose for "server", not just the raw string');
 }
 
 try {

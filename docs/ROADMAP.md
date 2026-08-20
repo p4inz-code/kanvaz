@@ -27,6 +27,16 @@ Ships:
 
 ## v4.4.0 — Plugin Ecosystem: Hardening, Distribution & MCP Bridge
 
+**Implementation status: done, not yet released.** Everything below shipped
+in the working copy (see `docs/HANDOFF.md` for exactly what was verified and
+how). One real gap, flagged rather than hidden: MCP Bridge's `server.js` was
+verified end-to-end against a real MCP `Client` from the official SDK
+(`test/mcp-bridge-e2e-test.mjs`), driving the actual, unmodified script over
+real stdio — but never against the actual Claude Desktop or Claude Code
+application specifically. Do that manual pass before calling this "done bar"
+fully met, alongside the v4.3.0 Electron-GUI manual pass this sandbox
+couldn't run either.
+
 **Goal:** close the audit-flagged gaps (permission enforcement, packaging automation) and ship the flagship reference plugin — replacing the original "AI suggest-tags" idea with something better suited to 2026: **Kanvaz becomes agent-controllable via MCP**, not just AI-assisted.
 
 ### MCP Bridge (flagship official plugin)
@@ -39,7 +49,13 @@ Candidate tool surface (final shape decided during implementation, not locked he
 - `tagCard(id, tags)`, `search(query)`
 - `getConnections()`, `connectCards(fromId, toId)`
 
-Transport: local server (stdio or localhost HTTP/SSE — decide at implementation time based on how Claude Code vs. Desktop actually discover local MCP servers). No cloud calls originate from Kanvaz itself.
+Transport, as implemented: Kanvaz's main process listens on a named pipe
+(Windows) / Unix domain socket (macOS/Linux) — never a TCP port — using a
+simple newline-delimited-JSON framing. A separate, standalone `server.js`
+(plain Node, ships alongside the plugin, uses `@modelcontextprotocol/sdk`)
+is what the AI client actually spawns over real MCP stdio; it forwards each
+tool call to that local pipe/socket and relays the response back. No cloud
+calls originate from Kanvaz itself, or from `server.js`.
 
 **Non-negotiable guardrails, given an external agent now has write access to real boards:**
 - Off by default. Explicit enable in Settings, same consent-dialog pattern as any other plugin permission.
@@ -49,7 +65,7 @@ Transport: local server (stdio or localhost HTTP/SSE — decide at implementatio
 ### Permission enforcement (the trust-model decision)
 Evaluated full per-plugin process isolation vs. scoped sandboxing vs. enforcing the permission model as originally designed. Full isolation is high-effort (multi-week rearchitect, breaks the existing `<script>`-tag plugin convention) against a two-version budget and an ecosystem of one official plugin — not worth it now, logged as deliberate future work in `SECURITY.md`, not a gap.
 
-What ships instead: **the permission model as already specced but never enforced.** `network`/`fs` (and the new server-listening capability MCP Bridge needs) are literally absent from the API object handed to a plugin that didn't declare them — not just unauthorized, not present to call. Low effort, closes the honesty gap between what the consent dialog promises and what's actually true, and matters more now that MCP Bridge exists as a high-permission plugin.
+What ships, as implemented: a new `server` permission (the capability MCP Bridge actually needs), genuinely absent from the `KanvazPluginAPI` object a plugin's own script sees unless its manifest declares it and the user approved it — enforced by loading plugins one at a time and scoping the API each one is handed, verified in a real browser test. `network`/`fs` generic namespaces were sketched in `docs/PLUGIN_SYSTEM_DRAFT.md` but nothing in this pass's actual scope (MCP Bridge) needed them, so they were deliberately NOT built — building unused permission surface area is its own risk, not a shortcut. Closes the honesty gap for the one capability dangerous enough to be worth it this pass; SECURITY.md documents exactly what is and isn't covered.
 
 ### Distribution
 - CI step: zip `official-plugins/*` into a release asset automatically on tag push (audit-flagged, never built)
