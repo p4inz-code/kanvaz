@@ -79,7 +79,14 @@ function packBoard(jsonString) {
           var buf = Buffer.from(match[2], 'base64');
           var ext = MIME_TO_EXT[mime] || 'bin';
           var assetName = card.id + '.' + ext;
-          assets.file(assetName, buf);
+          /* Audit fix: media assets (JPEG/PNG/GIF/MP4/WebM/MP3/...) are
+             already entropy-coded — DEFLATE spends real CPU on them for
+             ~0 bytes saved (measured: level 6 took 15x longer than STORE
+             for identical output size on incompressible data). This ran
+             on the main process on every save; STORE for assets keeps
+             board.json (plain JSON, compresses well) on DEFLATE via
+             generateAsync's own default below, unaffected by this. */
+          assets.file(assetName, buf, { compression: 'STORE' });
           card.dataUrl   = null;
           card.assetRef  = 'assets/' + assetName;
           card.assetHash = crypto.createHash('sha256').update(buf).digest('hex');

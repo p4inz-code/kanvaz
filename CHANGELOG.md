@@ -2,6 +2,132 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [4.6.0] — Text cards, Map View rename/preview, and a real bug-hunt pass
+
+Three requests landed at once: a bare text-label card type, bigger resize
+handles, and an urgent fix for `.pur` imports hanging the whole app. Fixing
+the importer meant reading through the rest of the app's mutation/undo/
+viewport code with the same scrutiny, which turned up a dozen more real
+bugs — most of them long-standing, none of them hypothetical.
+
+### Added
+- **Text card** (`type: 'text'`) — a bare floating label with no
+  background/border/card-bar chrome, for titling a section of the board
+  directly. Distinct from Note (a boxed textarea) on purpose. Resizes,
+  tags, and is MCP-Bridge-creatable exactly like every other card type;
+  excluded from flip/annotate/reset-size the same way Note/Color/Audio
+  already are, since there's no visual media to act on.
+- **Map View: inline rename** — double-click a node's name, or right-click
+  → Rename. There was no rename UI anywhere in Kanvaz before this;
+  Properties panel only ever displayed the name read-only. Goes through
+  the same `updateCardData()` path MCP Bridge's `updateCard` tool uses, so
+  undo/dirty-flag/Board-View's own card-bar all stay in sync.
+- **Map View: hover preview** — hovering a node for ~350ms shows a bigger
+  look at its actual content: the real image for image/gif, a swatch+hex
+  for color, a text excerpt for note/text, the URL/path for url/file. No
+  cheap way to grab a real video frame or waveform from Map View (those
+  elements only exist in Board View's DOM), so video/audio fall back to
+  an icon — an honest scope limit, not an oversight.
+- **Bigger resize handles** — 8px → 12px hit area, repositioned to stay
+  centered on the same point relative to the card edge. The handle
+  actively being dragged now also grows further and every handle on that
+  card stays fully visible for the drag's duration — previously handle
+  opacity was pure CSS `:hover`, so dragging one away from the card made
+  it (and its siblings) fade out mid-drag.
+
+### Fixed — critical: `.pur` (PureRef) import could hang the entire app
+- **Ran synchronously on Electron's main process** (`main.js`'s
+  `pur-import` IPC handler) — the same process that owns the native
+  window's message pump, so any nontrivial file (real PureRef boards
+  routinely embed hundreds of images) froze the whole app, not just the
+  import, showing as "(Not Responding)". Now runs in a `worker_thread`
+  (`src/pur-import-worker.js`) with a 30s timeout backstop.
+- **O(n²) transform-linking** in `pur-import.js` — nested scans over an
+  `images` array that routinely holds thousands of entries on real files.
+  Replaced with `absStart`/`transform-id`-keyed maps, O(n). Measured
+  directly: 40,000 images went from ~1.2s to ~50ms.
+  Also added a hard cap so a genuinely malformed file fails fast with a
+  clear error instead of grinding.
+- Caught a second bug while wiring the worker thread itself:
+  `postMessage` structured-clones a Node `Buffer` down to a plain
+  `Uint8Array` on the receiving side, which lacks the `.readDoubleBE()`/
+  `.readUInt32BE()` methods the parser depends on — fixed with an
+  explicit re-wrap in the worker.
+- Regression-tested at three levels (`test/pur-import-test.js`):
+  correctness on a hand-built synthetic file, the O(n)-vs-O(n²) timing
+  gap (verified failing against the reverted code before trusting it),
+  and the real `worker_thread` round trip — not just the pure function.
+
+### Fixed — found during the resulting audit pass
+- **Undo could silently corrupt its own history.** `history.js`'s
+  `restore()` handed `KanvazCards.deserialise()` the undo stack's own
+  objects directly; `deserialise()` adopts whatever it's given as the
+  live cards, so any edit made right after an undo (drag, resize, a tag
+  removal's splice) rewrote that stored snapshot in place. Concretely:
+  move A, move B, undo, drag A again, undo — the second undo no longer
+  moved A back, because the snapshot it restored had been overwritten
+  in the meantime. Fixed by always handing `deserialise()` fresh clones.
+- **Board switching/opening could land at the wrong pan position.**
+  `panTo()` followed by `setZoom()` fought each other — `setZoom`'s
+  pivot math rewrites tx/ty based on the ratio from whatever scale the
+  *previous* board happened to be at, throwing away the pan just
+  restored. New `KanvazCanvas.setViewport(tx, ty, scale)` assigns all
+  three in one shot.
+- **Video/audio kept playing (and leaking decoders) after board switch,
+  file open, or undo/redo.** `clearAll()` removed card DOM elements
+  without pausing media first, unlike single-card delete. Fixed to
+  pause + release the decoder before removal, every time.
+- **Annotations drew in the wrong place at any zoom other than 100%.**
+  A HiDPI fix along the way had dropped the `/scale` term needed to
+  convert screen pixels back to the card's own coordinate space.
+- **Annotations didn't flip with their card.** `flipCard()` only ever
+  transformed the media element; the annotation overlay is a sibling,
+  not a child, so a circled detail stayed put while the image mirrored
+  under it. Now the overlay gets the same transform, on both live flip
+  and board load.
+- **Autosave ran unconditionally every tick**, re-serializing every
+  card's full embedded media even when nothing had changed, with no
+  guard against overlapping writes. Now skips clean boards and won't
+  start a new write while one's still in flight.
+- **Every save spent real CPU DEFLATE-compressing already-compressed
+  media** (JPEG/PNG/MP4/...) for zero size benefit — measured 15x
+  slower than STORE for identical output size. Assets now use STORE;
+  `board.json` itself is unaffected.
+- **Dragging a GIF card paused/unpaused it every time** — the GIF image
+  is the only media element built without `pointer-events:none` (needed
+  for click-to-pause), so a drag's mouseup fired a native click the same
+  as an intentional pause toggle. Now shares the same post-drag
+  suppression every other card-body click handler already uses.
+- **Resize handles could detach a card from the cursor's opposite edge**
+  — dragging a left/top handle past the card's own far edge kept
+  tracking the raw pointer delta even after width/height had floored at
+  the minimum, so the card ran away with the mouse. Position is now
+  derived from the fixed opposite edge using the final clamped size,
+  which also fixes aspect-lock's corner-anchor drift on the same path.
+- **Zoom was additive, not multiplicative** — wildly non-uniform steps
+  (huge near the zoom floor, invisible near the ceiling), 100% could
+  become permanently unreachable once either limit was touched, and a
+  wheel event with `deltaY === 0` (Shift+wheel, trackpad horizontal
+  scroll) zoomed out with no vertical input at all. Now multiplicative
+  and magnitude-aware, with an explicit `deltaY === 0` no-op.
+- **Minimap click-to-pan landed in the wrong place at non-100% zoom** —
+  passed world coordinates to a screen-space API without the missing
+  `* scale` conversion `map-view.js`'s equivalent code already had right.
+- **A card patched via MCP Bridge's `updateCard` (or any plugin) lost
+  its visible annotations** until a full reload — `updateCardData()`
+  rebuilds the card's DOM element without telling the annotation system,
+  which then refused to reattach to a fresh element for that card id.
+  The strokes were never actually lost, just invisible.
+
+### Known, deliberately not fixed this pass
+- Annotations still drift after save/reload if the card was ever
+  resized — the canvas *bitmap* rescales correctly, but the *stored
+  stroke coordinates* don't, so replaying them against the card's new
+  size lands them at the old scale. Fixing this properly means either
+  normalizing stored coordinates to 0..1 or versioning the save format
+  to migrate existing absolute-coordinate strokes — a deliberate decision
+  to make, not a quick patch, so it's flagged here rather than rushed.
+
 ## [4.5.1] — Release build fix (CI only, no app changes)
 
 v4.4.0 and v4.5.0's GitHub Release builds never actually finished: the

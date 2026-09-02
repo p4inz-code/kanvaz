@@ -130,6 +130,15 @@ var KanvazCards = (function() {
       if (!cardEl) return;
       var card = cards[cardEl.dataset.cardId];
       if (!card) return;
+      /* Audit fix: the GIF img is the only media element built WITHOUT
+         pointer-events:none (buildGifCard sets cursor:pointer on it
+         specifically for this click-to-pause feature), so mousedown on
+         it starts a drag same as anywhere else on the card, and mouseup
+         fires this click too — toggling pause on every single drag of a
+         GIF card. Every other click handler descended from a drag
+         already checks this same dataset flag (see startDrag/
+         justDragged); this one just never did. */
+      if (cardEl.dataset.justDragged) { delete cardEl.dataset.justDragged; return; }
       var img = cardEl.querySelector('img');
       if (!img) return;
       if (toggleBtn) e.stopPropagation();
@@ -217,21 +226,30 @@ var KanvazCards = (function() {
     var aspectLock  = !e.shiftKey;
     var aspectRatio = startW / startH;
 
+    /* Audit fix: handle visibility used to be pure CSS :hover, so
+       dragging a handle away from the card mid-resize made every
+       handle (including the one still being dragged) fade out —
+       :hover only tracks the live pointer position, which constantly
+       leaves the card/handle area during a real drag. `.resizing` pins
+       full opacity on all of them for the drag's duration; `.active`
+       on the one actually being dragged makes it visibly grow, per
+       explicit request, so it's obvious which handle is live. */
+    el.classList.add('resizing');
+    e.target.classList.add('active');
+
     function onMove(ev) {
       var dx = (ev.clientX - startX) / scale;
       var dy = (ev.clientY - startY) / scale;
       var newW = startW;
       var newH = startH;
-      var newX = startCX;
-      var newY = startCY;
 
       if (dir === 'br' || dir === 'mr' || dir === 'tr') newW = startW + dx;
-      if (dir === 'bl' || dir === 'ml' || dir === 'tl') { newW = startW - dx; newX = startCX + dx; }
+      if (dir === 'bl' || dir === 'ml' || dir === 'tl') newW = startW - dx;
       if (dir === 'br' || dir === 'bc' || dir === 'bl') newH = startH + dy;
-      if (dir === 'tr' || dir === 'tc' || dir === 'tl') { newH = startH - dy; newY = startCY + dy; }
+      if (dir === 'tr' || dir === 'tc' || dir === 'tl') newH = startH - dy;
 
       var isCorner = (dir === 'br' || dir === 'tr' || dir === 'bl' || dir === 'tl');
-      if (aspectLock && card.type !== 'note' && card.type !== 'audio' && card.type !== 'url' && card.type !== 'file' && isCorner) {
+      if (aspectLock && card.type !== 'note' && card.type !== 'audio' && card.type !== 'url' && card.type !== 'file' && card.type !== 'text' && isCorner) {
         newH = newW / aspectRatio;
       }
 
@@ -245,11 +263,29 @@ var KanvazCards = (function() {
         newW = snapToGrid(newW);
         newH = snapToGrid(newH);
       }
-      newX = snapToGrid(newX);
-      newY = snapToGrid(newY);
 
       newW = Math.max(CARD_MIN_W, newW);
       newH = Math.max(CARD_MIN_H, newH);
+
+      /* Audit fix: position must be derived from the FIXED opposite
+         edge using the FINAL clamped/snapped size, not from the raw
+         pointer delta. This used to set newX = startCX + dx
+         unconditionally — once newW pinned at CARD_MIN_W (dragged past
+         the card's own right edge), newX kept tracking the cursor
+         anyway, so the card detached from its anchor and followed the
+         mouse indefinitely. Anchoring to the true opposite edge (right
+         edge for left-handles, bottom edge for top-handles) keeps the
+         un-dragged edge genuinely stationary, which also fixes aspect-
+         lock's corner anchor drift — previously newY for a tl/tr corner
+         came from the raw dy even though newH had already been
+         re-derived from the snapped width, so the "fixed" corner wasn't
+         actually fixed. */
+      var newX = startCX;
+      var newY = startCY;
+      if (dir === 'bl' || dir === 'ml' || dir === 'tl') newX = startCX + startW - newW;
+      if (dir === 'tr' || dir === 'tc' || dir === 'tl') newY = startCY + startH - newH;
+      newX = snapToGrid(newX);
+      newY = snapToGrid(newY);
 
       card.w = newW;
       card.h = newH;
@@ -265,6 +301,8 @@ var KanvazCards = (function() {
     function onUp() {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
+      el.classList.remove('resizing');
+      e.target.classList.remove('active');
       if (typeof KanvazAnnotate !== 'undefined') {
         KanvazAnnotate.resize(card.id, Math.round(card.w), Math.round(card.h));
       }
@@ -553,6 +591,53 @@ var KanvazCards = (function() {
     return card;
   }
 
+  /* ── Create bare text label ──
+     Distinct from Note: no surface/border/card-bar chrome at all — a
+     floating label for titling/annotating a section of the board
+     directly, not a boxed textarea. Resize handles, tag bar, and pin
+     indicator still work exactly like every other card type; only the
+     name-strip/badge chrome (buildCardBar) is skipped. */
+  function createTextCard(x, y) {
+    var id = nextId();
+    var card = {
+      id:       id,
+      type:     'text',
+      dataUrl:  null,
+      name:     'Text',
+      path:     null,
+      x:        x,
+      y:        y,
+      w:        220,
+      h:        80,
+      z:        ++zCounter,
+      pinned:   false,
+      text:     '',
+      annotations: []
+    };
+
+    cards[id] = card;
+    renderCard(card);
+    selectCard(id);
+    updateEmptyState();
+    updateCount();
+
+    /* Focus the textarea */
+    setTimeout(function() {
+      var el = document.getElementById(id);
+      if (el) {
+        var ta = el.querySelector('.text-body');
+        if (ta) ta.focus();
+      }
+    }, 50);
+
+    if (typeof KanvazHistory !== 'undefined') {
+      KanvazHistory.push();
+    }
+    emitCardEvent('cardCreate', card);
+
+    return card;
+  }
+
   /* ── Create color swatch ── */
 
   function createColorCard(x, y, hex) {
@@ -775,6 +860,8 @@ var KanvazCards = (function() {
       buildAudioCard(el, card);
     } else if (card.type === 'note') {
       buildNoteCard(el, card);
+    } else if (card.type === 'text') {
+      buildTextCard(el, card);
     } else if (card.type === 'color') {
       buildColorCard(el, card);
     } else if (card.type === 'url') {
@@ -787,7 +874,15 @@ var KanvazCards = (function() {
       buildUnknownCard(el, card);
     }
 
-    buildCardBar(el, card);
+    /* Text cards are a bare floating label — skip the name-strip/badge
+       chrome entirely (buildCardBar), but still support tags like every
+       other card type (buildTagBar is self-contained, not nested inside
+       buildCardBar's output). */
+    if (card.type === 'text') {
+      buildTagBar(el, card);
+    } else {
+      buildCardBar(el, card);
+    }
     buildPinIndicator(el);
     buildResizeHandles(el);
 
@@ -1477,6 +1572,28 @@ var KanvazCards = (function() {
     el.appendChild(ta);
   }
 
+  /* ── Bare text label ── */
+
+  function buildTextCard(el, card) {
+    var ta = document.createElement('textarea');
+    ta.className = 'text-body';
+    ta.placeholder = 'Text';
+    ta.value = card.text || '';
+    ta.style.cssText = 'width:100%;height:100%;';
+
+    ta.addEventListener('input', function() {
+      card.text = ta.value;
+      KanvazApp.markDirty();
+    });
+
+    ta.addEventListener('blur', function() {
+      KanvazHistory.push();
+      emitCardEvent('cardUpdate', card);
+    });
+
+    el.appendChild(ta);
+  }
+
   /* ── Color swatch card ── */
 
   function buildColorCard(el, card) {
@@ -1982,15 +2099,19 @@ var KanvazCards = (function() {
   /* ── Resize handles — pure DOM markers, no listeners (delegated) ── */
 
   function buildResizeHandles(el) {
+    /* -7.5px keeps the handle's center at the same point relative to
+       the card edge as the old 8px/-5.5px handle did (center = offset +
+       size/2 = -1.5px past the edge either way) — audit fix made the
+       handle itself bigger (12px, easier to grab) without shifting it. */
     var positions = [
-      { name: 'tl', style: 'top:-5.5px;left:-5.5px;cursor:nw-resize;' },
-      { name: 'tc', style: 'top:-5.5px;left:50%;transform:translateX(-50%);cursor:n-resize;' },
-      { name: 'tr', style: 'top:-5.5px;right:-5.5px;cursor:ne-resize;' },
-      { name: 'ml', style: 'top:50%;left:-5.5px;transform:translateY(-50%);cursor:w-resize;' },
-      { name: 'mr', style: 'top:50%;right:-5.5px;transform:translateY(-50%);cursor:e-resize;' },
-      { name: 'bl', style: 'bottom:-5.5px;left:-5.5px;cursor:sw-resize;' },
-      { name: 'bc', style: 'bottom:-5.5px;left:50%;transform:translateX(-50%);cursor:s-resize;' },
-      { name: 'br', style: 'bottom:-5.5px;right:-5.5px;cursor:se-resize;' }
+      { name: 'tl', style: 'top:-7.5px;left:-7.5px;cursor:nw-resize;' },
+      { name: 'tc', style: 'top:-7.5px;left:50%;transform:translateX(-50%);cursor:n-resize;' },
+      { name: 'tr', style: 'top:-7.5px;right:-7.5px;cursor:ne-resize;' },
+      { name: 'ml', style: 'top:50%;left:-7.5px;transform:translateY(-50%);cursor:w-resize;' },
+      { name: 'mr', style: 'top:50%;right:-7.5px;transform:translateY(-50%);cursor:e-resize;' },
+      { name: 'bl', style: 'bottom:-7.5px;left:-7.5px;cursor:sw-resize;' },
+      { name: 'bc', style: 'bottom:-7.5px;left:50%;transform:translateX(-50%);cursor:s-resize;' },
+      { name: 'br', style: 'bottom:-7.5px;right:-7.5px;cursor:se-resize;' }
     ];
 
     for (var i = 0; i < positions.length; i++) {
@@ -2296,7 +2417,23 @@ var KanvazCards = (function() {
     var wasSelected = (selectedId === id);
     var el = document.getElementById(id);
     if (el && el.parentNode) el.parentNode.removeChild(el);
+    /* Audit fix: this removes+recreates the card's whole DOM element
+       (needed since the patch can change type-dependent structure), but
+       never told KanvazAnnotate — its overlays{} map kept pointing at
+       the just-removed canvas, and attach()'s own `if (overlays[cardId])
+       return` guard then blocked ever creating a fresh one. Reachable
+       only via MCP Bridge's updateCard tool or a plugin (the UI's own
+       card-editing paths don't route through here), but the result was
+       a card's annotations silently going invisible until a full board
+       reload — the strokes survive in card.annotations so nothing is
+       actually lost, just unreachable on screen. Detach before removal,
+       reattach after render so the overlay follows the new element. */
+    if (typeof KanvazAnnotate !== 'undefined') KanvazAnnotate.detach(id);
     renderCard(card);
+    if (card.annotations && card.annotations.length && typeof KanvazAnnotate !== 'undefined') {
+      var newEl = document.getElementById(id);
+      if (newEl) KanvazAnnotate.loadStrokes(id, card.annotations, newEl);
+    }
     if (card.pinned) {
       var newEl = document.getElementById(id);
       if (newEl) newEl.classList.add('pinned');
@@ -2599,23 +2736,28 @@ var KanvazCards = (function() {
           if (el) el.style.opacity = c.opacity;
         }
 
-        /* Restore flip */
-        if (c.flipH || c.flipV) {
-          var fel = document.getElementById(c.id);
-          if (fel) {
-            var media = fel.querySelector('img, video');
-            if (media) {
-              var sx = c.flipH ? -1 : 1;
-              var sy = c.flipV ? -1 : 1;
-              media.style.transform = 'scale(' + sx + ',' + sy + ')';
-            }
-          }
-        }
-
-        /* Restore annotations */
+        /* Restore annotations — BEFORE flip, so the annotation canvas
+           (created by loadStrokes -> attach) already exists by the time
+           flip-restore below looks for it. */
         if (c.annotations && c.annotations.length && typeof KanvazAnnotate !== 'undefined') {
           var cardEl = document.getElementById(c.id);
           if (cardEl) KanvazAnnotate.loadStrokes(c.id, c.annotations, cardEl);
+        }
+
+        /* Restore flip — also applies to the annotation overlay (audit
+           fix: on load, only the media element was ever flipped; the
+           overlay stayed unmirrored until the user manually re-flipped
+           the card in that session). */
+        if (c.flipH || c.flipV) {
+          var fel = document.getElementById(c.id);
+          if (fel) {
+            var sx = c.flipH ? -1 : 1;
+            var sy = c.flipV ? -1 : 1;
+            var media = fel.querySelector('img, video');
+            if (media) media.style.transform = 'scale(' + sx + ',' + sy + ')';
+            var annotCanvas = fel.querySelector('.annotation-canvas');
+            if (annotCanvas) annotCanvas.style.transform = 'scale(' + sx + ',' + sy + ')';
+          }
         }
       } catch (e) {
         console.error('[Kanvaz] failed to load card' + (c && c.id ? ' "' + c.id + '"' : '') + ' — skipping it, the rest of the board will still load:', e.message);
@@ -2629,7 +2771,23 @@ var KanvazCards = (function() {
     if (typeof KanvazAnnotate !== 'undefined') KanvazAnnotate.detachAll();
     for (var id in cards) {
       var el = document.getElementById(id);
-      if (el) el.parentNode.removeChild(el);
+      if (el) {
+        /* Audit fix: unlike removeCardCore (single-card delete), this
+           path never paused video/audio before detaching it — and this
+           is the path board switch, file open, AND every undo/redo
+           runs through. A detached-but-still-playing <video>/<audio>
+           keeps decoding (uncollectable) and, if unmuted, keeps
+           playing audibly from a card that's no longer on screen.
+           Clearing src + calling load() after pause fully releases the
+           decoder instead of leaving it in limbo. */
+        var mediaEl = el.querySelector('video, audio');
+        if (mediaEl) {
+          mediaEl.pause();
+          mediaEl.removeAttribute('src');
+          mediaEl.load();
+        }
+        el.parentNode.removeChild(el);
+      }
     }
     cards = {};
     selectedId = null;
@@ -2687,10 +2845,10 @@ var KanvazCards = (function() {
   function flipCard(id, axis) {
     var card = cards[id];
     if (!card) return;
-    /* Only visual media cards can be flipped — note/color/audio have no
-       img/video element and flipping them would just corrupt flipH/flipV
-       state that never gets used. */
-    if (card.type === 'note' || card.type === 'color' || card.type === 'audio' || card.type === 'url' || card.type === 'file') return;
+    /* Only visual media cards can be flipped — note/color/audio/text have
+       no img/video element and flipping them would just corrupt flipH/
+       flipV state that never gets used. */
+    if (card.type === 'note' || card.type === 'color' || card.type === 'audio' || card.type === 'url' || card.type === 'file' || card.type === 'text') return;
     if (!card.flipH) card.flipH = false;
     if (!card.flipV) card.flipV = false;
     if (axis === 'h') card.flipH = !card.flipH;
@@ -2701,6 +2859,15 @@ var KanvazCards = (function() {
       var sy = card.flipV ? -1 : 1;
       var media = el.querySelector('img, video');
       if (media) media.style.transform = 'scale(' + sx + ',' + sy + ')';
+      /* Audit fix: the annotation overlay is a SIBLING of the media
+         element, not a child, so it was never touched by the transform
+         above — circle a detail, flip the card, and the circle stays
+         put while the image mirrors under it, now marking the wrong
+         spot. Applying the identical transform to the overlay canvas
+         flips the drawn pixels right along with the image, with no
+         need to re-project the stored stroke coordinates. */
+      var annotCanvas = el.querySelector('.annotation-canvas');
+      if (annotCanvas) annotCanvas.style.transform = 'scale(' + sx + ',' + sy + ')';
     }
     KanvazApp.markDirty();
     KanvazHistory.push();
@@ -2859,6 +3026,7 @@ var KanvazCards = (function() {
     createFromMedia:   createFromMedia,
     createFromDataUrl: createFromDataUrl,
     createNote:        createNote,
+    createTextCard:    createTextCard,
     createColorCard:   createColorCard,
     createUrlCard:     createUrlCard,
     createFileRefCard: createFileRefCard,

@@ -135,13 +135,13 @@ server.registerTool('getCard', {
 
 server.registerTool('createCard', {
   title: 'Create card',
-  description: 'Creates a new note, color, url, or file-reference card. For an image/video/audio file or a plain URL card, prefer addReference instead.',
+  description: 'Creates a new note, text, color, url, or file-reference card. "text" is a bare floating label with no background/border, for titling a section of the board directly — "note" is a boxed textarea for actual note content. For an image/video/audio file or a plain URL card, prefer addReference instead.',
   inputSchema: {
-    type: z.enum(['note', 'color', 'url', 'file']),
+    type: z.enum(['note', 'text', 'color', 'url', 'file']),
     x: z.number().optional(),
     y: z.number().optional(),
     data: z.object({
-      text: z.string().optional().describe('Initial text, for type "note"'),
+      text: z.string().optional().describe('Initial text, for type "note" or "text"'),
       color: z.string().optional().describe('Hex color, for type "color"'),
       url: z.string().optional().describe('URL, for type "url"'),
       path: z.string().optional().describe('Absolute file path, for type "file"'),

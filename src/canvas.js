@@ -14,8 +14,17 @@ var KanvazCanvas = (function() {
 
   var ZOOM_MIN  = 0.08;
   var ZOOM_MAX  = 5.0;
-  var ZOOM_STEP = 0.10;
-  var ZOOM_FINE = 0.02;
+  /* Audit fix: zoom used to be additive (scale +/- a flat 0.10), which
+     makes the perceptual step wildly non-uniform — enormous near
+     ZOOM_MIN (0.18->0.08 halves the board in one notch), invisible near
+     ZOOM_MAX (4.9->5.0 is 2%). It also meant zoom-in and zoom-out
+     weren't exact inverses once either clamp was touched, so 100% could
+     become permanently unreachable (18, 28, ... 98, 108% and never
+     exactly 100 again). Multiplicative factors fix both: scale*FACTOR
+     and scale/FACTOR are always exact inverses, and the perceptual step
+     stays constant across the whole range. */
+  var ZOOM_FACTOR      = 1.1;
+  var ZOOM_FACTOR_FINE = 1.02;
 
   var isPanning = false;
   var panMoved = false;
@@ -101,11 +110,11 @@ var KanvazCanvas = (function() {
   }
 
   function zoomIn(pivotX, pivotY) {
-    setZoom(scale + ZOOM_STEP, pivotX, pivotY);
+    setZoom(scale * ZOOM_FACTOR, pivotX, pivotY);
   }
 
   function zoomOut(pivotX, pivotY) {
-    setZoom(scale - ZOOM_STEP, pivotX, pivotY);
+    setZoom(scale / ZOOM_FACTOR, pivotX, pivotY);
   }
 
   function zoomReset() {
@@ -158,6 +167,20 @@ var KanvazCanvas = (function() {
   function panTo(x, y) {
     tx = x;
     ty = y;
+    applyTransform();
+  }
+
+  /* Audit fix: board load/switch used to call panTo(savedTx, savedTy)
+     then setZoom(savedScale) — but setZoom's pivot math REWRITES tx/ty
+     based on the ratio between the CURRENT scale (whatever the previous
+     board happened to be at) and the new one, immediately overwriting
+     the pan just restored. The board would land somewhere else on
+     screen every time, and how far off depended on whichever board you
+     switched from. Assign all three in one shot, no pivot math. */
+  function setViewport(x, y, newScale) {
+    tx = x;
+    ty = y;
+    scale = (isFinite(newScale) && newScale > 0) ? Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, newScale)) : 1.0;
     applyTransform();
   }
 
@@ -262,17 +285,28 @@ var KanvazCanvas = (function() {
     container.addEventListener('wheel', function(e) {
       e.preventDefault();
 
+      /* Audit fix: a plain `else` branch here treated ANY non-negative
+         deltaY as "zoom out" — including deltaY === 0, which is exactly
+         what a horizontal scroll (Shift+wheel, or a trackpad's
+         horizontal swipe) reports. That silently zoomed the canvas OUT
+         on a gesture with no vertical intent at all. Explicitly no-op
+         on zero. */
+      if (e.deltaY === 0) return;
+
       var rect = container.getBoundingClientRect();
       var pivotX = e.clientX - rect.left;
       var pivotY = e.clientY - rect.top;
 
-      var step = e.ctrlKey ? ZOOM_FINE : ZOOM_STEP;
+      var factor = e.ctrlKey ? ZOOM_FACTOR_FINE : ZOOM_FACTOR;
+      /* Magnitude-aware: a precision trackpad emits many small-delta
+         events per gesture where a mouse wheel emits few large-delta
+         ones — scaling the exponent by deltaY means a gentle swipe
+         moves the zoom gently instead of applying a full step per
+         event regardless of how small the actual input was. */
+      var exponent = -e.deltaY / 100;
+      var newScale = scale * Math.pow(factor, exponent);
 
-      if (e.deltaY < 0) {
-        setZoom(scale + step, pivotX, pivotY);
-      } else {
-        setZoom(scale - step, pivotX, pivotY);
-      }
+      setZoom(newScale, pivotX, pivotY);
     }, { passive: false });
 
     /* Panning — middle mouse, space+drag, or left-drag on empty canvas */
@@ -463,6 +497,7 @@ var KanvazCanvas = (function() {
     zoomFit:        zoomFit,
     panBy:          panBy,
     panTo:          panTo,
+    setViewport:    setViewport,
     initDrop:       initDrop,
     screenToWorld:  screenToWorld,
     worldToScreen:  worldToScreen,

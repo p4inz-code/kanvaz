@@ -7,7 +7,7 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '4.5.1';
+  var VERSION       = '4.6.0';
 
   /* ── Plugin event hooks (4.3.0) ──
      Fired at the two points that mean "the active board's identity or
@@ -223,8 +223,11 @@ var KanvazBoards = (function() {
 
   function loadBoardState(board) {
     KanvazCards.deserialise(board.cards || []);
-    KanvazCanvas.panTo(board.canvasTx || 0, board.canvasTy || 0);
-    KanvazCanvas.setZoom(board.canvasScale || 1.0);
+    /* Audit fix: panTo() then setZoom() used to fight each other —
+       setZoom's pivot math rewrites tx/ty based on the ratio from
+       whatever scale the PREVIOUS board was at, throwing away the pan
+       just restored. setViewport() assigns all three in one shot. */
+    KanvazCanvas.setViewport(board.canvasTx || 0, board.canvasTy || 0, board.canvasScale || 1.0);
 
     /* v3: restore map view state */
     if (typeof KanvazMapView !== 'undefined') {
@@ -806,7 +809,21 @@ var KanvazBoards = (function() {
     }, intervalMs);
   }
 
+  var autosaveInFlight = false;
+
+  /* Audit fix: this used to run unconditionally on every tick regardless
+     of whether anything had actually changed — re-serializing every
+     card's full embedded dataUrl (JSON.stringify on the renderer's main
+     thread), sending it whole over IPC, and writing it to disk, every
+     30s, forever, even on a board the user has only been panning
+     around. On a media-heavy board that's a real periodic hitch plus
+     needless disk-write amplification for zero benefit. Also had no
+     guard against a new tick starting while a previous write was still
+     in flight (autosaveInFlight below). */
   function doAutosave() {
+    if (typeof KanvazApp !== 'undefined' && KanvazApp.isDirty && !KanvazApp.isDirty()) return;
+    if (autosaveInFlight) return;
+
     saveCurrentBoardState();
     try {
       var data = JSON.stringify(serialise());
@@ -814,7 +831,9 @@ var KanvazBoards = (function() {
       console.warn('[Kanvaz] autosave serialise failed:', e.message);
       return;
     }
+    autosaveInFlight = true;
     KanvazBridge.writeRecovery(data).then(function(r) {
+      autosaveInFlight = false;
       if (!r || !r.ok) {
         console.warn('[Kanvaz] autosave recovery write failed');
       } else {
@@ -826,7 +845,10 @@ var KanvazBoards = (function() {
           setTimeout(function() { el.style.opacity = '0'; }, 2000);
         }
       }
-    }).catch(function(e) { console.warn('[Kanvaz] writeRecovery IPC failed:', e); });
+    }).catch(function(e) {
+      autosaveInFlight = false;
+      console.warn('[Kanvaz] writeRecovery IPC failed:', e);
+    });
 
     /* Note: deliberately does NOT also write to currentPath. Autosave's
        job is crash recovery (the recovery file above). Writing the user's

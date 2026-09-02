@@ -1,6 +1,6 @@
 {
   "name": "kanvaz",
-  "version": "4.5.1",
+  "version": "4.6.0",
   "description": "Reference Operating System — collect, organize, connect, and understand your references.",
   "private": true,
   "main": "src/main.js",

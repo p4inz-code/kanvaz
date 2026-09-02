@@ -124,6 +124,9 @@
     if (args.type === 'note') {
       card = KanvazCards.createNote(pos.x, pos.y);
       if (data.text !== undefined) card = MCP_API.updateCard(card.id, { text: data.text });
+    } else if (args.type === 'text') {
+      card = KanvazCards.createTextCard(pos.x, pos.y);
+      if (data.text !== undefined) card = MCP_API.updateCard(card.id, { text: data.text });
     } else if (args.type === 'color') {
       card = KanvazCards.createColorCard(pos.x, pos.y, data.color);
     } else if (args.type === 'url') {
@@ -133,7 +136,7 @@
       if (!data.path) throw new Error('createCard type "file" requires data.path');
       card = KanvazCards.createFileRefCardAtPath(pos.x, pos.y, data.path);
     } else {
-      throw new Error('unsupported type "' + args.type + '" for createCard — use "note"/"color"/"url"/"file", or addReference for an image/video/audio file or a URL card in one step');
+      throw new Error('unsupported type "' + args.type + '" for createCard — use "note"/"text"/"color"/"url"/"file", or addReference for an image/video/audio file or a URL card in one step');
     }
 
     if (!card) throw new Error('failed to create card');

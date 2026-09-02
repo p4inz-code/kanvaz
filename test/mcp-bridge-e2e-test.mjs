@@ -129,6 +129,9 @@ check('getCard for a missing id returns null, not an error', JSON.parse(r3.conte
 const r4 = await client.callTool({ name: 'createCard', arguments: { type: 'note', data: { text: 'hi' } } });
 check('createCard round-trips the fake created card', JSON.parse(r4.content[0].text).id === 'card-2');
 
+const r4b = await client.callTool({ name: 'createCard', arguments: { type: 'text', data: { text: 'hi' } } });
+check('createCard accepts type "text" (4.6.0) — not rejected by the zod enum', !r4b.isError && JSON.parse(r4b.content[0].text).type === 'text');
+
 const r5 = await client.callTool({ name: 'getConnections', arguments: {} });
 check('an unhandled/erroring method surfaces as isError:true, not a crash', r5.isError === true && /unhandled method/.test(r5.content[0].text));
 

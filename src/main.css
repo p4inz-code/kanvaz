@@ -1080,10 +1080,14 @@ html, body {
 }
 
 /* Card resize handles */
+/* 12px, up from 8px (audit fix — hard to grab precisely, especially on
+   corners). Kept centered at the same point relative to the card edge
+   as before (see buildResizeHandles()'s matching offset update in
+   cards.js) so this is purely bigger/easier to hit, not repositioned. */
 .resize-handle {
   position: absolute;
-  width: 8px;
-  height: 8px;
+  width: 12px;
+  height: 12px;
   background: var(--color-accent);
   border-radius: 50%;
   border: 1.5px solid var(--color-bg);
@@ -1095,13 +1099,21 @@ html, body {
 }
 
 .card.selected .resize-handle,
-.card:hover .resize-handle {
+.card:hover .resize-handle,
+.card.resizing .resize-handle {
   opacity: 1;
 }
 
 .card.selected .resize-handle:hover,
 .card:hover .resize-handle:hover {
   transform: scale(1.4);
+}
+
+/* The specific handle being dragged (not just hovered) grows further
+   still, for the duration of the drag — clear feedback on which one is
+   live, independent of where the pointer has since moved to. */
+.resize-handle.active {
+  transform: scale(1.6);
 }
 
 /* Pin indicator */
@@ -1330,6 +1342,49 @@ html, body {
 }
 
 .card-note .note-body::placeholder {
+  color: var(--color-text-2);
+}
+
+/* ── Bare text label ──
+   Deliberately no background/border/shadow at rest OR on hover, unlike
+   every other card type — this is a floating label for titling a
+   section of the board directly, not a boxed textarea. Selection still
+   shows the normal outline (from the shared .card.selected rule) so
+   there's some feedback it's selected, but its own box-shadow glow is
+   suppressed here to keep the "no chrome" look even when selected. */
+.card-text {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.card-text:hover {
+  box-shadow: none;
+}
+
+.card-text.selected {
+  box-shadow: none;
+}
+
+.card-text .text-body {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  text-align: center;
+  color: var(--color-text);
+  font-family: var(--font-ui);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.3;
+  padding: 4px;
+  caret-color: var(--color-accent);
+}
+
+.card-text .text-body::placeholder {
   color: var(--color-text-2);
 }
 

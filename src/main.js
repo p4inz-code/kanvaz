@@ -12,8 +12,8 @@ var net = require('net');
 var https = require('https');
 var nodeUrl = require('url');
 var JSZip = require('jszip');
+var Worker = require('worker_threads').Worker;
 
-var purImport = require('./pur-import');
 var boardContainer = require('./board-container');
 var pluginLoader = require('./plugin-loader');
 
@@ -891,15 +891,48 @@ function registerIPC() {
     return result ? result[0] : null;
   });
 
+  /* Audit fix: parsePurFile() used to run directly, synchronously, right
+     here — on the main process, which also owns the native window's
+     message pump. Any nontrivial .pur file (real PureRef boards routinely
+     embed hundreds of images) blocked the ENTIRE app, not just this
+     import, showing as "(Not Responding)". Runs in a worker_thread now —
+     pur-import.js is pure Buffer/CPU work with zero Electron dependencies,
+     so it needs no other IPC access from inside the worker. A 30s timeout
+     is a backstop against a worker itself hanging on some edge case the
+     parser's own internal caps don't catch; terminate() either way so the
+     worker doesn't linger. */
   ipcMain.handle('pur-import', function(event, filePath) {
-    return fs.promises.readFile(filePath)
-      .then(function(buffer) {
-        var parsed = purImport.parsePurFile(buffer);
-        return { ok: true, images: parsed.images, count: parsed.count };
-      })
-      .catch(function(e) {
-        return { ok: false, error: e.message };
+    return fs.promises.readFile(filePath).then(function(buffer) {
+      return new Promise(function(resolve) {
+        var worker = new Worker(path.join(__dirname, 'pur-import-worker.js'));
+        var settled = false;
+        var timeout = setTimeout(function() {
+          if (settled) return;
+          settled = true;
+          worker.terminate();
+          resolve({ ok: false, error: 'Import timed out — this .pur file may be too large or use an unsupported format variant' });
+        }, 30000);
+
+        worker.once('message', function(result) {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          worker.terminate();
+          resolve(result);
+        });
+        worker.once('error', function(e) {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          worker.terminate();
+          resolve({ ok: false, error: e.message });
+        });
+
+        worker.postMessage(buffer);
       });
+    }).catch(function(e) {
+      return { ok: false, error: e.message };
+    });
   });
 
   /* ── IPC: Plugins ──

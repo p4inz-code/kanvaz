@@ -649,7 +649,7 @@ var KanvazApp = (function() {
       var items = [];
 
       /* Annotate — only for visual media cards, not notes, audio, color, URL, or file refs */
-      if (card.type !== 'note' && card.type !== 'audio' && card.type !== 'color' && card.type !== 'url' && card.type !== 'file') {
+      if (card.type !== 'note' && card.type !== 'audio' && card.type !== 'color' && card.type !== 'url' && card.type !== 'file' && card.type !== 'text') {
         items.push({
           label: 'Annotate',
           action: function() {
@@ -694,7 +694,7 @@ var KanvazApp = (function() {
       );
 
       /* Media-only items: flip, reset size */
-      if (card.type !== 'note' && card.type !== 'color' && card.type !== 'audio' && card.type !== 'url' && card.type !== 'file') {
+      if (card.type !== 'note' && card.type !== 'color' && card.type !== 'audio' && card.type !== 'url' && card.type !== 'file' && card.type !== 'text') {
         items.push({ sep: true });
         items.push({
           label: 'Flip horizontal',
@@ -733,7 +733,7 @@ var KanvazApp = (function() {
         submenu: true,
         action: function() { KanvazCards.showOpacityPicker(card.id, x, y); }
       });
-      if (card.type !== 'note' && card.type !== 'audio' && card.type !== 'color' && card.type !== 'url' && card.type !== 'file') {
+      if (card.type !== 'note' && card.type !== 'audio' && card.type !== 'color' && card.type !== 'url' && card.type !== 'file' && card.type !== 'text') {
         items.push({
           label: 'Clear annotations',
           action: function() {
@@ -859,6 +859,10 @@ var KanvazApp = (function() {
             })(), action: function() {
             var pos = KanvazCanvas.screenToWorld(x, y);
             if (typeof KanvazCards !== 'undefined') KanvazCards.createNote(pos.x, pos.y);
+          }},
+          { label: 'New text', action: function() {
+            var pos = KanvazCanvas.screenToWorld(x, y);
+            if (typeof KanvazCards !== 'undefined') KanvazCards.createTextCard(pos.x, pos.y);
           }},
           { label: 'New color swatch', action: function() {
             var pos = KanvazCanvas.screenToWorld(x, y);

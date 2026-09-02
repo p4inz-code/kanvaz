@@ -361,6 +361,7 @@ var KanvazMapView = (function() {
         }
 
         selectNode(refId);
+        cancelPreview();
 
         /* Start drag */
         dragNode = refId;
@@ -710,6 +711,7 @@ var KanvazMapView = (function() {
     active = false;
     hasRenderedOnce = false;
     cancelCameraAnim();
+    cancelPreview();
     if (container) container.style.display = 'none';
     var cw = document.getElementById('canvas-world');
     var cg = document.getElementById('canvas-grid');
@@ -757,6 +759,8 @@ var KanvazMapView = (function() {
 
   function render() {
     if (!active || !world) return;
+
+    cancelPreview();
 
     /* Clear old nodes */
     var old = world.querySelectorAll('.map-node');
@@ -994,8 +998,16 @@ var KanvazMapView = (function() {
 
     /* ── Name ── */
     var nameEl = document.createElement('div');
+    nameEl.className = 'map-node-name';
     nameEl.style.cssText = 'flex:1;font-size:11px;font-family:var(--font-ui);color:var(--color-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;';
     nameEl.textContent = card.name || 'Untitled';
+    /* Double-click the name specifically to rename — the node's own
+       dblclick (jump to Board View) is on the whole node, so this needs
+       stopPropagation or both would fire. */
+    nameEl.addEventListener('dblclick', function(e) {
+      e.stopPropagation();
+      startRenameNode(card.id);
+    });
     el.appendChild(nameEl);
 
     /* ── Connection count ── */
@@ -1013,8 +1025,10 @@ var KanvazMapView = (function() {
       el.style.borderColor = 'var(--color-accent)';
       el.style.boxShadow = '0 0 0 2px var(--color-accent), 0 2px 12px rgba(var(--color-accent-rgb),0.25)';
       highlightConnections(card.id);
+      schedulePreview(card, el);
     };
     el.onmouseleave = function() {
+      cancelPreview();
       if (selectedNode === card.id) return;
       el.style.borderColor = 'var(--color-border-2)';
       el.style.boxShadow = '0 2px 10px var(--color-shadow)';
@@ -1022,6 +1036,167 @@ var KanvazMapView = (function() {
     };
 
     return el;
+  }
+
+  /* ══════════════════════════════════════════
+     HOVER PREVIEW — a bigger look at a node's actual content, since the
+     node itself only has room for a 30px icon/thumbnail and a name.
+     Standard tooltip-delay pattern (don't flash one for every node the
+     cursor passes over while moving toward something else); fixed-
+     position relative to the viewport (not map-world), so pan/zoom
+     never has to reposition it while it's open.
+     ══════════════════════════════════════════ */
+  var previewTimer = null;
+  var previewEl     = null;
+  var PREVIEW_DELAY = 350;
+
+  function schedulePreview(card, nodeEl) {
+    cancelPreview();
+    previewTimer = setTimeout(function() {
+      previewTimer = null;
+      showPreview(card, nodeEl);
+    }, PREVIEW_DELAY);
+  }
+
+  function cancelPreview() {
+    if (previewTimer) { clearTimeout(previewTimer); previewTimer = null; }
+    if (previewEl && previewEl.parentNode) previewEl.parentNode.removeChild(previewEl);
+    previewEl = null;
+  }
+
+  function showPreview(card, nodeEl) {
+    /* Re-fetch — card content (esp. note/text) can change while a
+       node sits un-rebuilt between renders. */
+    var live = KanvazCards.getAll()[card.id] || card;
+
+    var box = document.createElement('div');
+    box.className = 'map-preview';
+    box.style.cssText = [
+      'position:fixed', 'z-index:29000', 'pointer-events:none',
+      'background:var(--color-surface)', 'border:1px solid var(--color-border-2)',
+      'border-radius:10px', 'box-shadow:0 12px 32px var(--color-shadow)',
+      'padding:10px', 'max-width:260px',
+      'font-family:var(--font-ui)', 'color:var(--color-text)',
+      'opacity:0', 'transition:opacity 0.1s ease-out'
+    ].join(';');
+
+    if ((live.type === 'image' || live.type === 'gif') && live.dataUrl) {
+      var img = document.createElement('img');
+      img.src = live.dataUrl;
+      img.style.cssText = 'display:block;max-width:240px;max-height:180px;border-radius:6px;object-fit:contain;';
+      box.appendChild(img);
+    } else if (live.type === 'color') {
+      var swatch = document.createElement('div');
+      swatch.style.cssText = 'width:240px;height:100px;border-radius:6px;background:' + (live.color || '#9D7FFF') + ';';
+      box.appendChild(swatch);
+      var hexLabel = document.createElement('div');
+      hexLabel.style.cssText = 'margin-top:6px;font-size:11px;font-family:monospace;color:var(--color-text-2);';
+      hexLabel.textContent = live.color || '#9D7FFF';
+      box.appendChild(hexLabel);
+    } else if (live.type === 'note' || live.type === 'text') {
+      var textEl = document.createElement('div');
+      textEl.style.cssText = 'font-size:12px;line-height:1.5;white-space:pre-wrap;word-break:break-word;max-height:160px;overflow:hidden;';
+      textEl.textContent = (live.text || '').trim() || '(empty)';
+      box.appendChild(textEl);
+    } else if (live.type === 'url') {
+      var urlEl = document.createElement('div');
+      urlEl.style.cssText = 'font-size:11px;word-break:break-all;color:var(--color-accent);';
+      urlEl.textContent = live.url || '(no URL set)';
+      box.appendChild(urlEl);
+    } else if (live.type === 'file') {
+      var pathEl = document.createElement('div');
+      pathEl.style.cssText = 'font-size:11px;word-break:break-all;color:var(--color-text-2);';
+      pathEl.textContent = live.path || '(no path)';
+      box.appendChild(pathEl);
+    } else {
+      /* video/audio/plugin types: no cheap way to grab a real frame or
+         waveform from Map View (the actual <video>/<audio> elements
+         only exist in Board View's DOM) — name + a bigger icon is an
+         honest scope limit here, not an oversight. */
+      var icon = (typeof KanvazRefTypes !== 'undefined') ? KanvazRefTypes.getIcon(live.type) : '❓';
+      var fallback = document.createElement('div');
+      fallback.style.cssText = 'font-size:32px;text-align:center;padding:8px 24px;';
+      fallback.textContent = icon;
+      box.appendChild(fallback);
+    }
+
+    document.body.appendChild(box);
+
+    /* Position: to the right of the node, flipped to the left if that
+       would run off-screen. Vertically centered on the node, clamped
+       into the viewport. */
+    var nodeRect = nodeEl.getBoundingClientRect();
+    var boxRect = box.getBoundingClientRect();
+    var left = nodeRect.right + 12;
+    if (left + boxRect.width > window.innerWidth) {
+      left = nodeRect.left - boxRect.width - 12;
+    }
+    left = Math.max(8, Math.min(left, window.innerWidth - boxRect.width - 8));
+    var top = nodeRect.top + nodeRect.height / 2 - boxRect.height / 2;
+    top = Math.max(8, Math.min(top, window.innerHeight - boxRect.height - 8));
+    box.style.left = left + 'px';
+    box.style.top  = top + 'px';
+
+    requestAnimationFrame(function() { box.style.opacity = '1'; });
+    previewEl = box;
+  }
+
+  /* ══════════════════════════════════════════
+     INLINE RENAME
+     There's no rename UI anywhere else in Kanvaz today — Properties
+     panel only ever displayed card.name read-only. Reuses
+     KanvazCards.updateCardData() (the same path MCP Bridge's updateCard
+     tool uses) so dirty-flag/undo-history/cardUpdate event all fire
+     consistently, and Board View's own card-bar filename picks up the
+     change too, not just this node. render() afterward is the simplest
+     correct way to reflect the new name here — same pattern this file
+     already uses after "Remove all connections". */
+  function startRenameNode(refId) {
+    var nodeEl = document.querySelector('.map-node[data-ref-id="' + refId + '"]');
+    if (!nodeEl) return;
+    var nameEl = nodeEl.querySelector('.map-node-name');
+    if (!nameEl) return;
+    var card = KanvazCards.getAll()[refId];
+    if (!card) return;
+
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'map-node-name-input';
+    input.value = card.name || '';
+    input.style.cssText = [
+      'flex:1', 'min-width:0', 'font-size:11px', 'font-family:var(--font-ui)',
+      'color:var(--color-text)', 'background:var(--color-surface-2)',
+      'border:1px solid var(--color-accent)', 'border-radius:4px', 'padding:0 4px'
+    ].join(';');
+
+    nameEl.parentNode.replaceChild(input, nameEl);
+    input.focus();
+    input.select();
+
+    var done = false;
+    function finish(commit) {
+      if (done) return;
+      done = true;
+      if (commit) {
+        var val = input.value.trim();
+        if (val && val !== card.name) {
+          KanvazCards.updateCardData(refId, { name: val });
+        }
+      }
+      if (active) render();
+    }
+
+    /* Stop these from reaching the container's own mousedown/dblclick
+       handlers — without this, clicking into the input to position the
+       caret would be read as "click empty area" (pan) or drag-start. */
+    input.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+    input.addEventListener('dblclick',  function(e) { e.stopPropagation(); });
+    input.addEventListener('keydown', function(e) {
+      e.stopPropagation();
+      if (e.key === 'Enter')  { e.preventDefault(); finish(true); }
+      if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+    });
+    input.addEventListener('blur', function() { finish(true); });
   }
 
   /* ══════════════════════════════════════════
@@ -1297,6 +1472,11 @@ var KanvazMapView = (function() {
     menu.className = 'visible';
 
     var items = [
+      {
+        label: 'Rename',
+        shortcut: 'Dbl-click name',
+        action: function() { startRenameNode(refId); }
+      },
       {
         label: 'Connect from here\u2026',
         action: function() { startWire(refId); }

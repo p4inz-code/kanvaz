@@ -137,8 +137,38 @@ if (fs.existsSync(path.join(__dirname, 'plugin-scope-test.js'))) {
   console.log('  (skipped — test/plugin-scope-test.js missing)');
 }
 
-/* 9. Version consistency */
-section('9. Version consistency');
+/* 8b. Undo history aliasing */
+section('8b. Undo history snapshot integrity');
+if (fs.existsSync(path.join(__dirname, 'history-alias-test.js'))) {
+  try {
+    var histOut = cp.execSync('node "' + path.join(__dirname, 'history-alias-test.js') + '"', { encoding: 'utf8', timeout: 15000 });
+    if (/ALL HISTORY ALIAS TESTS PASSED/.test(histOut)) ok('restore() never lets a live edit alias back into a stored snapshot');
+    else { bad('history alias test failed'); console.log(histOut); }
+  } catch (e) {
+    bad('history alias test crashed');
+    console.log(e.stdout || e.message);
+  }
+} else {
+  console.log('  (skipped — test/history-alias-test.js missing)');
+}
+
+/* 9. PureRef .pur import (correctness, O(n) scaling, worker boundary) */
+section('9. PureRef .pur import');
+if (fs.existsSync(path.join(__dirname, 'pur-import-test.js'))) {
+  try {
+    var purOut = cp.execSync('node "' + path.join(__dirname, 'pur-import-test.js') + '"', { encoding: 'utf8', timeout: 30000 });
+    if (/ALL PUR-IMPORT TESTS PASSED/.test(purOut)) ok('parses correctly, scales O(n) not O(n²), worker boundary round-trips');
+    else { bad('pur-import test failed'); console.log(purOut); }
+  } catch (e) {
+    bad('pur-import test crashed');
+    console.log(e.stdout || e.message);
+  }
+} else {
+  console.log('  (skipped — test/pur-import-test.js missing)');
+}
+
+/* 10. Version consistency */
+section('10. Version consistency');
 var pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
 var v = pkg.version;
 var boards = fs.readFileSync(path.join(SRC, 'boards.js'), 'utf8');

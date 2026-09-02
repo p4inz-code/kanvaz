@@ -81,7 +81,7 @@ purpose (see "Scope" below).
 | `getActiveBoard` | Returns the open board's id/name/path |
 | `listCards` | Lists cards, optionally filtered by `type` or `tag` |
 | `getCard` | Gets one card by id |
-| `createCard` | Creates a note/color/url/file card |
+| `createCard` | Creates a note/text/color/url/file card |
 | `updateCard` | Partial update (name/text/url/color/tags/**properties**/position/size/pinned) |
 | `deleteCard` | Deletes a card (undo-reversible) |
 | `addReference` | Creates a card from a local file path or a URL |

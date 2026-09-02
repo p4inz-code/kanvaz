@@ -8,6 +8,14 @@ var PNG_FOOT = Buffer.from([0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130]);
 var GRAPHICS_IMAGE_ITEM = 34;
 var GRAPHICS_TEXT_ITEM  = 32;
 
+/* Sane upper bound on tracked entries (real images + raw 4-byte transform-
+   id gaps between them). A well-formed PureRef board — even a large mood
+   board — doesn't come close to this; a file that does is almost
+   certainly misaligned/corrupted parsing, not real data, and would
+   otherwise grind for a very long time before failing anyway. Fail fast
+   instead. */
+var MAX_TRACKED_ENTRIES = 50000;
+
 /* ── Buffer reader with a moving cursor ── */
 
 function PurReader(buf) {
@@ -132,6 +140,9 @@ function parsePurFile(buffer) {
 
     /* Duplicates (4-byte transform ID refs) before the next PNG */
     while (r.pos < headIdx && (headIdx - r.pos) >= 4) {
+      if (images.length > MAX_TRACKED_ENTRIES) {
+        throw new Error('This .pur file looks corrupted or uses an unsupported format variant (too many entries to import safely)');
+      }
       var dupBuf = r.readSlice(4);
       images.push({ absStart: r.pos - 4, absEnd: r.pos, pngBuf: dupBuf, isDup: true });
     }
@@ -150,6 +161,9 @@ function parsePurFile(buffer) {
     var typeCheck = r.peekUInt32BE(8);
     if (typeCheck === GRAPHICS_IMAGE_ITEM || typeCheck === GRAPHICS_TEXT_ITEM) break;
     if (r.remaining() < 4) break;
+    if (images.length > MAX_TRACKED_ENTRIES) {
+      throw new Error('This .pur file looks corrupted or uses an unsupported format variant (too many entries to import safely)');
+    }
     var dupBuf2 = r.readSlice(4);
     images.push({ absStart: r.pos - 4, absEnd: r.pos, pngBuf: dupBuf2, isDup: true });
   }
@@ -194,42 +208,54 @@ function parsePurFile(buffer) {
     idToAddress[refId] = { start: refStart, end: refEnd };
   }
 
-  /* ── Link transforms to images ── */
+  /* ── Link transforms to images ──
+     Audit fix: this used to be a nested `for` inside a `for` (every
+     transform re-scanning the ENTIRE images array looking for a
+     matching absStart). `images` routinely holds thousands of entries
+     on real files — the raw 4-byte transform-id gaps between embedded
+     PNGs each become one array entry (see the PNG-scan loop above) —
+     so this was O(imageItems × images), which on a large board turned
+     a sub-second parse into a multi-minute-or-worse hang. A one-time
+     absStart→index map makes each lookup O(1) instead. */
+  var byAbsStart = {};
+  for (var bi = 0; bi < images.length; bi++) {
+    if (!images[bi].isDup) byAbsStart[images[bi].absStart] = bi;
+  }
+
   for (var t = 0; t < imageItems.length; t++) {
     var item = imageItems[t];
     var addr = idToAddress[item.id];
     if (!addr) continue;
 
-    for (var img = 0; img < images.length; img++) {
-      if (images[img].absStart === addr.start && !images[img].isDup) {
-        if (!images[img].transforms) images[img].transforms = [];
-        images[img].transforms.push(item);
-        break;
-      }
+    var imgIdx = byAbsStart[addr.start];
+    if (imgIdx !== undefined) {
+      if (!images[imgIdx].transforms) images[imgIdx].transforms = [];
+      images[imgIdx].transforms.push(item);
     }
   }
 
-  /* ── Handle duplicates ── */
-  /* Duplicate images are 4-byte buffers containing the transform.id of the original */
+  /* ── Handle duplicates ──
+     Duplicate images are 4-byte buffers containing the transform.id of
+     the original. Same fix as above: this used to re-scan every image
+     (and every one of ITS transforms) per duplicate — O(images² ×
+     avg transforms) in the worst case. A one-time transform-id→image-
+     index map makes it O(images) total instead. */
+  var transformIdToImgIndex = {};
+  for (var oi = 0; oi < images.length; oi++) {
+    if (images[oi].isDup || !images[oi].transforms) continue;
+    for (var oti = 0; oti < images[oi].transforms.length; oti++) {
+      transformIdToImgIndex[images[oi].transforms[oti].id] = oi;
+    }
+  }
+
   for (var d = 0; d < images.length; d++) {
     if (images[d].isDup && images[d].pngBuf.length === 4) {
       var dupId = images[d].pngBuf.readUInt32BE(0);
       if (dupId === 0xFFFFFFFF) continue; /* image link, not duplicate */
-      /* Find the original image that has a transform with this id */
-      for (var o = 0; o < images.length; o++) {
-        if (images[o].isDup) continue;
-        if (images[o].transforms) {
-          for (var tt = 0; tt < images[o].transforms.length; tt++) {
-            if (images[o].transforms[tt].id === dupId) {
-              /* Move duplicate's transforms to original */
-              if (images[d].transforms) {
-                for (var dt = 0; dt < images[d].transforms.length; dt++) {
-                  images[o].transforms.push(images[d].transforms[dt]);
-                }
-              }
-              break;
-            }
-          }
+      var origIdx = transformIdToImgIndex[dupId];
+      if (origIdx !== undefined && images[d].transforms) {
+        for (var dt = 0; dt < images[d].transforms.length; dt++) {
+          images[origIdx].transforms.push(images[d].transforms[dt]);
         }
       }
     }

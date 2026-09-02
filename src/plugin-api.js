@@ -38,7 +38,7 @@ var KanvazPluginAPI = (function() {
      becomes unreachable for that type, with no signal to the plugin
      author about why. Warn at registration time instead of leaving them
      to discover it by trial and error. */
-  var BUILTIN_CARD_TYPES = { image: true, gif: true, video: true, audio: true, note: true, color: true, url: true, file: true };
+  var BUILTIN_CARD_TYPES = { image: true, gif: true, video: true, audio: true, note: true, text: true, color: true, url: true, file: true };
 
   function registerCardType(id, def) {
     if (!id || typeof id !== 'string') {

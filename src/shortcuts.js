@@ -255,7 +255,14 @@ var KanvazShortcuts = (function() {
     if (e.key === 'a' || e.key === 'A') {
       if (typeof KanvazAnnotate !== 'undefined') {
         var selCard = KanvazCards.getAll()[sel];
-        if (selCard && selCard.type !== 'note' && selCard.type !== 'audio' && selCard.type !== 'color') {
+        /* Audit fix: this guard predates the 'url'/'file'/'text' card
+           types and was never updated when they were added — the context
+           menu's equivalent "Annotate" guard (app.js) already excludes
+           all five non-visual types; this keyboard shortcut didn't,
+           so pressing A on a URL/file-reference/text card would open
+           the annotation overlay on something with no image/video to
+           annotate. */
+        if (selCard && selCard.type !== 'note' && selCard.type !== 'audio' && selCard.type !== 'color' && selCard.type !== 'url' && selCard.type !== 'file' && selCard.type !== 'text') {
           KanvazAnnotate.activate(sel);
         }
       }

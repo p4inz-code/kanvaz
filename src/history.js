@@ -135,6 +135,68 @@ var KanvazHistory = (function() {
     KanvazUI.toast('Redo');
   }
 
+  /* Audit fix (CRITICAL): KanvazCards.deserialise() adopts the objects
+     you hand it as the LIVE cards{} entries (`cards[c.id] = c`), and
+     also mutates them in place while loading (v3/v4 field defaults).
+     restore() used to pass snap.refs straight through — meaning after
+     an undo, cards{} held the EXACT SAME objects still sitting in this
+     stack entry. Any subsequent mutation (drag, resize, tag removal's
+     splice, annotation drawing) then rewrote that stored snapshot in
+     place. Concretely: move A, move B, undo (back to "A moved" state),
+     drag A again, undo — the second undo restores a snapshot whose own
+     .refs[A] was silently overwritten by the drag that happened AFTER
+     restoring it, so the card doesn't move back. Undo-then-edit is an
+     everyday workflow; this made undo unreliable exactly when needed.
+     Fix: every restore hands deserialise() fresh objects, never the
+     stack's own — same immutable-share/mutable-clone split snapshot()
+     itself already uses above, so this stays cheap for large dataUrls. */
+  function cloneRefForRestore(ref) {
+    return {
+      id:       ref.id,
+      type:     ref.type,
+      dataUrl:  ref.dataUrl,
+      name:     ref.name,
+      path:     ref.path,
+      naturalW: ref.naturalW,
+      naturalH: ref.naturalH,
+      url:      ref.url,
+      color:    ref.color,
+      mimeType: ref.mimeType,
+      x:            ref.x,
+      y:            ref.y,
+      w:            ref.w,
+      h:            ref.h,
+      z:            ref.z,
+      pinned:       ref.pinned,
+      text:         ref.text,
+      opacity:      ref.opacity,
+      flipH:        ref.flipH,
+      flipV:        ref.flipV,
+      objectFit:    ref.objectFit,
+      playbackRate: ref.playbackRate,
+      audioLoop:    ref.audioLoop,
+      colorFormat:  ref.colorFormat,
+      muted:        ref.muted,
+      /* Object/array-typed fields get mutated IN PLACE elsewhere (tag
+         removal splices card.tags, annotation drawing pushes into
+         strokes, the Properties panel writes card.properties[key]
+         directly) — these must be fresh copies, not shared references,
+         or exactly the same aliasing bug this function exists to fix
+         would just move one level deeper. */
+      annotations: JSON.parse(JSON.stringify(ref.annotations || [])),
+      tags:        ref.tags ? ref.tags.slice() : [],
+      properties:  ref.properties ? JSON.parse(JSON.stringify(ref.properties)) : {},
+      mapPosition: ref.mapPosition ? { x: ref.mapPosition.x, y: ref.mapPosition.y } : null,
+      pluginData:  cloneJsonSafe(ref.pluginData)
+    };
+  }
+
+  function cloneRefsForRestore(refs) {
+    var out = [];
+    for (var i = 0; i < refs.length; i++) out.push(cloneRefForRestore(refs[i]));
+    return out;
+  }
+
   /* ── Restore snapshot ── */
 
   function restore(snap) {
@@ -142,13 +204,13 @@ var KanvazHistory = (function() {
 
     /* v3 snapshots: { refs, conns }. v2 snapshots: plain array. */
     if (snap && snap.refs) {
-      KanvazCards.deserialise(snap.refs);
+      KanvazCards.deserialise(cloneRefsForRestore(snap.refs));
       if (typeof KanvazConnections !== 'undefined') {
         KanvazConnections.deserialise(snap.conns || []);
       }
     } else {
       /* Backward compat: v2-style snapshot (plain card array) */
-      KanvazCards.deserialise(snap);
+      KanvazCards.deserialise(cloneRefsForRestore(snap));
     }
 
     locked = false;

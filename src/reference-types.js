@@ -23,6 +23,7 @@ var KanvazRefTypes = (function() {
     video:   { label: 'Video',   icon: '\uD83C\uDFA5',       category: 'media',    hasMedia: true,  fields: [] },
     audio:   { label: 'Audio',   icon: '\uD83C\uDFB5',       category: 'media',    hasMedia: true,  fields: [] },
     note:    { label: 'Note',    icon: '\uD83D\uDCDD',       category: 'abstract', hasMedia: false, fields: [] },
+    text:    { label: 'Text',    icon: '\uD83C\uDFF7\uFE0F', category: 'abstract', hasMedia: false, fields: [] },
     url:     { label: 'URL',     icon: '\uD83D\uDD17',       category: 'link',     hasMedia: false, fields: ['url'] },
     color:   { label: 'Color',   icon: '\uD83C\uDFA8',       category: 'abstract', hasMedia: false, fields: ['color'] },
     file:    { label: 'File',    icon: '\uD83D\uDCC1',       category: 'link',     hasMedia: false, fields: ['fileSize', 'mimeType'] }

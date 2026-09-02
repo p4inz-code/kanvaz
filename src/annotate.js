@@ -23,6 +23,7 @@ var KanvazAnnotate = (function() {
     if (overlays[cardId]) return;
 
     var cvs = document.createElement('canvas');
+    cvs.className = 'annotation-canvas';
     cvs.style.cssText = [
       'position:absolute',
       'top:0',
@@ -191,11 +192,25 @@ var KanvazAnnotate = (function() {
        activeCanvas.width/rect.width as a buffer/CSS ratio, which was a
        no-op when the buffer was always exactly CSS-sized (pre-HiDPI-fix)
        — keeping this in CSS-pixel space is what keeps stored stroke
-       coordinates identical to before, across any devicePixelRatio. */
+       coordinates identical to before, across any devicePixelRatio.
+
+       Audit fix: the card (and this overlay canvas with it) lives inside
+       #canvas-world, which carries the board's pan/zoom `scale` — so
+       getBoundingClientRect() returns a rect already SCALED by it
+       (rect.width === cssWidth * scale). e.clientX/Y are raw screen
+       pixels, so the delta from rect.left/top is in scaled-screen-pixel
+       space, not the canvas's own CSS-pixel space the stroke data and
+       drawing calls use. That claim above ("no-op") was only ever true
+       at exactly 100% zoom — dividing by scale is what actually
+       converts screen pixels back to canvas-local CSS pixels; at any
+       other zoom, strokes landed offset from the cursor by exactly that
+       factor (crammed toward the corner when zoomed out, flung outside
+       the card when zoomed in). */
     var rect = activeCanvas.getBoundingClientRect();
+    var scale = (typeof KanvazCanvas !== 'undefined' && KanvazCanvas.getScale) ? KanvazCanvas.getScale() : 1;
     return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
+      x: (e.clientX - rect.left) / scale,
+      y: (e.clientY - rect.top) / scale
     };
   }
 
