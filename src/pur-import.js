@@ -2,9 +2,75 @@
    Reverse-engineered binary format based on FyorDev/PureRef-format.
    Extracts embedded PNG images + positions/scales. */
 
-var PNG_HEAD = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
-var PNG_FOOT = Buffer.from([0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130]);
+/* Audit fix (live-tested against a real PureRef 2.1.x file): the
+   original reverse-engineered format only ever scanned for PNG —
+   real-world boards routinely embed JPEG (confirmed: a real test file
+   returned 0 images because its one embedded photo was JPEG, not PNG,
+   and the scanner never even looked for a JPEG signature). Generalized
+   to a list of known formats; the scan loop below finds whichever
+   signature occurs EARLIEST in the remaining buffer, not just PNG's.
+   Each format supplies its own head signature and a way to find where
+   that specific image ends — either by scanning for a trailer (PNG's
+   IEND chunk, JPEG's EOI marker, GIF's trailer byte) or, more reliably
+   where the format allows it, by reading an explicit length straight
+   out of the format's own header (BMP stores its total file size at a
+   fixed offset — no scanning, no ambiguity). */
+var IMAGE_FORMATS = [
+  {
+    mime: 'image/png',
+    head: Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    findEnd: function(buf, headIdx) {
+      var foot = Buffer.from([0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130]);
+      var footIdx = indexOf(buf, foot, headIdx + 8);
+      return footIdx === -1 ? -1 : footIdx + 12;
+    }
+  },
+  {
+    mime: 'image/jpeg',
+    head: Buffer.from([0xFF, 0xD8, 0xFF]),
+    findEnd: function(buf, headIdx) {
+      var eoi = Buffer.from([0xFF, 0xD9]);
+      var endIdx = indexOf(buf, eoi, headIdx + 3);
+      return endIdx === -1 ? -1 : endIdx + 2;
+    }
+  },
+  {
+    mime: 'image/gif',
+    head: Buffer.from('GIF89a', 'ascii'),
+    findEnd: gifEnd
+  },
+  {
+    mime: 'image/gif',
+    head: Buffer.from('GIF87a', 'ascii'),
+    findEnd: gifEnd
+  },
+  {
+    mime: 'image/bmp',
+    head: Buffer.from('BM', 'ascii'),
+    findEnd: function(buf, headIdx) {
+      /* BMP's own header stores the exact total file size (LE uint32)
+         at byte offset 2 — no scanning needed, and no ambiguity the
+         way a trailer-byte search could have. */
+      if (headIdx + 6 > buf.length) return -1;
+      var size = buf.readUInt32LE(headIdx + 2);
+      var end = headIdx + size;
+      return (size > 0 && end <= buf.length) ? end : -1;
+    }
+  }
+];
 
+/* GIF's trailer is a single byte (0x3B) — inherently less unambiguous
+   than PNG/JPEG's multi-byte markers, but this is a best-effort scanner
+   to begin with (see the file header note on the format being reverse-
+   engineered), and a bare 0x3B this soon after a real GIF header is
+   overwhelmingly likely to be the actual trailer, not a false hit. */
+function gifEnd(buf, headIdx) {
+  var trailerIdx = buf.indexOf(0x3B, headIdx + 6);
+  return trailerIdx === -1 ? -1 : trailerIdx + 1;
+}
+
+/* Kept for readable references elsewhere in this file (item/footer
+   parsing never touched image bytes directly, only IMAGE_FORMATS does). */
 var GRAPHICS_IMAGE_ITEM = 34;
 var GRAPHICS_TEXT_ITEM  = 32;
 
@@ -118,28 +184,95 @@ function parsePurFile(buffer) {
   var r = new PurReader(buffer);
 
   /* Track absolute positions for image↔transform linking */
-  var images = [];       /* { absStart, absEnd, pngBuf } */
+  var images = [];       /* { absStart, absEnd, pngBuf, mime } */
   var imageItems = [];   /* parsed GraphicsImageItems */
   var textItems = [];    /* parsed GraphicsTextItems (ignored for import) */
 
-  /* ── Header (224 bytes) ── */
-  var canvas = [
-    r.buf.readDoubleBE(112),
-    r.buf.readDoubleBE(120),
-    r.buf.readDoubleBE(128),
-    r.buf.readDoubleBE(136)
-  ];
-  var zoom = r.buf.readDoubleBE(144);
-  r.skip(224);
+  /* ── Header ──
+     Audit fix (live-tested): the original 224-byte fixed header only
+     held for whichever PureRef format-version the reverse-engineering
+     was based on. A real PureRef 2.1.x file has a variable-length
+     version-string preamble instead, and its one embedded JPEG started
+     at byte ~106 — well BEFORE the old code's r.pos=224 starting point,
+     so the image scan below would search forward from 224 and skip
+     straight past it. canvas/zoom were never even used in this
+     function's return value, so there's nothing depending on the
+     header actually being exactly 224 bytes; the image scan starts
+     from 0 instead, which finds the same images either way on an
+     older-format file (a signature is a signature, regardless of scan
+     start point) and no longer misses images on files with a shorter
+     or differently-shaped header. */
+  var canvas = (buffer.length >= 144)
+    ? [r.buf.readDoubleBE(112), r.buf.readDoubleBE(120), r.buf.readDoubleBE(128), r.buf.readDoubleBE(136)]
+    : null;
+  var zoom = (buffer.length >= 152) ? r.buf.readDoubleBE(144) : null;
+  r.pos = 0;
 
-  /* ── Read PNG images ── */
-  /* Scan for PNG headers and footers in sequence */
+  /* ── Read embedded images (any known format — see IMAGE_FORMATS) ──
+     Finds whichever format's signature occurs EARLIEST from the current
+     position, not just PNG's — a board can freely mix PNG/JPEG/GIF/BMP
+     across different embedded items.
+
+     Perf fix (caught by this file's own regression test, not just
+     inspection): a naive version of this re-ran indexOf() for EVERY
+     format on EVERY call, unconditionally. Each indexOf that finds
+     nothing has to scan all the way to the end of the remaining buffer
+     to conclude that — so on a board that's all-PNG (indexOf-favorite
+     case for the other 4 formats to constantly come up empty), this
+     amplified the exact O(images × buffer-length) blowup the earlier
+     absStart-map fix was written specifically to eliminate (measured:
+     40,000 images went from ~50ms back up to ~51s). Fixed by caching
+     each format's next known position and only re-searching a format
+     once we've advanced past its cached hit — every byte in the buffer
+     still only gets scanned a bounded number of times overall, same
+     complexity class as the single-format version had. */
+  var formatNextIdx = [];
+  for (var fi0 = 0; fi0 < IMAGE_FORMATS.length; fi0++) formatNextIdx.push(-2); /* -2 = not searched yet */
+
+  function findNextImage(fromPos) {
+    var best = null;
+    for (var f = 0; f < IMAGE_FORMATS.length; f++) {
+      if (formatNextIdx[f] === -2 || (formatNextIdx[f] !== -1 && formatNextIdx[f] < fromPos)) {
+        formatNextIdx[f] = indexOf(r.buf, IMAGE_FORMATS[f].head, fromPos);
+      }
+      var idx = formatNextIdx[f];
+      if (idx !== -1 && (!best || idx < best.headIdx)) {
+        best = { headIdx: idx, format: IMAGE_FORMATS[f] };
+      }
+    }
+    return best;
+  }
+
+  var hitItemMarker = false;
+  imageScan:
   while (r.remaining() > 12) {
-    var headIdx = indexOf(r.buf, PNG_HEAD, r.pos);
-    if (headIdx === -1) break;
+    var next = findNextImage(r.pos);
+    if (!next) break;
+    var headIdx = next.headIdx;
 
-    /* Duplicates (4-byte transform ID refs) before the next PNG */
+    /* Duplicates (4-byte transform ID refs) before the next image.
+       Audit fix (live-tested against a real file): this used to
+       unconditionally treat every byte up to the next image signature
+       as a raw dup entry — but a real PureRef 2.1.x file interleaves
+       GraphicsImageItem/GraphicsTextItem records BETWEEN images, not
+       strictly after all of them. Without this check, a real item
+       record sitting in that gap got shredded into meaningless 4-byte
+       "dup" chunks, and the scan sailed on toward the next image
+       signature (in this file, an internal thumbnail) — completely
+       skipping the transform data the image needed to ever be linked
+       to a position on the board, so it silently came back as zero
+       results despite the image bytes themselves being found. Now:
+       the instant the same type-marker check the item-loop itself uses
+       matches, stop scanning for more images entirely so the item loop
+       below picks up from exactly here. */
     while (r.pos < headIdx && (headIdx - r.pos) >= 4) {
+      if (r.remaining() >= 12) {
+        var maybeType = r.peekUInt32BE(8);
+        if (maybeType === GRAPHICS_IMAGE_ITEM || maybeType === GRAPHICS_TEXT_ITEM) {
+          hitItemMarker = true;
+          break imageScan;
+        }
+      }
       if (images.length > MAX_TRACKED_ENTRIES) {
         throw new Error('This .pur file looks corrupted or uses an unsupported format variant (too many entries to import safely)');
       }
@@ -147,13 +280,12 @@ function parsePurFile(buffer) {
       images.push({ absStart: r.pos - 4, absEnd: r.pos, pngBuf: dupBuf, isDup: true });
     }
 
-    var footIdx = indexOf(r.buf, PNG_FOOT, headIdx);
-    if (footIdx === -1) break;
-    var pngEnd = footIdx + 12;
+    var imgEnd = next.format.findEnd(r.buf, headIdx);
+    if (imgEnd === -1) break;
 
-    var pngBuf = r.buf.slice(headIdx, pngEnd);
-    images.push({ absStart: headIdx, absEnd: pngEnd, pngBuf: pngBuf, isDup: false });
-    r.pos = pngEnd;
+    var imgBuf = r.buf.slice(headIdx, imgEnd);
+    images.push({ absStart: headIdx, absEnd: imgEnd, pngBuf: imgBuf, isDup: false, mime: next.format.mime });
+    r.pos = imgEnd;
   }
 
   /* Remaining 4-byte refs after last PNG, before items start */
@@ -268,7 +400,12 @@ function parsePurFile(buffer) {
     if (im.isDup || !im.transforms || im.transforms.length === 0) continue;
 
     var b64 = im.pngBuf.toString('base64');
-    var dataUrl = 'data:image/png;base64,' + b64;
+    /* Audit fix (live-tested): this was hardcoded to image/png regardless
+       of what was actually extracted — harmless for an actual PNG, but
+       a JPEG/GIF/BMP served with the wrong MIME in its data: URL can
+       fail to decode in some contexts even when the underlying bytes
+       are perfectly valid. Uses the format that actually matched. */
+    var dataUrl = 'data:' + (im.mime || 'image/png') + ';base64,' + b64;
 
     for (var ti = 0; ti < im.transforms.length; ti++) {
       var tr = im.transforms[ti];
@@ -281,6 +418,44 @@ function parsePurFile(buffer) {
         name: tr.name || tr.source || 'image',
         zLayer: tr.zLayer
       });
+    }
+  }
+
+  /* ── Fallback: grid-arrange raw images if transform-linking found
+     nothing ──
+     Audit fix (live-tested against a real PureRef 2.1.x file): the
+     transform/item byte layout above is reverse-engineered from an
+     older format version, and a real file from a newer PureRef build
+     can interleave items differently enough that linking finds zero
+     matches even though the images themselves were extracted
+     perfectly fine. Previously that meant the import came back
+     completely empty — "No images found" — despite the file
+     genuinely containing real photos, which is a much worse failure
+     mode than "found the images but couldn't recover their exact
+     PureRef layout". If linking produced nothing, fall back to every
+     distinct real (non-dup) image found in the byte scan, arranged in
+     a simple grid instead of at their original PureRef positions.
+     Small (<2KB) images are skipped here specifically because
+     PureRef's own internal UI thumbnails are consistently tiny
+     compared to actual embedded photos — a real user-placed image is
+     essentially never that small. */
+  if (results.length === 0) {
+    var GRID_COLS = 4, GRID_CELL = 320, GRID_GAP = 24, MIN_FALLBACK_BYTES = 2048;
+    var col = 0, row = 0;
+    for (var fi = 0; fi < images.length; fi++) {
+      var fim = images[fi];
+      if (fim.isDup || !fim.mime || fim.pngBuf.length < MIN_FALLBACK_BYTES) continue;
+      results.push({
+        dataUrl: 'data:' + fim.mime + ';base64,' + fim.pngBuf.toString('base64'),
+        x: col * (GRID_CELL + GRID_GAP),
+        y: row * (GRID_CELL + GRID_GAP),
+        scaleX: 1,
+        scaleY: 1,
+        name: 'image-' + (results.length + 1),
+        zLayer: results.length
+      });
+      col++;
+      if (col >= GRID_COLS) { col = 0; row++; }
     }
   }
 

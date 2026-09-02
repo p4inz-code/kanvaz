@@ -7,7 +7,7 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '4.6.0';
+  var VERSION       = '4.6.1';
 
   /* ── Plugin event hooks (4.3.0) ──
      Fired at the two points that mean "the active board's identity or

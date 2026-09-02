@@ -170,6 +170,27 @@ function runInWorker(buffer) {
   });
 }
 
+/* ── Test E: multi-format detection + grid fallback ──
+   Live-tested against a real PureRef 2.1.x file (not shippable as a
+   fixture — it's a personal file with real copyrighted album art):
+   the parser used to only ever look for PNG, so a JPEG-only board
+   silently came back as "0 images" despite the photo being right
+   there in the file. Separately, when transform-linking finds nothing
+   (a newer-format file interleaves items differently than this
+   reverse-engineered layout assumes), the parser now falls back to
+   surfacing every real embedded image on a simple grid instead of
+   returning nothing at all. This constructs a JPEG-only buffer with NO
+   linkable item data at all, so both fixes have to work together for
+   this to pass. */
+console.log('\nTest E — JPEG detection + grid fallback when linking finds nothing');
+var jpegFilling = Buffer.alloc(4096, 0x01); /* no 0xFF bytes -> no accidental markers inside */
+var syntheticJpeg = Buffer.concat([Buffer.from([0xFF, 0xD8, 0xFF, 0xE0]), jpegFilling, Buffer.from([0xFF, 0xD9])]);
+var jpegOnlyBuf = Buffer.concat([Buffer.alloc(HEADER_SIZE), syntheticJpeg]);
+var eResult = purImport.parsePurFile(jpegOnlyBuf);
+check('found the JPEG via fallback despite no linkable item data', eResult.count === 1);
+check('fallback result carries the right MIME type', eResult.count === 1 && /^data:image\/jpeg;base64,/.test(eResult.images[0].dataUrl));
+check('fallback places the image at a grid origin, not undefined/NaN', eResult.count === 1 && eResult.images[0].x === 0 && eResult.images[0].y === 0);
+
 console.log('\nTest D — real worker_thread round trip (not just the in-process function)');
 runInWorker(buildSyntheticPur(5)).then(function(workerResult) {
   check('worker returns ok:true for a valid buffer', workerResult.ok === true);

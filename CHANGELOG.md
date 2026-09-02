@@ -2,6 +2,66 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [4.6.1] — `.pur` importer: fixed for real files, not just test fixtures
+
+v4.6.0's `.pur` fix solved the hang, but every test up to that point ran
+against hand-built synthetic files. Live-tested against an actual PureRef
+file this release and found the importer still silently failing — "0
+images" on a file that genuinely had a photo in it. Two real format
+assumptions were wrong, not one.
+
+### Fixed
+- **Only PNG was ever recognized.** A real PureRef board can embed JPEG
+  (confirmed: the test file's one photo was JPEG, not PNG, and the
+  scanner never even looked for a JPEG signature). Generalized to a
+  format table — PNG, JPEG, GIF, BMP — the scan now finds whichever
+  signature occurs earliest, not just PNG's. JPEG/GIF/BMP images now also
+  get the correct MIME type in their `data:` URL instead of being
+  mislabeled `image/png`.
+- **The fixed 224-byte header assumption didn't hold.** A real PureRef
+  2.1.x file has a variable-length version-string preamble instead — its
+  one embedded image started at byte ~106, well before where the old code
+  started scanning (224), so it was skipped entirely regardless of the
+  PNG/JPEG issue above. `canvas`/`zoom` were never used in this function's
+  return value anyway, so the image scan now starts from byte 0 — finds
+  the same images either way on an older-format file, no longer misses
+  them on a file with a shorter or differently-shaped header.
+- **Real files interleave item records between images, not strictly
+  after them.** The scanner used to treat every byte between one image
+  and the next detected image signature as filler ("duplicate" 4-byte
+  transform-id refs) — but a real file's actual position/scale data for
+  image #1 sat in that gap, ahead of an internal PureRef thumbnail that
+  happened to be the "next image." That data was getting shredded into
+  meaningless 4-byte chunks and skipped past entirely, which is why the
+  import still came back with zero results even after the JPEG fix. Now
+  stops scanning for more images the instant a real item marker is seen,
+  handing off to item-parsing at exactly that point instead of sailing
+  past it.
+- **New: grid-fallback when transform-linking still finds nothing.** The
+  byte-level item layout above is reverse-engineered and won't hold for
+  every PureRef version forever. If linking produces zero results despite
+  real images being found in the file, every real (non-thumbnail-sized)
+  image now gets placed on a simple grid instead of the import coming
+  back empty — a working import beats a silent failure. This fallback is
+  also what a real PureRef file in this release actually exercises, not
+  a hypothetical safety net.
+- **Caught and fixed a genuine perf regression while building the above**,
+  before it shipped: an early version of the multi-format scan re-ran
+  `indexOf` for all 4 formats on every single iteration regardless of
+  whether anything changed, which re-amplified the exact O(n²) blowup
+  4.6.0 had just fixed (measured: 40,000 images regressed from ~50ms back
+  up to ~51 seconds). Fixed with per-format position caching — each
+  format's next occurrence is only re-searched once the scan has advanced
+  past its last known position. `test/pur-import-test.js`'s existing
+  performance regression test caught this immediately.
+- Regression-tested: `test/pur-import-test.js` gained a synthetic
+  JPEG-only, no-linkable-item fixture (Test E) exercising the new format
+  detection and grid fallback together — the real test file itself isn't
+  shippable as a checked-in fixture (personal file, real copyrighted
+  content), so this synthetic case stands in for it. The extracted image
+  from the real file was independently verified by writing it back out
+  to a real `.jpg` and visually confirming it decoded correctly.
+
 ## [4.6.0] — Text cards, Map View rename/preview, and a real bug-hunt pass
 
 Three requests landed at once: a bare text-label card type, bigger resize
