@@ -82,6 +82,7 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
 
   /* Auto-updater */
   checkForUpdates: function() { ipcRenderer.send('check-for-updates'); },
+  downloadUpdate:  function() { ipcRenderer.send('download-update'); },
   installUpdate:   function() { ipcRenderer.send('install-update'); },
 
   /* Main → Renderer events */

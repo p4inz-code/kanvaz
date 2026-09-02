@@ -52,10 +52,44 @@ var KanvazApp = (function() {
         if (filePath) KanvazBoards.openFilePath(filePath);
       });
 
-      /* Auto-updater — main process checks/downloads in the background;
-         we just report the two moments that matter to the user. */
+      /* Audit fix (live-tested): this used to fire a "found —
+         downloading…" toast and silently start the download right
+         then, with no way to say no — main.js's autoDownload flag is
+         now false specifically so this dialog is the actual decision
+         point, not a courtesy notice after the fact.
+
+         Portable-build case (also live-tested): there is no well-defined
+         in-place auto-update for the portable .exe — electron-updater
+         has no concept of it, and quitAndInstall() would try to run the
+         (NSIS-only) downloaded installer against an exe that was never
+         "installed" anywhere. So a portable build never even gets the
+         auto-download option — only the release-page link. */
       KanvazBridge.on('update-available', function(info) {
-        KanvazUI.toast('Update' + (info && info.version ? ' v' + info.version : '') + ' found — downloading…');
+        var version = info && info.version;
+        var label = 'Kanvaz' + (version ? ' v' + version : '') + ' is available.';
+        var releaseUrl = 'https://github.com/p4inz-code/kanvaz/releases/latest';
+
+        if (info && info.isPortable) {
+          KanvazUI.showDialog(
+            'Update available',
+            label + ' Auto-update isn\'t supported for the portable build — download the new version from the release page and replace this .exe yourself.',
+            [
+              { label: 'Open release page', cls: 'primary', action: function() { KanvazBridge.openExternal(releaseUrl); } },
+              { label: 'Later', cls: '' }
+            ]
+          );
+          return;
+        }
+
+        KanvazUI.showDialog(
+          'Update available',
+          label + ' Download and install it automatically, or open the release page to grab it yourself?',
+          [
+            { label: 'Download automatically', cls: 'primary', action: function() { KanvazBridge.downloadUpdate(); } },
+            { label: 'Open release page', cls: '', action: function() { KanvazBridge.openExternal(releaseUrl); } },
+            { label: 'Later', cls: '' }
+          ]
+        );
       });
 
       KanvazBridge.on('update-downloaded', function(info) {

@@ -876,6 +876,15 @@ function registerIPC() {
     if (autoUpdater && app.isPackaged) autoUpdater.checkForUpdates();
   });
 
+  /* Audit fix: autoDownload used to be true, so a newer version started
+     downloading the instant it was found — no choice, no confirmation.
+     Now autoDownload is false (see wireAutoUpdaterEvents below) and this
+     is what the renderer's "Download automatically" button calls once
+     the user has actually said yes. */
+  ipcMain.on('download-update', function() {
+    if (autoUpdater && app.isPackaged) autoUpdater.downloadUpdate();
+  });
+
   ipcMain.on('install-update', function() {
     if (autoUpdater) autoUpdater.quitAndInstall();
   });
@@ -1336,12 +1345,31 @@ function registerIPC() {
 function wireAutoUpdaterEvents() {
   if (!autoUpdater) return;
 
-  autoUpdater.autoDownload = true;
+  /* Audit fix (live-tested): this used to be true, silently downloading
+     the instant a newer version was found, with no way to say no. Now
+     the renderer asks the user first (see app.js's 'update-available'
+     handler) and only calls the new 'download-update' IPC (above) once
+     they've actually said yes.
+
+     Also: electron-builder's win.target here builds BOTH nsis and
+     portable — only the NSIS installer is auto-updatable at all
+     (electron-updater has no concept of a portable Windows build; there
+     is no installed copy for quitAndInstall() to silently replace).
+     Live-tested this session: running the PORTABLE .exe still found and
+     "downloaded" an update and offered "Restart & Install" as if it
+     were the installed build — misleading, since there's no well-defined
+     in-place update for a portable exe to apply. isPortable below is
+     electron-builder's own documented signal (the portable launcher sets
+     this env var on the process it spawns) — when true, the renderer
+     skips the auto-download option entirely and only offers the release
+     page link. */
+  autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
+  var isPortable = !!process.env.PORTABLE_EXECUTABLE_FILE;
 
   autoUpdater.on('update-available', function(info) {
     if (mainWindow) {
-      mainWindow.webContents.send('update-available', { version: info && info.version });
+      mainWindow.webContents.send('update-available', { version: info && info.version, isPortable: isPortable });
     }
   });
 

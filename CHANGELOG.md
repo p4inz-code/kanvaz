@@ -10,6 +10,26 @@ the importer meant reading through the rest of the app's mutation/undo/
 viewport code with the same scrutiny, which turned up a dozen more real
 bugs — most of them long-standing, none of them hypothetical.
 
+### Fixed — auto-updater, caught by live-testing this release
+- **Auto-download had no confirmation step.** `autoUpdater.autoDownload`
+  was `true` — the moment a newer version was found, it silently started
+  downloading, with no way to say no. Now `false`; the renderer asks
+  first ("Download automatically" / "Open release page" / "Later"), and
+  only calls the new `download-update` IPC once the user actually agrees.
+- **The portable build's update flow was actively misleading.** Live-
+  tested running `Kanvaz 4.5.1.exe` (the portable target, not the NSIS
+  Setup installer) — it still found an update, "downloaded" it, and
+  offered "Restart & Install" as if it were the installed build. It
+  isn't: electron-updater has no concept of a portable Windows target at
+  all (confirmed — zero mentions of "portable" anywhere in its source),
+  and `quitAndInstall()` would run the downloaded NSIS installer against
+  an exe that was never actually "installed" anywhere, which does not
+  update the running portable file in any well-defined way. Now detected
+  via `process.env.PORTABLE_EXECUTABLE_FILE` (electron-builder's own
+  documented signal for a portable-launched process) — a portable build
+  never gets the auto-download option at all, only a link to the release
+  page with an explanation of why.
+
 ### Added
 - **Text card** (`type: 'text'`) — a bare floating label with no
   background/border/card-bar chrome, for titling a section of the board
