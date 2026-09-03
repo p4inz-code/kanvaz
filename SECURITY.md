@@ -37,6 +37,13 @@ Kanvaz is a **100% offline desktop application**. Key points:
     file, plus one more per plugin you actually choose to install (a
     `github.com/.../releases/download/...` zip; the main process refuses any
     `downloadUrl` that isn't `https://` on `github.com`).
+  - **URL card "Fetch preview" button (added 5.0.0)** — only fires when you
+    click it on a specific URL card, never on paste/type/load. Requests the
+    page's own HTML (capped at 512KB) to read its `<title>`/`og:title` and
+    `og:image`, then one more capped request (2MB) for the image itself if
+    present. The fetched title/image are embedded into the card and saved
+    with the board — reopening a board with an existing preview never
+    re-fetches anything.
   - Every network call is made by the **main process**, never a raw `fetch()`
     from the renderer or a plugin's own script — see the CSP note below.
 - **MCP Bridge (added 4.4.0, off by default) is local-only, never a network

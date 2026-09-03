@@ -1715,11 +1715,15 @@ var KanvazCards = (function() {
 
   var LINK_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 9.5a3 3 0 0 0 4.24 0l2-2a3 3 0 0 0-4.24-4.24l-1 1"/><path d="M9.5 6.5a3 3 0 0 0-4.24 0l-2 2a3 3 0 0 0 4.24 4.24l1-1"/></svg>';
   var OPEN_ICON = '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2H2v10h10V8"/><path d="M8 2h4v4"/><path d="M12 2 6.5 7.5"/></svg>';
+  var PREVIEW_ICON = '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M1 7s2.2-4 6-4 6 4 6 4-2.2 4-6 4-6-4-6-4z"/><circle cx="7" cy="7" r="1.6"/></svg>';
 
-  /* Kanvaz never fetches link previews/favicons for these — the app makes
-     zero background network calls (see PRIVACY.md), and a URL card is no
-     exception. It's a fast, offline note-to-self of a link: paste it,
-     open it in your real browser when you need it. */
+  /* v5.0.0 — the one deliberate exception to "Kanvaz makes zero background
+     network calls" (see SECURITY.md), and it's still opt-in per card, not
+     silent: the fetch only ever happens when the user clicks the preview
+     button below, never on paste/type/load. A previously-fetched preview
+     is stored on the card (card.urlPreview) and re-rendered from that
+     saved data on every future load — no re-fetch, no live remote <img>
+     reference that could phone home again just by opening the board. */
   function buildUrlCard(el, card) {
     var accent = document.createElement('div');
     accent.className = 'url-accent-bar';
@@ -1741,11 +1745,47 @@ var KanvazCards = (function() {
     openBtn.innerHTML = OPEN_ICON;
     openBtn.title = 'Open in your default browser';
 
+    var previewBtn = document.createElement('button');
+    previewBtn.className = 'url-open-btn';
+    previewBtn.innerHTML = PREVIEW_ICON;
+    previewBtn.title = 'Fetch a title/thumbnail preview from this link (one-time network request)';
+
+    var previewArea = document.createElement('div');
+    previewArea.className = 'url-preview';
+
+    function renderPreview() {
+      var p = card.urlPreview;
+      if (!p || (!p.title && !p.image)) {
+        previewArea.style.display = 'none';
+        el.classList.remove('has-preview');
+        previewArea.innerHTML = '';
+        return;
+      }
+      el.classList.add('has-preview');
+      previewArea.style.display = '';
+      previewArea.innerHTML = '';
+      if (p.image) {
+        var img = document.createElement('img');
+        img.className = 'url-preview-thumb';
+        img.src = p.image;
+        img.alt = '';
+        previewArea.appendChild(img);
+      }
+      if (p.title) {
+        var titleEl = document.createElement('div');
+        titleEl.className = 'url-preview-title';
+        titleEl.textContent = p.title;
+        previewArea.appendChild(titleEl);
+      }
+    }
+
     function updateOpenState() {
       var has = !!(card.url && card.url.trim());
-      openBtn.style.display = has ? '' : 'none';
+      openBtn.style.display    = has ? '' : 'none';
+      previewBtn.style.display = has ? '' : 'none';
     }
     updateOpenState();
+    renderPreview();
 
     function updateBarName() {
       var barName = el.querySelector('.card-filename');
@@ -1783,9 +1823,42 @@ var KanvazCards = (function() {
     });
     openBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
 
+    previewBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (el.dataset.justDragged) { delete el.dataset.justDragged; return; }
+      var raw = (card.url || '').trim();
+      if (!raw || previewBtn.disabled) return;
+      previewBtn.disabled = true;
+      previewBtn.classList.add('loading');
+      KanvazBridge.fetchUrlPreview(raw).then(function(res) {
+        previewBtn.disabled = false;
+        previewBtn.classList.remove('loading');
+        if (!res || !res.ok) {
+          KanvazUI.toast((res && res.error) ? 'Preview failed: ' + res.error : 'Preview failed', 'error');
+          return;
+        }
+        if (!res.title && !res.image) {
+          KanvazUI.toast('No preview data found for this link');
+          return;
+        }
+        card.urlPreview = { title: res.title || null, image: res.image || null };
+        renderPreview();
+        KanvazApp.markDirty();
+        KanvazHistory.push();
+        emitCardEvent('cardUpdate', card);
+      }).catch(function(e) {
+        previewBtn.disabled = false;
+        previewBtn.classList.remove('loading');
+        KanvazUI.toast('Preview failed: ' + e.message, 'error');
+      });
+    });
+    previewBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+
     body.appendChild(input);
+    body.appendChild(previewBtn);
     body.appendChild(openBtn);
     el.appendChild(body);
+    el.appendChild(previewArea);
     updateBarName();
   }
 
@@ -1794,10 +1867,52 @@ var KanvazCards = (function() {
   var FOLDER_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4.5a1 1 0 0 1 1-1h3l1.5 1.5H13a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-7.5z"/></svg>';
   var CHANGE_ICON = '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7a5 5 0 0 1 8.5-3.5M12 7a5 5 0 0 1-8.5 3.5"/><path d="M10 1v3h-3M4 13v-3h3"/></svg>';
 
+  /* v5.0.0 — a "file" card used to always show the same flat folder icon
+     regardless of what it actually pointed at. A shared document-shaped
+     base (page + folded corner) with a short extension-derived label
+     stamped on it reads as a real per-type preview without needing a
+     different SVG per format — same idea as a Finder/Explorer file icon.
+     Purely local: derived from the path string only, no file read. */
+  var FILE_ICON_BASE = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1.5h5.5L12.5 4.5V14a.5.5 0 0 1-.5.5H4a.5.5 0 0 1-.5-.5V2a.5.5 0 0 1 .5-.5z"/><path d="M9.5 1.5V4.5h3"/></svg>';
+  var FILE_EXT_GROUPS = {
+    pdf:  ['pdf'],
+    zip:  ['zip', 'rar', '7z', 'tar', 'gz'],
+    doc:  ['doc', 'docx', 'rtf', 'odt'],
+    xls:  ['xls', 'xlsx', 'csv', 'ods'],
+    ppt:  ['ppt', 'pptx', 'odp'],
+    code: ['js', 'ts', 'py', 'json', 'html', 'css', 'c', 'cpp', 'rs', 'go', 'java'],
+    text: ['txt', 'md']
+  };
+
+  function fileIconLabel(path) {
+    var m = /\.([a-z0-9]+)$/i.exec((path || '').trim());
+    var ext = m ? m[1].toLowerCase() : '';
+    if (!ext) return null;
+    for (var group in FILE_EXT_GROUPS) {
+      if (FILE_EXT_GROUPS[group].indexOf(ext) !== -1) {
+        return group === 'code' || group === 'text' ? ext.slice(0, 4).toUpperCase() : group.toUpperCase();
+      }
+    }
+    return ext.length <= 4 ? ext.toUpperCase() : null;
+  }
+
   function buildFileRefCard(el, card) {
     var accent = document.createElement('div');
-    accent.className = 'url-accent-bar';
-    accent.innerHTML = FOLDER_ICON;
+    accent.className = 'url-accent-bar file-type-icon';
+    accent.innerHTML = FILE_ICON_BASE;
+
+    function updateIcon() {
+      var label = fileIconLabel(card.path);
+      var existingTag = accent.querySelector('.file-type-tag');
+      if (existingTag) existingTag.remove();
+      if (label) {
+        var tag = document.createElement('span');
+        tag.className = 'file-type-tag';
+        tag.textContent = label;
+        accent.appendChild(tag);
+      }
+    }
+    updateIcon();
     el.appendChild(accent);
 
     var body = document.createElement('div');
@@ -1841,6 +1956,7 @@ var KanvazCards = (function() {
         card.name = basenameOf(p);
         label.textContent = card.name;
         label.title = card.path;
+        updateIcon();
         var barName = el.querySelector('.card-filename');
         if (barName) barName.textContent = card.name;
         KanvazApp.markDirty();
@@ -2731,6 +2847,7 @@ var KanvazCards = (function() {
         properties:  c.properties  || {},
         mapPosition: c.mapPosition || null,
         url:         c.url         || null,
+        urlPreview:  c.urlPreview  || null,
         color:       c.color       || null,
         mimeType:    c.mimeType    || null,
         /* v4.2.0 — plugin-owned card types read/write this bucket
@@ -2780,6 +2897,7 @@ var KanvazCards = (function() {
         if (!c.properties)  c.properties  = {};
         if (!c.mapPosition) c.mapPosition = null;
         if (!c.url)         c.url         = null;
+        if (!c.urlPreview)  c.urlPreview  = null;
         if (!c.color)       c.color       = null;
         if (!c.mimeType)    c.mimeType    = null;
         if (!c.pluginData)  c.pluginData  = null;

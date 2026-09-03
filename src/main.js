@@ -10,6 +10,7 @@ var path = require('path');
 var fs = require('fs');
 var net = require('net');
 var https = require('https');
+var http = require('http');
 var nodeUrl = require('url');
 var JSZip = require('jszip');
 var Worker = require('worker_threads').Worker;
@@ -263,6 +264,83 @@ function stopMcpBridgeServer() {
   return new Promise(function(resolve) {
     server.close(function() { resolve(); });
   });
+}
+
+/* ── URL card preview fetch (v5.0.0) ──
+   The ONLY network call in Kanvaz that isn't a user-clicked "check for
+   updates"/"browse plugins" action — but it's still explicit-per-use,
+   not silent or background: it only fires when the user clicks a URL
+   card's "Fetch preview" button, never on paste/type/load. Disclosed in
+   SECURITY.md and the URL card's own tooltip. Kept in the main process
+   (not a renderer fetch()) so it isn't subject to the target site's own
+   CORS policy — most sites don't send CORS headers at all, which would
+   silently break this for the majority of real URLs if done client-side. */
+var MAX_URL_PREVIEW_HTML_BYTES  = 512 * 1024;
+var MAX_URL_PREVIEW_IMAGE_BYTES = 2 * 1024 * 1024;
+
+function fetchUrlBuffer(urlStr, maxBytes, redirectsLeft) {
+  if (redirectsLeft === undefined) redirectsLeft = 3;
+  var parsed;
+  try { parsed = new nodeUrl.URL(urlStr); } catch (e) { return Promise.reject(new Error('invalid URL')); }
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+    return Promise.reject(new Error('only http/https URLs are supported'));
+  }
+  var mod = parsed.protocol === 'https:' ? https : http;
+  return new Promise(function(resolve, reject) {
+    var req = mod.get(urlStr, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Kanvaz/1.0)' } }, function(res) {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        res.resume();
+        if (redirectsLeft <= 0) { reject(new Error('too many redirects')); return; }
+        var next;
+        try { next = new nodeUrl.URL(res.headers.location, urlStr).toString(); }
+        catch (e) { reject(new Error('invalid redirect target')); return; }
+        fetchUrlBuffer(next, maxBytes, redirectsLeft - 1).then(resolve, reject);
+        return;
+      }
+      if (res.statusCode !== 200) { res.resume(); reject(new Error('HTTP ' + res.statusCode)); return; }
+      var chunks = [];
+      var total = 0;
+      var tooLarge = false;
+      res.on('data', function(chunk) {
+        if (tooLarge) return;
+        total += chunk.length;
+        if (total > maxBytes) {
+          tooLarge = true;
+          reject(new Error('response exceeded the ' + Math.round(maxBytes / 1024) + 'KB limit'));
+          res.destroy();
+          return;
+        }
+        chunks.push(chunk);
+      });
+      res.on('end', function() {
+        if (!tooLarge) resolve({ buf: Buffer.concat(chunks), contentType: res.headers['content-type'] || '' });
+      });
+      res.on('error', reject);
+    });
+    req.on('error', reject);
+    req.setTimeout(10000, function() { req.destroy(new Error('request timed out')); });
+  });
+}
+
+/* Deliberately a couple of regexes, not a full HTML parser — this only
+   ever reads two well-known meta tags plus <title>, and pulling in a DOM
+   parser dependency for that would be a lot of surface area (and attack
+   surface, parsing arbitrary third-party HTML) for very little gain. */
+function extractUrlMeta(html) {
+  function metaContent(prop) {
+    var re1 = new RegExp('<meta[^>]+(?:property|name)=["\']' + prop + '["\'][^>]*content=["\']([^"\']*)["\']', 'i');
+    var m = html.match(re1);
+    if (m) return m[1];
+    var re2 = new RegExp('<meta[^>]+content=["\']([^"\']*)["\'][^>]*(?:property|name)=["\']' + prop + '["\']', 'i');
+    var m2 = html.match(re2);
+    return m2 ? m2[1] : null;
+  }
+  var title = metaContent('og:title');
+  if (!title) {
+    var tm = html.match(/<title[^>]*>([^<]*)<\/title>/i);
+    if (tm) title = tm[1].trim();
+  }
+  return { title: title || null, image: metaContent('og:image') };
 }
 
 /* ── argv / file-open helper (BUG 5) ── */
@@ -1198,6 +1276,32 @@ function registerIPC() {
   });
 
   /* ── IPC: Browse Official Plugins (4.4.0) ── */
+
+  ipcMain.handle('fetch-url-preview', function(event, urlStr) {
+    var raw = (urlStr || '').trim();
+    if (!raw) return Promise.resolve({ ok: false, error: 'no URL' });
+    var target = /^https?:\/\//i.test(raw) ? raw : 'https://' + raw;
+    return fetchUrlBuffer(target, MAX_URL_PREVIEW_HTML_BYTES).then(function(res) {
+      var contentType = (res.contentType || '').split(';')[0].trim();
+      if (contentType && contentType.indexOf('text/html') !== 0) {
+        return { ok: true, title: null, image: null };
+      }
+      var meta = extractUrlMeta(res.buf.toString('utf8'));
+      var result = { ok: true, title: meta.title, image: null };
+      if (!meta.image) return result;
+      var imageUrl;
+      try { imageUrl = new nodeUrl.URL(meta.image, target).toString(); }
+      catch (e) { return result; }
+      return fetchUrlBuffer(imageUrl, MAX_URL_PREVIEW_IMAGE_BYTES).then(function(imgRes) {
+        var mime = (imgRes.contentType || '').split(';')[0].trim();
+        if (mime.indexOf('image/') !== 0) return result;
+        result.image = 'data:' + mime + ';base64,' + imgRes.buf.toString('base64');
+        return result;
+      }).catch(function() { return result; /* title alone still lands */ });
+    }).catch(function(e) {
+      return { ok: false, error: e.message };
+    });
+  });
 
   ipcMain.handle('catalog-fetch', function() {
     return httpsGetBuffer(OFFICIAL_CATALOG_URL, MAX_CATALOG_BYTES).then(function(buf) {

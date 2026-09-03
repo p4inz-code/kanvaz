@@ -2,6 +2,20 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [5.0.0] — Annotation drift fix, URL/File card previews
+
+First release of the new post-v4.9.0 arc: four feature releases plus a fifth polish/future-proofing pass to close out this stretch of Kanvaz's active development. This one finishes v4.9.0's biggest carried-forward item and adds the two card-preview features the user asked for directly.
+
+### Fixed
+- **Annotation resize-drift**, flagged as a known bug since 4.6.0. Root cause: `annotate.js` stored every stroke's points as absolute CSS-pixel coordinates from the moment they were drawn, but `redraw()` (used both live and on file load) replayed them at those same absolute coordinates regardless of the card's current size — so any card that was ever resized after being annotated, then saved and reloaded, showed its strokes in the wrong place relative to the new size. Fixed by storing stroke points as 0–1 fractions of the card's width/height instead, denormalized against the card's *current* size on every redraw — annotations now track the card correctly across any resize, including across a save/reload. Old saves migrate automatically and silently: a point value clearly outside the 0–1 range is recognized as pre-5.0.0 absolute-pixel data and converted once, using the card's current size (best-effort for a card resized between drawing and this fix shipping — still strictly better than the unbounded drift it replaces). No new save-format version field needed; the migration is self-describing.
+
+### Added
+- **URL card: "Fetch preview" button.** Click it to pull a title and thumbnail image for the pasted link — the one deliberate, disclosed exception to Kanvaz's "no background network calls" rule (see SECURITY.md). It is opt-in *per click*, never automatic: nothing fires on paste, on typing, or on loading a board. The main process fetches the page's HTML (capped 512KB) to read `og:title`/`<title>` and `og:image`, then the image itself (capped 2MB) if present, and embeds both into the card — a saved preview never re-fetches on reload.
+- **File reference card: type-specific icon.** Previously every file card showed the same flat folder icon regardless of what it pointed at. Now shows a document-shaped icon with a short extension-derived label (PDF, ZIP, DOC, XLS, PPT, or the raw extension) — derived from the path string alone, no file read, no network.
+
+### Carried forward from v4.9.0, not attempted this pass
+Recently-used tags, remembered card size per type, snapping/alignment guides, `[data-theme="light"]` CSS selector cleanup, plugin authoring docs + scaffold template, and bulk-tag-per-card undo batching are all still open — see `docs/ROADMAP.md` for where they're now scoped (v5.2.0).
+
 ## [4.9.0] — Auto-update progress, Zoom to Selection
 
 A deliberately small, fast release under real time pressure (three releases requested in one sitting) — picked the smallest, safest, highest-confidence items from the planned v4.9.0 scope rather than rush the larger, riskier ones. See "Carried forward" below for what that means was NOT attempted this pass, and why.

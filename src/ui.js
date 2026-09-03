@@ -1042,8 +1042,10 @@ var KanvazUI_Extended = (function() {
   /* ── About screen ── */
 
   /* ── Check for updates ──
-     The ONLY network call anywhere in Kanvaz. Fires only when the user
-     clicks the button in the About screen — never automatically, never
+     One of a small, fixed set of user-clicked network calls in Kanvaz (see
+     SECURITY.md for the full list — Browse Official Plugins and a URL
+     card's own "Fetch preview" button are the others). Fires only when the
+     user clicks the button in the About screen — never automatically, never
      on startup. Compares against GitHub's latest release tag. */
   function compareVersions(a, b) {
     var pa = a.replace(/^v/i, '').split('.').map(Number);
@@ -1165,7 +1167,7 @@ var KanvazUI_Extended = (function() {
       '</div>',
       '<div class="about-title">Kanvaz</div>',
       '<div class="about-subtitle">A visual reference workspace for creative professionals.</div>',
-      '<div class="about-version">Version 4.9.0</div>',
+      '<div class="about-version">Version 5.0.0</div>',
       '<div id="about-update-status" class="about-update-status"></div>',
       '<div class="about-divider"></div>',
       '<div class="about-author">Developed by <strong>Atharva Patil</strong></div>',
@@ -1173,13 +1175,13 @@ var KanvazUI_Extended = (function() {
       '<div class="about-desc">Built for VFX and 3D artists,<br>and the studios and educators who rely on them.</div>',
       '<div class="about-divider"></div>',
       '<div class="about-privacy">Free and open source. MIT License.<br>No telemetry, no background network activity.<br>Your data stays on your machine.</div>',
-      '<div class="about-tagline">Reference Operating System<br>Actively maintained — v4.9.0</div>'
+      '<div class="about-tagline">Reference Operating System<br>Actively maintained — v5.0.0</div>'
     ].join('');
 
     var updateBtn = document.createElement('button');
     updateBtn.className = 'about-btn about-btn-update';
     updateBtn.textContent = 'Check for updates';
-    updateBtn.title = 'Checks GitHub for a newer release — the only network activity Kanvaz ever does, and only when you click this.';
+    updateBtn.title = 'Checks GitHub for a newer release — a user-clicked network request, never automatic. See SECURITY.md for every network call Kanvaz can make.';
     updateBtn.onclick = function() { checkForUpdates(updateBtn); };
     box.appendChild(updateBtn);
 

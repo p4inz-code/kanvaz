@@ -184,6 +184,55 @@ var KanvazAnnotate = (function() {
     if (boundMouseUp)   window.removeEventListener('mouseup', boundMouseUp);
   }
 
+  /* Stroke points are stored as 0..1 fractions of the card's CSS
+     width/height, not absolute pixels — this is what makes annotations
+     resize correctly with the card, including across a save/reload
+     where resize()'s live bitmap-scaling never runs. Old saves (pre-4.9.1)
+     stored absolute pixel coordinates instead; loadStrokes() below
+     detects and one-time-converts those using the card's current size,
+     so the file naturally migrates to the new format on next save with
+     no explicit version field needed. */
+  function getCardSize(cardId) {
+    var el = document.getElementById(cardId);
+    if (el && el.offsetWidth && el.offsetHeight) {
+      return { w: el.offsetWidth, h: el.offsetHeight };
+    }
+    var ov = overlays[cardId];
+    if (ov) return { w: ov.canvas.width / (ov.dpr || 1), h: ov.canvas.height / (ov.dpr || 1) };
+    return { w: 1, h: 1 };
+  }
+
+  /* Legacy absolute-pixel strokes always have coordinates far past 1
+     (cards are never sub-2px), so this threshold cleanly separates old
+     data from the new normalized format without needing a flag. */
+  function isLegacyPoint(v) {
+    return v > 1.5;
+  }
+
+  function strokeLooksLegacy(s) {
+    if (s.tool === 'pen' && s.points && s.points.length) {
+      var p0 = s.points[0];
+      return isLegacyPoint(p0.x) || isLegacyPoint(p0.y);
+    }
+    if (s.points && s.points.x1 !== undefined) {
+      return isLegacyPoint(s.points.x1) || isLegacyPoint(s.points.y1);
+    }
+    return false;
+  }
+
+  function migrateLegacyStroke(s, size) {
+    if (s.tool === 'pen' && s.points && s.points.length) {
+      for (var i = 0; i < s.points.length; i++) {
+        s.points[i] = { x: s.points[i].x / size.w, y: s.points[i].y / size.h };
+      }
+    } else if (s.points && s.points.x1 !== undefined) {
+      s.points = {
+        x1: s.points.x1 / size.w, y1: s.points.y1 / size.h,
+        x2: s.points.x2 / size.w, y2: s.points.y2 / size.h
+      };
+    }
+  }
+
   function getPos(e) {
     /* Plain CSS-pixel coordinates — the canvas context is scaled by
        devicePixelRatio (see attach()/resize()), so drawing calls made
@@ -268,13 +317,14 @@ var KanvazAnnotate = (function() {
     isDrawing = false;
     var pos = getPos(e);
 
+    var size = getCardSize(activeCardId);
     var stroke = {
       tool:   activeTool,
       color:  activeColor,
       width:  activeWidth,
       points: activeTool === 'pen'
-        ? currentPenPoints.slice()
-        : { x1: startX, y1: startY, x2: pos.x, y2: pos.y }
+        ? currentPenPoints.map(function(p) { return { x: p.x / size.w, y: p.y / size.h }; })
+        : { x1: startX / size.w, y1: startY / size.h, x2: pos.x / size.w, y2: pos.y / size.h }
     };
 
     if (activeTool === 'pen') {
@@ -339,6 +389,7 @@ var KanvazAnnotate = (function() {
        dpr-times-too-large area. Harmless in practice (clipped to the
        canvas either way) but dimensionally correct this way. */
     ov.ctx.clearRect(0, 0, ov.canvas.width / (ov.dpr || 1), ov.canvas.height / (ov.dpr || 1));
+    var size = getCardSize(cardId);
     for (var i = 0; i < ov.strokes.length; i++) {
       var s = ov.strokes[i];
       if (s.tool === 'pen' && s.points && s.points.length) {
@@ -347,17 +398,20 @@ var KanvazAnnotate = (function() {
         ov.ctx.lineCap     = 'round';
         ov.ctx.lineJoin    = 'round';
         ov.ctx.beginPath();
-        ov.ctx.moveTo(s.points[0].x, s.points[0].y);
+        ov.ctx.moveTo(s.points[0].x * size.w, s.points[0].y * size.h);
         for (var j = 1; j < s.points.length; j++) {
-          ov.ctx.lineTo(s.points[j].x, s.points[j].y);
+          ov.ctx.lineTo(s.points[j].x * size.w, s.points[j].y * size.h);
         }
         ov.ctx.stroke();
       } else if (s.tool === 'rect' && s.points) {
         ov.ctx.strokeStyle = s.color;
         ov.ctx.lineWidth   = s.width;
-        ov.ctx.strokeRect(s.points.x1, s.points.y1, s.points.x2 - s.points.x1, s.points.y2 - s.points.y1);
+        ov.ctx.strokeRect(
+          s.points.x1 * size.w, s.points.y1 * size.h,
+          (s.points.x2 - s.points.x1) * size.w, (s.points.y2 - s.points.y1) * size.h
+        );
       } else if (s.tool === 'arrow' && s.points) {
-        drawArrow(ov.ctx, s.points.x1, s.points.y1, s.points.x2, s.points.y2, s.color, s.width);
+        drawArrow(ov.ctx, s.points.x1 * size.w, s.points.y1 * size.h, s.points.x2 * size.w, s.points.y2 * size.h, s.color, s.width);
       }
     }
   }
@@ -596,6 +650,19 @@ var KanvazAnnotate = (function() {
     if (!overlays[cardId]) attach(cardId, cardEl);
     var ov = overlays[cardId];
     ov.strokes = strokes || [];
+    /* One-time migration of pre-4.9.1 absolute-pixel saves: convert using
+       the card's current (saved) size, then the mutated ov.strokes will
+       naturally serialize back out normalized on the next save — no
+       explicit format-version bump needed. Best-effort for files where
+       the card was resized after drawing but before this fix shipped;
+       still strictly better than the unbounded drift it replaces. */
+    var size = null;
+    for (var i = 0; i < ov.strokes.length; i++) {
+      if (strokeLooksLegacy(ov.strokes[i])) {
+        size = size || getCardSize(cardId);
+        migrateLegacyStroke(ov.strokes[i], size);
+      }
+    }
     redraw(cardId);
   }
 

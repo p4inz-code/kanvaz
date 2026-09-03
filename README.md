@@ -16,6 +16,8 @@
 
 **Reference Operating System**
 
+> **v5.0.0** — Annotation resize-drift is actually fixed (strokes now store as fractions of card size, not absolute pixels — they stay put across a resize + save/reload, and old files self-migrate). URL cards can fetch a one-click title/thumbnail preview (the one deliberate, disclosed, opt-in-per-click exception to the offline-core promise — see [SECURITY.md](SECURITY.md)). File reference cards now show a type-specific icon (PDF/ZIP/DOC/etc.) instead of one flat folder icon for everything. See [CHANGELOG.md](CHANGELOG.md) for the full list.
+>
 > **v4.9.0** — Auto-updater downloads now show progress instead of going silent until "ready to restart." New "Zoom to Selection" command (Ctrl+K). See [CHANGELOG.md](CHANGELOG.md) for the full list, including what's deliberately carried forward to keep this release honest about scope.
 >
 > **v4.5.1** — MCP Bridge goes from "edit cards" to nearly the whole app: board management (create/switch/rename/save/delete — deletion confirm-gated, since it's the one action on this whole surface that isn't undo-reversible), undo/redo, view control, card extras (flip/duplicate/z-order), and every app setting except plugin management, all now AI-drivable through the same 30-tool MCP surface. (4.5.1 is a CI-only follow-up — same app, fixes the macOS release build.) See [CHANGELOG.md](CHANGELOG.md) for the full list.
@@ -132,7 +134,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 4.9.0.exe` and `dist/Kanvaz 4.9.0.exe`
+Output: `dist/Kanvaz Setup 5.0.0.exe` and `dist/Kanvaz 5.0.0.exe`
 
 **macOS:**
 ```bash

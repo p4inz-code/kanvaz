@@ -1,12 +1,12 @@
-# Kanvaz — Roadmap: v4.3 → v5.0 (final stretch)
+# Kanvaz — Roadmap: v4.3 → v5.3 (final stretch)
 
-*Living doc. Decided jointly (product judgement: user; technical scoping: assistant) — originally 2026-08-20, re-planned 2026-09-02 after the v4.6.x `.pur`/Map View work.*
+*Living doc. Decided jointly (product judgement: user; technical scoping: assistant) — originally 2026-08-20, re-planned 2026-09-02 after the v4.6.x `.pur`/Map View work, re-planned again 2026-09-03 after v4.9.0 shipped partially under time pressure.*
 
 ## Framing
 
-This is the last planned stretch of active feature development on Kanvaz — the user's own words: "these are the last versions of Kanvaz history." Four more releases, then development stops. This supersedes the original three-version plan below: v4.3.0–v4.6.1 already shipped (ahead of and beyond what this doc originally scoped — MCP Bridge, whole-app MCP access, and a critical `.pur` fix all landed as user-driven mid-course additions, not part of the original plan). What's actually left is scoped fresh, below, based on what users are showing real interest in: Map View and `.pur` import specifically.
+This is the last planned stretch of active feature development on Kanvaz — the user's own words: "these are the last versions of Kanvaz history." This supersedes the original three-version plan below: v4.3.0–v4.6.1 already shipped (ahead of and beyond what this doc originally scoped — MCP Bridge, whole-app MCP access, and a critical `.pur` fix all landed as user-driven mid-course additions, not part of the original plan). What's actually left is scoped as **four feature releases (v5.0.0–v5.2.0, plus v4.9.0's own remaining items folded into v5.2.0) and a fifth, final polish/future-proofing pass (v5.3.0)** — the user's own framing for how this stretch ends.
 
-Standing constraint carried through all of it: **100% offline core, no accounts, no telemetry.** Any network-touching feature must be a separate opt-in plugin, off by default, disclosed plainly — never baked into core, never silent.
+Standing constraint carried through all of it: **100% offline core, no accounts, no telemetry.** Any network-touching feature must be either a separate opt-in plugin (off by default) or, as of v5.0.0, an individually-disclosed opt-in-per-click exception in core (see SECURITY.md) — never automatic, never silent, never baked in as a background behavior.
 
 ---
 
@@ -57,28 +57,61 @@ Full detail in `CHANGELOG.md` and `docs/HANDOFF.md`'s "Where things stand techni
 
 ## v4.9.0 — Closing the Drawer
 
-**Shipped, partially — same time constraint as v4.8.0 above.** Only "Auto-update download progress" and "zoom to selection" (pulled out of the Utility ideas line below) actually landed. Everything else here is genuinely still open, not done — the "Closing the Drawer" goal below has NOT been met yet. Whatever version actually finishes this list should keep this same title/goal rather than inventing a new one.
+**Shipped, partially — under real time pressure.** Only "Auto-update download progress" and "zoom to selection" (pulled out of the Utility ideas line below) landed in the numbered v4.9.0 release. The annotation-drift fix and the rest of this list are now folded into v5.0.0/v5.2.0 below rather than kept as a permanently-open v4.9.0 — see those sections for current status.
 
-**Goal:** every remaining real annoyance and open thread gets swept up here, so v5.0.0 starts from a genuinely clean slate.
+- ~~Annotation resize-drift fix~~ — **done, v5.0.0.**
+- **Utility ideas** (from user's own "ease user pain" ask): recently-used tags for one-click re-add, remembered last-used size per card type, snapping/alignment guides between cards. → v5.2.0.
+- **Old backlog, revisited**: color-card multi-swatch/palette mode, note markdown preview. → v5.2.0. (URL card completeness became the URL preview feature — done, v5.0.0.)
+- **`[data-theme="light"]` CSS cleanup** → v5.2.0.
+- **Plugin authoring docs + scaffold template** → v5.2.0.
 
-- **Annotation resize-drift fix** — flagged since 4.6.0 as "known, not fixed": stroke coordinates don't rescale when a card is resized, so annotations drift after save/reload on any card that was ever resized. Make the actual decision (normalize to 0..1, or a save-format migration) and implement it — no more deferring.
-- **Utility ideas** (from user's own "ease user pain" ask): recently-used tags for one-click re-add, remembered last-used size per card type, snapping/alignment guides between cards, "zoom to selection."
-- **Old backlog, revisited** (deprioritized in favor of Map View/`.pur`, not abandoned): URL card completeness check, color-card multi-swatch/palette mode, note markdown preview.
-- **`[data-theme="light"]` CSS cleanup** — hardcoded selectors → luminance-derived, so third-party light themes stop silently inheriting dark-tuned edge cases.
-- **Plugin authoring docs + scaffold template** — the plugin system and MCP Bridge both work today, but there's no "how to build a Kanvaz plugin" guide or starting template; anyone extending Kanvaz has to reverse-engineer it from `official-plugins/`.
-- **Auto-update download progress** — the update flow now asks before downloading (v4.6.0), but gives no feedback during the download itself beyond silence until "ready to restart."
+---
+
+## v5.0.0 — Annotation drift fix, URL/File card previews
+
+**Shipped.** See `CHANGELOG.md` for full detail.
+
+- **Annotation resize-drift fix** — strokes now store as 0–1 fractions of card size instead of absolute pixels; old saves self-migrate on load.
+- **URL card: "Fetch preview" button** — one-click title/thumbnail fetch, the one disclosed opt-in-per-click exception to the offline-core promise (see SECURITY.md).
+- **File card: type-specific icon** — extension-derived label (PDF/ZIP/DOC/etc.) instead of one flat folder icon.
+
+**Done bar met:** `validate.js` clean. Manual Electron-GUI smoke test of both new preview features and the annotation-resize path still needed (this sandbox cannot run the app — see v5.3.0's smoke-test item, which covers this release too).
+
+---
+
+## v5.1.0 — Template gallery
+
+**Goal:** the free-template-gallery idea, finally scoped and shipped (raised mid-session, referencing [storyflow.so/templates/filmmaking](https://storyflow.so/templates/filmmaking) as a reference point) — an acquisition/onboarding hook: pre-built starter boards a new user can drop straight into an empty board, free.
+
+- **Shape decision:** an in-app "Start from Template" option next to "New Board," not a separate website/landing page — reuses the same bundled-catalog pattern Browse Official Plugins already established, so it's the smaller, faster, more maintainable option and stays consistent with the rest of the app's UX.
+- A handful of bundled `.kanvaz` starter files (by use case — filmmaking, game art, mood board, to start) shipped alongside the app, not fetched from a remote catalog — keeps this feature 100% offline, no network exception needed for it at all.
+- Template picker UI: a simple grid/list dialog off the "New Board" button, each entry with a name + short description.
+
+**Done bar:** at least 3 real starter templates, each opens cleanly as a real board. `validate.js` clean.
+
+---
+
+## v5.2.0 — Remaining backlog sweep
+
+**Goal:** every item still open from v4.9.0's original list gets a real pass, closing that list out for good.
+
+- Recently-used tags, remembered card size per type, snapping/alignment guides
+- Color-card multi-swatch/palette mode, note markdown preview
+- `[data-theme="light"]` CSS cleanup — hardcoded selectors → luminance-derived
+- Plugin authoring docs + scaffold template
+- Bulk-tag-per-card undo batching (Map View multi-select still pushes one undo entry per card instead of one per batch — flagged since v4.7.0)
 
 **Done bar:** every item above either ships or gets an explicit, reasoned "not doing this, here's why" in `CHANGELOG.md` — nothing just quietly disappears. `validate.js` clean.
 
 ---
 
-## v5.0.0 — Finish Line
+## v5.3.0 — Polish & future-proof (Finish Line)
 
-**Goal:** nothing new starts here. Verify, polish, document, stop.
+**Goal:** nothing new starts here. Verify, polish, document, stop — the fifth and final release of this stretch.
 
-- One more full-stack audit pass — same standing methodology as `docs/AUDIT_METHODOLOGY.md`, across the full v4.7–v4.9 diff.
+- One more full-stack audit pass — same standing methodology as `docs/AUDIT_METHODOLOGY.md`, across the full v4.7–v5.2 diff.
 - Confirm the two deferred `canvas.js` findings from the 4.2.1 audit are actually resolved — the additive-zoom-step one is very likely already fixed as a side effect of 4.6.0's multiplicative zoom rewrite; verify rather than assume, and check the viewport-clamp-at-extreme-pan one separately since nothing since has touched that path.
-- Real manual Electron-GUI smoke test of everything shipped across v4.7.0–v4.9.0 as a whole, not just per-release (this sandbox cannot run the app at all — confirmed by direct test — so this has never actually been done end-to-end for any of this arc).
+- Real manual Electron-GUI smoke test of everything shipped across v4.7.0–v5.2.0 as a whole, not just per-release (this sandbox cannot run the app at all — confirmed by direct test — so this has never actually been done end-to-end for any of this arc).
 - Final version bump, final CHANGELOG "state of the app" entry.
 - Zero "defer to later" language left anywhere in the docs.
 
