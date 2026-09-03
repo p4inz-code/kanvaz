@@ -772,6 +772,45 @@ function registerIPC() {
     }
   });
 
+  /* ── IPC: Dropped-folder expansion (4.8.0) ──
+     e.dataTransfer.files gives the renderer a File object for whatever
+     was dropped, folder included — but a folder's "File" is just an
+     opaque zero-byte entry, not its contents. The renderer has no
+     filesystem access at all (contextIsolation:true, no nodeIntegration
+     — see this file's own header), so resolving "is this a folder, and
+     if so what's in it" has to happen here. Same media extensions
+     media.js's own IMAGE_EXTS/GIF_EXTS/VIDEO_EXTS/AUDIO_EXTS accept —
+     duplicated rather than required cross-module since media.js is a
+     classic-script renderer file, not something this main-process
+     module can require(). Non-recursive on purpose: "a folder of loose
+     images," not an arbitrary directory tree walk. */
+  var DROP_MEDIA_EXTS = ['jpg', 'jpeg', 'png', 'bmp', 'webp', 'gif', 'mp4', 'webm', 'mov', 'mkv', 'avi', 'mp3', 'wav', 'ogg', 'm4a'];
+
+  ipcMain.handle('resolve-dropped-paths', function(event, paths) {
+    var out = [];
+    for (var i = 0; i < paths.length; i++) {
+      var p = paths[i];
+      try {
+        var stat = fs.statSync(p);
+        if (stat.isDirectory()) {
+          var entries = fs.readdirSync(p);
+          for (var j = 0; j < entries.length; j++) {
+            var full = path.join(p, entries[j]);
+            try {
+              if (fs.statSync(full).isFile()) {
+                var ext = entries[j].split('.').pop().toLowerCase();
+                if (DROP_MEDIA_EXTS.indexOf(ext) !== -1) out.push(full);
+              }
+            } catch (e) { /* unreadable entry inside the folder — skip it, don't fail the whole drop */ }
+          }
+        } else if (stat.isFile()) {
+          out.push(p);
+        }
+      } catch (e) { /* path vanished or is unreadable — skip it, don't fail the whole drop */ }
+    }
+    return out;
+  });
+
   /* ── IPC: Settings ── */
 
   ipcMain.handle('settings-read', function() {

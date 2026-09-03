@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
 
   /* Shell */
   openExternal:    function(url) { ipcRenderer.send('shell-open-external', url); },
+  resolveDroppedPaths: function(paths) { return ipcRenderer.invoke('resolve-dropped-paths', paths); },
   openPath:        function(p) { return ipcRenderer.invoke('shell-open-path', p); },
 
   /* PureRef import */

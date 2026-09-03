@@ -16,7 +16,7 @@
 
 **Reference Operating System**
 
-> **v4.7.0** — Organize & Connect: Board View gains card renaming (double-click or right-click), Map View gains search/filter, multi-select with bulk tag/delete, and node color-coding by tag or type. Tag chips and video/audio playback controls now resize smoothly and proportionally with the card instead of staying flat-sized or popping in/out at fixed breakpoints. The dot-grid background no longer fades to nothing at maximum zoom-out. See [CHANGELOG.md](CHANGELOG.md) for the full list.
+> **v4.8.0** — `.pur` importer now also detects WebP images (via its RIFF chunk-size header field, not just a signature scan — verified against a fake non-WebP RIFF file too, so a WAV isn't mistaken for one). Dropping a folder of loose images/video/audio onto the canvas now auto-arranges everything inside it on a grid, the same fast workflow `.pur` import's own fallback already has, for people without PureRef. See [CHANGELOG.md](CHANGELOG.md) for the full list, including what's deliberately deferred to the next release.
 >
 > **v4.5.1** — MCP Bridge goes from "edit cards" to nearly the whole app: board management (create/switch/rename/save/delete — deletion confirm-gated, since it's the one action on this whole surface that isn't undo-reversible), undo/redo, view control, card extras (flip/duplicate/z-order), and every app setting except plugin management, all now AI-drivable through the same 30-tool MCP surface. (4.5.1 is a CI-only follow-up — same app, fixes the macOS release build.) See [CHANGELOG.md](CHANGELOG.md) for the full list.
 >
@@ -132,7 +132,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 4.7.0.exe` and `dist/Kanvaz 4.7.0.exe`
+Output: `dist/Kanvaz Setup 4.8.0.exe` and `dist/Kanvaz 4.8.0.exe`
 
 **macOS:**
 ```bash

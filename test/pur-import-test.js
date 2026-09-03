@@ -191,6 +191,26 @@ check('found the JPEG via fallback despite no linkable item data', eResult.count
 check('fallback result carries the right MIME type', eResult.count === 1 && /^data:image\/jpeg;base64,/.test(eResult.images[0].dataUrl));
 check('fallback places the image at a grid origin, not undefined/NaN', eResult.count === 1 && eResult.images[0].x === 0 && eResult.images[0].y === 0);
 
+/* ── Test F: WebP detection (4.8.0) — real RIFF/WEBP container, and the
+   RIFF-but-not-WEBP rejection path ── */
+console.log('\nTest F — WebP detection via RIFF chunk size (4.8.0)');
+var webpPayload = Buffer.alloc(2048, 0x02);
+var webpDataSize = 4 + webpPayload.length; /* "WEBP" + payload, per the RIFF spec */
+var webpSizeField = Buffer.alloc(4);
+webpSizeField.writeUInt32LE(webpDataSize, 0);
+var syntheticWebp = Buffer.concat([Buffer.from('RIFF', 'ascii'), webpSizeField, Buffer.from('WEBP', 'ascii'), webpPayload]);
+var webpBuf = Buffer.concat([Buffer.alloc(HEADER_SIZE), syntheticWebp]);
+var fResult = purImport.parsePurFile(webpBuf);
+check('found the WebP via fallback', fResult.count === 1);
+check('fallback result carries image/webp MIME', fResult.count === 1 && /^data:image\/webp;base64,/.test(fResult.images[0].dataUrl));
+
+/* A RIFF file that ISN'T WebP (e.g. a WAV) must not be mistaken for one —
+   findEnd's fourCC check should reject it, not misread garbage as a size. */
+var fakeWav = Buffer.concat([Buffer.from('RIFF', 'ascii'), Buffer.from([0x24, 0x08, 0x00, 0x00]), Buffer.from('WAVE', 'ascii'), Buffer.alloc(512, 0x03)]);
+var wavBuf = Buffer.concat([Buffer.alloc(HEADER_SIZE), fakeWav]);
+var wavResult = purImport.parsePurFile(wavBuf);
+check('a non-WebP RIFF file (WAV) is correctly NOT extracted as an image', wavResult.count === 0);
+
 console.log('\nTest D — real worker_thread round trip (not just the in-process function)');
 runInWorker(buildSyntheticPur(5)).then(function(workerResult) {
   check('worker returns ok:true for a valid buffer', workerResult.ok === true);

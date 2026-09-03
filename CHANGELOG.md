@@ -2,6 +2,17 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [4.8.0] — `.pur`: broader formats, plus a folder-drop shortcut
+
+The first slice of the planned ".pur: Full Round-Trip" release — scoped down deliberately this pass (see "Not included" below) rather than rush the riskier pieces after v4.6.1's lesson that `.pur` format assumptions need real verification, not just confidence.
+
+### Added
+- **WebP detection in `.pur` import.** Extracted via WebP's own RIFF chunk-size header field — no scanning ambiguity, same reliable approach BMP already used. "RIFF" alone is too generic a signature (WAV/AVI share it), so the WEBP fourCC is explicitly verified before accepting a match; a non-WebP RIFF file is correctly rejected rather than misread as one (regression-tested with a synthetic fake-WAV case).
+- **Folder-drop auto-arrange.** Dropping a folder of loose images/video/audio onto the canvas now expands it (non-recursive — a folder's own direct contents, not a full directory tree) and grid-arranges everything inside, the same fast "dump it in" workflow `.pur` import's own grid fallback (v4.6.1) already gives PureRef users, now available to everyone else too. The renderer has no filesystem access of its own (`contextIsolation`, no `nodeIntegration`), so a new main-process-only IPC handler resolves what a dropped folder actually contains.
+
+### Not included this release, deliberately
+`.pur` export and deeper import fidelity (groups, rotation, exact scale, z-order) are real, larger pieces of work that deserve actual verification against real PureRef files before shipping — exactly the lesson v4.6.1 already paid for once. Rather than rush them to hit a version-count target, they're carried forward to the next `.pur`-focused release instead of shipped half-checked. TIFF detection is also deferred: unlike every format detected so far, TIFF has no simple fixed-offset length field or reliable trailer — determining a TIFF image's true size means actually parsing its IFD (tag directory) structure, meaningfully more work to get right than the box this release scoped.
+
 ## [4.7.0] — Organize & Connect
 
 First release of the new post-v4.6.1 arc: users are showing real interest in Map View and `.pur` import specifically, so those get continued dedicated investment instead of the old, now-superseded v5.0.0 backlog (see `docs/ROADMAP.md`). This release covers everything about seeing and managing a growing board.

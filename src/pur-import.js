@@ -56,6 +56,25 @@ var IMAGE_FORMATS = [
       var end = headIdx + size;
       return (size > 0 && end <= buf.length) ? end : -1;
     }
+  },
+  {
+    /* WebP (4.8.0) — a RIFF container: "RIFF" + 4-byte LE chunk size +
+       "WEBP" fourCC. "RIFF" alone is too generic to use as the head
+       signature (WAV/AVI/others share it) — findEnd verifies the WEBP
+       fourCC explicitly and returns -1 (not a match) if it's some other
+       RIFF-based format, same "no match here, stop scanning for more
+       images" fallback every other format's findEnd already has for an
+       unparseable case. Like BMP, the exact size is read straight out
+       of the header — no trailer-scanning ambiguity. */
+    mime: 'image/webp',
+    head: Buffer.from('RIFF', 'ascii'),
+    findEnd: function(buf, headIdx) {
+      if (headIdx + 12 > buf.length) return -1;
+      if (buf.toString('ascii', headIdx + 8, headIdx + 12) !== 'WEBP') return -1;
+      var size = buf.readUInt32LE(headIdx + 4);
+      var end = headIdx + 8 + size;
+      return (size > 0 && end <= buf.length) ? end : -1;
+    }
   }
 ];
 

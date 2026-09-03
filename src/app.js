@@ -228,6 +228,44 @@ var KanvazApp = (function() {
       }
     }
 
+    /* Folder-drop auto-arrange (4.8.0) — a dropped folder arrives here
+       as one opaque, unreadable "File" (the renderer has no filesystem
+       access at all to look inside it itself); resolve-dropped-paths
+       expands any folder into the loose image/video/audio files
+       directly inside it (non-recursive) and passes plain files
+       straight through unchanged. Same grid-arrange behavior below
+       either way — this only changes what's IN the files array before
+       that runs, giving the "dump a folder of images" workflow the
+       same fast one-step result as an actual .pur import's own grid
+       fallback (v4.6.1), without needing PureRef at all. */
+    var pathsToResolve = [];
+    for (var pi = 0; pi < files.length; pi++) {
+      if (files[pi].path) pathsToResolve.push(files[pi].path);
+    }
+    if (typeof KanvazBridge !== 'undefined' && KanvazBridge.resolveDroppedPaths && pathsToResolve.length) {
+      KanvazBridge.resolveDroppedPaths(pathsToResolve).then(function(resolvedPaths) {
+        if (!resolvedPaths.length) {
+          KanvazUI.toast('No supported image/video/audio files found in the dropped item(s)', 'error');
+          return;
+        }
+        var resolvedFiles = [];
+        for (var ri = 0; ri < resolvedPaths.length; ri++) {
+          var rp = resolvedPaths[ri];
+          var sep = Math.max(rp.lastIndexOf('/'), rp.lastIndexOf('\\'));
+          resolvedFiles.push({ path: rp, name: sep === -1 ? rp : rp.slice(sep + 1) });
+        }
+        placeDroppedFiles(resolvedFiles, worldPos);
+      }).catch(function(e) {
+        console.warn('[Kanvaz] resolveDroppedPaths IPC failed, falling back to the raw drop:', e);
+        placeDroppedFiles(files, worldPos);
+      });
+      return;
+    }
+
+    placeDroppedFiles(files, worldPos);
+  }
+
+  function placeDroppedFiles(files, worldPos) {
     /* Grid-arrange the drop instead of a small diagonal cascade — a
        24px-per-file offset barely separates cards that are ~200-300px,
        so any real batch drop (10-20 files) visually stacked on top of
