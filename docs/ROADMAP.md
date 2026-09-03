@@ -41,6 +41,8 @@ Full detail in `CHANGELOG.md` and `docs/HANDOFF.md`'s "Where things stand techni
 
 ## v4.8.0 — `.pur`: Full Round-Trip
 
+**Shipped, partially — scoped down under real time pressure (3 releases requested in one sitting).** Only "Broader format detection" (WebP) and "Folder-drop auto-arrange" actually landed in v4.8.0. Export, better fidelity, TIFF, and z-order preservation are all still open — carried forward to a genuinely dedicated future `.pur` pass rather than rushed, per `CHANGELOG.md`'s 4.8.0 entry. Original goal below, unchanged, since it's still the right goal — just not what v4.8.0 itself delivered.
+
 **Goal:** a dedicated release for the killer feature, not a few bullet points buried in a mixed release. `.pur` import already works against real files (v4.6.1) — this is about making the whole PureRef relationship excellent, not just functional.
 
 - **Export back to `.pur`** — true round-trip compatibility with PureRef, not import-only.
@@ -54,6 +56,8 @@ Full detail in `CHANGELOG.md` and `docs/HANDOFF.md`'s "Where things stand techni
 ---
 
 ## v4.9.0 — Closing the Drawer
+
+**Shipped, partially — same time constraint as v4.8.0 above.** Only "Auto-update download progress" and "zoom to selection" (pulled out of the Utility ideas line below) actually landed. Everything else here is genuinely still open, not done — the "Closing the Drawer" goal below has NOT been met yet. Whatever version actually finishes this list should keep this same title/goal rather than inventing a new one.
 
 **Goal:** every remaining real annoyance and open thread gets swept up here, so v5.0.0 starts from a genuinely clean slate.
 

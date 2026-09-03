@@ -186,6 +186,15 @@ var KanvazCommands = (function() {
       label: 'Zoom to Fit', shortcut: 'F',
       run: function() { if (typeof KanvazCanvas !== 'undefined') KanvazCanvas.zoomFit(); }
     });
+    /* No dedicated key binding (4.9.0) — 'F'/'Shift+F' already both
+       resolve to Zoom to Fit above (a keydown handler matching e.key
+       against both cases), and every other easy modifier combo is
+       already claimed elsewhere. Command Palette + context menu (see
+       app.js) are enough surface for something used this occasionally. */
+    registerCommand('core.zoomToSelection', {
+      label: 'Zoom to Selection',
+      run: function() { if (typeof KanvazCanvas !== 'undefined') KanvazCanvas.zoomToSelection(); }
+    });
     registerCommand('core.toggleMapView', {
       label: 'Toggle Map View', shortcut: 'M',
       run: function() { if (typeof KanvazMapView !== 'undefined') KanvazMapView.toggle(); }

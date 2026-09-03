@@ -1412,6 +1412,17 @@ function wireAutoUpdaterEvents() {
     }
   });
 
+  /* Progress feedback during the download itself (4.9.0) — the flow
+     used to go straight from "found" to silence until "ready to
+     restart," with no indication anything was actually happening in
+     between. electron-updater already emits this event with real
+     numbers; nothing here was ever reading it. */
+  autoUpdater.on('download-progress', function(progress) {
+    if (mainWindow) {
+      mainWindow.webContents.send('update-download-progress', { percent: progress && progress.percent });
+    }
+  });
+
   autoUpdater.on('update-downloaded', function(info) {
     if (mainWindow) {
       mainWindow.webContents.send('update-downloaded', { version: info && info.version });

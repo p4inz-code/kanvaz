@@ -2,6 +2,23 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [4.9.0] — Auto-update progress, Zoom to Selection
+
+A deliberately small, fast release under real time pressure (three releases requested in one sitting) — picked the smallest, safest, highest-confidence items from the planned v4.9.0 scope rather than rush the larger, riskier ones. See "Carried forward" below for what that means was NOT attempted this pass, and why.
+
+### Added
+- **Auto-updater download progress.** The update flow used to go straight from "found" to total silence until "ready to restart" — `autoUpdater`'s own `download-progress` event was already firing the whole time, nothing was listening to it. Now surfaces at 25% milestones via toast (not a live progress bar — `toast()` always creates a fresh element per call with no in-place-update path, and progress events fire far more often than every 25%, so a toast per event would spam the corner of the screen).
+- **"Zoom to Selection"** — new command (Ctrl+K → Zoom to Selection). Falls back to the normal fit-everything behavior when nothing is selected. No dedicated keyboard shortcut: `F`/`Shift+F` both already resolve to the existing "Zoom to Fit," and every other easy modifier combination is already claimed — Command Palette is enough surface for something used this occasionally.
+
+### Carried forward, not attempted this pass
+Given the time constraint this release shipped under, everything higher-risk or more time-consuming than the two items above was deliberately left for a dedicated future pass rather than rushed:
+- Annotation resize-drift fix (needs a real data-migration decision, not a quick patch — see the v4.6.0 entry for the original writeup of the bug)
+- Recently-used tags, remembered card size per type, snapping/alignment guides
+- URL card completeness check, color-card multi-swatch/palette mode, note markdown preview
+- `[data-theme="light"]` CSS selector cleanup
+- Plugin authoring docs + scaffold template
+- Bulk-tag-per-card undo batching (flagged as a known gap since v4.7.0)
+
 ## [4.8.0] — `.pur`: broader formats, plus a folder-drop shortcut
 
 The first slice of the planned ".pur: Full Round-Trip" release — scoped down deliberately this pass (see "Not included" below) rather than rush the riskier pieces after v4.6.1's lesson that `.pur` format assumptions need real verification, not just confidence.

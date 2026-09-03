@@ -65,6 +65,11 @@ var KanvazApp = (function() {
          "installed" anywhere. So a portable build never even gets the
          auto-download option — only the release-page link. */
       KanvazBridge.on('update-available', function(info) {
+        /* Reset so a second check-for-updates in the same session (the
+           user cancelled, or re-checked later) gets its own fresh set
+           of 25%-milestone toasts instead of the tracker still sitting
+           at wherever a previous download left off. */
+        lastProgressMilestone = -1;
         var version = info && info.version;
         var label = 'Kanvaz' + (version ? ' v' + version : '') + ' is available.';
         var releaseUrl = 'https://github.com/p4inz-code/kanvaz/releases/latest';
@@ -90,6 +95,25 @@ var KanvazApp = (function() {
             { label: 'Later', cls: '' }
           ]
         );
+      });
+
+      /* Download progress feedback (4.9.0) — the flow used to go
+         straight from "found" to silence until "ready to restart," with
+         nothing shown in between even though electron-updater was
+         already emitting real progress numbers the whole time. Toasts
+         at 25% milestones rather than a live-updating bar — toast()
+         always creates a brand-new element per call (no in-place update
+         path), and progress events fire far more often than every 25%,
+         so a toast per event would spam the corner of the screen. */
+      var lastProgressMilestone = -1;
+      KanvazBridge.on('update-download-progress', function(info) {
+        var percent = info && typeof info.percent === 'number' ? info.percent : null;
+        if (percent === null) return;
+        var milestone = Math.floor(percent / 25) * 25;
+        if (milestone > lastProgressMilestone && milestone > 0) {
+          lastProgressMilestone = milestone;
+          KanvazUI.toast('Downloading update… ' + milestone + '%');
+        }
       });
 
       KanvazBridge.on('update-downloaded', function(info) {

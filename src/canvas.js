@@ -124,9 +124,15 @@ var KanvazCanvas = (function() {
     applyTransform();
   }
 
-  function zoomFit() {
+  /* onlyIds (4.9.0, optional) — restrict the fitted bounding box to just
+     these card ids instead of every card on the board. zoomToSelection()
+     below is the only caller that passes it; every existing call site
+     (keyboard shortcut, toolbar button, MCP Bridge's zoomFit tool) is
+     unaffected, since omitting it keeps the original "fit everything"
+     behavior exactly as it was. */
+  function zoomFit(onlyIds) {
     var cards = (typeof KanvazCards !== 'undefined') ? KanvazCards.getAll() : {};
-    var ids = Object.keys(cards);
+    var ids = onlyIds && onlyIds.length ? onlyIds : Object.keys(cards);
 
     if (!ids.length) {
       tx = 0; ty = 0; scale = 1.0;
@@ -156,6 +162,15 @@ var KanvazCanvas = (function() {
     ty = (vh / 2) - (minY + worldH / 2 - pad) * scale;
 
     applyTransform();
+  }
+
+  /* Zoom to selection (4.9.0) — falls back to the normal fit-everything
+     behavior when nothing is selected, rather than a no-op or an error,
+     since "zoom to selection with nothing selected" has an obvious
+     reasonable meaning (there's nothing selection-specific to zoom to). */
+  function zoomToSelection() {
+    var ids = (typeof KanvazCards !== 'undefined' && KanvazCards.getSelectedIds) ? KanvazCards.getSelectedIds() : [];
+    zoomFit(ids);
   }
 
   function panBy(dx, dy) {
@@ -507,6 +522,7 @@ var KanvazCanvas = (function() {
     zoomOut:        zoomOut,
     zoomReset:      zoomReset,
     zoomFit:        zoomFit,
+    zoomToSelection: zoomToSelection,
     panBy:          panBy,
     panTo:          panTo,
     setViewport:    setViewport,
