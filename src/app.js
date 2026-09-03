@@ -693,6 +693,10 @@ var KanvazApp = (function() {
       }
 
       items.push({
+          label: 'Rename',
+          action: function() { KanvazCards.startRenameCard(card.id); }
+        },
+        {
           label: 'Connections',
           shortcut: 'C',
           action: function() {

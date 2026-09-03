@@ -2,6 +2,24 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [4.7.0] — Organize & Connect
+
+First release of the new post-v4.6.1 arc: users are showing real interest in Map View and `.pur` import specifically, so those get continued dedicated investment instead of the old, now-superseded v5.0.0 backlog (see `docs/ROADMAP.md`). This release covers everything about seeing and managing a growing board.
+
+### Added
+- **Board View: card renaming.** There was previously no rename UI anywhere in Board View — only Map View (since 4.6.0). Double-click a card's name in its card-bar, or right-click → Rename. Goes through the same `updateCardData()` path everything else uses, so undo/dirty-flag/MCP Bridge all stay in sync. Shares its "what does the name label actually show" logic (note-content preview vs. plain name) with the card-bar's normal render, via one extracted helper, so the two can't quietly drift apart.
+- **Map View: search/filter.** Ctrl+F or `/` opens a search bar (matching Board View's own — same name/type/tag substring matching), dimming non-matching nodes. Fixed a real routing bug in the process: pressing Ctrl+F while Map View was open used to silently open Board View's search overlay instead, which sits behind Map View's fullscreen container — invisible and useless until Map View was closed.
+- **Map View: multi-select + bulk actions.** Shift+click a node to toggle it into a multi-selection; Shift+drag on empty space to marquee-select. Dragging any node that's part of an active selection moves the whole group together. A floating bar appears with Tag / Delete / Clear actions for everything selected. Bulk delete goes through one `deleteMultiple()` call (a single undo step for the whole batch, not one per card) — bulk tag currently pushes one undo step per card, a known minor gap (still fully undoable, just needs more than one Ctrl+Z for a large batch).
+- **Map View: color-code nodes by tag or type.** A thin accent stripe on each node — by the card's first tag if it has one (a deterministic hash so the same tag always gets the same color), otherwise by card type. Implemented as a separate child element rather than the node's own border-color, so it never fights with hover/selection/multi-select, all three of which already claim that.
+
+### Fixed
+- **Tag chips ignored card size entirely.** Flat `9px` in `main.css`, unlike the video/audio scrub-time label right next to them (already using a container-query-relative `clamp()`). Now scales proportionally with the card instead of staying frozen — cramped-and-tiny on a huge card, unreadable on a small one.
+- **Video/audio controls popped in and out of existence instead of resizing smoothly.** The scrub-time label and mute button used a hard `display:none` at fixed card-width breakpoints (140px/200px) — `display` can't be animated, so they'd simply vanish or appear mid-drag with no transition. Switched to `max-width`/`opacity`/`margin` collapsing, which — unlike `display` — actually animates, so crossing those same breakpoints now shrinks the controls away instead of snapping.
+- **The dot-grid background faded to fully invisible right at maximum zoom-out**, in both Board View and Map View — exactly the moment a spatial reference matters most on a large board. The fade curve was written to reach zero exactly at `ZOOM_MIN`; retargeted to a floor below the reachable zoom range instead, so the grid stays faintly visible everywhere the user can actually zoom to. The separate density-based fade (screen-space line spacing, unrelated to this) still handles the original "lines merge into a wash" problem on its own.
+
+### Known, deliberately not fixed this pass
+- Bulk-tagging via Map View's multi-select pushes one undo-history entry per card instead of one for the whole batch (unlike bulk-delete, which already batches correctly). Still fully reversible, just not in a single Ctrl+Z for a large selection.
+
 ## [4.6.1] — `.pur` importer: fixed for real files, not just test fixtures
 
 v4.6.0's `.pur` fix solved the hang, but every test up to that point ran

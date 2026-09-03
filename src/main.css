@@ -478,6 +478,16 @@ html, body {
   box-shadow: 0 4px 18px var(--color-shadow) !important;
 }
 
+/* Multi-select (4.7.0) — outline instead of border-color/box-shadow so
+   this never fights with :hover's !important rules above, or with the
+   single-select border/glow selectNode() sets inline; a node can be
+   both the "primary" single-selection AND part of a multi-selection
+   at once, and both indicators should be visible together. */
+.map-node-multiselected {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
 .map-port {
   transition: background 0.14s ease, transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
 }
@@ -779,7 +789,13 @@ html, body {
   align-items: center;
   gap: 3px;
   padding: 1px 6px;
-  font-size: 9px;
+  /* Audit fix (4.7.0): this was a flat 9px, completely unresponsive to
+     card size — cramped and hard to read on a large card, unlike the
+     video/audio scrub-time label right next to it (below), which
+     already scales with the card's own width via a container-query
+     unit. Same treatment here: 9px at a typical card width, scaling
+     gently up or down at the extremes rather than staying frozen. */
+  font-size: clamp(8px, 2.2cqw, 13px);
   font-family: var(--font-ui);
   color: var(--color-accent);
   background: var(--color-accent-bg);
@@ -857,6 +873,20 @@ html, body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Rename input (4.7.0) — same sizing/font as the label it replaces so
+   swapping between them doesn't visibly jump the card-bar layout. */
+.card-bar .card-filename-input {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-text);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-accent);
+  border-radius: 3px;
+  padding: 0 3px;
+  flex: 1;
+  min-width: 0;
 }
 
 .card-bar .card-badge {
@@ -1603,16 +1633,49 @@ html, body {
   font-size: clamp(10px, 3.5cqw, 16px);
   color: var(--color-text-3);
   white-space: nowrap;
+  /* Audit fix (4.7.0): this collapsing used to be a plain `display:none`
+     flip at the container-query breakpoints below — display can't be
+     transitioned, so the control just popped in/out of existence mid-
+     resize instead of shrinking away. max-width+opacity+margin ARE all
+     animatable, so crossing the same breakpoints now animates smoothly
+     instead of snapping. overflow:hidden keeps the (now zero-width)
+     time text from spilling out while it's collapsed. */
+  overflow: hidden;
+  max-width: 60px;
+  opacity: 1;
+  transition: max-width 0.15s ease, opacity 0.15s ease, margin-left 0.15s ease;
 }
 
-/* Hide time + mute on very small cards to prevent overflow */
+.media-mute-btn {
+  /* min-width (set above, per card type) beats max-width when they
+     conflict — both need to collapse to 0 together below, or min-width
+     would win and the button would refuse to actually shrink. Needs an
+     explicit numeric max-width here too (not the default `none`), since
+     a transition can't interpolate from a non-length value. */
+  max-width: 40px;
+  transition: max-width 0.15s ease, min-width 0.15s ease, opacity 0.15s ease, margin-left 0.15s ease;
+  overflow: hidden;
+}
+
+/* Collapse time + mute on very small cards to prevent overflow — same
+   visual result as the old display:none, but animated (see above). */
 @container card (max-width: 140px) {
-  .scrub-time { display: none; }
-  .media-mute-btn { display: none; }
+  .scrub-time, .media-mute-btn {
+    max-width: 0;
+    min-width: 0;
+    opacity: 0;
+    margin-left: 0;
+    pointer-events: none;
+  }
 }
 
 @container card (max-width: 200px) {
-  .scrub-time { display: none; }
+  .scrub-time {
+    max-width: 0;
+    opacity: 0;
+    margin-left: 0;
+    pointer-events: none;
+  }
 }
 
 /* ── Context menu ── */

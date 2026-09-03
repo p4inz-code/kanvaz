@@ -79,7 +79,17 @@ var KanvazShortcuts = (function() {
 
     if (ctrl && !shift && keyLower === 'f') {
       e.preventDefault();
-      KanvazUI.showSearchBar();
+      /* Audit fix (4.7.0): this used to fire unconditionally — pressing
+         Ctrl+F while Map View was open opened Board View's own search
+         overlay instead, which operates on .card elements sitting
+         behind Map View's fullscreen container, invisible and useless
+         until you closed Map View to see it. Route to whichever view
+         is actually on screen. */
+      if (typeof KanvazMapView !== 'undefined' && KanvazMapView.isActive()) {
+        KanvazMapView.showSearchBar();
+      } else {
+        KanvazUI.showSearchBar();
+      }
       return;
     }
 
@@ -113,7 +123,11 @@ var KanvazShortcuts = (function() {
     /* Quick search — / is the vim/Blender convention for instant search */
     if (e.key === '/') {
       e.preventDefault();
-      KanvazUI.showSearchBar();
+      if (typeof KanvazMapView !== 'undefined' && KanvazMapView.isActive()) {
+        KanvazMapView.showSearchBar();
+      } else {
+        KanvazUI.showSearchBar();
+      }
       return;
     }
 

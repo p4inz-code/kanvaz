@@ -38,6 +38,19 @@ var KanvazMapView = (function() {
   var dragOffsetX  = 0;
   var dragOffsetY  = 0;
 
+  /* Multi-select (4.7.0) — deliberately kept separate from selectedNode
+     above rather than folded into it: selectedNode drives connection
+     highlighting, Properties/Inspector open, and single-drag, none of
+     which have an obvious "which one" answer for a multi-selection.
+     Additive layer instead of a rewrite of the existing single-select
+     path, so nothing already working risks regressing. */
+  var multiSelected  = {};   /* refId -> true */
+  var marqueeEl      = null;
+  var marqueeStartX  = 0;
+  var marqueeStartY  = 0;
+  var groupDragStart = null; /* {x, y} world coords at drag start, for multi-node drag */
+  var groupDragOrigins = null; /* refId -> {x, y} mapPosition at drag start */
+
   /* Wire-drag state (connecting) */
   var wireFrom     = null;   /* ref ID we're dragging a wire from */
   var wirePreview  = null;   /* live SVG path element */
@@ -60,6 +73,29 @@ var KanvazMapView = (function() {
   var AUTO_COLS   = 5;
   var AUTO_GAP_X  = 240;
   var AUTO_GAP_Y  = 90;
+
+  /* ── Node color-coding (4.7.0) ──
+     By tag if the card has one (deterministic hash -> hue, so the same
+     tag always gets the same color across a session without needing a
+     stored palette), else by card type from this fixed set — visual
+     grouping at a glance, the actual ask, without needing a UI toggle
+     between "by tag" and "by type" modes. */
+  var NODE_TYPE_COLORS = {
+    image: '#5FA8E0', gif: '#F0A500', video: '#FF5A5A', audio: '#4CAF82',
+    note: '#9D7FFF', text: '#9D7FFF', url: '#5FA8E0', color: '#F0A500', file: '#8F8FC2'
+  };
+
+  function hashColor(str) {
+    var hash = 0;
+    for (var i = 0; i < str.length; i++) hash = (hash * 31 + str.charCodeAt(i)) | 0;
+    var hue = Math.abs(hash) % 360;
+    return 'hsl(' + hue + ', 65%, 60%)';
+  }
+
+  function nodeAccentColor(card) {
+    if (card.tags && card.tags.length) return hashColor(card.tags[0]);
+    return NODE_TYPE_COLORS[card.type] || 'var(--color-border-2)';
+  }
 
   /* ── Type colors ──
      Polish fix: kept in sync with inspector.js's TYPE_COLORS, which has
@@ -335,6 +371,26 @@ var KanvazMapView = (function() {
 
       var nodeEl = e.target.closest('.map-node');
 
+      /* Shift+drag on empty area — marquee select, instead of pan.
+         Shift+click on a node — toggle it in the multi-selection,
+         instead of the normal single-select. Plain click/drag keeps
+         its existing meaning either way (pan on empty area, single-
+         select+drag on a node) so nothing already working changes
+         unless Shift is actually held. */
+      if (e.button === 0 && e.shiftKey) {
+        e.preventDefault();
+        if (nodeEl) {
+          var toggleId = nodeEl.dataset.refId;
+          if (multiSelected[toggleId]) delete multiSelected[toggleId];
+          else multiSelected[toggleId] = true;
+          applyMultiSelectStyles();
+          updateBulkActionBar();
+        } else {
+          startMarquee(e);
+        }
+        return;
+      }
+
       /* Pan — middle-click or left-click empty area */
       if (e.button === 1 || (e.button === 0 && !nodeEl)) {
         e.preventDefault();
@@ -346,6 +402,7 @@ var KanvazMapView = (function() {
         panOriginY = ty;
         container.style.cursor = 'grabbing';
         selectNode(null);
+        clearMultiSelect();
         cancelWire();
         return;
       }
@@ -363,7 +420,25 @@ var KanvazMapView = (function() {
         selectNode(refId);
         cancelPreview();
 
-        /* Start drag */
+        /* Start drag — if this node is part of an active multi-
+           selection, drag the whole group together instead of just
+           this one node. */
+        var cardsNow = KanvazCards.getAll();
+        if (multiSelected[refId]) {
+          var rect0 = container.getBoundingClientRect();
+          groupDragStart = {
+            x: (e.clientX - rect0.left - tx) / scale,
+            y: (e.clientY - rect0.top  - ty) / scale
+          };
+          groupDragOrigins = {};
+          for (var gid in multiSelected) {
+            var gcard = cardsNow[gid];
+            if (gcard && gcard.mapPosition) groupDragOrigins[gid] = { x: gcard.mapPosition.x, y: gcard.mapPosition.y };
+          }
+        } else {
+          clearMultiSelect();
+        }
+
         dragNode = refId;
         var nRect = nodeEl.getBoundingClientRect();
         dragOffsetX = (e.clientX - nRect.left) / scale;
@@ -384,11 +459,41 @@ var KanvazMapView = (function() {
         return;
       }
 
+      if (marqueeEl) {
+        updateMarquee(e);
+        return;
+      }
+
       if (dragNode) {
         var rect = container.getBoundingClientRect();
+        var cards = KanvazCards.getAll();
+
+        /* Group drag — move every multi-selected node by the same
+           world-space delta the primary dragged node has moved. */
+        if (groupDragStart && groupDragOrigins) {
+          var curX = (e.clientX - rect.left - tx) / scale;
+          var curY = (e.clientY - rect.top  - ty) / scale;
+          var dx = curX - groupDragStart.x;
+          var dy = curY - groupDragStart.y;
+          for (var gid in groupDragOrigins) {
+            var gcard = cards[gid];
+            if (!gcard) continue;
+            var origin = groupDragOrigins[gid];
+            if (!gcard.mapPosition) gcard.mapPosition = { x: 0, y: 0 };
+            gcard.mapPosition.x = Math.round(origin.x + dx);
+            gcard.mapPosition.y = Math.round(origin.y + dy);
+            var gel = document.querySelector('.map-node[data-ref-id="' + gid + '"]');
+            if (gel) {
+              gel.style.left = gcard.mapPosition.x + 'px';
+              gel.style.top  = gcard.mapPosition.y + 'px';
+            }
+          }
+          renderLines();
+          return;
+        }
+
         var wx = (e.clientX - rect.left - tx) / scale - dragOffsetX;
         var wy = (e.clientY - rect.top  - ty) / scale - dragOffsetY;
-        var cards = KanvazCards.getAll();
         var card  = cards[dragNode];
         if (card) {
           if (!card.mapPosition) card.mapPosition = { x: 0, y: 0 };
@@ -424,10 +529,15 @@ var KanvazMapView = (function() {
         isPanning = false;
         container.style.cursor = '';
       }
+      if (marqueeEl) {
+        finishMarquee(e);
+      }
       if (dragNode) {
         KanvazApp.markDirty();
         KanvazHistory.push();
         dragNode = null;
+        groupDragStart = null;
+        groupDragOrigins = null;
         container.style.cursor = '';
       }
     });
@@ -558,8 +668,14 @@ var KanvazMapView = (function() {
     var baseSpacing = 24;
     var spacing = baseSpacing * scale;
 
+    /* Audit fix (4.7.0) — same fix as canvas.js's drawGrid(): fading to
+       exactly 0 AT ZOOM_MIN meant the grid vanished completely right at
+       the most-zoomed-out view, exactly when a large board needs it
+       most. Fading toward a floor below ZOOM_MIN instead means alpha
+       never actually reaches 0 within the reachable zoom range. */
+    var GRID_FADE_FLOOR = ZOOM_MIN * 0.5;
     var alpha = 1.0;
-    if (scale < 0.25) alpha = (scale - ZOOM_MIN) / (0.25 - ZOOM_MIN);
+    if (scale < 0.25) alpha = (scale - GRID_FADE_FLOOR) / (0.25 - GRID_FADE_FLOOR);
     if (scale > 3.0)  alpha = 1.0 - (scale - 3.0) / (ZOOM_MAX - 3.0);
     alpha = Math.max(0, Math.min(1, alpha));
     if (alpha <= 0) return;
@@ -712,6 +828,8 @@ var KanvazMapView = (function() {
     hasRenderedOnce = false;
     cancelCameraAnim();
     cancelPreview();
+    hideSearchBar();
+    clearMultiSelect();
     if (container) container.style.display = 'none';
     var cw = document.getElementById('canvas-world');
     var cg = document.getElementById('canvas-grid');
@@ -864,6 +982,13 @@ var KanvazMapView = (function() {
       hasRenderedOnce = true;
       fitAll(cards);
     }
+
+    /* render() rebuilds every .map-node from scratch — a search filter
+       active before this call would otherwise silently reset (fresh
+       nodes have no dimming applied yet) until the user retyped. */
+    if (searchInput) applySearchFilter(searchInput.value);
+    /* Same reasoning for an active multi-selection's outline. */
+    if (Object.keys(multiSelected).length) applyMultiSelectStyles();
   }
 
   /* Fit all nodes into viewport */
@@ -919,6 +1044,21 @@ var KanvazMapView = (function() {
       'transition:border-color 0.15s, box-shadow 0.15s',
       'overflow:visible'
     ].join(';');
+
+    /* ── Color-coding accent stripe (4.7.0) ──
+       A separate absolutely-positioned child, not the node's own
+       border-color, so it never fights with hover/selection/multi-
+       select — all three of which already claim border-color/outline/
+       box-shadow. Matches the node's own left-corner radius so it
+       doesn't poke out past the rounded edge. */
+    var accent = document.createElement('div');
+    accent.className = 'map-node-accent';
+    accent.style.cssText = [
+      'position:absolute', 'left:0', 'top:0', 'bottom:0', 'width:4px',
+      'background:' + nodeAccentColor(card),
+      'border-radius:9px 0 0 9px', 'pointer-events:none'
+    ].join(';');
+    el.appendChild(accent);
 
     /* ── Input port (left edge) ── */
     var portIn = document.createElement('div');
@@ -1378,6 +1518,166 @@ var KanvazMapView = (function() {
   }
 
   /* ══════════════════════════════════════════
+     MULTI-SELECT & MARQUEE (4.7.0)
+     ══════════════════════════════════════════ */
+
+  function startMarquee(e) {
+    var rect = container.getBoundingClientRect();
+    marqueeStartX = e.clientX - rect.left;
+    marqueeStartY = e.clientY - rect.top;
+    marqueeEl = document.createElement('div');
+    marqueeEl.id = 'map-marquee';
+    marqueeEl.style.cssText = [
+      'position:absolute', 'border:1px solid var(--color-accent)',
+      'background:rgba(var(--color-accent-rgb),0.12)', 'z-index:90',
+      'pointer-events:none'
+    ].join(';');
+    marqueeEl.style.left = marqueeStartX + 'px';
+    marqueeEl.style.top  = marqueeStartY + 'px';
+    marqueeEl.style.width = '0px';
+    marqueeEl.style.height = '0px';
+    container.appendChild(marqueeEl);
+  }
+
+  function updateMarquee(e) {
+    var rect = container.getBoundingClientRect();
+    var curX = e.clientX - rect.left;
+    var curY = e.clientY - rect.top;
+    var left = Math.min(marqueeStartX, curX);
+    var top  = Math.min(marqueeStartY, curY);
+    var w = Math.abs(curX - marqueeStartX);
+    var h = Math.abs(curY - marqueeStartY);
+    marqueeEl.style.left = left + 'px';
+    marqueeEl.style.top = top + 'px';
+    marqueeEl.style.width = w + 'px';
+    marqueeEl.style.height = h + 'px';
+  }
+
+  function finishMarquee(e) {
+    var mRect = marqueeEl.getBoundingClientRect();
+    if (marqueeEl.parentNode) marqueeEl.parentNode.removeChild(marqueeEl);
+    marqueeEl = null;
+
+    /* A marquee narrower/shorter than this is almost certainly an
+       accidental Shift+click, not an intentional drag — don't wipe out
+       an existing multi-selection over a few-pixel jitter. */
+    if (mRect.width < 4 && mRect.height < 4) return;
+
+    /* Marquee only ever starts with Shift already held (see the
+       mousedown handler), so this always extends whatever's already
+       selected rather than replacing it — consistent with Shift's
+       "add to selection" meaning on a single node too. */
+    var nodes = world.querySelectorAll('.map-node');
+    for (var i = 0; i < nodes.length; i++) {
+      var nRect = nodes[i].getBoundingClientRect();
+      var intersects = !(nRect.right < mRect.left || nRect.left > mRect.right ||
+                          nRect.bottom < mRect.top || nRect.top > mRect.bottom);
+      if (intersects) multiSelected[nodes[i].dataset.refId] = true;
+    }
+    applyMultiSelectStyles();
+    updateBulkActionBar();
+  }
+
+  function applyMultiSelectStyles() {
+    var nodes = world.querySelectorAll('.map-node');
+    for (var i = 0; i < nodes.length; i++) {
+      var id = nodes[i].dataset.refId;
+      if (multiSelected[id]) {
+        nodes[i].classList.add('map-node-multiselected');
+      } else {
+        nodes[i].classList.remove('map-node-multiselected');
+      }
+    }
+  }
+
+  function clearMultiSelect() {
+    multiSelected = {};
+    applyMultiSelectStyles();
+    updateBulkActionBar();
+  }
+
+  /* ── Bulk action bar ── */
+  var bulkBar = null;
+
+  function updateBulkActionBar() {
+    var ids = Object.keys(multiSelected);
+    if (ids.length === 0) {
+      if (bulkBar && bulkBar.parentNode) bulkBar.parentNode.removeChild(bulkBar);
+      bulkBar = null;
+      return;
+    }
+
+    if (!bulkBar) {
+      bulkBar = document.createElement('div');
+      bulkBar.id = 'map-bulk-bar';
+      bulkBar.style.cssText = [
+        'position:absolute', 'bottom:20px', 'left:50%', 'transform:translateX(-50%)',
+        'display:flex', 'align-items:center', 'gap:10px', 'padding:8px 14px',
+        'background:var(--color-surface)', 'border:1px solid var(--color-border-2)',
+        'border-radius:var(--radius-lg)', 'box-shadow:0 8px 32px var(--color-shadow)',
+        'z-index:100', 'font-family:var(--font-ui)', 'font-size:12px', 'color:var(--color-text)'
+      ].join(';');
+      container.appendChild(bulkBar);
+    }
+
+    bulkBar.innerHTML = '';
+    var countEl = document.createElement('span');
+    countEl.style.cssText = 'color:var(--color-text-2);';
+    bulkBar.appendChild(countEl);
+
+    function makeBtn(label, onClick) {
+      var b = document.createElement('button');
+      b.className = 'btn';
+      b.textContent = label;
+      b.style.cssText = 'font-size:12px;padding:4px 10px;';
+      b.addEventListener('click', onClick);
+      return b;
+    }
+
+    bulkBar.appendChild(makeBtn('Tag', function() {
+      var tag = window.prompt('Add tag to ' + Object.keys(multiSelected).length + ' selected card(s):');
+      if (!tag) return;
+      tag = tag.trim();
+      if (!tag) return;
+      var allCards = KanvazCards.getAll();
+      for (var id in multiSelected) {
+        var c = allCards[id];
+        if (!c) continue;
+        var tags = (c.tags || []).slice();
+        if (tags.indexOf(tag) === -1) tags.push(tag);
+        KanvazCards.setTags(id, tags);
+      }
+      KanvazUI.toast('Tagged ' + Object.keys(multiSelected).length + ' card(s) "' + tag + '"');
+    }));
+
+    bulkBar.appendChild(makeBtn('Delete', function() {
+      var idsToDelete = Object.keys(multiSelected);
+      var n = idsToDelete.length;
+      KanvazUI.showDialog(
+        'Delete ' + n + ' card' + (n === 1 ? '' : 's') + '?',
+        'This removes ' + n + ' card' + (n === 1 ? '' : 's') + ' and any connections attached to ' + (n === 1 ? 'it' : 'them') + '. This can be undone with Ctrl+Z.',
+        [
+          { label: 'Delete', cls: 'danger', action: function() {
+            /* One history push for the whole batch, not one per card —
+               deleteMultiple() already exists for exactly this (the
+               same helper deleteSelected()'s multi-select path uses in
+               Board View), so undoing this is a single Ctrl+Z. */
+            KanvazCards.deleteMultiple(idsToDelete);
+            clearMultiSelect();
+            render();
+            KanvazUI.toast(n + ' card' + (n === 1 ? '' : 's') + ' deleted');
+          }},
+          { label: 'Cancel', cls: '' }
+        ]
+      );
+    }));
+
+    bulkBar.appendChild(makeBtn('Clear', clearMultiSelect));
+
+    countEl.textContent = ids.length + ' selected';
+  }
+
+  /* ══════════════════════════════════════════
      SELECTION
      ══════════════════════════════════════════ */
 
@@ -1679,10 +1979,105 @@ var KanvazMapView = (function() {
      KEYBOARD
      ══════════════════════════════════════════ */
 
+  /* ══════════════════════════════════════════
+     SEARCH / FILTER (4.7.0)
+     Same matching rule as Board View's own search (app.js — name/type/
+     tag substring match) so "find a card" behaves identically no matter
+     which view you're in. Dims non-matching nodes rather than hiding
+     them outright, same reasoning as Board View: hiding would also mean
+     re-deriving every connection line touching a hidden node, which
+     isn't worth the complexity for what's fundamentally a visual aid. */
+  var searchBar = null;
+  var searchInput = null;
+
+  function showSearchBar() {
+    if (searchBar) { searchInput.focus(); return; }
+
+    searchBar = document.createElement('div');
+    searchBar.id = 'map-search-bar';
+    searchBar.style.cssText = [
+      'position:absolute', 'top:16px', 'left:50%', 'transform:translateX(-50%)',
+      'width:320px', 'display:flex', 'align-items:center', 'gap:8px',
+      'padding:8px 14px', 'background:var(--color-surface)',
+      'border:1px solid var(--color-border-2)', 'border-radius:var(--radius-lg)',
+      'box-shadow:0 8px 32px var(--color-shadow)', 'z-index:100'
+    ].join(';');
+
+    var icon = document.createElement('span');
+    icon.style.cssText = 'color:var(--color-text-3);flex-shrink:0;display:flex;';
+    icon.innerHTML = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.5"/><path d="M9.5 9.5L12.5 12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+
+    searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.placeholder = 'Search by name, type, or tag…';
+    searchInput.style.cssText = [
+      'flex:1', 'background:transparent', 'border:none', 'outline:none',
+      'color:var(--color-text)', 'font-family:var(--font-ui)', 'font-size:13px'
+    ].join(';');
+
+    var closeBtn = document.createElement('span');
+    closeBtn.style.cssText = 'cursor:pointer;color:var(--color-text-3);font-size:16px;flex-shrink:0;';
+    closeBtn.textContent = '×';
+    closeBtn.addEventListener('click', hideSearchBar);
+
+    searchInput.addEventListener('input', function() { applySearchFilter(searchInput.value); });
+    searchInput.addEventListener('keydown', function(e) {
+      e.stopPropagation();
+      if (e.key === 'Escape') hideSearchBar();
+    });
+
+    searchBar.appendChild(icon);
+    searchBar.appendChild(searchInput);
+    searchBar.appendChild(closeBtn);
+    if (container) container.appendChild(searchBar);
+    searchInput.focus();
+  }
+
+  function hideSearchBar() {
+    if (searchBar && searchBar.parentNode) searchBar.parentNode.removeChild(searchBar);
+    searchBar = null;
+    searchInput = null;
+    applySearchFilter('');
+  }
+
+  function applySearchFilter(query) {
+    var q = query.trim().toLowerCase();
+    var nodes = world ? world.querySelectorAll('.map-node') : [];
+    for (var i = 0; i < nodes.length; i++) {
+      var nodeEl = nodes[i];
+      var refId = nodeEl.getAttribute('data-ref-id');
+      var card = refId ? KanvazCards.getAll()[refId] : null;
+      if (!card || !q) {
+        nodeEl.style.opacity = '';
+        nodeEl.style.filter = '';
+        continue;
+      }
+
+      var nameMatch = (card.name || '').toLowerCase().indexOf(q) !== -1;
+      var typeMatch = (card.type || '').toLowerCase().indexOf(q) !== -1;
+      var tagMatch = false;
+      if (card.tags && card.tags.length) {
+        for (var t = 0; t < card.tags.length; t++) {
+          if (card.tags[t].toLowerCase().indexOf(q) !== -1) { tagMatch = true; break; }
+        }
+      }
+
+      if (nameMatch || typeMatch || tagMatch) {
+        nodeEl.style.opacity = '';
+        nodeEl.style.filter = '';
+      } else {
+        nodeEl.style.opacity = '0.12';
+        nodeEl.style.filter = 'grayscale(1)';
+      }
+    }
+  }
+
   function handleKey(e) {
     if (!active) return false;
 
     if (e.key === 'Escape') {
+      if (searchBar) { hideSearchBar(); return true; }
+      if (Object.keys(multiSelected).length) { clearMultiSelect(); return true; }
       if (wireFrom) { cancelWire(); return true; }
       if (typeof KanvazInspector !== 'undefined' && KanvazInspector.isOpen()) {
         KanvazInspector.close(); return true;
@@ -1725,7 +2120,8 @@ var KanvazMapView = (function() {
     isActive: isActive, render: render,
     getState: getState, setState: setState, resetView: resetView,
     handleKey: handleKey, updateToggleBtn: updateToggleBtn,
-    diagnose: diagnose
+    diagnose: diagnose,
+    showSearchBar: showSearchBar, hideSearchBar: hideSearchBar
   };
 
 })();

@@ -16,7 +16,7 @@
 
 **Reference Operating System**
 
-> **v4.6.1** — Live-testing the `.pur` importer against a real PureRef file (not just synthetic test fixtures) found it silently returning zero images: the parser only ever recognized PNG, and only assumed one specific header layout — both wrong for a real-world file. Now detects PNG/JPEG/GIF/BMP and falls back to a grid layout if exact PureRef positioning can't be recovered, so a working import beats a silent failure. Builds on v4.6.0 — new Text card type, Map View inline rename/hover preview, bigger resize handles, an auto-updater that asks before downloading (and knows the portable build can't auto-update), plus a dozen other real bugs fixed. See [CHANGELOG.md](CHANGELOG.md) for the full list.
+> **v4.7.0** — Organize & Connect: Board View gains card renaming (double-click or right-click), Map View gains search/filter, multi-select with bulk tag/delete, and node color-coding by tag or type. Tag chips and video/audio playback controls now resize smoothly and proportionally with the card instead of staying flat-sized or popping in/out at fixed breakpoints. The dot-grid background no longer fades to nothing at maximum zoom-out. See [CHANGELOG.md](CHANGELOG.md) for the full list.
 >
 > **v4.5.1** — MCP Bridge goes from "edit cards" to nearly the whole app: board management (create/switch/rename/save/delete — deletion confirm-gated, since it's the one action on this whole surface that isn't undo-reversible), undo/redo, view control, card extras (flip/duplicate/z-order), and every app setting except plugin management, all now AI-drivable through the same 30-tool MCP surface. (4.5.1 is a CI-only follow-up — same app, fixes the macOS release build.) See [CHANGELOG.md](CHANGELOG.md) for the full list.
 >
@@ -132,7 +132,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 4.6.1.exe` and `dist/Kanvaz 4.6.1.exe`
+Output: `dist/Kanvaz Setup 4.7.0.exe` and `dist/Kanvaz 4.7.0.exe`
 
 **macOS:**
 ```bash

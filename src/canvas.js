@@ -200,9 +200,21 @@ var KanvazCanvas = (function() {
     var baseSpacing = 24;
     var spacing = baseSpacing * scale;
 
-    /* Fade grid at extreme zoom levels */
+    /* Fade grid at extreme zoom levels.
+       Audit fix (4.7.0): the low end used to fade linearly down to
+       exactly 0 AT ZOOM_MIN — meaning the grid vanished completely
+       right as you reached the most-zoomed-out view, exactly when
+       having some spatial reference matters most for a large board.
+       Fading toward a floor BELOW ZOOM_MIN instead means alpha never
+       actually reaches 0 within the reachable zoom range — the grid
+       stays faintly visible everywhere the user can actually zoom to.
+       The separate density-based minorFade/majorFade below (screen-
+       space line spacing, not raw scale) still handles the "lines too
+       close together look like a solid wash" problem on its own — this
+       change only affects the extreme-zoom-out zero-out, not that. */
+    var GRID_FADE_FLOOR = ZOOM_MIN * 0.5;
     var alpha = 1.0;
-    if (scale < 0.25) alpha = (scale - ZOOM_MIN) / (0.25 - ZOOM_MIN);
+    if (scale < 0.25) alpha = (scale - GRID_FADE_FLOOR) / (0.25 - GRID_FADE_FLOOR);
     if (scale > 3.0)  alpha = 1.0 - (scale - 3.0) / (ZOOM_MAX - 3.0);
     alpha = Math.max(0, Math.min(1, alpha));
 

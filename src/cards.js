@@ -1862,20 +1862,7 @@ var KanvazCards = (function() {
     var bar = document.createElement('div');
     bar.className = 'card-bar';
 
-    var name = document.createElement('span');
-    name.className = 'card-filename ellipsis';
-    if (card.type === 'note') {
-      /* Preview the note's own text instead of the generic "Note" name,
-         once there's something to show — kept in sync live by the
-         'input' listener in buildNoteCard. */
-      var notePreview = (card.text || '').trim();
-      name.textContent = notePreview
-        ? (notePreview.length > 20 ? notePreview.slice(0, 20) + '…' : notePreview)
-        : (card.name || 'Note');
-    } else {
-      name.textContent = card.name;
-    }
-    bar.appendChild(name);
+    bar.appendChild(buildNameSpan(card, el));
 
     if (card.type === 'image') {
       /* Populated once the image loads (see buildImageCard's onload) —
@@ -1923,6 +1910,87 @@ var KanvazCards = (function() {
 
     el.appendChild(bar);
     buildTagBar(el, card);
+  }
+
+  /* ── Rename (4.7.0) ──
+     Board View's own equivalent of Map View's startRenameNode. Shared
+     with buildCardBar's initial render so the "what does the name label
+     actually show" logic (note-preview substitution) lives in exactly
+     one place — building it twice risked the two copies drifting apart
+     the first time either one changed. */
+  function buildNameSpan(card, el) {
+    var name = document.createElement('span');
+    name.className = 'card-filename ellipsis';
+    if (card.type === 'note') {
+      /* Preview the note's own text instead of the generic "Note" name,
+         once there's something to show — kept in sync live by the
+         'input' listener in buildNoteCard. */
+      var notePreview = (card.text || '').trim();
+      name.textContent = notePreview
+        ? (notePreview.length > 20 ? notePreview.slice(0, 20) + '…' : notePreview)
+        : (card.name || 'Note');
+    } else {
+      name.textContent = card.name;
+    }
+    name.title = 'Double-click to rename';
+    name.addEventListener('dblclick', function(e) {
+      e.stopPropagation();
+      startRenameCard(card.id);
+    });
+    return name;
+  }
+
+  /* Single-arg, same shape as Map View's startRenameNode(refId) — looks
+     its own element up rather than requiring the caller to have one
+     handy, so the context-menu "Rename" action (app.js) can call this
+     exactly like every other id-only card action. */
+  function startRenameCard(id) {
+    var card = cards[id];
+    var el = document.getElementById(id);
+    if (!card || !el) return;
+    var nameEl = el.querySelector('.card-filename');
+    if (!nameEl) return;
+    var nameParent = nameEl.parentNode;
+
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'card-filename-input';
+    input.value = card.name || '';
+
+    nameParent.replaceChild(input, nameEl);
+    input.focus();
+    input.select();
+
+    var done = false;
+    function finish(commit) {
+      if (done) return;
+      done = true;
+      var val = input.value.trim();
+      if (commit && val && val !== card.name) {
+        /* updateCardData rebuilds the whole card element (including a
+           fresh card-bar via buildCardBar), so the input is already
+           gone by the time this returns — nothing left to clean up. */
+        updateCardData(id, { name: val });
+        return;
+      }
+      /* Cancelled, empty, or unchanged — updateCardData never ran, so
+         the input is still sitting in the live DOM. Swap it back for a
+         label ourselves using the exact same builder buildCardBar used,
+         not a second copy of its display logic. */
+      if (input.parentNode) input.parentNode.replaceChild(buildNameSpan(card, el), input);
+    }
+
+    /* Same reasoning as Map View's rename input: stop these from
+       reaching the card's own mousedown (drag-start) / dblclick
+       (nothing bound today, but future-proof) handlers. */
+    input.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+    input.addEventListener('dblclick',  function(e) { e.stopPropagation(); });
+    input.addEventListener('keydown', function(e) {
+      e.stopPropagation();
+      if (e.key === 'Enter')  { e.preventDefault(); finish(true); }
+      if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+    });
+    input.addEventListener('blur', function() { finish(true); });
   }
 
   /* ── Tag chips (inline editing) ── */
@@ -3042,6 +3110,8 @@ var KanvazCards = (function() {
     updateCardData:    updateCardData,
     setTags:           setTags,
     search:            search,
+    startRenameCard:   startRenameCard,
+    deleteMultiple:    deleteMultiple,
     duplicateCard:     duplicateCard,
     duplicateSelected: duplicateSelected,
     togglePin:         togglePin,
