@@ -1,8 +1,8 @@
-# Kanvaz — Roadmap: v4.3 → v5.3 (final stretch) — COMPLETE
+# Kanvaz — Roadmap: v4.3 → v5.3 (final stretch, closed) + v6.x (the real final arc)
 
-*Living doc, now closed out. Decided jointly (product judgement: user; technical scoping: assistant) — originally 2026-08-20, re-planned 2026-09-02 after the v4.6.x `.pur`/Map View work, re-planned again 2026-09-03 after v4.9.0 shipped partially under time pressure. Closed out 2026-09-04 with v5.3.0's ship.*
+*Living doc. Decided jointly (product judgement: user; technical scoping: assistant) — originally 2026-08-20, re-planned 2026-09-02, 2026-09-03, and 2026-09-04 (v5.3.0's close-out), reopened again 2026-09-04 for the v6.x arc below.*
 
-**v5.3.0 has shipped. This is the last planned release of Kanvaz's active development.** Every section below is historical record at this point — nothing on this doc is still "upcoming." Further feature requests go through GitHub issues or direct email (see README.md/CHANGELOG.md's v5.3.0 entries), not a continued numbered-release cadence.
+**Everything from "Shipped — v4.3.0 through v4.6.1" down to "v5.3.0 — Finish line" is historical record — that arc genuinely finished and shipped as planned.** What follows this note is the NEW, currently-active plan: a full market analysis against PureRef and every other major competitor in this space (Milanote, Are.na, Eagle, Kosmik, ArtDeck), aimed at closing every real remaining gap in one considered, deliberately final push. v5.3.0's "last release" framing was accurate for the decision made at that moment, not a promise broken by this — the user chose to reopen development with a bigger, more specific target in mind. See "The v6.x arc" section, below the historical record, for the current plan and status.
 
 ## Framing
 
@@ -121,6 +121,38 @@ Full detail in `CHANGELOG.md` and `docs/HANDOFF.md`'s "Where things stand techni
 - Final version bump: done. Final CHANGELOG "what's next" entry: done — see CHANGELOG's v5.3.0 section.
 
 **Done bar, honestly assessed:** `validate.js` + `format-roundtrip-test.js` clean — yes. Every card type and Map View feature manually smoke-tested — no, per the disclosed gap above. `SECURITY.md`/`README.md` accurate as of the actual final state — yes. No further versions planned after this one — confirmed, per the user's own instruction to close out development here.
+
+---
+
+# The v6.x arc — the real final push
+
+Reopened 2026-09-04, after a full market analysis against PureRef, Milanote, Are.na, Eagle, Kosmik (a cloud-AI-heavy competitor that shut down in 2026 — a real cautionary tale, not a hypothetical), and ArtDeck. Goal, in the user's own words: beat PureRef at everything it does, add what nobody else has done well, and leave Kanvaz in a strong enough state that it needs no attention for at least 2 years. Three pillars plus a dedicated polish pass, each shipping as its own tested, audited release rather than one giant untestable change.
+
+**Standing design rule for this whole arc:** any AI feature must ship with a real, complete off switch from the day it's written, not bolted on after. Nothing AI-related should touch disk or memory when that switch is off.
+
+## Pillar "Live Reference" — beat PureRef at its own game
+
+- **v6.0.0 — shipped.** Always-on-top now defaults to on; click-through + adjustable window opacity ("Reference Mode," T key) let you trace/color-match straight through the Kanvaz window into whatever's underneath — PureRef's actual signature move, finally complete. Top Mode removed entirely (redundant once always-on-top is the default). See `CHANGELOG.md`'s 6.0.0 entry for full detail, including the settings migration that applies the new default to existing users too, disclosed rather than silent.
+- **Not yet done:** pinning on top of one specific app only (PureRef 2.0's newer trick — flagged from the start as needing real OS-specific focus-tracking code per platform; may end up out of scope if it proves too fragile to trust). Video frame-stepping + onion-skinning for video cards. A measuring tool and a color eyedropper, added to the existing annotation toolset.
+
+## Pillar "Never Lose Anything Again" — search & organization
+
+Not started. Planned, in build order (safest/most-isolated first):
+1. Smart Folders (a saved search that keeps re-running itself) and color search across image cards — no architecture change needed, safe first wins.
+2. Local AI search — fully on-device, own background thread (same pattern as `.pur` import's worker), its own private data folder completely separate from `.kanvaz` files so the AI off-switch means literally nothing AI-related exists on disk when it's off.
+3. Cards shared across boards within one file (the Are.na-style "same card, no duplicate, edit once updates everywhere" trick) — the hardest, most invasive piece, saved for last in this pillar specifically so it's the most tested before shipping. Needs a real save-format addition with the same old-files-still-open-fine discipline every prior format change in this project has kept.
+
+## Pillar "Wide-Open Plugin Ecosystem"
+
+Not started. Planned:
+- A richer plugin API (new hooks beyond what's available today), versioned so existing plugins keep working unchanged.
+- A full rewrite of `docs/PLUGIN_AUTHORING.md` and `docs/plugin-scaffold/` to demonstrate the new capabilities.
+- An official, documented green light for plugin authors to sell their own plugins outside Kanvaz (their own site/Gumroad/Patreon) — no in-app payments or marketplace, deliberately: the moment Kanvaz processes money it's on the hook for refunds/fraud/tax forever, exactly the ongoing liability this arc is trying to avoid by going otherwise-server-free everywhere else.
+- Template Maker & Manager, as its own new official plugin: save any board as a template, manage your own, and browse/install ones other people made through the same free, static-GitHub-catalog trick "Browse Official Plugins" already uses (no server, no ongoing hosting cost). Community submissions handled the open-source way (a PR against the catalog file), not something requiring ongoing manual curation forever.
+
+## Final phase — UI polish
+
+Not started, and deliberately last. Once every pillar above is built and tested, one dedicated pass over every new screen/button/dialog added by this whole arc: visual consistency against Kanvaz's existing design system, correctness in both light and dark theme, and the same level of care as the rest of the app — done last on purpose, so it reflects what actually shipped instead of getting redone every time a feature underneath it changes.
 
 ---
 

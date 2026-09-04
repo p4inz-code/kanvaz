@@ -148,14 +148,14 @@ html, body {
   flex-shrink: 0;
 }
 
-/* ── Top Mode / Auto-hide toolbar chrome-reveal ──
-   Class names kept as .moodlock-* internally (shared by both Top Mode
-   and the persistent "Auto-hide toolbar" setting — see app.js's
-   syncChromeAutoHide). Hides #top-chrome entirely (Esc or Tab exits
-   Top Mode). While active, a thin invisible zone at the very top edge
-   reveals #top-chrome as a floating overlay on hover — it does NOT
-   rejoin normal flex flow, so the canvas never resizes/reflows under
-   it; it slides in on top. */
+/* ── Auto-hide toolbar chrome-reveal ──
+   Class names kept as .moodlock-* internally — a leftover of when this
+   mechanic was shared with the now-removed Top Mode (v6.0.0, see
+   CHANGELOG); an implementation detail, not worth an unrelated rename
+   churning this file. Hides #top-chrome entirely; while active, a thin
+   invisible zone at the very top edge reveals #top-chrome as a floating
+   overlay on hover — it does NOT rejoin normal flex flow, so the canvas
+   never resizes/reflows under it; it slides in on top. */
 .moodlock-active #top-chrome {
   display: flex !important;
   position: fixed;
@@ -173,26 +173,6 @@ html, body {
   pointer-events: auto;
 }
 
-/* Top Mode's reveal is deliberately more minimal than the general
-   Auto-hide toolbar setting's — only app name + project title + window
-   controls. Hides these even while #top-chrome is otherwise revealed,
-   since Top Mode is a presentation mode, not a "get the toolbar back"
-   convenience. The Auto-hide setting (without Top Mode) doesn't get
-   this class, so it still reveals the full toolbar/tabs. */
-.moodlock-minimal #toolbar,
-.moodlock-minimal #board-tabs,
-.moodlock-minimal #btn-export,
-.moodlock-minimal #btn-always-on-top {
-  display: none !important;
-}
-
-/* Thicker titlebar specifically while Top Mode's minimal chrome is
-   revealed — easier to grab and drag than the standard 36px strip,
-   since dragging is the main reason to reveal it in Top Mode at all. */
-.moodlock-minimal.moodlock-reveal #titlebar {
-  height: 48px;
-}
-
 #moodlock-hover-zone {
   position: fixed;
   top: 0; left: 0; right: 0;
@@ -207,8 +187,7 @@ html, body {
 }
 
 /* Visible drag strip — a subtle accent line at the very top so users
-   can discover the grab zone. Thin enough not to break the
-   distraction-free purpose of Top Mode. */
+   can discover the grab zone. */
 #moodlock-hover-zone::before {
   content: '';
   position: absolute;
@@ -222,32 +201,11 @@ html, body {
   opacity: 0.6;
 }
 
-/* Persistent reminder that Top Mode is active, independent of the
-   hover-reveal state — without this there was no way to tell it was
-   on, or how to get out, without already knowing the shortcut. */
-#moodlock-badge {
-  position: fixed;
-  bottom: 14px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 5px 12px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-2);
-  border-radius: 999px;
-  color: var(--color-text-2);
-  font-family: var(--font-ui);
-  font-size: 11px;
-  letter-spacing: 0.02em;
-  box-shadow: 0 4px 16px var(--color-shadow);
-  z-index: 895;
-  pointer-events: none;
-  opacity: 0.75;
-  animation: moodlock-badge-in 0.3s ease-out;
-}
-
-@keyframes moodlock-badge-in {
-  from { opacity: 0; transform: translateX(-50%) translateY(6px); }
-  to   { opacity: 0.75; transform: translateX(-50%) translateY(0); }
+/* Reference Mode button (v6.0.0) — lit up while click-through is on,
+   same accent-color convention every other active-state toggle in this
+   titlebar already uses. */
+#btn-reference-mode.active {
+  color: var(--color-accent);
 }
 
 @keyframes search-bar-in {

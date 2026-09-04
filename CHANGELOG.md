@@ -2,6 +2,30 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [6.0.0] — Reference Mode: click-through, opacity, always-on-top by default
+
+**Development has reopened.** v5.3.0 called itself the finish line — that stands as an honest record of the decision made at the time, not a promise that was broken. The user chose to start a new, deliberately final arc instead: a full market analysis against PureRef and every other major competitor in this space, aimed at closing every remaining real gap in one considered push, then genuinely stopping. This is the first release of that arc.
+
+### Why this one first
+PureRef's actual reason for existing isn't the reference board — it's Always-on-Top paired with click-through, so an artist can trace or color-match straight through the window into Photoshop/ZBrush/whatever else, without ever switching focus. Kanvaz had an Always-on-Top toggle but not the click-through half, and it defaulted off — so the one feature that defines this entire category was both incomplete and not even on by default. This release closes that gap directly.
+
+### Changed
+- **Always-on-top now defaults to on**, for new installs and existing ones alike (a genuine, disclosed behavior change — see the settings migration below, not something quietly different for new users only). Still one click away from off, via Settings → Reference Mode, or the Command Palette.
+- **Top Mode is removed entirely** — its whole reason to exist (a one-key way to float the window on top and get the chrome out of the way) is now just how Kanvaz behaves by default, so a separate toggle-into-a-special-mode for it made no sense to keep. Its Tab/Ctrl+Shift+F shortcuts, its Settings toggle, and its on-screen badge are all gone. The Auto-hide-toolbar setting it used to share machinery with is untouched and still works exactly as before.
+- **The `T` key and the titlebar's pin-style button** used to toggle Always-on-Top; both are repointed to the new click-through toggle instead, since Always-on-Top no longer needs a dedicated fast toggle once it's just always on.
+
+### Added
+- **Click-through** — toggle it (T, the titlebar button, or Command Palette) and the Kanvaz window stops intercepting clicks, letting them pass straight to whatever's underneath, while itself staying visible on top. Exiting works two ways: Escape (while Kanvaz still has focus) or **Ctrl+Shift+T**, registered as a real system-wide hotkey only while click-through is active, specifically because clicking through very likely hands OS focus to the app underneath — an ordinary in-app shortcut can't be trusted to still fire at that point.
+- **Window opacity slider**, in the same new "Reference Mode" popover as the click-through toggle. Floored at 20%, never lower — a window you can no longer see and can no longer click is a dead end, not a feature.
+
+### Carried forward, not attempted this pass
+This is one focused slice of a larger plan, not the whole thing — the rest ships as its own tested releases rather than one giant, harder-to-verify change:
+- Pinning the window on top of one specific app only (PureRef 2.0's newer trick) — flagged from the start as the hardest part of this pillar; needs OS-specific focus-tracking code on each platform, and isn't attempted here.
+- Video frame-stepping, onion-skinning, a measuring tool, and a color eyedropper (the ArtDeck-inspired half of this pillar).
+- The search/organization pillar (local AI search with a full off switch, Smart Folders, color search, and cards shared across boards).
+- The plugin-ecosystem pillar (richer plugin API, an official "you can sell this" guide, and the Template Maker/Manager plugin).
+- The dedicated UI-polish pass across everything from this whole arc, planned as the last phase once the rest is done.
+
 ## [5.3.0] — Finish line: bug bounty, fixes, and what's next
 
 The final planned release of this development arc. No new features — a real audit/bug-hunt pass across the full v4.7.0–v5.2.0 diff (8 finder passes covering correctness, removed-behavior regressions, cross-file breakage, reuse, simplification, efficiency, and architectural depth), with real fixes applied before shipping, not just a list handed back unactioned.

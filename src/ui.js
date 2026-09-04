@@ -143,7 +143,7 @@ var KanvazUI_Extended = (function() {
   var settingsOpen = false;
   var currentPluginsListEl = null;
 
-  var SETTINGS_VERSION = 2;
+  var SETTINGS_VERSION = 3;
 
   var SETTINGS_DEFAULTS = {
     _version:         SETTINGS_VERSION,
@@ -156,13 +156,18 @@ var KanvazUI_Extended = (function() {
     confirmDelete:    false,
     defaultCardW:     600,
     animationsOn:     true,
-    alwaysOnTop:      false,
+    /* v6.0.0: default flipped to true — always-on-top plus the new
+       click-through/opacity controls (Reference Mode) is the actual
+       point of Pillar 2, PureRef's own core reason to exist. See the
+       v2->v3 settings migration below for why existing users' saved
+       settings get this too, not just fresh installs. */
+    alwaysOnTop:      true,
+    windowOpacity:    1,
     doubleClickCreatesNote: false,
     leftDragPan:      true,
     autoHideChrome:   false,
     gridSnapEnabled:  false,
     gridSnapIncrement: 'minor',
-    topModeAutoOnTop: false,
     devShowFPS:       false,
     devShowIds:       false
   };
@@ -176,6 +181,21 @@ var KanvazUI_Extended = (function() {
       /* v1→v2: no transform needed, just establishes the versioning system.
          Future migrations go here, e.g.:
          if (s.oldKey !== undefined) { s.newKey = s.oldKey; delete s.oldKey; } */
+      return s;
+    }},
+    { from: 2, to: 3, migrate: function(s) {
+      /* v2→v3 (6.0.0): Top Mode is removed — topModeAutoOnTop no longer
+         means anything, drop it rather than leave a dead key sitting in
+         everyone's settings.json forever. Always-on-top becomes the
+         default experience this version (see SETTINGS_DEFAULTS above) —
+         deliberately overriding a prior explicit "off" here too, not
+         just filling in the gap for people who never touched it, since
+         this is a genuine, disclosed behavior change for this version
+         (see CHANGELOG's 6.0.0 entry), not silent. Still one click/
+         Command-Palette-entry away from turning back off. */
+      delete s.topModeAutoOnTop;
+      s.alwaysOnTop = true;
+      if (s.windowOpacity === undefined) s.windowOpacity = 1;
       return s;
     }}
   ];
@@ -266,16 +286,28 @@ var KanvazUI_Extended = (function() {
         : 'Right-click for options · Ctrl+V to paste an image';
     }
 
-    /* Always on top — apply persisted value */
-    if (typeof KanvazBridge !== 'undefined' && KanvazBridge.setAlwaysOnTop) {
+    /* Always on top — apply persisted value. Goes through KanvazApp's
+       own syncAlwaysOnTop() (v6.0.0), not a direct KanvazBridge call —
+       app.js's toggleAlwaysOnTop()/Command Palette entry keeps its own
+       in-memory copy of this flag, and without this sync call it would
+       drift out of step with the real window state on the very first
+       Settings-panel or startup application of this value, flipping
+       the wrong direction the next time it's toggled. */
+    if (typeof KanvazApp !== 'undefined' && KanvazApp.syncAlwaysOnTop) {
+      KanvazApp.syncAlwaysOnTop(!!settings.alwaysOnTop);
+    } else if (typeof KanvazBridge !== 'undefined' && KanvazBridge.setAlwaysOnTop) {
       KanvazBridge.setAlwaysOnTop(!!settings.alwaysOnTop);
     }
 
-    /* Auto-hide toolbar — same hover-reveal mechanic Top Mode uses,
-       but as a persistent setting instead of a shortcut-gated mode.
-       Independent of Top Mode's own state; either one hides the
-       chrome, and setChromeAutoHide reconciles them so turning one
-       off doesn't undo the other. */
+    /* Window opacity (v6.0.0) — persisted, unlike click-through which
+       always starts fresh (see app.js's Reference Mode section). */
+    if (typeof KanvazBridge !== 'undefined' && KanvazBridge.setWindowOpacity) {
+      KanvazBridge.setWindowOpacity(settings.windowOpacity !== undefined ? settings.windowOpacity : 1);
+    }
+
+    /* Auto-hide toolbar — a persistent setting, independent of anything
+       else, that hides toolbar/titlebar chrome until you hover the top
+       edge. */
     if (typeof KanvazUI !== 'undefined' && KanvazUI.setChromeAutoHide) {
       KanvazUI.setChromeAutoHide(!!settings.autoHideChrome);
     }
@@ -483,10 +515,11 @@ var KanvazUI_Extended = (function() {
       { key: 'confirmDelete',   label: 'Confirm before delete', type: 'toggle' },
       { key: 'leftDragPan',     label: 'Left-drag empty canvas to pan', type: 'toggle' },
       { key: 'autoHideChrome',  label: 'Auto-hide toolbar (hover top edge to reveal)', type: 'toggle' },
-      { key: 'topModeAutoOnTop', label: 'Top Mode auto-enables Always on Top', type: 'toggle' },
       { key: 'doubleClickCreatesNote', label: 'Double-click canvas creates note', type: 'toggle' },
       { key: 'gridSnapEnabled', label: 'Snap to grid (move & resize)', type: 'toggle' },
       { key: 'gridSnapIncrement', label: 'Snap increment', type: 'select', options: [['minor','Minor (24px)'],['major','Major (120px)']] },
+      { section: 'Reference Mode' },
+      { key: 'alwaysOnTop',     label: 'Always on top (default: on)', type: 'toggle' },
       { section: 'Files' },
       { key: 'autosaveInterval',label: 'Autosave (seconds)',    type: 'number', min: 10, max: 300 },
       { key: 'defaultCardW',    label: 'Default card width (px)',type: 'number', min: 80, max: 1200 },
@@ -1039,7 +1072,7 @@ var KanvazUI_Extended = (function() {
     });
   }
 
-  /* ── Start from Template (5.3.0) ──
+  /* ── Start from Template (6.0.0) ──
      Bundled with the app (assets/templates/) — no network call at all,
      unlike Browse Official Plugins above. Same lazy-overlay-with-fixed-id
      pattern to avoid a double-open stacking two overlays. */
@@ -1294,7 +1327,7 @@ var KanvazUI_Extended = (function() {
       '</div>',
       '<div class="about-title">Kanvaz</div>',
       '<div class="about-subtitle">A visual reference workspace for creative professionals.</div>',
-      '<div class="about-version">Version 5.3.0</div>',
+      '<div class="about-version">Version 6.0.0</div>',
       '<div id="about-update-status" class="about-update-status"></div>',
       '<div class="about-divider"></div>',
       '<div class="about-author">Developed by <strong>Atharva Patil</strong></div>',
@@ -1302,7 +1335,7 @@ var KanvazUI_Extended = (function() {
       '<div class="about-desc">Built for VFX and 3D artists,<br>and the studios and educators who rely on them.</div>',
       '<div class="about-divider"></div>',
       '<div class="about-privacy">Free and open source. MIT License.<br>No telemetry, no background network activity.<br>Your data stays on your machine.</div>',
-      '<div class="about-tagline">Reference Operating System<br>Actively maintained — v5.3.0</div>'
+      '<div class="about-tagline">Reference Operating System<br>Actively maintained — v6.0.0</div>'
     ].join('');
 
     var updateBtn = document.createElement('button');
@@ -1422,8 +1455,8 @@ var KanvazUI_Extended = (function() {
         items: [
           ['M',           'Board \u2194 Map view'],
           ['L',           'Light \u2194 Dark theme'],
-          ['T',           'Always on top'],
-          ['Tab',         'Top Mode (also Ctrl+Shift+F)'],
+          ['T',           'Click-through (Reference Mode)'],
+          ['Ctrl+Shift+T','Exit click-through (works from any app)'],
           ['S',           'Settings'],
           ['I',           'About'],
           ['?',           'This screen'],

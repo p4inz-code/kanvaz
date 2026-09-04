@@ -151,8 +151,8 @@ var KanvazApp = (function() {
     }
 
     /* Titlebar */
-    on('btn-export',        function() { KanvazBoards.saveBoardAs(); });
-    on('btn-always-on-top', function() { toggleAlwaysOnTop(); });
+    on('btn-export',         function() { KanvazBoards.saveBoardAs(); });
+    on('btn-reference-mode', function(e) { e.stopPropagation(); showReferenceModePopover(); });
     on('btn-minimize',      function() { KanvazBridge.minimize(); });
     on('btn-maximize',      function() { KanvazBridge.maximize(); });
     on('btn-close',         function() { KanvazBridge.close(); });
@@ -493,13 +493,12 @@ var KanvazApp = (function() {
 
   /* ── Always on top ── */
 
+  /* v6.0.0: no dedicated toolbar button any more — on by default (see
+     ui.js's SETTINGS_DEFAULTS), reachable via Command Palette or the
+     Settings checkbox for the minority who want it off. */
   function toggleAlwaysOnTop() {
     alwaysOnTop = !alwaysOnTop;
     KanvazBridge.setAlwaysOnTop(alwaysOnTop);
-    var btn = document.getElementById('btn-always-on-top');
-    if (btn) {
-      btn.style.color = alwaysOnTop ? 'var(--color-accent)' : '';
-    }
     /* Persist to settings so the value survives restart */
     if (typeof KanvazUI_Extended !== 'undefined') {
       var s = KanvazUI_Extended.getSettings();
@@ -511,15 +510,16 @@ var KanvazApp = (function() {
     KanvazUI.toast(alwaysOnTop ? 'Always on top: on' : 'Always on top: off');
   }
 
-  /* Silent variant for Top Mode's auto-on-top feature — updates the
-     live window state and toolbar button, but doesn't toast or
-     persist to settings, since this is a temporary side-effect of
-     Top Mode, not the user's own explicit, durable preference. */
-  function setAlwaysOnTopSilent(flag) {
-    alwaysOnTop = flag;
-    KanvazBridge.setAlwaysOnTop(flag);
-    var btn = document.getElementById('btn-always-on-top');
-    if (btn) btn.style.color = flag ? 'var(--color-accent)' : '';
+  /* v6.0.0: called from ui.js's applySettings() (both on startup and on
+     every Settings-panel change), to keep this module's own `alwaysOnTop`
+     var in sync with the persisted setting — without this, toggleAlwaysOnTop()
+     (still reachable via Command Palette) would get the in-memory value
+     out of sync with the actual window state the very first time it's
+     called after a settings change, and flip the wrong direction.
+     Doesn't toast or re-persist — ui.js already owns that side of it. */
+  function syncAlwaysOnTop(flag) {
+    alwaysOnTop = !!flag;
+    KanvazBridge.setAlwaysOnTop(alwaysOnTop);
   }
 
   /* ── Save status ── */
@@ -1075,35 +1075,38 @@ var KanvazApp = (function() {
       hideContextMenu();
       if (typeof KanvazAnnotate !== 'undefined') KanvazAnnotate.deactivate();
       if (typeof KanvazProperties !== 'undefined') KanvazProperties.close();
-      /* Exit Top Mode on Escape */
-      var app = document.getElementById('app');
-      if (app && app.dataset.moodlock === '1') toggleMoodLock();
+      /* Escape also exits click-through — same reasoning as the global
+         hotkey in main.js: once clicks pass through to whatever's
+         underneath, Kanvaz may not have OS focus, but a key actually
+         reaching this handler at all means it still does right now. */
+      if (clickThroughOn) toggleClickThrough();
     }
 
-    var moodlockOn         = false;
     var chromeAutoHideOn   = false;
     var chromeHoverZone    = null;
     var chromeRevealTimer  = null;
-    var moodlockBadge      = null;
 
     /* Audit fix: the revealed top bar doubles as a real OS drag region
        (-webkit-app-region: drag on #moodlock-hover-zone / #titlebar in
        main.css), so grabbing it to move the window is the main reason
-       to reveal it in Top Mode at all. But once an OS-native window
-       drag starts, the OS owns the mouse — this renderer stops getting
-       reliable mouseenter/mouseleave/mousemove events on the dragged
-       element until the drag ends. The 700ms auto-hide timer below
-       doesn't know a drag is in progress, so it could (and did) fire
-       mid-drag, yanking #top-chrome (the actual drag region) out from
-       under the user's cursor — chrome vanishes almost immediately and
-       the window stops moving, since there's no drag region left to
-       drag. chromeDragGuard suspends the hide timer for the whole
-       mousedown-to-mouseup gesture on the revealed chrome, regardless
-       of what mouse events do or don't fire while the OS has control. */
+       to reveal it at all. But once an OS-native window drag starts,
+       the OS owns the mouse — this renderer stops getting reliable
+       mouseenter/mouseleave/mousemove events on the dragged element
+       until the drag ends. The 700ms auto-hide timer below doesn't
+       know a drag is in progress, so it could (and did) fire mid-drag,
+       yanking #top-chrome (the actual drag region) out from under the
+       user's cursor — chrome vanishes almost immediately and the
+       window stops moving, since there's no drag region left to drag.
+       chromeDragGuard suspends the hide timer for the whole mousedown-
+       to-mouseup gesture on the revealed chrome, regardless of what
+       mouse events do or don't fire while the OS has control. */
     var chromeDragGuard     = false;
 
+    /* v6.0.0: this used to OR in Top Mode's own moodlockOn flag too —
+       Top Mode is gone (see CHANGELOG), so the persistent Auto-hide
+       toolbar setting is the only thing driving chrome visibility now. */
     function chromeAutoHideActive() {
-      return moodlockOn || chromeAutoHideOn;
+      return chromeAutoHideOn;
     }
 
     function chromeShow() {
@@ -1135,43 +1138,12 @@ var KanvazApp = (function() {
       chromeScheduleHide();
     }
 
-    /* Top Mode's reveal is intentionally more minimal than the general
-       Auto-hide toolbar setting's reveal: only app name + project title
-       + window controls (minimize/maximize/close) — not the full
-       toolbar/tabs, and not export/always-on-top either. The Auto-hide
-       *setting* (no Top Mode) still reveals the full toolbar, since
-       that one's a standing convenience preference, not a presentation
-       mode. Driven by a separate class so the two don't have to share
-       exactly the same visual treatment. */
-    function syncMinimalClass() {
-      var app = document.getElementById('app');
-      if (!app) return;
-      if (moodlockOn) app.classList.add('moodlock-minimal');
-      else app.classList.remove('moodlock-minimal');
-    }
-
-    /* Small persistent reminder that Top Mode is active — independent
-       of the hover-reveal state, since the whole point of Top Mode is
-       that the chrome is normally hidden; without this there was no
-       way to tell it was on (or how to get out) without already
-       knowing the shortcut. */
-    function syncMoodlockBadge() {
-      if (moodlockOn && !moodlockBadge) {
-        moodlockBadge = document.createElement('div');
-        moodlockBadge.id = 'moodlock-badge';
-        moodlockBadge.textContent = 'Top Mode — Tab to exit';
-        document.body.appendChild(moodlockBadge);
-      } else if (!moodlockOn && moodlockBadge) {
-        moodlockBadge.remove();
-        moodlockBadge = null;
-      }
-    }
-
     /* Turns the hover-reveal chrome mechanic on/off at the DOM level.
-       Called whenever moodlockOn or chromeAutoHideOn changes — only
-       actually enables/disables when the *combined* state flips, so
-       toggling one off while the other is still on doesn't tear down
-       the shared hover machinery out from under it. */
+       Called whenever chromeAutoHideOn changes — the wasActive/isActive
+       comparison is a leftover of when this also had to reconcile
+       against Top Mode's own separate flag (now removed, see
+       CHANGELOG's v6.0.0 entry); harmless to keep as a plain no-op
+       guard against redundant setup/teardown calls. */
     function syncChromeAutoHide(wasActive) {
       var app = document.getElementById('app');
       if (!app) return;
@@ -1223,8 +1195,6 @@ var KanvazApp = (function() {
       }
     }
 
-    var moodlockWasAlwaysOnTop = false;
-
     var tabHeld = false;
     var windowDragActive = false;
     var windowDragLastX = 0;
@@ -1234,16 +1204,11 @@ var KanvazApp = (function() {
        window from anywhere on screen, not just a titlebar strip.
        Gated behind holding Tab because plain middle-mouse-drag is
        already used for canvas panning in both Board and Map View;
-       without the Tab gate this would collide with that.
-
-       Known tradeoff, not hidden: Tab already toggles Top Mode on
-       keydown (see toggleMoodLock). Holding Tab to start this drag
-       will also flip Top Mode as a side-effect of that same keydown,
-       since the two features share the same key. Living with this
-       for now since debouncing "tap vs hold" reliably would need
-       deferring the Top Mode toggle to keyup and add real latency to
-       what's currently an instant, well-liked toggle ("top works nice
-       fr"). Revisit if this combination proves annoying in practice. */
+       without the Tab gate this would collide with that. Tab used to
+       also toggle Top Mode on the same keydown (removed in v6.0.0 —
+       see CHANGELOG), which made holding it for this drag a known,
+       accepted side-effect collision; Tab is unclaimed by anything else
+       now, so that tradeoff no longer applies. */
     window.addEventListener('keydown', function(e) {
       if (e.key === 'Tab') tabHeld = true;
     }, true);
@@ -1278,47 +1243,168 @@ var KanvazApp = (function() {
 
     initTabMmbWindowDrag();
 
-    function toggleMoodLock() {
-      var app = document.getElementById('app');
-      if (!app) return;
-      var wasActive = chromeAutoHideActive();
-      var statusbar = document.getElementById('statusbar');
+    /* ── v6.0.0 — Reference Mode: click-through + opacity ──
+       Always-on-top now defaults to on (see ui.js's SETTINGS_DEFAULTS) —
+       this is the feature that makes leaving it on actually useful: it
+       lets you trace or color-match straight through the Kanvaz window
+       into whatever's underneath, PureRef's own signature move. Click-
+       through does NOT persist across restarts — starting the app with
+       every click already passing through, before the user has any way
+       to click a button to turn it back off, would be a real trap. */
+    var clickThroughOn = false;
 
-      moodlockOn = !moodlockOn;
-      app.dataset.moodlock = moodlockOn ? '1' : '0';
-      if (statusbar) statusbar.style.display = moodlockOn ? 'none' : '';
-      syncChromeAutoHide(wasActive);
-      syncMinimalClass();
-      syncMoodlockBadge();
+    function updateReferenceModeBtn() {
+      var btn = document.getElementById('btn-reference-mode');
+      if (btn) btn.classList.toggle('active', clickThroughOn);
+    }
 
-      /* Auto always-on-top, if the setting is enabled — Top Mode is a
-         "float this over everything else" presentation mode, so it's
-         a natural pairing. Remembers whether always-on-top was already
-         on beforehand so exiting Top Mode restores that instead of
-         just forcing it off (doesn't fight a user's own independent
-         Always-on-Top preference if they'd already turned it on). */
-      var topModeAutoOnTop = false;
+    function toggleClickThrough() {
+      clickThroughOn = !clickThroughOn;
+      KanvazBridge.setClickThrough(clickThroughOn);
+      updateReferenceModeBtn();
+      KanvazUI.toast(clickThroughOn
+        ? 'Click-through on — clicks pass to whatever\'s underneath. Esc, or Ctrl+Shift+T from anywhere, to exit.'
+        : 'Click-through off');
+    }
+
+    /* value: 0.2–1.0 (see main.js's own floor — a window you can no
+       longer see and can't click is a dead end, not a feature). Persists
+       across restarts, unlike click-through — a dimmed reference window
+       is a standing preference, not a temporary trace-mode side effect. */
+    function setWindowOpacity(value) {
+      var v = Math.max(0.2, Math.min(1, value));
+      KanvazBridge.setWindowOpacity(v);
       if (typeof KanvazUI_Extended !== 'undefined') {
-        var tmSettings = KanvazUI_Extended.getSettings();
-        topModeAutoOnTop = !!(tmSettings && tmSettings.topModeAutoOnTop);
-      }
-      if (topModeAutoOnTop) {
-        if (moodlockOn) {
-          moodlockWasAlwaysOnTop = alwaysOnTop;
-          if (!alwaysOnTop) setAlwaysOnTopSilent(true);
-        } else if (!moodlockWasAlwaysOnTop && alwaysOnTop) {
-          setAlwaysOnTopSilent(false);
+        var s = KanvazUI_Extended.getSettings();
+        if (s) {
+          s.windowOpacity = v;
+          KanvazBridge.writeSettings(JSON.stringify(s));
         }
       }
+      var slider = document.getElementById('reference-opacity-slider');
+      if (slider && Number(slider.value) !== v) slider.value = v;
+    }
 
-      KanvazUI.toast(moodlockOn
-        ? 'Top Mode — drag the top bar to move window, hover to reveal toolbar, Esc or Tab to exit'
-        : 'Top Mode off');
+    /* The main process's global-hotkey escape hatch (Ctrl+Shift+T) —
+       needed because once clicks pass through, Kanvaz very likely no
+       longer has OS focus, so an in-page keydown listener alone can't
+       be trusted to still fire. Escape (closeAll(), above) covers the
+       common case where focus is still here. */
+    if (typeof KanvazBridge !== 'undefined' && KanvazBridge.on) {
+      KanvazBridge.on('click-through-escape-hatch', function() {
+        if (clickThroughOn) toggleClickThrough();
+      });
+    }
+
+    /* Small popover off the titlebar button — same fixed-position-panel
+       pattern cards.js's own per-card opacity picker already uses, just
+       for the window itself instead of one card. */
+    function showReferenceModePopover() {
+      var existing = document.getElementById('reference-mode-popover');
+      if (existing) { existing.remove(); return; }
+
+      var btn = document.getElementById('btn-reference-mode');
+      var rect = btn ? btn.getBoundingClientRect() : { left: 0, bottom: 0 };
+
+      var pop = document.createElement('div');
+      pop.id = 'reference-mode-popover';
+      pop.style.cssText = [
+        'position:fixed',
+        'left:' + Math.max(8, rect.left - 160) + 'px',
+        'top:' + (rect.bottom + 6) + 'px',
+        'background:var(--color-surface)',
+        'border:1px solid var(--color-border-2)',
+        'border-radius:8px',
+        'padding:12px 14px',
+        'z-index:20001',
+        'box-shadow:0 8px 24px rgba(0,0,0,0.6)',
+        'min-width:200px'
+      ].join(';');
+      pop.onclick = function(e) { e.stopPropagation(); };
+
+      var title = document.createElement('div');
+      title.style.cssText = 'font-size:11px;color:var(--color-text-3);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.06em;';
+      title.textContent = 'Reference Mode';
+      pop.appendChild(title);
+
+      /* Click-through row */
+      var ctRow = document.createElement('div');
+      ctRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;cursor:pointer;';
+      var ctLabel = document.createElement('span');
+      ctLabel.style.cssText = 'font-size:12px;color:var(--color-text-2);';
+      ctLabel.textContent = 'Click-through (T)';
+      var ctTrack = document.createElement('div');
+      ctTrack.style.cssText = 'position:relative;width:34px;height:18px;border-radius:9px;background:' + (clickThroughOn ? 'var(--color-accent)' : 'var(--color-border-2)') + ';flex-shrink:0;';
+      var ctThumb = document.createElement('div');
+      ctThumb.style.cssText = 'position:absolute;top:2px;left:' + (clickThroughOn ? '16px' : '2px') + ';width:14px;height:14px;border-radius:50%;background:#fff;';
+      ctTrack.appendChild(ctThumb);
+      ctRow.appendChild(ctLabel);
+      ctRow.appendChild(ctTrack);
+      ctRow.onclick = function() {
+        toggleClickThrough();
+        ctTrack.style.background = clickThroughOn ? 'var(--color-accent)' : 'var(--color-border-2)';
+        ctThumb.style.left = clickThroughOn ? '16px' : '2px';
+      };
+      pop.appendChild(ctRow);
+
+      /* Opacity row */
+      var opLabel = document.createElement('div');
+      opLabel.style.cssText = 'font-size:11px;color:var(--color-text-3);margin-bottom:6px;';
+      opLabel.textContent = 'Window opacity';
+      pop.appendChild(opLabel);
+
+      var opRow = document.createElement('div');
+      opRow.style.cssText = 'display:flex;align-items:center;gap:10px;';
+
+      var currentOpacity = 1;
+      if (typeof KanvazUI_Extended !== 'undefined') {
+        var os = KanvazUI_Extended.getSettings();
+        if (os && os.windowOpacity !== undefined) currentOpacity = os.windowOpacity;
+      }
+
+      var slider = document.createElement('input');
+      slider.type = 'range';
+      slider.id = 'reference-opacity-slider';
+      slider.min = 0.2;
+      slider.max = 1.0;
+      slider.step = 0.05;
+      slider.value = currentOpacity;
+      slider.style.cssText = 'flex:1;accent-color:var(--color-accent);';
+
+      var opVal = document.createElement('span');
+      opVal.style.cssText = 'font-family:var(--font-mono);font-size:11px;color:var(--color-text-2);min-width:32px;text-align:right;';
+      opVal.textContent = Math.round(currentOpacity * 100) + '%';
+
+      slider.oninput = function() {
+        var v = parseFloat(slider.value);
+        setWindowOpacity(v);
+        opVal.textContent = Math.round(v * 100) + '%';
+      };
+
+      opRow.appendChild(slider);
+      opRow.appendChild(opVal);
+      pop.appendChild(opRow);
+
+      document.body.appendChild(pop);
+
+      /* Same dismiss-on-outside-click convention as every other popover
+         in this file (color picker, opacity picker) — deferred so the
+         click that OPENED this popover (already stopped from
+         propagating via e.stopPropagation() in the caller) doesn't
+         immediately close it again via this same listener. */
+      setTimeout(function() {
+        document.addEventListener('click', function dismiss(e) {
+          if (pop.parentNode && !pop.contains(e.target)) {
+            pop.remove();
+          }
+          document.removeEventListener('click', dismiss);
+        });
+      }, 0);
     }
 
     /* Called by ui.js when the persistent "Auto-hide toolbar" setting
-       changes. Unlike Top Mode, this never touches the statusbar —
-       it's a standing preference, not a presentation mode. */
+       changes. Never touches the statusbar — it's a standing
+       preference, not a presentation mode. */
     function setChromeAutoHide(enabled) {
       var app = document.getElementById('app');
       if (!app) return;
@@ -1350,7 +1436,8 @@ var KanvazApp = (function() {
       showCardContextMenu: showCardContextMenu,
       showContextMenu:     showContextMenu,
       hideContextMenu:     hideContextMenu,
-      toggleMoodLock:      toggleMoodLock,
+      toggleClickThrough:  toggleClickThrough,
+      setWindowOpacity:    setWindowOpacity,
       setChromeAutoHide:   setChromeAutoHide,
       showSearchBar:       showSearchBar,
       hideSearchBar:       hideSearchBar,
@@ -1472,6 +1559,7 @@ var KanvazApp = (function() {
 
   return {
     toggleAlwaysOnTop: toggleAlwaysOnTop,
+    syncAlwaysOnTop:   syncAlwaysOnTop,
     updateSaveStatus:  updateSaveStatus,
     updateCardCount:   updateCardCount,
     updateEmptyState:  updateEmptyState,

@@ -6,6 +6,7 @@ var BrowserWindow = electron.BrowserWindow;
 var ipcMain = electron.ipcMain;
 var dialog = electron.dialog;
 var shell = electron.shell;
+var globalShortcut = electron.globalShortcut;
 var path = require('path');
 var fs = require('fs');
 var net = require('net');
@@ -400,6 +401,11 @@ if (!gotLock) {
      be a genuinely confusing state for the next launch to find. */
   app.on('before-quit', function() {
     stopMcpBridgeServer();
+    /* Same reasoning as the pipe/socket cleanup above — a global hotkey
+       (see window-set-click-through) left registered past the app's own
+       lifetime would silently do nothing useful and just occupy a key
+       combo system-wide until the OS itself reclaims it. */
+    globalShortcut.unregisterAll();
   });
 
   app.on('activate', function() {
@@ -569,6 +575,48 @@ function registerIPC() {
     if (mainWindow) mainWindow.setAlwaysOnTop(flag);
   });
 
+  /* ── v6.0.0 — Reference Mode: click-through + opacity ──
+     Always-on-top on its own just blocks whatever's underneath it —
+     PureRef's actual signature move is pairing that with click-through
+     (mouse events pass to the app below) and reduced opacity, so you can
+     trace or color-match directly through the reference window without
+     ever switching focus. Now that always-on-top is the default (see
+     ui.js's SETTINGS_DEFAULTS), this is the feature that makes leaving
+     it on actually useful instead of just being in the way. */
+  var clickThroughGlobalShortcut = 'CommandOrControl+Shift+T';
+
+  ipcMain.on('window-set-click-through', function(event, flag) {
+    if (!mainWindow) return;
+    /* forward:true still delivers mousemove (for hover-based UI elsewhere
+       in the app) even though clicks pass through to the window below —
+       without it, Chromium drops all mouse events, not just clicks. */
+    mainWindow.setIgnoreMouseEvents(!!flag, { forward: true });
+    if (flag) {
+      /* Registered ONLY while active, and unregistered the moment it's
+         off — this is a real system-wide hotkey while it exists, and
+         permanently reserving it even when the feature isn't in use
+         would be a bad citizen move (could collide with the OS or
+         another app's own shortcut for no benefit). This is also the
+         reliable way out: once clicks pass through, Kanvaz's own
+         window very likely no longer has OS focus (the click landed on
+         whatever's underneath instead), so an ordinary in-page keydown
+         listener can't be trusted to still fire. */
+      globalShortcut.register(clickThroughGlobalShortcut, function() {
+        if (mainWindow) mainWindow.webContents.send('click-through-escape-hatch');
+      });
+    } else {
+      globalShortcut.unregister(clickThroughGlobalShortcut);
+    }
+  });
+
+  ipcMain.on('window-set-opacity', function(event, value) {
+    if (!mainWindow) return;
+    var v = typeof value === 'number' ? value : 1;
+    if (v < 0.2) v = 0.2; /* floor — fully invisible-and-stuck-on-top with no way to see it exists is a real trap */
+    if (v > 1) v = 1;
+    mainWindow.setOpacity(v);
+  });
+
   /* BUG 6 fix: renderer calls this after save/open with the display
      filename so the OS-level window title (taskbar, Alt-Tab preview)
      reflects the open file. The custom in-app titlebar already showed
@@ -579,23 +627,26 @@ function registerIPC() {
   });
 
   /* Tab+MMB whole-window drag — an alternative to dragging via the
-     titlebar, useful when Top Mode has the chrome hidden. Plain
-     middle-mouse-drag is already used for canvas panning, so this is
-     deliberately gated behind holding Tab too (checked renderer-side)
-     to avoid colliding with that. Moves the real OS window position,
-     which a CSS app-region drag zone can't do from an arbitrary point
-     on the canvas — only from a marked region. */
+     titlebar, useful when the Auto-hide toolbar setting has the chrome
+     hidden. Plain middle-mouse-drag is already used for canvas panning,
+     so this is deliberately gated behind holding Tab too (checked
+     renderer-side) to avoid colliding with that. Moves the real OS
+     window position, which a CSS app-region drag zone can't do from an
+     arbitrary point on the canvas — only from a marked region. */
   ipcMain.on('window-drag-by', function(event, delta) {
     if (!mainWindow) return;
     var b = mainWindow.getBounds();
     mainWindow.setPosition(b.x + delta.dx, b.y + delta.dy);
   });
 
-  /* Top Mode (and the persistent Auto-hide toolbar setting) remove all
-     toolbar/titlebar chrome, so the 320x240 unconditional floor no
-     longer applies — relax it further to a real reference-viewing
-     floor while either is active, and restore the standard floor
-     immediately on exit. */
+  /* The persistent Auto-hide toolbar setting removes all toolbar/
+     titlebar chrome (formerly shared with the now-removed Top Mode —
+     see v6.0.0's CHANGELOG entry), so the 320x240 unconditional floor
+     no longer applies — relax it further to a real reference-viewing
+     floor while it's active, and restore the standard floor immediately
+     on exit. Channel name kept as -moodlock- internally rather than
+     renamed, to avoid an unrelated cross-file rename churning this
+     diff — it's an implementation detail, not user-facing. */
   ipcMain.on('window-set-moodlock-size', function(event, active) {
     if (!mainWindow) return;
     if (active) {

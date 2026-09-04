@@ -16,8 +16,10 @@
 
 **Reference Operating System**
 
-> **This is the last actively-developed version of Kanvaz for the foreseeable future.** v5.0.0 through this release (v5.3.0) closed out a planned four-feature-plus-audit arc — there's no dated plan for what comes after. Kanvaz keeps working exactly as shipped; found a real bug, or have a feature you'd genuinely find valuable? [Open a GitHub issue](https://github.com/p4inz-code/kanvaz/issues) or email **atharva.patil.cg@gmail.com** directly — both are read, neither is a promise of a release, but both are how anything further happens from here.
+> **Development has reopened for one final, deliberate arc**, aimed at closing every real gap against PureRef and every other major tool in this space, then genuinely stopping. v5.3.0's "last release" framing was an honest record of that decision at the time, not a promise broken — this is a considered restart, not scope creep. Found a real bug, or a feature you'd genuinely find valuable? [Open a GitHub issue](https://github.com/p4inz-code/kanvaz/issues) or email **atharva.patil.cg@gmail.com** — both are read.
 
+> **v6.0.0** — Reference Mode: click-through + adjustable opacity, paired with Always-on-Top now defaulting to *on*. This is PureRef's actual signature move — trace or color-match straight through the Kanvaz window into whatever's underneath — finally complete and finally on by default. Top Mode is removed entirely; its whole reason to exist is now just how Kanvaz behaves out of the box. See [CHANGELOG.md](CHANGELOG.md) for the full writeup, including what's still to come in this arc.
+>
 > **v5.3.0** — A real audit/bug-hunt pass across the full v4.7.0–v5.2.0 arc, with fixes applied before shipping: annotation data corruption when Map View was active, a legacy-stroke migration edge case, a light-theme shadow regression from v5.2.0's own theme cleanup, cross-board state leaks, a bulk-tag recency bug, a plugin-event ordering bug in the Template Gallery, and two real performance fixes (Map View group-drag, folder-drop). See [CHANGELOG.md](CHANGELOG.md) for the full writeup, including two cleanup items found but deliberately left for later rather than refactored under time pressure.
 >
 > **v5.2.0** — Recently-used tags, remembered card size per type, drag-to-align snapping guides, color card palette mode, Markdown preview for notes, and a bulk-tag undo-batching fix. Plus [plugin authoring docs and a starter scaffold](docs/PLUGIN_AUTHORING.md) for anyone building their own Kanvaz plugin. See [CHANGELOG.md](CHANGELOG.md) for the full list.
@@ -142,7 +144,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 5.3.0.exe` and `dist/Kanvaz 5.3.0.exe`
+Output: `dist/Kanvaz Setup 6.0.0.exe` and `dist/Kanvaz 6.0.0.exe`
 
 **macOS:**
 ```bash

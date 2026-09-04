@@ -93,12 +93,6 @@ var KanvazShortcuts = (function() {
       return;
     }
 
-    if (ctrl && shift && keyLower === 'f') {
-      e.preventDefault();
-      KanvazUI.toggleMoodLock();
-      return;
-    }
-
     /* Command Palette — Ctrl+K, unclaimed in Kanvaz today (see
        ROADMAP.md's v4.3.0 section for why Ctrl+K over Ctrl+Shift+P).
        "Always fire" like Save/Open/Search above it: a palette should be
@@ -115,9 +109,8 @@ var KanvazShortcuts = (function() {
        Ctrl+Z/Ctrl+Y/Ctrl+Shift+Z/Ctrl+A have native meanings inside a
        textarea (undo typing, redo, select all text) — they must NOT be
        hijacked into board-level undo/redo/select-all while the user is
-       typing in a note. Ctrl+S/Ctrl+Shift+S/Ctrl+O/Ctrl+Shift+F/Ctrl+F
-       have no native textarea meaning, so those stay above as "always
-       fire". */
+       typing in a note. Ctrl+S/Ctrl+Shift+S/Ctrl+O/Ctrl+F have no
+       native textarea meaning, so those stay above as "always fire". */
     if (inText) return;
 
     /* Quick search — / is the vim/Blender convention for instant search */
@@ -128,17 +121,6 @@ var KanvazShortcuts = (function() {
       } else {
         KanvazUI.showSearchBar();
       }
-      return;
-    }
-
-    /* Top Mode — easier single-key trigger than Ctrl+Shift+F (kept
-       above for backward compat/muscle memory). Tab has a native
-       meaning inside text inputs (focus navigation), which is exactly
-       why it's gated behind the inText check above rather than being
-       an "always fire" shortcut. */
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      KanvazUI.toggleMoodLock();
       return;
     }
 
@@ -161,7 +143,10 @@ var KanvazShortcuts = (function() {
     }
 
     /* Always on top — works in both views */
-    if (e.key === 't' || e.key === 'T') { KanvazApp.toggleAlwaysOnTop(); return; }
+    /* v6.0.0: T used to toggle Always on Top — that's on by default now
+       (see ui.js's SETTINGS_DEFAULTS), so T is repointed to the feature
+       that actually needs a fast toggle: click-through. */
+    if (e.key === 't' || e.key === 'T') { KanvazApp.toggleClickThrough(); return; }
 
     /* Theme toggle — works in both views. Binary dark/light toggle, same
        as before (a plugin theme still collapses to 'light' on press —

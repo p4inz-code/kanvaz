@@ -199,9 +199,9 @@ var KanvazCommands = (function() {
       label: 'Toggle Map View', shortcut: 'M',
       run: function() { if (typeof KanvazMapView !== 'undefined') KanvazMapView.toggle(); }
     });
-    registerCommand('core.toggleTopMode', {
-      label: 'Toggle Top Mode', shortcut: 'Tab',
-      run: function() { if (typeof KanvazUI !== 'undefined') KanvazUI.toggleMoodLock(); }
+    registerCommand('core.toggleClickThrough', {
+      label: 'Toggle Click-through (Reference Mode)', shortcut: 'T',
+      run: function() { if (typeof KanvazApp !== 'undefined') KanvazApp.toggleClickThrough(); }
     });
     registerCommand('core.toggleTheme', {
       label: 'Toggle Theme (Dark/Light)', shortcut: 'L',
@@ -221,8 +221,12 @@ var KanvazCommands = (function() {
         if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Theme: ' + nextTheme);
       }
     });
+    /* v6.0.0: on by default now (see ui.js's SETTINGS_DEFAULTS) — no
+       longer gets a dedicated key (that's Toggle Click-through's now,
+       above), just Command Palette + the Settings checkbox for the
+       minority of people who want it off. */
     registerCommand('core.toggleAlwaysOnTop', {
-      label: 'Toggle Always on Top', shortcut: 'T',
+      label: 'Toggle Always on Top',
       run: function() { if (typeof KanvazApp !== 'undefined') KanvazApp.toggleAlwaysOnTop(); }
     });
     registerCommand('core.openSettings', {
