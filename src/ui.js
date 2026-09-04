@@ -1039,7 +1039,7 @@ var KanvazUI_Extended = (function() {
     });
   }
 
-  /* ── Start from Template (5.1.0) ──
+  /* ── Start from Template (5.2.0) ──
      Bundled with the app (assets/templates/) — no network call at all,
      unlike Browse Official Plugins above. Same lazy-overlay-with-fixed-id
      pattern to avoid a double-open stacking two overlays. */
@@ -1295,7 +1295,7 @@ var KanvazUI_Extended = (function() {
       '</div>',
       '<div class="about-title">Kanvaz</div>',
       '<div class="about-subtitle">A visual reference workspace for creative professionals.</div>',
-      '<div class="about-version">Version 5.1.0</div>',
+      '<div class="about-version">Version 5.2.0</div>',
       '<div id="about-update-status" class="about-update-status"></div>',
       '<div class="about-divider"></div>',
       '<div class="about-author">Developed by <strong>Atharva Patil</strong></div>',
@@ -1303,7 +1303,7 @@ var KanvazUI_Extended = (function() {
       '<div class="about-desc">Built for VFX and 3D artists,<br>and the studios and educators who rely on them.</div>',
       '<div class="about-divider"></div>',
       '<div class="about-privacy">Free and open source. MIT License.<br>No telemetry, no background network activity.<br>Your data stays on your machine.</div>',
-      '<div class="about-tagline">Reference Operating System<br>Actively maintained — v5.1.0</div>'
+      '<div class="about-tagline">Reference Operating System<br>Actively maintained — v5.2.0</div>'
     ].join('');
 
     var updateBtn = document.createElement('button');

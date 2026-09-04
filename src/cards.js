@@ -26,6 +26,22 @@ var KanvazCards = (function() {
   var CARD_MIN_W = 80;
   var CARD_MIN_H = 80;
 
+  /* v5.2.0 — remembered last-used size per card type, so the next new
+     card of a type someone just resized starts at that size instead of
+     the fixed default every time. Session-scoped only (in-memory), same
+     deliberate scope decision as recentTags below — the pain point is a
+     single working session spent creating many cards of one type, not
+     remembering preferences across app restarts. Media types (image/
+     video/gif/audio) are deliberately excluded: their initial size is
+     already driven by the actual file's own dimensions, not a fixed
+     default, so "remembering" one file's size would be wrong for the next. */
+  var rememberedSizes = {};
+
+  function sizeFor(type, defaultW, defaultH) {
+    var r = rememberedSizes[type];
+    return r ? { w: r.w, h: r.h } : { w: defaultW, h: defaultH };
+  }
+
   /* ── Init ── */
 
   function init(worldEl) {
@@ -182,8 +198,27 @@ var KanvazCards = (function() {
          making the card feel like it snaps back / "won't move". Flag the
          element so those handlers can recognize and skip that one click. */
       el.dataset.justDragged = '1';
-      card.x = snapToGrid(origX + dx);
-      card.y = snapToGrid(origY + dy);
+
+      var nx = snapToGrid(origX + dx);
+      var ny = snapToGrid(origY + dy);
+
+      /* v5.2.0 — snap-to-other-cards alignment guides. Deliberately only
+         active when grid-snap is off: both are "where should this card's
+         position round to" answers, and letting them compete card-by-card
+         would make drags feel unpredictable rather than helpful. */
+      var gridSettings = (typeof KanvazUI_Extended !== 'undefined') ? KanvazUI_Extended.getSettings() : null;
+      if (!gridSettings || !gridSettings.gridSnapEnabled) {
+        var snap = findAlignmentSnap(card.id, nx, ny, card.w, card.h);
+        if (snap.x !== null) { nx = snap.x; showAlignGuideV(snap.guideX); }
+        else if (alignGuideV) alignGuideV.style.display = 'none';
+        if (snap.y !== null) { ny = snap.y; showAlignGuideH(snap.guideY); }
+        else if (alignGuideH) alignGuideH.style.display = 'none';
+      } else {
+        hideAlignGuides();
+      }
+
+      card.x = nx;
+      card.y = ny;
       el.style.left = card.x + 'px';
       el.style.top  = card.y + 'px';
     }
@@ -191,6 +226,7 @@ var KanvazCards = (function() {
     function onUp() {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
+      hideAlignGuides();
       if (moved) {
         KanvazApp.markDirty();
         KanvazHistory.push();
@@ -200,6 +236,83 @@ var KanvazCards = (function() {
 
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
+  }
+
+  /* ── Alignment guides (v5.2.0) ──
+     Snaps a dragged card's left/center/right (and top/center/bottom) to
+     any other card's matching edge within ALIGN_THRESHOLD world-units,
+     with a thin guide line spanning the board at the aligned coordinate
+     — same idea as Figma/Illustrator smart guides, scoped to one axis
+     match at a time (the single closest candidate per axis, not every
+     card that happens to be within range). */
+  var ALIGN_THRESHOLD = 6;
+  var alignGuideV = null;
+  var alignGuideH = null;
+
+  function ensureAlignGuides() {
+    if (!alignGuideV) {
+      alignGuideV = document.createElement('div');
+      alignGuideV.className = 'align-guide align-guide-v';
+      world.appendChild(alignGuideV);
+    }
+    if (!alignGuideH) {
+      alignGuideH = document.createElement('div');
+      alignGuideH.className = 'align-guide align-guide-h';
+      world.appendChild(alignGuideH);
+    }
+  }
+
+  function showAlignGuideV(x) {
+    ensureAlignGuides();
+    alignGuideV.style.left = x + 'px';
+    alignGuideV.style.display = '';
+  }
+
+  function showAlignGuideH(y) {
+    ensureAlignGuides();
+    alignGuideH.style.top = y + 'px';
+    alignGuideH.style.display = '';
+  }
+
+  function hideAlignGuides() {
+    if (alignGuideV) alignGuideV.style.display = 'none';
+    if (alignGuideH) alignGuideH.style.display = 'none';
+  }
+
+  function findAlignmentSnap(excludeId, x, y, w, h) {
+    var candidatesX = [x, x + w / 2, x + w];
+    var candidatesY = [y, y + h / 2, y + h];
+    var bestXDelta = ALIGN_THRESHOLD, bestX = null, bestXGuide = null;
+    var bestYDelta = ALIGN_THRESHOLD, bestY = null, bestYGuide = null;
+
+    for (var id in cards) {
+      if (id === excludeId) continue;
+      var c = cards[id];
+      var edgesX = [c.x, c.x + c.w / 2, c.x + c.w];
+      var edgesY = [c.y, c.y + c.h / 2, c.y + c.h];
+      var i, j, d;
+      for (i = 0; i < candidatesX.length; i++) {
+        for (j = 0; j < edgesX.length; j++) {
+          d = Math.abs(candidatesX[i] - edgesX[j]);
+          if (d < bestXDelta) {
+            bestXDelta = d;
+            bestX = x + (edgesX[j] - candidatesX[i]);
+            bestXGuide = edgesX[j];
+          }
+        }
+      }
+      for (i = 0; i < candidatesY.length; i++) {
+        for (j = 0; j < edgesY.length; j++) {
+          d = Math.abs(candidatesY[i] - edgesY[j]);
+          if (d < bestYDelta) {
+            bestYDelta = d;
+            bestY = y + (edgesY[j] - candidatesY[i]);
+            bestYGuide = edgesY[j];
+          }
+        }
+      }
+    }
+    return { x: bestX, guideX: bestXGuide, y: bestY, guideY: bestYGuide };
   }
 
   /* ── Resize ── */
@@ -306,6 +419,7 @@ var KanvazCards = (function() {
       if (typeof KanvazAnnotate !== 'undefined') {
         KanvazAnnotate.resize(card.id, Math.round(card.w), Math.round(card.h));
       }
+      rememberedSizes[card.type] = { w: card.w, h: card.h };
       KanvazApp.markDirty();
       KanvazHistory.push();
       emitCardEvent('cardUpdate', card);
@@ -552,6 +666,7 @@ var KanvazCards = (function() {
 
   function createNote(x, y) {
     var id = nextId();
+    var size = sizeFor('note', 240, 160);
     var card = {
       id:       id,
       type:     'note',
@@ -560,8 +675,8 @@ var KanvazCards = (function() {
       path:     null,
       x:        x,
       y:        y,
-      w:        240,
-      h:        160,
+      w:        size.w,
+      h:        size.h,
       z:        ++zCounter,
       pinned:   false,
       text:     '',
@@ -599,6 +714,7 @@ var KanvazCards = (function() {
      name-strip/badge chrome (buildCardBar) is skipped. */
   function createTextCard(x, y) {
     var id = nextId();
+    var size = sizeFor('text', 220, 80);
     var card = {
       id:       id,
       type:     'text',
@@ -607,8 +723,8 @@ var KanvazCards = (function() {
       path:     null,
       x:        x,
       y:        y,
-      w:        220,
-      h:        80,
+      w:        size.w,
+      h:        size.h,
       z:        ++zCounter,
       pinned:   false,
       text:     '',
@@ -643,6 +759,7 @@ var KanvazCards = (function() {
   function createColorCard(x, y, hex) {
     var id = nextId();
     var color = hex || '#9D7FFF';
+    var size = sizeFor('color', 160, 160);
     var card = {
       id:       id,
       type:     'color',
@@ -651,8 +768,8 @@ var KanvazCards = (function() {
       path:     null,
       x:        x,
       y:        y,
-      w:        160,
-      h:        160,
+      w:        size.w,
+      h:        size.h,
       z:        ++zCounter,
       pinned:   false,
       color:    color,
@@ -686,6 +803,7 @@ var KanvazCards = (function() {
 
   function createUrlCard(x, y) {
     var id = nextId();
+    var size = sizeFor('url', 220, 90);
     var card = {
       id:       id,
       type:     'url',
@@ -694,8 +812,8 @@ var KanvazCards = (function() {
       path:     null,
       x:        x,
       y:        y,
-      w:        220,
-      h:        90,
+      w:        size.w,
+      h:        size.h,
       z:        ++zCounter,
       pinned:   false,
       url:      '',
@@ -745,6 +863,7 @@ var KanvazCards = (function() {
   function createFileRefCardAtPath(x, y, p) {
     if (!p) return null;
     var id = nextId();
+    var size = sizeFor('file', 220, 90);
     var card = {
       id:       id,
       type:     'file',
@@ -753,8 +872,8 @@ var KanvazCards = (function() {
       path:     p,
       x:        x,
       y:        y,
-      w:        220,
-      h:        90,
+      w:        size.w,
+      h:        size.h,
       z:        ++zCounter,
       pinned:   false,
       annotations: []
@@ -1534,16 +1653,96 @@ var KanvazCards = (function() {
 
   /* ── Note card ── */
 
+  /* v5.2.0 — deliberately small: escape first, then a handful of
+     line/inline substitutions. Not a spec-complete Markdown parser (no
+     nested emphasis, no tables, no reference links) — this is a quick
+     "make my note readable" preview, not a document authoring tool, and
+     a bigger dependency for that is not worth pulling in. Escaping HTML
+     first is what makes this safe to render via innerHTML: a note
+     containing "<img onerror=...>" becomes inert text, never a live tag,
+     before any markdown substitution ever sees it. */
+  function escapeHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function noteMarkdownToHtml(text) {
+    var lines = escapeHtml(text || '').split('\n');
+    var html = '';
+    var inList = false;
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      var heading = /^(#{1,3})\s+(.*)$/.exec(line);
+      var listItem = /^[-*]\s+(.*)$/.exec(line);
+
+      if (listItem) {
+        if (!inList) { html += '<ul>'; inList = true; }
+        html += '<li>' + inlineMarkdown(listItem[1]) + '</li>';
+        continue;
+      }
+      if (inList) { html += '</ul>'; inList = false; }
+
+      if (heading) {
+        var level = heading[1].length + 2; /* h3..h5 — a note is a small card, not a document */
+        html += '<h' + level + '>' + inlineMarkdown(heading[2]) + '</h' + level + '>';
+      } else if (line.trim() === '') {
+        html += '<br>';
+      } else {
+        html += '<p>' + inlineMarkdown(line) + '</p>';
+      }
+    }
+    if (inList) html += '</ul>';
+    return html;
+  }
+
+  function inlineMarkdown(s) {
+    return s
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/(^|[^*])\*(?!\*)(.+?)\*(?!\*)/g, '$1<em>$2</em>')
+      .replace(/`(.+?)`/g, '<code>$1</code>')
+      .replace(/\[(.+?)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  }
+
   function buildNoteCard(el, card) {
     var accent = document.createElement('div');
     accent.className = 'note-accent-bar';
     el.appendChild(accent);
+
+    var previewToggle = document.createElement('button');
+    previewToggle.className = 'note-preview-toggle';
+    previewToggle.title = 'Toggle Markdown preview';
+    previewToggle.textContent = 'M↓';
 
     var ta = document.createElement('textarea');
     ta.className = 'note-body';
     ta.placeholder = 'Note';
     ta.value = card.text || '';
     ta.style.cssText = 'width:100%;height:100%;padding-bottom:28px;';
+
+    var preview = document.createElement('div');
+    preview.className = 'note-preview';
+
+    /* DOM-only view state, deliberately not saved to the card/file —
+       this is "how am I looking at this text right now", not a property
+       of the note itself, same category as which card is selected. */
+    var previewing = false;
+
+    function renderPreview() {
+      preview.innerHTML = noteMarkdownToHtml(card.text || '');
+    }
+
+    function setPreviewing(on) {
+      previewing = on;
+      if (on) renderPreview();
+      ta.style.display = on ? 'none' : '';
+      preview.style.display = on ? '' : 'none';
+      previewToggle.classList.toggle('active', on);
+    }
+
+    previewToggle.addEventListener('click', function(e) {
+      e.stopPropagation();
+      setPreviewing(!previewing);
+    });
+    previewToggle.addEventListener('mousedown', function(e) { e.stopPropagation(); });
 
     ta.addEventListener('input', function() {
       card.text = ta.value;
@@ -1557,9 +1756,9 @@ var KanvazCards = (function() {
          falling back to the card's actual name once emptied again. */
       var nameEl = el.querySelector('.card-filename');
       if (nameEl) {
-        var preview = ta.value.trim();
-        nameEl.textContent = preview
-          ? (preview.length > 20 ? preview.slice(0, 20) + '…' : preview)
+        var preview2 = ta.value.trim();
+        nameEl.textContent = preview2
+          ? (preview2.length > 20 ? preview2.slice(0, 20) + '…' : preview2)
           : (card.name || 'Note');
       }
     });
@@ -1569,7 +1768,12 @@ var KanvazCards = (function() {
       emitCardEvent('cardUpdate', card);
     });
 
+    preview.style.display = 'none';
+    preview.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+
+    el.appendChild(previewToggle);
     el.appendChild(ta);
+    el.appendChild(preview);
   }
 
   /* ── Bare text label ── */
@@ -1634,6 +1838,81 @@ var KanvazCards = (function() {
       KanvazApp.markDirty();
     });
 
+    /* v5.2.0 — palette mode: a small strip of saved swatches per card,
+       so a color card can hold "this project's palette" instead of just
+       one color. Shared with the native-picker flow below so clicking a
+       palette chip and dragging the OS color picker commit the exact
+       same way (dirty/history/event/bar-badge all in one place). */
+    function applyColorVisual(newColor) {
+      hex = newColor;
+      swatch.style.background = newColor;
+      label.textContent = formatColorString(hex, format);
+      var barName = el.querySelector('.card-filename');
+      if (barName) barName.textContent = newColor;
+      var barBadge = el.querySelector('.card-badge');
+      if (barBadge) barBadge.style.background = newColor;
+    }
+
+    function commitColorChange(newColor) {
+      card.color = newColor;
+      card.name  = newColor;
+      applyColorVisual(newColor);
+      KanvazApp.markDirty();
+      KanvazHistory.push();
+      emitCardEvent('cardUpdate', card);
+    }
+
+    var paletteStrip = document.createElement('div');
+    paletteStrip.className = 'color-palette-strip';
+    paletteStrip.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+
+    function renderPalette() {
+      paletteStrip.innerHTML = '';
+      var palette = card.palette || [];
+      for (var i = 0; i < palette.length; i++) {
+        (function(swatchHex, idx) {
+          var chip = document.createElement('div');
+          chip.className = 'color-palette-chip';
+          chip.style.background = swatchHex;
+          chip.title = swatchHex.toUpperCase() + ' — click to use, right-click to remove';
+          chip.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (el.dataset.justDragged) { delete el.dataset.justDragged; return; }
+            commitColorChange(swatchHex);
+          });
+          chip.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            card.palette.splice(idx, 1);
+            renderPalette();
+            KanvazApp.markDirty();
+            KanvazHistory.push();
+            emitCardEvent('cardUpdate', card);
+          });
+          paletteStrip.appendChild(chip);
+        })(palette[i], i);
+      }
+
+      var addBtn = document.createElement('button');
+      addBtn.className = 'color-palette-add';
+      addBtn.title = "Save this card's current color to its palette";
+      addBtn.textContent = '+';
+      addBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (el.dataset.justDragged) { delete el.dataset.justDragged; return; }
+        if (!card.palette) card.palette = [];
+        if (card.palette.indexOf(hex) === -1) {
+          card.palette.push(hex);
+          renderPalette();
+          KanvazApp.markDirty();
+          KanvazHistory.push();
+          emitCardEvent('cardUpdate', card);
+        }
+      });
+      paletteStrip.appendChild(addBtn);
+    }
+    renderPalette();
+
     /* Copy button always copies the hex value, regardless of what
        format is currently displayed — hex is the portable/pasteable one. */
     copyBtn.addEventListener('click', function(e) {
@@ -1679,14 +1958,7 @@ var KanvazCards = (function() {
         var newColor = picker.value;
         card.color = newColor;
         card.name  = newColor;
-        swatch.style.background = newColor;
-        hex = newColor;
-        label.textContent = formatColorString(hex, format);
-        /* Update card bar name + badge */
-        var barName = el.querySelector('.card-filename');
-        if (barName) barName.textContent = newColor;
-        var barBadge = el.querySelector('.card-badge');
-        if (barBadge) barBadge.style.background = newColor;
+        applyColorVisual(newColor);
         KanvazApp.markDirty();
       });
 
@@ -1709,6 +1981,7 @@ var KanvazCards = (function() {
 
     el.appendChild(swatch);
     el.appendChild(labelRow);
+    el.appendChild(paletteStrip);
   }
 
   /* ── URL reference card ── */
@@ -2111,6 +2384,22 @@ var KanvazCards = (function() {
 
   /* ── Tag chips (inline editing) ── */
 
+  /* v5.2.0 — recently-used tags, most-recent first, for one-click re-add
+     without typing anything first (see updateDropdown() below). Session-
+     scoped only (in-memory, not written to settings.json or the board
+     file) — a deliberate, smaller scope than persisting across restarts,
+     since the real pain point this solves is re-tagging many cards in
+     one sitting, not remembering tags from a week ago. */
+  var recentTags = [];
+  var RECENT_TAGS_MAX = 8;
+
+  function noteRecentTag(tag) {
+    var idx = recentTags.indexOf(tag);
+    if (idx !== -1) recentTags.splice(idx, 1);
+    recentTags.unshift(tag);
+    if (recentTags.length > RECENT_TAGS_MAX) recentTags.length = RECENT_TAGS_MAX;
+  }
+
   function collectAllTags() {
     var allTags = {};
     for (var id in cards) {
@@ -2198,6 +2487,7 @@ var KanvazCards = (function() {
       if (val && (!card.tags || card.tags.indexOf(val) === -1)) {
         if (!card.tags) card.tags = [];
         card.tags.push(val);
+        noteRecentTag(val);
         KanvazApp.markDirty();
         KanvazHistory.push();
         emitCardEvent('cardUpdate', card);
@@ -2215,13 +2505,19 @@ var KanvazCards = (function() {
     function updateDropdown() {
       var query = input.value.trim().toLowerCase();
       dropdown.innerHTML = '';
-      if (!query) { dropdown.classList.remove('visible'); return; }
-
       var existing = card.tags || [];
-      var matches = collectAllTags().filter(function(t) {
-        return existing.indexOf(t) === -1 && t.indexOf(query) !== -1;
-      });
-      if (!matches.length) { dropdown.classList.remove('visible'); return; }
+      var matches;
+      if (!query) {
+        /* Nothing typed yet — offer one-click re-add from recent tags
+           instead of hiding the dropdown entirely. */
+        matches = recentTags.filter(function(t) { return existing.indexOf(t) === -1; });
+        if (!matches.length) { dropdown.classList.remove('visible'); return; }
+      } else {
+        matches = collectAllTags().filter(function(t) {
+          return existing.indexOf(t) === -1 && t.indexOf(query) !== -1;
+        });
+        if (!matches.length) { dropdown.classList.remove('visible'); return; }
+      }
 
       for (var i = 0; i < Math.min(matches.length, 6); i++) {
         (function(tag) {
@@ -2245,6 +2541,7 @@ var KanvazCards = (function() {
     }
 
     input.addEventListener('input', updateDropdown);
+    input.addEventListener('focus', updateDropdown);
 
     /* buildTagBar() below rebuilds the tag bar, which removes this
        still-focused input from the DOM — that fires a native 'blur' on
@@ -2633,23 +2930,57 @@ var KanvazCards = (function() {
   /* Tag mutation currently only exists as a UI-input side effect buried
      inside buildTagBar()'s closures (see showTagInput's addTag() and the
      per-chip remove handler) — this is the standalone equivalent for a
-     programmatic caller that just wants to set the full tag list. */
-  function setTags(id, tags) {
+     programmatic caller that just wants to set the full tag list.
+     setTagsCore() does the actual mutation with no dirty/history/event
+     side effects, so a batch caller (setTagsMultiple() below) can apply
+     it to many cards behind one history push instead of one per card. */
+  function setTagsCore(id, tags) {
     var card = cards[id];
     if (!card) {
       console.error('[Kanvaz] setTags("' + id + '") — no card with that id, nothing changed');
       return null;
     }
     card.tags = Array.isArray(tags) ? tags.slice() : [];
+    for (var ti = 0; ti < card.tags.length; ti++) noteRecentTag(card.tags[ti]);
     var el = document.getElementById(id);
     if (el) {
       var existingBar = el.querySelector('.tag-bar');
       if (existingBar) buildTagBar(el, card);
     }
+    return card;
+  }
+
+  function setTags(id, tags) {
+    var card = setTagsCore(id, tags);
+    if (!card) return null;
     KanvazApp.markDirty();
     if (typeof KanvazHistory !== 'undefined') KanvazHistory.push();
     emitCardEvent('cardUpdate', card);
     return card;
+  }
+
+  /* v5.2.0 — fixes the known bulk-tag-undo-batching gap (flagged since
+     v4.7.0): Map View's bulk "Tag" action used to call setTags() once per
+     selected card, pushing one undo step per card instead of one for the
+     whole batch — still fully undoable, just needed more than one Ctrl+Z
+     for a large selection. ids: array of card ids. tagOf(id): function
+     returning the full new tag array for that card (the caller already
+     knows how to add/remove a tag from each card's existing list). */
+  function setTagsMultiple(ids, tagOf) {
+    if (!ids || !ids.length) return;
+    var changedAny = false;
+    for (var i = 0; i < ids.length; i++) {
+      var newTags = tagOf(ids[i]);
+      if (newTags && setTagsCore(ids[i], newTags)) changedAny = true;
+    }
+    if (changedAny) {
+      KanvazApp.markDirty();
+      if (typeof KanvazHistory !== 'undefined') KanvazHistory.push();
+      for (var j = 0; j < ids.length; j++) {
+        var c = cards[ids[j]];
+        if (c) emitCardEvent('cardUpdate', c);
+      }
+    }
   }
 
   /* Pure, read-only — mirrors app.js's applySearchFilter() matching
@@ -2849,6 +3180,7 @@ var KanvazCards = (function() {
         url:         c.url         || null,
         urlPreview:  c.urlPreview  || null,
         color:       c.color       || null,
+        palette:     c.palette     || null,
         mimeType:    c.mimeType    || null,
         /* v4.2.0 — plugin-owned card types read/write this bucket
            directly (render(el, card) has the whole card object); a
@@ -2899,6 +3231,7 @@ var KanvazCards = (function() {
         if (!c.url)         c.url         = null;
         if (!c.urlPreview)  c.urlPreview  = null;
         if (!c.color)       c.color       = null;
+        if (!c.palette)     c.palette     = null;
         if (!c.mimeType)    c.mimeType    = null;
         if (!c.pluginData)  c.pluginData  = null;
 
@@ -3227,6 +3560,7 @@ var KanvazCards = (function() {
     deleteSelected:    deleteSelected,
     updateCardData:    updateCardData,
     setTags:           setTags,
+    setTagsMultiple:   setTagsMultiple,
     search:            search,
     startRenameCard:   startRenameCard,
     deleteMultiple:    deleteMultiple,

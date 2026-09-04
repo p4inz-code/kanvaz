@@ -95,6 +95,8 @@ Full detail in `CHANGELOG.md` and `docs/HANDOFF.md`'s "Where things stand techni
 
 ## v5.2.0 — Remaining backlog sweep
 
+**Shipped.** See `CHANGELOG.md` for full detail.
+
 **Goal:** every item still open from v4.9.0's original list gets a real pass, closing that list out for good.
 
 - Recently-used tags, remembered card size per type, snapping/alignment guides
@@ -109,8 +111,9 @@ Full detail in `CHANGELOG.md` and `docs/HANDOFF.md`'s "Where things stand techni
 
 ## v5.3.0 — Polish & future-proof (Finish Line)
 
-**Goal:** nothing new starts here. Verify, polish, document, stop — the fifth and final release of this stretch.
+**Goal:** nothing new starts here. Verify, polish, document, stop — the fifth and final release of this stretch, and the last actively-developed version of Kanvaz for the foreseeable future (the user's own framing). Active feature development by p4inz-code ends here; further feature requests go through GitHub issues or direct email, not a continued release cadence.
 
+- A real audit/bug-hunt pass ("bug bounty") across the full v4.7–v5.2 diff, with fixes applied before shipping — see below.
 - One more full-stack audit pass — same standing methodology as `docs/AUDIT_METHODOLOGY.md`, across the full v4.7–v5.2 diff.
 - Confirm the two deferred `canvas.js` findings from the 4.2.1 audit are actually resolved — the additive-zoom-step one is very likely already fixed as a side effect of 4.6.0's multiplicative zoom rewrite; verify rather than assume, and check the viewport-clamp-at-extreme-pan one separately since nothing since has touched that path.
 - Real manual Electron-GUI smoke test of everything shipped across v4.7.0–v5.2.0 as a whole, not just per-release (this sandbox cannot run the app at all — confirmed by direct test — so this has never actually been done end-to-end for any of this arc).

@@ -1,0 +1,10 @@
+{
+  "id": "yourname.my-plugin",
+  "name": "My Plugin",
+  "version": "1.0.0",
+  "kanvazApiVersion": 1,
+  "entry": "main.js",
+  "permissions": [],
+  "description": "One sentence describing what this plugin does.",
+  "author": "Your Name"
+}

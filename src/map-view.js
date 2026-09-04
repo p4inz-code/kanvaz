@@ -1640,14 +1640,15 @@ var KanvazMapView = (function() {
       tag = tag.trim();
       if (!tag) return;
       var allCards = KanvazCards.getAll();
-      for (var id in multiSelected) {
+      var ids = Object.keys(multiSelected);
+      KanvazCards.setTagsMultiple(ids, function(id) {
         var c = allCards[id];
-        if (!c) continue;
+        if (!c) return null;
         var tags = (c.tags || []).slice();
         if (tags.indexOf(tag) === -1) tags.push(tag);
-        KanvazCards.setTags(id, tags);
-      }
-      KanvazUI.toast('Tagged ' + Object.keys(multiSelected).length + ' card(s) "' + tag + '"');
+        return tags;
+      });
+      KanvazUI.toast('Tagged ' + ids.length + ' card(s) "' + tag + '"');
     }));
 
     bulkBar.appendChild(makeBtn('Delete', function() {

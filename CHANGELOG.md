@@ -2,6 +2,22 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [5.2.0] — Backlog sweep: tags, sizing, guides, palette, notes, plugin docs
+
+Third release of the post-v4.9.0 arc: every item still open from v4.9.0's original "Closing the Drawer" list gets closed out here.
+
+### Added
+- **Recently-used tags** — the tag-input autocomplete now shows up to 8 recently-used tags immediately on focus (before typing anything), for one-click re-add. Session-scoped (in-memory), not persisted across restarts — the pain point this solves is re-tagging many cards in one sitting, not remembering tags from a week ago.
+- **Remembered card size per type** — Note/Text/Color/URL/File cards now default to whatever size you last resized that type to, instead of a fixed default every time. Also session-scoped. Media types (image/video/gif/audio) are deliberately excluded — their initial size is already driven by the actual file's dimensions.
+- **Snapping/alignment guides** — dragging a card now snaps its left/center/right and top/center/bottom to any other card's matching edge within a small threshold, with a thin guide line while it's active (same idea as Figma/Illustrator smart guides). Deliberately only active when grid-snap is off, so the two features don't fight card-by-card.
+- **Color card: palette mode** — a color card can now hold a small strip of saved swatches, not just one color. Click "+" to save the current color, click a saved swatch to switch to it, right-click a swatch to remove it.
+- **Note: Markdown preview** — a toggle button renders a note's text as basic Markdown (headings, bold/italic, inline code, links, lists) instead of plain text. Deliberately small — a readability preview, not a spec-complete parser — and HTML-escapes the source text before any markdown substitution runs, so a note can never inject a live tag into the page.
+- **Plugin authoring docs + scaffold** — [`docs/PLUGIN_AUTHORING.md`](docs/PLUGIN_AUTHORING.md) is a practical, task-oriented walkthrough (as opposed to `docs/PLUGIN_SYSTEM_DRAFT.md`, which is the internal design/status doc); [`docs/plugin-scaffold/`](docs/plugin-scaffold/) is a copy-and-rename starting point with a working example command/storage/event hookup. Deliberately kept outside `official-plugins/` since that folder is CI-zipped as release assets — this is a template, not a shippable plugin.
+
+### Fixed
+- **Bulk-tag undo batching** (flagged since v4.7.0) — Map View's bulk "Tag" action used to call `setTags()` once per selected card, pushing one undo step per card instead of one for the whole batch. New `KanvazCards.setTagsMultiple()` applies the change to every card first, then pushes exactly one history entry for the batch — same pattern `deleteMultiple()` already used for bulk delete.
+- **`[data-theme="light"]` CSS cleanup** — 5 rules (`.card`, `.card.selected`'s shadow, `#context-menu`, `.ctx-item:hover`, `.view-toggle-btn.view-toggle-active`) used to live only as hardcoded `[data-theme="light"]`-scoped overrides, invisible to any plugin theme (a plugin sets its own `data-theme` id, never the literal string `"light"`). Promoted to real CSS variables (`--shadow-card`, `--shadow-card-selected`, `--shadow-context-menu`, `--shadow-toggle-active`, `--tint-hover`) defined in both the dark and light theme blocks — a plugin theme with a light background can now correctly override them too, the same way it already can for every other `--color-*` token. Zero visual change for the two built-in themes; `.card.selected`'s accent-ring border-color override is the only rule that remains theme-selector-scoped, since it's a genuine per-theme color choice, not a luminance-tunable shadow.
+
 ## [5.1.0] — Template gallery
 
 Second release of the post-v4.9.0 arc: the free template-gallery idea raised mid-session (referencing [storyflow.so/templates/filmmaking](https://storyflow.so/templates/filmmaking) as a growth/onboarding reference point), scoped and shipped.

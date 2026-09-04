@@ -31,6 +31,23 @@
   --color-overlay:   rgba(0, 0, 0, 0.6);
   --color-bg:        var(--color-canvas);
 
+  /* v5.2.0 — the 5 rules this replaces used to live only as hardcoded
+     [data-theme="light"]-scoped overrides (see the removed comment
+     below), invisible to any plugin theme since a plugin sets its own
+     data-theme id, never the literal string "light". Promoting them to
+     real variables — defined here (dark defaults) and redefined in the
+     light theme's own block below — means a plugin theme with a light
+     background can now correctly override them too, the same way it
+     already can for every --color-* token (see Theme Creator's
+     buildThemeCss()). Values below are byte-identical to what the old
+     hardcoded dark-path rules used, so this is a mechanism change only —
+     zero visual difference for the two built-in themes. */
+  --shadow-card:           0 2px 12px rgba(0, 0, 0, 0.5);
+  --shadow-card-selected:  0 2px 12px rgba(0, 0, 0, 0.5), 0 0 0 4px var(--color-accent-bg);
+  --shadow-context-menu:   0 10px 32px var(--color-shadow);
+  --shadow-toggle-active:  0 1px 3px rgba(0, 0, 0, 0.3);
+  --tint-hover:            var(--color-surface-2);
+
   --font-ui:   system-ui, 'Segoe UI', Arial, sans-serif;
   --font-mono: Consolas, 'Courier New', monospace;
 
@@ -72,57 +89,29 @@
 
   --color-shadow:    rgba(0, 0, 0, 0.12);
   --color-overlay:   rgba(0, 0, 0, 0.25);
+
+  /* v5.2.0 — light-theme values for the tokens defined in the dark
+     block above. Byte-identical to the hardcoded overrides these
+     replace (see CHANGELOG.md's 5.2.0 entry) — a mechanism change, not
+     a visual one, for both built-in themes; a plugin theme can now set
+     these same tokens itself instead of being stuck with the dark
+     defaults. */
+  --shadow-card:           0 1px 4px rgba(0, 0, 0, 0.08);
+  --shadow-card-selected:  0 0 0 2px rgba(var(--color-accent-rgb), 0.25), 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-context-menu:   0 4px 20px rgba(0, 0, 0, 0.15);
+  --shadow-toggle-active:  0 1px 3px rgba(0, 0, 0, 0.12);
+  --tint-hover:            rgba(var(--color-accent-rgb), 0.08);
 }
 
 /* ── Light theme: specific overrides ──
-   KNOWN LIMITATION (documented during the 4.2.0 plugin-system audit):
-   these 8 rules are scoped to the literal selector [data-theme="light"]
-   — they are NOT part of the --color-* variable system, so a plugin
-   theme (which sets data-theme to its own id, e.g. via the Theme
-   Creator plugin) can never match them, even one the user deliberately
-   designs with a light/white background. That theme falls back to
-   these dark-tuned defaults instead (e.g. a heavier box-shadow tuned
-   for dark backgrounds instead of the softer one below). The variable-
-   level audit for this file found the CSS variable set itself is fully
-   complete for plugin themes (25/25 match, see the Theme Creator's
-   buildThemeCss()) — this is a separate, smaller cosmetic gap at the
-   selector level, not a missing-variable bug. Fixing it properly would
-   mean deriving these few rules from computed luminance in JS rather
-   than a hardcoded selector — noted here as a scoped future
-   improvement, not attempted in this pass. */
+   Only .card.selected's border-color remains here — a plain color
+   swap with no luminance/shadow tuning involved, unlike the 5 rules
+   above this used to also cover (see the --shadow-*/--tint-hover
+   tokens above and their light-block redefinitions just above this
+   comment) — those were the actual "hardcoded, plugin-themes-can't-
+   match-it" gap flagged during the 4.2.0 audit, now fixed. */
 :root[data-theme="light"] .card.selected {
   border-color: var(--color-accent) !important;
-  /* Audit fix: was a hardcoded rgba(43,127,212,...) literal duplicating
-     --color-accent-rgb's light-theme value above — real drift risk if
-     the light accent color is ever edited without remembering to also
-     update this literal. Uses the variable instead, like every other
-     accent-tinted rule in this file. */
-  box-shadow: 0 0 0 2px rgba(var(--color-accent-rgb), 0.25), 0 2px 8px rgba(0, 0, 0, 0.08) !important;
-}
-
-:root[data-theme="light"] .card {
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-}
-
-/* Audit fix: removed 3 dead/redundant rules that used to sit here
-   (#titlebar, #toolbar, #statusbar border overrides) — each was
-   byte-identical to its own already-unconditional base rule elsewhere
-   in this file (border-bottom/border-top: 1px solid var(--color-border)),
-   which already resolves to the correct per-theme color via the
-   variable regardless of data-theme. They had zero effect. */
-
-:root[data-theme="light"] #context-menu {
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  border: 1px solid var(--color-border);
-}
-
-:root[data-theme="light"] .ctx-item:hover {
-  /* Audit fix: same hardcoded-literal drift risk as .card.selected above. */
-  background: rgba(var(--color-accent-rgb), 0.08);
-}
-
-:root[data-theme="light"] .view-toggle-btn.view-toggle-active {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
 /* ── Reset ── */
@@ -456,7 +445,7 @@ html, body {
 .view-toggle-btn.view-toggle-active {
   background: var(--color-surface);
   color: var(--color-text);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-toggle-active);
 }
 
 /* ── Map View nodes ── */
@@ -486,6 +475,32 @@ html, body {
 .map-node-multiselected {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
+}
+
+/* Alignment guides (5.2.0) — children of #canvas-world, so they inherit
+   its pan/zoom transform and land in the same world-space coordinates
+   as the cards they align against. Deliberately huge fixed length
+   rather than measuring board extents — simpler, and a drag never
+   needs the guide to reach further than a couple of screens either way. */
+.align-guide {
+  position: absolute;
+  display: none;
+  background: var(--color-accent);
+  opacity: 0.7;
+  pointer-events: none;
+  z-index: 500;
+}
+
+.align-guide-v {
+  top: -10000px;
+  width: 1px;
+  height: 20000px;
+}
+
+.align-guide-h {
+  left: -10000px;
+  width: 20000px;
+  height: 1px;
 }
 
 .map-port {
@@ -693,7 +708,7 @@ html, body {
   position: absolute;
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-card);
   overflow: hidden;
   cursor: default;
   user-select: none;
@@ -717,7 +732,7 @@ html, body {
 .card.selected {
   outline: 1.5px solid var(--color-accent);
   outline-offset: 0px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5), 0 0 0 4px var(--color-accent-bg);
+  box-shadow: var(--shadow-card-selected);
 }
 
 .card:hover:not(.selected) {
@@ -1336,7 +1351,7 @@ html, body {
 .color-swatch {
   position: relative;
   width: 100%;
-  height: calc(100% - 48px);
+  height: calc(100% - 72px);
   cursor: pointer;
   border-radius: var(--radius-md) var(--radius-md) 0 0;
 }
@@ -1348,6 +1363,47 @@ html, body {
   justify-content: center;
   gap: 6px;
   padding: 0 8px;
+}
+
+/* Palette strip (5.2.0) — one row of saved swatches + an "add current
+   color" button, so a color card can hold a small palette instead of
+   just one color. Fixed height, budgeted into .color-swatch's own
+   height above the same way .color-label-row's 24px already is. */
+.color-palette-strip {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  overflow-x: auto;
+}
+
+.color-palette-chip {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1px solid var(--color-border-2);
+  cursor: pointer;
+}
+
+.color-palette-add {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border-radius: 3px;
+  border: 1px dashed var(--color-border-2);
+  background: none;
+  color: var(--color-text-3);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.color-palette-add:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
 }
 
 .color-label {
@@ -1430,6 +1486,76 @@ html, body {
 
 .card-note .note-body::placeholder {
   color: var(--color-text-2);
+}
+
+/* Markdown preview toggle (5.2.0) — same corner/sizing convention as
+   .url-open-btn, just positioned top-right since a note has no existing
+   button row to join. */
+.note-preview-toggle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  width: 22px;
+  height: 18px;
+  padding: 0;
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  color: var(--color-text-3);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.note-preview-toggle:hover {
+  color: var(--color-text);
+  border-color: var(--color-border-2);
+}
+
+.note-preview-toggle.active {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+  background: var(--color-accent-bg);
+}
+
+.note-preview {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  padding: 12px;
+  padding-top: 32px;
+  color: var(--color-text);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.note-preview p {
+  margin: 0 0 8px 0;
+}
+
+.note-preview h3, .note-preview h4, .note-preview h5 {
+  margin: 0 0 6px 0;
+  color: var(--color-text);
+}
+
+.note-preview ul {
+  margin: 0 0 8px 18px;
+  padding: 0;
+}
+
+.note-preview code {
+  background: var(--color-surface-2);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+.note-preview a {
+  color: var(--color-accent);
 }
 
 /* ── Bare text label ──
@@ -1745,7 +1871,7 @@ html, body {
   min-width: 168px;
   z-index: 70000;
   pointer-events: auto;
-  box-shadow: 0 10px 32px var(--color-shadow);
+  box-shadow: var(--shadow-context-menu);
   display: none;
 }
 
@@ -1766,7 +1892,7 @@ html, body {
 }
 
 .ctx-item:hover {
-  background: var(--color-surface-2);
+  background: var(--tint-hover);
   color: var(--color-text);
 }
 
