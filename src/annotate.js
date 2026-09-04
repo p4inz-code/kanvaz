@@ -308,6 +308,26 @@ var KanvazAnnotate = (function() {
   function onDown(e) {
     e.preventDefault();
     e.stopPropagation();
+
+    /* Eyedropper is a one-click sample, not a drag-drawn shape — never
+       enters the isDrawing lifecycle at all, so onMove/onUp both no-op
+       for it via their existing `if (!isDrawing) return` guards. */
+    if (activeTool === 'eyedropper') {
+      var epos = getPos(e);
+      var hex = sampleColorAt(activeCardId, epos.x, epos.y);
+      if (hex) {
+        activeColor = hex;
+        updateToolbar();
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(hex).catch(function() {});
+        }
+        if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Sampled ' + hex + ' — copied, and set as the active annotation color');
+      } else if (typeof KanvazUI !== 'undefined') {
+        KanvazUI.toast('Could not sample a color there', 'error');
+      }
+      return;
+    }
+
     isDrawing = true;
     var pos = getPos(e);
     startX = pos.x;
@@ -349,6 +369,10 @@ var KanvazAnnotate = (function() {
     } else if (activeTool === 'arrow') {
       activeCtx.putImageData(snapshot, 0, 0);
       drawArrow(activeCtx, startX, startY, pos.x, pos.y, activeColor, activeWidth);
+
+    } else if (activeTool === 'measure') {
+      activeCtx.putImageData(snapshot, 0, 0);
+      drawMeasureLine(activeCtx, startX, startY, pos.x, pos.y, activeColor, activeWidth);
     }
   }
 
@@ -418,6 +442,87 @@ var KanvazAnnotate = (function() {
     ctx.stroke();
   }
 
+  /* ── Measure line (v6.x — ArtDeck-inspired analysis tools) ──
+     Stored exactly like 'arrow' (same {x1,y1,x2,y2} shape as everything
+     else that isn't 'pen'), so it gets the same 0..1 normalization and
+     legacy-migration handling automatically — strokeLooksLegacy()/
+     migrateLegacyStroke() branch on "does this stroke have x1" already,
+     not on a tool-name allowlist. The distance readout is computed from
+     the CURRENT on-screen pixel positions at draw time, in the card's
+     own rendered pixel space — not the underlying image's native
+     resolution, which annotate.js has no reliable way to know for a
+     video, and would silently disagree with the drawn line's own length
+     if the two ever diverged. */
+  function drawMeasureLine(ctx, x1, y1, x2, y2, color, width) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth   = width;
+    ctx.lineCap     = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+
+    var dist = Math.round(Math.hypot(x2 - x1, y2 - y1));
+    var midX = (x1 + x2) / 2;
+    var midY = (y1 + y2) / 2;
+    var label = dist + 'px';
+
+    ctx.font = '11px sans-serif';
+    var textW = ctx.measureText(label).width;
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    ctx.fillRect(midX - textW / 2 - 4, midY - 15, textW + 8, 14);
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, midX, midY - 8);
+  }
+
+  /* ── Eyedropper (v6.x) ──
+     Samples the underlying MEDIA element's actual pixel, not the mostly-
+     transparent annotation overlay canvas above it — drawImage()s the
+     media onto a throwaway canvas first, replicating CSS object-fit's
+     own crop/letterbox math (cover vs. contain) so the sampled point
+     actually lines up with what's visually under the cursor. Returns
+     '#rrggbb' or null (video not yet loaded, image failed, etc.). */
+  function sampleColorAt(cardId, cssX, cssY) {
+    var cardEl = document.getElementById(cardId);
+    if (!cardEl) return null;
+    var media = cardEl.querySelector('img, video');
+    if (!media) return null;
+
+    var naturalW = media.tagName === 'VIDEO' ? media.videoWidth  : media.naturalWidth;
+    var naturalH = media.tagName === 'VIDEO' ? media.videoHeight : media.naturalHeight;
+    if (!naturalW || !naturalH) return null;
+
+    var box = cardEl.getBoundingClientRect();
+    var boxW = box.width, boxH = box.height;
+    if (!boxW || !boxH) return null;
+
+    var fit = (typeof KanvazCards !== 'undefined' && KanvazCards.getAll) ?
+      (KanvazCards.getAll()[cardId] || {}).objectFit : null;
+    var mode = fit === 'contain' ? Math.min : Math.max;
+    var scale = mode(boxW / naturalW, boxH / naturalH);
+    var drawW = naturalW * scale, drawH = naturalH * scale;
+    var offsetX = (boxW - drawW) / 2, offsetY = (boxH - drawH) / 2;
+
+    var tmp = document.createElement('canvas');
+    tmp.width = boxW;
+    tmp.height = boxH;
+    var tctx = tmp.getContext('2d');
+    try {
+      tctx.drawImage(media, offsetX, offsetY, drawW, drawH);
+      var data = tctx.getImageData(Math.round(cssX), Math.round(cssY), 1, 1).data;
+      return '#' + [data[0], data[1], data[2]].map(function(c) {
+        var h = c.toString(16);
+        return h.length === 1 ? '0' + h : h;
+      }).join('');
+    } catch (e) {
+      /* Cross-origin-tainted canvas or similar — sampling just isn't
+         possible for this media, not a bug to surface loudly. */
+      return null;
+    }
+  }
+
   /* ── Redraw all strokes from JSON ── */
 
   function redraw(cardId) {
@@ -452,6 +557,8 @@ var KanvazAnnotate = (function() {
         );
       } else if (s.tool === 'arrow' && s.points) {
         drawArrow(ov.ctx, s.points.x1 * size.w, s.points.y1 * size.h, s.points.x2 * size.w, s.points.y2 * size.h, s.color, s.width);
+      } else if (s.tool === 'measure' && s.points) {
+        drawMeasureLine(ov.ctx, s.points.x1 * size.w, s.points.y1 * size.h, s.points.x2 * size.w, s.points.y2 * size.h, s.color, s.width);
       }
     }
   }
@@ -530,7 +637,9 @@ var KanvazAnnotate = (function() {
     var tools = [
       { id: 'pen',   title: 'Pen',       icon: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 12l1-3.5L9.5 2 12 4.5 5.5 11 2 12z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M8 3.5L10.5 6" stroke="currentColor" stroke-width="1.3"/></svg>' },
       { id: 'arrow', title: 'Arrow',     icon: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 11.5L11.5 2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M6 2.5h5.5v5.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
-      { id: 'rect',  title: 'Rectangle', icon: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="2" y="3.5" width="10" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/></svg>' }
+      { id: 'rect',  title: 'Rectangle', icon: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="2" y="3.5" width="10" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/></svg>' },
+      { id: 'measure', title: 'Measure (pixel distance)', icon: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 10L10 2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M2 10l1.5-1.5M4.5 7.5L6 6M7 5l1.5-1.5M9.5 2.5L11 4" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>' },
+      { id: 'eyedropper', title: 'Eyedropper (sample a color)', icon: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9.5 2.5l2 2-6 6-2.5.5.5-2.5 6-6z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M8 4l2 2" stroke="currentColor" stroke-width="1.3"/></svg>' }
     ];
 
     for (var i = 0; i < tools.length; i++) {

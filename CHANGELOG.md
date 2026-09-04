@@ -2,6 +2,19 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [6.1.0] — Measure, eyedropper, video frame-stepping, onion-skin
+
+Second release of the v6.x arc, closing out the rest of the "Live Reference" pillar (see `docs/ROADMAP.md`) — the ArtDeck-inspired half of "beat PureRef at its own game."
+
+### Added
+- **Measure tool**, in the same annotation toolbar as pen/arrow/rectangle. Drag to draw a line and see its pixel distance live; the finished measurement is saved and stays on the card like any other annotation. Stored with the exact same `{x1,y1,x2,y2}` shape arrow/rectangle already use, so it gets the same 0–1 size-independent positioning and legacy-file migration handling automatically — no separate code path needed for either.
+- **Eyedropper tool** — click anywhere on an image or video card to sample the actual pixel color under the cursor (not just an annotation drawn on top of it), copy it to the clipboard, and set it as the active annotation color. Correctly accounts for `object-fit: cover`/`contain` cropping so the sampled point matches what's actually visible, not the raw underlying image coordinates.
+- **Video frame-stepping** — two new buttons in the video scrub bar step backward/forward by roughly one frame (a fixed 1/30s approximation; disclosed rather than claimed as frame-accurate, since HTML5 `<video>` has no reliable cross-browser way to detect a file's real frame rate or seek to an exact frame index).
+- **Onion-skin for video** — a toggle that ghosts the previous frame at reduced opacity while you step through, for checking animation timing/spacing the way a real onion-skin tool does.
+
+### Carried forward
+Pinning the window on top of one specific app only (PureRef 2.0's newer trick) remains unattempted — flagged from the start as needing real per-OS focus-tracking code, and still an open question whether it's worth the platform-specific complexity versus the plain always-on-top this arc already shipped in v6.0.0. The rest of the v6.x arc (local AI search, Smart Folders, color search, cards shared across boards, the plugin-ecosystem pillar, and the final UI-polish pass) hasn't started — see `docs/ROADMAP.md`.
+
 ## [6.0.0] — Reference Mode: click-through, opacity, always-on-top by default
 
 **Development has reopened.** v5.3.0 called itself the finish line — that stands as an honest record of the decision made at the time, not a promise that was broken. The user chose to start a new, deliberately final arc instead: a full market analysis against PureRef and every other major competitor in this space, aimed at closing every remaining real gap in one considered push, then genuinely stopping. This is the first release of that arc.

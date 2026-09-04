@@ -133,7 +133,8 @@ Reopened 2026-09-04, after a full market analysis against PureRef, Milanote, Are
 ## Pillar "Live Reference" — beat PureRef at its own game
 
 - **v6.0.0 — shipped.** Always-on-top now defaults to on; click-through + adjustable window opacity ("Reference Mode," T key) let you trace/color-match straight through the Kanvaz window into whatever's underneath — PureRef's actual signature move, finally complete. Top Mode removed entirely (redundant once always-on-top is the default). See `CHANGELOG.md`'s 6.0.0 entry for full detail, including the settings migration that applies the new default to existing users too, disclosed rather than silent.
-- **Not yet done:** pinning on top of one specific app only (PureRef 2.0's newer trick — flagged from the start as needing real OS-specific focus-tracking code per platform; may end up out of scope if it proves too fragile to trust). Video frame-stepping + onion-skinning for video cards. A measuring tool and a color eyedropper, added to the existing annotation toolset.
+- **v6.1.0 — shipped.** Measure tool and eyedropper added to the annotation toolset; video frame-stepping (~1/30s steps) and onion-skin ghosting for checking timing/spacing. See `CHANGELOG.md`'s 6.1.0 entry.
+- **Not yet done, and possibly out of scope:** pinning on top of one specific app only (PureRef 2.0's newer trick — flagged from the start as needing real OS-specific focus-tracking code per platform; may end up staying out of scope if it proves too fragile to trust versus the plain always-on-top already shipped). This is the one remaining open item in this pillar.
 
 ## Pillar "Never Lose Anything Again" — search & organization
 

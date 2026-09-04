@@ -454,6 +454,10 @@ var KanvazCards = (function() {
   var PAUSE_ICON = '<svg viewBox="0 0 10 10" fill="currentColor"><rect x="1" y="1" width="3" height="8"/><rect x="6" y="1" width="3" height="8"/></svg>';
   var MUTE_ICON  = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5.5h2l3-3v11l-3-3H3a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1z"/><line x1="12" y1="5" x2="12" y2="11" stroke-linecap="round"/><line x1="14.5" y1="3.5" x2="14.5" y2="12.5" stroke-linecap="round"/></svg>';
   var MUTED_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5.5h2l3-3v11l-3-3H3a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1z"/><line x1="11" y1="5.5" x2="15" y2="10.5" stroke-linecap="round"/><line x1="15" y1="5.5" x2="11" y2="10.5" stroke-linecap="round"/></svg>';
+  /* v6.x — ArtDeck-inspired frame analysis tools */
+  var FRAME_BACK_ICON    = '<svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M6.5 1.5L2 5l4.5 3.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="1" y1="1" x2="1" y2="9" stroke-linecap="round"/></svg>';
+  var FRAME_FORWARD_ICON = '<svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3.5 1.5L8 5l-4.5 3.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="9" y1="1" x2="9" y2="9" stroke-linecap="round"/></svg>';
+  var ONION_SKIN_ICON     = '<svg viewBox="0 0 14 14" fill="none"><circle cx="5.5" cy="7" r="4" fill="currentColor" opacity="0.35"/><circle cx="8.5" cy="7" r="4" stroke="currentColor" stroke-width="1.3"/></svg>';
   var LOOP_ICON  = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8a6 6 0 0 1 10.5-4"/><path d="M14 8a6 6 0 0 1-10.5 4"/><path d="M12 1.2v3.5H8.5"/><path d="M4 14.8v-3.5H7.5"/></svg>';
   var COPY_ICON  = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8.5" height="8.5" rx="1.5"/><path d="M10.5 5.5V3.5A1.5 1.5 0 0 0 9 2H3.5A1.5 1.5 0 0 0 2 3.5V9a1.5 1.5 0 0 0 1.5 1.5h2"/></svg>';
 
@@ -1475,7 +1479,80 @@ var KanvazCards = (function() {
     muteBtn.innerHTML = vid.muted ? MUTED_ICON : MUTE_ICON;
     muteBtn.title = 'Toggle mute';
 
+    /* v6.x — frame-stepping + onion-skin (ArtDeck-inspired analysis
+       tools). Frame duration is a fixed 1/30s approximation, not a true
+       frame-boundary detection — HTML5 <video> has no reliable
+       cross-browser way to query a container's actual frame rate or
+       seek to an exact frame index, so this is a disclosed, deliberate
+       approximation rather than something silently wrong. Good enough
+       for "step through and check spacing/timing," not frame-accurate
+       for variable-frame-rate footage. */
+    var FRAME_DURATION = 1 / 30;
+    var onionEnabled = false;
+    var onionCanvas = null;
+
+    function ensureOnionCanvas() {
+      if (onionCanvas) return;
+      onionCanvas = document.createElement('canvas');
+      onionCanvas.className = 'video-onion-canvas';
+      onionCanvas.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;';
+      el.insertBefore(onionCanvas, progressLine);
+    }
+
+    function captureOnionGhost() {
+      if (!vid.videoWidth) return; /* nothing decoded yet to ghost */
+      ensureOnionCanvas();
+      onionCanvas.width  = vid.clientWidth;
+      onionCanvas.height = vid.clientHeight;
+      var octx = onionCanvas.getContext('2d');
+      octx.clearRect(0, 0, onionCanvas.width, onionCanvas.height);
+      octx.globalAlpha = 0.4;
+      octx.drawImage(vid, 0, 0, onionCanvas.width, onionCanvas.height);
+    }
+
+    function stepFrame(dir) {
+      if (!vid.duration) return;
+      vid.pause();
+      playBtn.innerHTML = PLAY_ICON;
+      if (onionEnabled) captureOnionGhost();
+      vid.currentTime = Math.max(0, Math.min(vid.duration, vid.currentTime + dir * FRAME_DURATION));
+    }
+
+    var frameBackBtn = document.createElement('button');
+    frameBackBtn.className = 'media-play-btn';
+    frameBackBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-text-2);padding:0;display:flex;align-items:center;';
+    frameBackBtn.innerHTML = FRAME_BACK_ICON;
+    frameBackBtn.title = 'Step back one frame (~1/30s)';
+    frameBackBtn.addEventListener('click', function(e) { e.stopPropagation(); stepFrame(-1); });
+    frameBackBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+
+    var frameForwardBtn = document.createElement('button');
+    frameForwardBtn.className = 'media-play-btn';
+    frameForwardBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-text-2);padding:0;display:flex;align-items:center;';
+    frameForwardBtn.innerHTML = FRAME_FORWARD_ICON;
+    frameForwardBtn.title = 'Step forward one frame (~1/30s)';
+    frameForwardBtn.addEventListener('click', function(e) { e.stopPropagation(); stepFrame(1); });
+    frameForwardBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+
+    var onionBtn = document.createElement('button');
+    onionBtn.className = 'media-play-btn';
+    onionBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-text-2);padding:0;display:flex;align-items:center;';
+    onionBtn.innerHTML = ONION_SKIN_ICON;
+    onionBtn.title = 'Onion-skin: ghost the previous frame while stepping';
+    onionBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      onionEnabled = !onionEnabled;
+      onionBtn.style.color = onionEnabled ? 'var(--color-accent)' : 'var(--color-text-2)';
+      if (!onionEnabled && onionCanvas) {
+        onionCanvas.getContext('2d').clearRect(0, 0, onionCanvas.width, onionCanvas.height);
+      }
+    });
+    onionBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+
     scrub.appendChild(playBtn);
+    scrub.appendChild(frameBackBtn);
+    scrub.appendChild(frameForwardBtn);
+    scrub.appendChild(onionBtn);
     scrub.appendChild(track);
     scrub.appendChild(timeEl);
     scrub.appendChild(muteBtn);

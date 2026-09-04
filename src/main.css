@@ -1628,6 +1628,15 @@ html, body {
   opacity: 1;
 }
 
+/* Onion-skin ghost (v6.x) — sits above the video itself but below the
+   progress line/scrub controls; drawn at reduced alpha directly on the
+   canvas (see cards.js's captureOnionGhost), not via CSS opacity, so a
+   fully redrawn frame always fully replaces the previous ghost instead
+   of stacking translucency on translucency. */
+.video-onion-canvas {
+  z-index: 1;
+}
+
 /* Always-visible thin progress line — sits at the bottom edge of the
    video content, right above the card bar, regardless of hover. */
 .video-progress-line {
