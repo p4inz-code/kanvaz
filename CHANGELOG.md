@@ -2,6 +2,18 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [6.2.0] — Smart Folders + color search
+
+Third release of the v6.x arc: the first two, safest pieces of the "Never Lose Anything Again" pillar (see `docs/ROADMAP.md`) — no save-format changes, no new dependencies, both built directly on the existing Board View search.
+
+### Added
+- **Smart Folders** — a saved search that keeps re-running itself (Eagle's own standout feature). Type a search, click the star button to name and save it, then click that saved chip any time to instantly re-apply it. Stored in `settings.json`, not per-board — these are reusable query patterns, not board-specific content.
+- **Color search** — click the swatch button in the search bar to pick a color; cards get dimmed exactly like a text mismatch already does, based on each card's dominant color. Color cards use their own known color directly; image/GIF cards get a cheap 8×8 downscale-and-average sample, computed once per session and cached in memory only (never written to the `.kanvaz` file — no save-format change, no migration). Combines with a text query via AND when both are active.
+
+### Scope, disclosed
+- Video cards are skipped for color search — sampling a live `<video>`'s current frame would tie the cached "dominant color" to whatever frame happened to be showing the first time search ran, a worse inconsistency than not supporting it yet.
+- Map View's own search bar doesn't get Smart Folders or color search this pass — it already duplicates Board View's search logic wholesale (a known gap flagged in v5.3.0's audit), and this pass deliberately didn't add more to that duplicated surface rather than grow the debt further.
+
 ## [6.1.0] — Measure, eyedropper, video frame-stepping, onion-skin
 
 Second release of the v6.x arc, closing out the rest of the "Live Reference" pillar (see `docs/ROADMAP.md`) — the ArtDeck-inspired half of "beat PureRef at its own game."

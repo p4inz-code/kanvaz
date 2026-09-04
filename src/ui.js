@@ -156,13 +156,14 @@ var KanvazUI_Extended = (function() {
     confirmDelete:    false,
     defaultCardW:     600,
     animationsOn:     true,
-    /* v6.1.0: default flipped to true — always-on-top plus the new
+    /* v6.2.0: default flipped to true — always-on-top plus the new
        click-through/opacity controls (Reference Mode) is the actual
        point of Pillar 2, PureRef's own core reason to exist. See the
        v2->v3 settings migration below for why existing users' saved
        settings get this too, not just fresh installs. */
     alwaysOnTop:      true,
     windowOpacity:    1,
+    smartFolders:     [],
     doubleClickCreatesNote: false,
     leftDragPan:      true,
     autoHideChrome:   false,
@@ -184,14 +185,14 @@ var KanvazUI_Extended = (function() {
       return s;
     }},
     { from: 2, to: 3, migrate: function(s) {
-      /* v2→v3 (6.1.0): Top Mode is removed — topModeAutoOnTop no longer
+      /* v2→v3 (6.2.0): Top Mode is removed — topModeAutoOnTop no longer
          means anything, drop it rather than leave a dead key sitting in
          everyone's settings.json forever. Always-on-top becomes the
          default experience this version (see SETTINGS_DEFAULTS above) —
          deliberately overriding a prior explicit "off" here too, not
          just filling in the gap for people who never touched it, since
          this is a genuine, disclosed behavior change for this version
-         (see CHANGELOG's 6.1.0 entry), not silent. Still one click/
+         (see CHANGELOG's 6.2.0 entry), not silent. Still one click/
          Command-Palette-entry away from turning back off. */
       delete s.topModeAutoOnTop;
       s.alwaysOnTop = true;
@@ -287,7 +288,7 @@ var KanvazUI_Extended = (function() {
     }
 
     /* Always on top — apply persisted value. Goes through KanvazApp's
-       own syncAlwaysOnTop() (v6.1.0), not a direct KanvazBridge call —
+       own syncAlwaysOnTop() (v6.2.0), not a direct KanvazBridge call —
        app.js's toggleAlwaysOnTop()/Command Palette entry keeps its own
        in-memory copy of this flag, and without this sync call it would
        drift out of step with the real window state on the very first
@@ -299,7 +300,7 @@ var KanvazUI_Extended = (function() {
       KanvazBridge.setAlwaysOnTop(!!settings.alwaysOnTop);
     }
 
-    /* Window opacity (v6.1.0) — persisted, unlike click-through which
+    /* Window opacity (v6.2.0) — persisted, unlike click-through which
        always starts fresh (see app.js's Reference Mode section). */
     if (typeof KanvazBridge !== 'undefined' && KanvazBridge.setWindowOpacity) {
       KanvazBridge.setWindowOpacity(settings.windowOpacity !== undefined ? settings.windowOpacity : 1);
@@ -1072,7 +1073,7 @@ var KanvazUI_Extended = (function() {
     });
   }
 
-  /* ── Start from Template (6.1.0) ──
+  /* ── Start from Template (6.2.0) ──
      Bundled with the app (assets/templates/) — no network call at all,
      unlike Browse Official Plugins above. Same lazy-overlay-with-fixed-id
      pattern to avoid a double-open stacking two overlays. */
@@ -1327,7 +1328,7 @@ var KanvazUI_Extended = (function() {
       '</div>',
       '<div class="about-title">Kanvaz</div>',
       '<div class="about-subtitle">A visual reference workspace for creative professionals.</div>',
-      '<div class="about-version">Version 6.1.0</div>',
+      '<div class="about-version">Version 6.2.0</div>',
       '<div id="about-update-status" class="about-update-status"></div>',
       '<div class="about-divider"></div>',
       '<div class="about-author">Developed by <strong>Atharva Patil</strong></div>',
@@ -1335,7 +1336,7 @@ var KanvazUI_Extended = (function() {
       '<div class="about-desc">Built for VFX and 3D artists,<br>and the studios and educators who rely on them.</div>',
       '<div class="about-divider"></div>',
       '<div class="about-privacy">Free and open source. MIT License.<br>No telemetry, no background network activity.<br>Your data stays on your machine.</div>',
-      '<div class="about-tagline">Reference Operating System<br>Actively maintained — v6.1.0</div>'
+      '<div class="about-tagline">Reference Operating System<br>Actively maintained — v6.2.0</div>'
     ].join('');
 
     var updateBtn = document.createElement('button');

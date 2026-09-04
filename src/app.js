@@ -387,6 +387,52 @@ var KanvazApp = (function() {
       'color:var(--color-text)', 'font-family:var(--font-ui)', 'font-size:13px'
     ].join(';');
 
+    /* v6.2.0 \u2014 Smart Folders: a saved search that keeps re-running
+       itself, Eagle's own standout feature. Stored in settings.json
+       (settings.smartFolders), not per-board \u2014 these are reusable query
+       patterns ("all my color-graded shots," "tag:hero"), not content
+       tied to one specific board. */
+    var saveBtn = document.createElement('span');
+    saveBtn.title = 'Save this search as a Smart Folder';
+    saveBtn.style.cssText = 'cursor:pointer;color:var(--color-text-3);flex-shrink:0;display:flex;';
+    saveBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5l1.6 3.4 3.7.5-2.7 2.6.6 3.7L7 9.9l-3.2 1.8.6-3.7-2.7-2.6 3.7-.5L7 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>';
+    saveBtn.addEventListener('click', function() {
+      var q = searchInput.value.trim();
+      if (!q) { KanvazUI.toast('Type a search first'); return; }
+      var name = window.prompt('Name this Smart Folder:', q);
+      if (!name || !name.trim()) return;
+      if (typeof KanvazUI_Extended === 'undefined') return;
+      var s = KanvazUI_Extended.getSettings();
+      if (!s) return;
+      if (!s.smartFolders) s.smartFolders = [];
+      s.smartFolders.push({ id: 'sf-' + Date.now(), name: name.trim(), query: q });
+      KanvazBridge.writeSettings(JSON.stringify(s));
+      renderSmartFolderChips();
+      KanvazUI.toast('Saved Smart Folder "' + name.trim() + '"');
+    });
+
+    /* Color search \u2014 click to pick a color, cards get dimmed the same
+       way a text mismatch already dims them; click again while a color
+       is active to clear it. Swatch itself shows the active color (or a
+       neutral ring when none is set) so the state is visible at a glance. */
+    var colorBtn = document.createElement('span');
+    colorBtn.title = 'Filter by color';
+    colorBtn.style.cssText = 'cursor:pointer;flex-shrink:0;width:14px;height:14px;border-radius:50%;border:1.5px solid var(--color-text-3);background:' + (activeColorFilter || 'transparent') + ';';
+    colorBtn.addEventListener('click', function() {
+      if (activeColorFilter) { setColorFilter(null); colorBtn.style.background = 'transparent'; return; }
+      var picker = document.createElement('input');
+      picker.type = 'color';
+      picker.style.cssText = 'position:absolute;opacity:0;pointer-events:none;';
+      document.body.appendChild(picker);
+      picker.addEventListener('input', function() {
+        setColorFilter(picker.value);
+        colorBtn.style.background = picker.value;
+      });
+      picker.addEventListener('change', function() { picker.remove(); });
+      picker.addEventListener('blur', function() { setTimeout(function() { if (picker.parentNode) picker.remove(); }, 200); });
+      picker.click();
+    });
+
     var closeBtn = document.createElement('span');
     closeBtn.style.cssText = 'cursor:pointer;color:var(--color-text-3);font-size:16px;flex-shrink:0;';
     closeBtn.textContent = '\u00D7';
@@ -400,10 +446,61 @@ var KanvazApp = (function() {
 
     searchBar.appendChild(icon);
     searchBar.appendChild(searchInput);
+    searchBar.appendChild(colorBtn);
+    searchBar.appendChild(saveBtn);
     searchBar.appendChild(closeBtn);
     document.body.appendChild(searchBar);
 
+    /* Saved Smart Folders \u2014 a row of clickable chips under the input,
+       only rendered when at least one exists. Rebuilt (not just shown/
+       hidden) on every open/save/delete so a folder saved from a
+       previous session \u2014 or deleted just now \u2014 is always accurate. */
+    smartFolderRow = document.createElement('div');
+    smartFolderRow.id = 'smart-folder-row';
+    smartFolderRow.style.cssText = 'position:fixed;top:132px;left:50%;transform:translateX(-50%);width:320px;display:flex;flex-wrap:wrap;gap:6px;z-index:10000;';
+    document.body.appendChild(smartFolderRow);
+    renderSmartFolderChips();
+
     searchInput.focus();
+  }
+
+  var smartFolderRow = null;
+
+  function renderSmartFolderChips() {
+    if (!smartFolderRow) return;
+    smartFolderRow.innerHTML = '';
+    if (typeof KanvazUI_Extended === 'undefined') return;
+    var s = KanvazUI_Extended.getSettings();
+    var folders = (s && s.smartFolders) || [];
+    for (var i = 0; i < folders.length; i++) {
+      (function(folder) {
+        var chip = document.createElement('div');
+        chip.style.cssText = 'display:flex;align-items:center;gap:5px;padding:3px 8px;background:var(--color-surface);border:1px solid var(--color-border-2);border-radius:999px;font-size:11px;color:var(--color-text-2);cursor:pointer;box-shadow:0 2px 8px var(--color-shadow);';
+        var label = document.createElement('span');
+        label.textContent = folder.name;
+        chip.appendChild(label);
+        var del = document.createElement('span');
+        del.textContent = '\u00D7';
+        del.style.cssText = 'color:var(--color-text-3);cursor:pointer;';
+        del.title = 'Delete this Smart Folder';
+        del.addEventListener('click', function(e) {
+          e.stopPropagation();
+          var s2 = KanvazUI_Extended.getSettings();
+          if (!s2 || !s2.smartFolders) return;
+          s2.smartFolders = s2.smartFolders.filter(function(f) { return f.id !== folder.id; });
+          KanvazBridge.writeSettings(JSON.stringify(s2));
+          renderSmartFolderChips();
+        });
+        chip.appendChild(del);
+        chip.addEventListener('click', function() {
+          if (searchInput) {
+            searchInput.value = folder.query;
+            applySearchFilter(folder.query);
+          }
+        });
+        smartFolderRow.appendChild(chip);
+      })(folders[i]);
+    }
   }
 
   function focusSearchBar() {
@@ -413,7 +510,73 @@ var KanvazApp = (function() {
   function hideSearchBar() {
     searchActive = false;
     if (searchBar) { searchBar.remove(); searchBar = null; searchInput = null; }
+    if (smartFolderRow) { smartFolderRow.remove(); smartFolderRow = null; }
     clearSearchFilter();
+  }
+
+  /* v6.2.0 — color search (Eagle's own standout feature). Dominant color
+     is computed on first use per card and cached in-memory only
+     (card._dominantColorCache) — deliberately NOT persisted to the
+     .kanvaz file, so this never touches the save format or needs a
+     migration; it just gets recomputed once per session, same cost
+     class as re-decoding a thumbnail. Combines with the text query via
+     AND: with both set, a card must match the text AND be close enough
+     in color to stay visible. */
+  var activeColorFilter = null; /* hex string, or null */
+  var COLOR_MATCH_THRESHOLD = 90; /* out of a max possible ~441 (sqrt(3*255^2)) */
+
+  function hexToRgb(hex) {
+    var m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+    if (!m) return null;
+    var n = parseInt(m[1], 16);
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+  }
+
+  function colorDistance(hexA, hexB) {
+    var a = hexToRgb(hexA), b = hexToRgb(hexB);
+    if (!a || !b) return Infinity;
+    return Math.sqrt(Math.pow(a.r - b.r, 2) + Math.pow(a.g - b.g, 2) + Math.pow(a.b - b.b, 2));
+  }
+
+  /* Cheap average-color sample — a 8x8 downscale-and-average, not a real
+     k-means/histogram dominant-color algorithm. Good enough to tell
+     "mostly warm orange" from "mostly cool blue" for filtering purposes;
+     not attempting anything more precise than that. Video cards are
+     skipped (returns null) — sampling a live <video>'s current frame
+     for this would tie the cached result to whatever frame happened to
+     be showing when search was last used, which is a worse inconsistency
+     than just not supporting it yet. */
+  function getDominantColor(card) {
+    if (card._dominantColorCache !== undefined) return card._dominantColorCache;
+    var result = null;
+    if (card.type === 'color') {
+      result = card.color || null;
+    } else if (card.type === 'image' || card.type === 'gif') {
+      try {
+        var imgEl = document.querySelector('#' + card.id + ' img');
+        if (imgEl && imgEl.naturalWidth) {
+          var c = document.createElement('canvas');
+          c.width = 8; c.height = 8;
+          var ctx = c.getContext('2d');
+          ctx.drawImage(imgEl, 0, 0, 8, 8);
+          var data = ctx.getImageData(0, 0, 8, 8).data;
+          var r = 0, g = 0, b = 0, n = 0;
+          for (var i = 0; i < data.length; i += 4) { r += data[i]; g += data[i+1]; b += data[i+2]; n++; }
+          result = '#' + [Math.round(r/n), Math.round(g/n), Math.round(b/n)].map(function(v) {
+            var h = v.toString(16); return h.length === 1 ? '0' + h : h;
+          }).join('');
+        }
+      } catch (e) {
+        result = null; /* cross-origin-tainted canvas or similar — just skip this card for color search */
+      }
+    }
+    card._dominantColorCache = result;
+    return result;
+  }
+
+  function setColorFilter(hex) {
+    activeColorFilter = hex;
+    applySearchFilter(searchInput ? searchInput.value : '');
   }
 
   function applySearchFilter(query) {
@@ -424,22 +587,32 @@ var KanvazApp = (function() {
       var el = document.getElementById(id);
       if (!el) continue;
 
-      if (!q) {
+      if (!q && !activeColorFilter) {
         el.style.opacity = '';
         el.style.filter = '';
         continue;
       }
 
-      var nameMatch = (card.name || '').toLowerCase().indexOf(q) !== -1;
-      var typeMatch = (card.type || '').toLowerCase().indexOf(q) !== -1;
-      var tagMatch = false;
-      if (card.tags && card.tags.length) {
-        for (var t = 0; t < card.tags.length; t++) {
-          if (card.tags[t].toLowerCase().indexOf(q) !== -1) { tagMatch = true; break; }
+      var textOk = true;
+      if (q) {
+        var nameMatch = (card.name || '').toLowerCase().indexOf(q) !== -1;
+        var typeMatch = (card.type || '').toLowerCase().indexOf(q) !== -1;
+        var tagMatch = false;
+        if (card.tags && card.tags.length) {
+          for (var t = 0; t < card.tags.length; t++) {
+            if (card.tags[t].toLowerCase().indexOf(q) !== -1) { tagMatch = true; break; }
+          }
         }
+        textOk = nameMatch || typeMatch || tagMatch;
       }
 
-      if (nameMatch || typeMatch || tagMatch) {
+      var colorOk = true;
+      if (activeColorFilter) {
+        var dom = getDominantColor(card);
+        colorOk = !!dom && colorDistance(dom, activeColorFilter) <= COLOR_MATCH_THRESHOLD;
+      }
+
+      if (textOk && colorOk) {
         el.style.opacity = '';
         el.style.filter = '';
       } else {
@@ -450,6 +623,7 @@ var KanvazApp = (function() {
   }
 
   function clearSearchFilter() {
+    activeColorFilter = null;
     var allCards = KanvazCards.getAll();
     for (var id in allCards) {
       var el = document.getElementById(id);

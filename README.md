@@ -18,6 +18,8 @@
 
 > **Development has reopened for one final, deliberate arc**, aimed at closing every real gap against PureRef and every other major tool in this space, then genuinely stopping. v5.3.0's "last release" framing was an honest record of that decision at the time, not a promise broken — this is a considered restart, not scope creep. Found a real bug, or a feature you'd genuinely find valuable? [Open a GitHub issue](https://github.com/p4inz-code/kanvaz/issues) or email **atharva.patil.cg@gmail.com** — both are read.
 
+> **v6.2.0** — Smart Folders (a saved search that keeps re-running itself) and color search (click a color, find matching cards), the first two pieces of the "Never Lose Anything Again" pillar. See [CHANGELOG.md](CHANGELOG.md) for the full list.
+>
 > **v6.1.0** — Measure and eyedropper tools in the annotation toolbar, plus video frame-stepping and onion-skin — closing out the rest of the "Live Reference" pillar. See [CHANGELOG.md](CHANGELOG.md) for the full list.
 >
 > **v6.0.0** — Reference Mode: click-through + adjustable opacity, paired with Always-on-Top now defaulting to *on*. This is PureRef's actual signature move — trace or color-match straight through the Kanvaz window into whatever's underneath — finally complete and finally on by default. Top Mode is removed entirely; its whole reason to exist is now just how Kanvaz behaves out of the box. See [CHANGELOG.md](CHANGELOG.md) for the full writeup, including what's still to come in this arc.
@@ -146,7 +148,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 6.1.0.exe` and `dist/Kanvaz 6.1.0.exe`
+Output: `dist/Kanvaz Setup 6.2.0.exe` and `dist/Kanvaz 6.2.0.exe`
 
 **macOS:**
 ```bash
