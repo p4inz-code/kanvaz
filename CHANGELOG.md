@@ -2,6 +2,18 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [5.1.0] — Template gallery
+
+Second release of the post-v4.9.0 arc: the free template-gallery idea raised mid-session (referencing [storyflow.so/templates/filmmaking](https://storyflow.so/templates/filmmaking) as a growth/onboarding reference point), scoped and shipped.
+
+### Added
+- **"Start from Template"** — new button next to "New board" in the board tab bar. Opens a small gallery listing bundled starter boards; picking one creates a new board pre-populated with that template's cards.
+- **Three starter templates**, bundled with the app (`assets/templates/`) — Filmmaking (shot references, mood, color palette), Game Art (concept art, style references, materials/FX, palette), and Mood Board (a looser, freeform layout). Each is a plain JSON array of card objects (text/note/color cards only, no embedded binary assets), read via a new main-process-only `templates-list`/`template-load` IPC pair (renderer has no filesystem access of its own).
+- **Shape decision, made explicit**: this is an in-app feature reusing the same bundled-catalog pattern Browse Official Plugins already established — not a separate website/landing page — and needs **zero network exception**, unlike Browse Official Plugins or the new v5.0.0 URL preview: the templates ship inside the installer itself.
+
+### Not included this release
+Only 3 templates shipped, matching the "at least 3" done-bar in `docs/ROADMAP.md` — more can be added later without any code change (just a new JSON file + a manifest entry), so this isn't treated as a gap needing a follow-up release.
+
 ## [5.0.0] — Annotation drift fix, URL/File card previews
 
 First release of the new post-v4.9.0 arc: four feature releases plus a fifth polish/future-proofing pass to close out this stretch of Kanvaz's active development. This one finishes v4.9.0's biggest carried-forward item and adds the two card-preview features the user asked for directly.

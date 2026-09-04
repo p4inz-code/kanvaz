@@ -1104,6 +1104,50 @@ function registerIPC() {
      displayed permission list is a description of intent, not a
      technical guarantee. */
 
+  /* ── Board templates (v5.1.0) ──
+     Bundled with the app itself (assets/templates/), not fetched from
+     anywhere — unlike Browse Official Plugins' catalog, this needs no
+     network call at all. Renderer has no filesystem access of its own,
+     so both listing and loading go through the main process; the id is
+     re-validated against the manifest's own list (not trusted directly
+     as a filename) before it's ever joined into a path. */
+  var TEMPLATES_DIR = path.join(__dirname, '..', 'assets', 'templates');
+
+  function readTemplateManifest() {
+    return fs.promises.readFile(path.join(TEMPLATES_DIR, 'manifest.json'), 'utf8').then(function(raw) {
+      try {
+        var list = JSON.parse(raw);
+        return Array.isArray(list) ? list : [];
+      } catch (e) {
+        throw new Error('templates manifest is not valid JSON');
+      }
+    });
+  }
+
+  ipcMain.handle('templates-list', function() {
+    return readTemplateManifest().then(function(list) {
+      return { ok: true, templates: list };
+    }).catch(function(e) {
+      return { ok: false, error: e.message };
+    });
+  });
+
+  ipcMain.handle('template-load', function(event, id) {
+    return readTemplateManifest().then(function(list) {
+      var entry = list.filter(function(t) { return t.id === id; })[0];
+      if (!entry) throw new Error('unknown template id');
+      return fs.promises.readFile(path.join(TEMPLATES_DIR, entry.file), 'utf8');
+    }).then(function(raw) {
+      try {
+        return { ok: true, cards: JSON.parse(raw) };
+      } catch (e) {
+        throw new Error('template file is not valid JSON');
+      }
+    }).catch(function(e) {
+      return { ok: false, error: e.message };
+    });
+  });
+
   ipcMain.handle('plugins-scan', function() {
     try {
       return { ok: true, plugins: pluginLoader.scanPlugins(app.getPath('userData')) };

@@ -16,6 +16,8 @@
 
 **Reference Operating System**
 
+> **v5.1.0** — "Start from Template" next to New Board: three bundled starter boards (Filmmaking, Game Art, Mood Board), 100% offline — no catalog fetch, no network call, just files shipped with the app. See [CHANGELOG.md](CHANGELOG.md) for the full list.
+>
 > **v5.0.0** — Annotation resize-drift is actually fixed (strokes now store as fractions of card size, not absolute pixels — they stay put across a resize + save/reload, and old files self-migrate). URL cards can fetch a one-click title/thumbnail preview (the one deliberate, disclosed, opt-in-per-click exception to the offline-core promise — see [SECURITY.md](SECURITY.md)). File reference cards now show a type-specific icon (PDF/ZIP/DOC/etc.) instead of one flat folder icon for everything. See [CHANGELOG.md](CHANGELOG.md) for the full list.
 >
 > **v4.9.0** — Auto-updater downloads now show progress instead of going silent until "ready to restart." New "Zoom to Selection" command (Ctrl+K). See [CHANGELOG.md](CHANGELOG.md) for the full list, including what's deliberately carried forward to keep this release honest about scope.
@@ -134,7 +136,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 5.0.0.exe` and `dist/Kanvaz 5.0.0.exe`
+Output: `dist/Kanvaz Setup 5.1.0.exe` and `dist/Kanvaz 5.1.0.exe`
 
 **macOS:**
 ```bash

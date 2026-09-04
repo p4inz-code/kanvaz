@@ -1,0 +1,5 @@
+[
+  { "id": "filmmaking",  "name": "Filmmaking",  "description": "Shot references, mood, and a starter color palette for a film/VFX board.", "file": "filmmaking.json" },
+  { "id": "game-art",    "name": "Game Art",     "description": "Concept art, style references, and a palette section for a game-art board.", "file": "game-art.json" },
+  { "id": "mood-board",  "name": "Mood Board",   "description": "A loose, freeform layout for general inspiration gathering.", "file": "mood-board.json" }
+]

@@ -1,0 +1,8 @@
+[
+  { "id": "tpl-mb-1", "type": "text",  "name": "Section", "text": "INSPIRATION",  "x": 60,  "y": 60,  "w": 240, "h": 60,  "z": 1, "pinned": false },
+  { "id": "tpl-mb-2", "type": "note",  "name": "Note",    "text": "Drop anything that catches your eye — no theme required yet.", "x": 60,  "y": 130, "w": 240, "h": 150, "z": 2, "pinned": false },
+  { "id": "tpl-mb-3", "type": "note",  "name": "Note",    "text": "Textures & materials", "x": 340, "y": 90,  "w": 220, "h": 140, "z": 3, "pinned": false },
+  { "id": "tpl-mb-4", "type": "color", "name": "Swatch 1", "color": "#9D7FFF", "colorFormat": "hex", "x": 600, "y": 60,  "w": 100, "h": 100, "z": 4, "pinned": false },
+  { "id": "tpl-mb-5", "type": "color", "name": "Swatch 2", "color": "#FF5A5A", "colorFormat": "hex", "x": 600, "y": 180, "w": 100, "h": 100, "z": 5, "pinned": false },
+  { "id": "tpl-mb-6", "type": "note",  "name": "Note",    "text": "Keep what resonates, delete the rest later.", "x": 60,  "y": 320, "w": 320, "h": 100, "z": 6, "pinned": false }
+]

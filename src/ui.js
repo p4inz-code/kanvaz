@@ -1039,6 +1039,134 @@ var KanvazUI_Extended = (function() {
     });
   }
 
+  /* ── Start from Template (5.1.0) ──
+     Bundled with the app (assets/templates/) — no network call at all,
+     unlike Browse Official Plugins above. Same lazy-overlay-with-fixed-id
+     pattern to avoid a double-open stacking two overlays. */
+  function showTemplateGallery() {
+    var existing = document.getElementById('template-gallery-overlay');
+    if (existing) return;
+
+    var overlay = document.createElement('div');
+    overlay.id = 'template-gallery-overlay';
+    overlay.style.cssText = [
+      'position:fixed', 'inset:0', 'background:var(--color-overlay)',
+      'z-index:60000', 'display:flex', 'align-items:center',
+      'justify-content:center'
+    ].join(';');
+    overlay.onclick = function(e) { if (e.target === overlay) close(); };
+
+    var panel = document.createElement('div');
+    panel.style.cssText = [
+      'width:420px', 'max-width:90vw', 'max-height:70vh', 'overflow-y:auto',
+      'background:var(--color-surface)', 'border:1px solid var(--color-border-2)',
+      'border-radius:var(--radius-lg)', 'box-shadow:0 16px 48px var(--color-shadow)',
+      'padding:20px', 'animation:about-card-in 0.15s cubic-bezier(0.16,1,0.3,1)'
+    ].join(';');
+    panel.onclick = function(e) { e.stopPropagation(); };
+
+    var title = document.createElement('div');
+    title.style.cssText = 'font-size:14px;font-weight:600;color:var(--color-text);margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;';
+    var titleText = document.createElement('span');
+    titleText.textContent = 'Start from Template';
+    title.appendChild(titleText);
+    var closeX = document.createElement('button');
+    closeX.innerHTML = '&times;';
+    closeX.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-text-3);font-size:16px;padding:0;line-height:1;';
+    closeX.onclick = function() { close(); };
+    title.appendChild(closeX);
+    panel.appendChild(title);
+
+    var sub = document.createElement('div');
+    sub.style.cssText = 'font-size:11px;color:var(--color-text-3);margin-bottom:14px;';
+    sub.textContent = 'Bundled with Kanvaz — no network call, ever.';
+    panel.appendChild(sub);
+
+    var listEl = document.createElement('div');
+    listEl.textContent = 'Loading…';
+    listEl.style.cssText = 'font-size:12px;color:var(--color-text-3);';
+    panel.appendChild(listEl);
+
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+
+    function close() {
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    }
+
+    if (typeof KanvazBridge === 'undefined' || !KanvazBridge.listTemplates) {
+      listEl.textContent = 'Not available in this build.';
+      return;
+    }
+
+    KanvazBridge.listTemplates().then(function(result) {
+      if (!result || !result.ok) {
+        listEl.textContent = 'Could not load templates' + (result && result.error ? ': ' + result.error : '.');
+        return;
+      }
+      var templates = result.templates || [];
+      listEl.textContent = '';
+      if (!templates.length) {
+        listEl.textContent = 'No templates bundled with this build.';
+        return;
+      }
+
+      for (var i = 0; i < templates.length; i++) {
+        (function(entry) {
+          var row = document.createElement('div');
+          row.style.cssText = 'padding:10px 0;border-bottom:1px solid var(--color-border);';
+
+          var top = document.createElement('div');
+          top.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;';
+
+          var name = document.createElement('div');
+          name.style.cssText = 'font-size:12px;color:var(--color-text);font-weight:500;';
+          name.textContent = entry.name;
+          top.appendChild(name);
+
+          var useBtn = document.createElement('button');
+          useBtn.textContent = 'Use';
+          useBtn.style.cssText = 'background:var(--color-accent-bg);border:1px solid var(--color-accent);border-radius:4px;color:var(--color-accent);padding:3px 10px;font-size:11px;font-family:var(--font-ui);cursor:pointer;flex-shrink:0;';
+          useBtn.onclick = function() {
+            useBtn.disabled = true;
+            useBtn.textContent = 'Loading…';
+            KanvazBridge.loadTemplate(entry.id).then(function(res) {
+              if (!res || !res.ok) {
+                KanvazUI.toast((res && res.error) || 'Could not load template', 'error');
+                useBtn.disabled = false;
+                useBtn.textContent = 'Use';
+                return;
+              }
+              KanvazBoards.newBoard(true, entry.name);
+              KanvazCards.deserialise(res.cards);
+              KanvazApp.markDirty();
+              KanvazHistory.push();
+              close();
+              KanvazUI.toast('Started board from "' + entry.name + '"');
+            }).catch(function(e) {
+              KanvazUI.toast('Could not load template: ' + e.message, 'error');
+              useBtn.disabled = false;
+              useBtn.textContent = 'Use';
+            });
+          };
+          top.appendChild(useBtn);
+          row.appendChild(top);
+
+          if (entry.description) {
+            var desc = document.createElement('div');
+            desc.style.cssText = 'font-size:11px;color:var(--color-text-3);margin-top:3px;line-height:1.4;';
+            desc.textContent = entry.description;
+            row.appendChild(desc);
+          }
+
+          listEl.appendChild(row);
+        })(templates[i]);
+      }
+    }).catch(function(e) {
+      listEl.textContent = 'Could not load templates: ' + e.message;
+    });
+  }
+
   /* ── About screen ── */
 
   /* ── Check for updates ──
@@ -1167,7 +1295,7 @@ var KanvazUI_Extended = (function() {
       '</div>',
       '<div class="about-title">Kanvaz</div>',
       '<div class="about-subtitle">A visual reference workspace for creative professionals.</div>',
-      '<div class="about-version">Version 5.0.0</div>',
+      '<div class="about-version">Version 5.1.0</div>',
       '<div id="about-update-status" class="about-update-status"></div>',
       '<div class="about-divider"></div>',
       '<div class="about-author">Developed by <strong>Atharva Patil</strong></div>',
@@ -1175,7 +1303,7 @@ var KanvazUI_Extended = (function() {
       '<div class="about-desc">Built for VFX and 3D artists,<br>and the studios and educators who rely on them.</div>',
       '<div class="about-divider"></div>',
       '<div class="about-privacy">Free and open source. MIT License.<br>No telemetry, no background network activity.<br>Your data stays on your machine.</div>',
-      '<div class="about-tagline">Reference Operating System<br>Actively maintained — v5.0.0</div>'
+      '<div class="about-tagline">Reference Operating System<br>Actively maintained — v5.1.0</div>'
     ].join('');
 
     var updateBtn = document.createElement('button');
@@ -1507,6 +1635,7 @@ var KanvazUI_Extended = (function() {
     closeSettings:  closeSettings,
     showAbout:      showAbout,
     showShortcuts:  showShortcuts,
+    showTemplateGallery: showTemplateGallery,
     loadSettings:   loadSettings,
     getSettings:    function() { return settings; },
     /* Narrow, deliberate setter for plugins (e.g. Theme Creator) that

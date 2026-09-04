@@ -1358,7 +1358,8 @@ var KanvazApp = (function() {
       showSettings:        showSettings,
       closeSettings:       function() { KanvazUI_Extended.closeSettings(); },
       showAbout:           function() { KanvazUI_Extended.showAbout(); },
-      showShortcuts:       showShortcuts
+      showShortcuts:       showShortcuts,
+      showTemplateGallery: function() { KanvazUI_Extended.showTemplateGallery(); }
     };
 
   })();

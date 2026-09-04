@@ -1,0 +1,12 @@
+[
+  { "id": "tpl-ga-1", "type": "text",  "name": "Section",   "text": "CONCEPT ART",       "x": 40,  "y": 40,  "w": 260, "h": 60,  "z": 1, "pinned": false },
+  { "id": "tpl-ga-2", "type": "note",  "name": "Note",      "text": "Silhouettes, thumbnails, early exploration.", "x": 40,  "y": 120, "w": 260, "h": 160, "z": 2, "pinned": false },
+  { "id": "tpl-ga-3", "type": "text",  "name": "Section",   "text": "STYLE REFERENCES",  "x": 340, "y": 40,  "w": 260, "h": 60,  "z": 3, "pinned": false },
+  { "id": "tpl-ga-4", "type": "note",  "name": "Note",      "text": "Games/art/media that match the target look.", "x": 340, "y": 120, "w": 260, "h": 160, "z": 4, "pinned": false },
+  { "id": "tpl-ga-5", "type": "text",  "name": "Section",   "text": "MATERIALS & FX",    "x": 640, "y": 40,  "w": 260, "h": 60,  "z": 5, "pinned": false },
+  { "id": "tpl-ga-6", "type": "note",  "name": "Note",      "text": "Shaders, particle FX, texture references.", "x": 640, "y": 120, "w": 260, "h": 160, "z": 6, "pinned": false },
+  { "id": "tpl-ga-7", "type": "text",  "name": "Section",   "text": "PALETTE",           "x": 40,  "y": 320, "w": 260, "h": 60,  "z": 7, "pinned": false },
+  { "id": "tpl-ga-8", "type": "color", "name": "Palette 1", "color": "#4A9EFF", "colorFormat": "hex", "x": 40,  "y": 400, "w": 120, "h": 120, "z": 8, "pinned": false },
+  { "id": "tpl-ga-9", "type": "color", "name": "Palette 2", "color": "#4CAF82", "colorFormat": "hex", "x": 180, "y": 400, "w": 120, "h": 120, "z": 9, "pinned": false },
+  { "id": "tpl-ga-10","type": "color", "name": "Palette 3", "color": "#F0A500", "colorFormat": "hex", "x": 320, "y": 400, "w": 120, "h": 120, "z": 10, "pinned": false }
+]

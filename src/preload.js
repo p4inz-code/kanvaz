@@ -43,6 +43,8 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
   openExternal:    function(url) { ipcRenderer.send('shell-open-external', url); },
   resolveDroppedPaths: function(paths) { return ipcRenderer.invoke('resolve-dropped-paths', paths); },
   fetchUrlPreview: function(url) { return ipcRenderer.invoke('fetch-url-preview', url); },
+  listTemplates:   function() { return ipcRenderer.invoke('templates-list'); },
+  loadTemplate:    function(id) { return ipcRenderer.invoke('template-load', id); },
   openPath:        function(p) { return ipcRenderer.invoke('shell-open-path', p); },
 
   /* PureRef import */

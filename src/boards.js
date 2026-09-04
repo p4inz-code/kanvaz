@@ -7,7 +7,7 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '5.0.0';
+  var VERSION       = '5.1.0';
 
   /* ── Plugin event hooks (4.3.0) ──
      Fired at the two points that mean "the active board's identity or
@@ -143,6 +143,20 @@ var KanvazBoards = (function() {
     addBtn.onmouseleave = function() { addBtn.style.color = 'var(--color-text-3)'; };
     addBtn.onclick = function() { newBoard(false); };
     tabBar.appendChild(addBtn);
+
+    /* v5.1.0 — "Start from Template" sits right next to "New board"
+       since it's the same decision point (what should this new board
+       start as), not buried in Settings the way plugin browsing is. */
+    var templateBtn = document.createElement('button');
+    templateBtn.textContent = '⌗';
+    templateBtn.title = 'Start from Template';
+    templateBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-text-3);font-size:14px;padding:0 6px;line-height:1;';
+    templateBtn.onmouseenter = function() { templateBtn.style.color = 'var(--color-text)'; };
+    templateBtn.onmouseleave = function() { templateBtn.style.color = 'var(--color-text-3)'; };
+    templateBtn.onclick = function() {
+      if (typeof KanvazUI !== 'undefined' && KanvazUI.showTemplateGallery) KanvazUI.showTemplateGallery();
+    };
+    tabBar.appendChild(templateBtn);
   }
 
   /* ── New board ── */

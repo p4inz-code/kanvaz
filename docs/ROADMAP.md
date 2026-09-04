@@ -81,6 +81,8 @@ Full detail in `CHANGELOG.md` and `docs/HANDOFF.md`'s "Where things stand techni
 
 ## v5.1.0 — Template gallery
 
+**Shipped.** See `CHANGELOG.md` for full detail.
+
 **Goal:** the free-template-gallery idea, finally scoped and shipped (raised mid-session, referencing [storyflow.so/templates/filmmaking](https://storyflow.so/templates/filmmaking) as a reference point) — an acquisition/onboarding hook: pre-built starter boards a new user can drop straight into an empty board, free.
 
 - **Shape decision:** an in-app "Start from Template" option next to "New Board," not a separate website/landing page — reuses the same bundled-catalog pattern Browse Official Plugins already established, so it's the smaller, faster, more maintainable option and stays consistent with the rest of the app's UX.
