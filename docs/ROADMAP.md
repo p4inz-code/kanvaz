@@ -1,6 +1,8 @@
-# Kanvaz — Roadmap: v4.3 → v5.3 (final stretch)
+# Kanvaz — Roadmap: v4.3 → v5.3 (final stretch) — COMPLETE
 
-*Living doc. Decided jointly (product judgement: user; technical scoping: assistant) — originally 2026-08-20, re-planned 2026-09-02 after the v4.6.x `.pur`/Map View work, re-planned again 2026-09-03 after v4.9.0 shipped partially under time pressure.*
+*Living doc, now closed out. Decided jointly (product judgement: user; technical scoping: assistant) — originally 2026-08-20, re-planned 2026-09-02 after the v4.6.x `.pur`/Map View work, re-planned again 2026-09-03 after v4.9.0 shipped partially under time pressure. Closed out 2026-09-04 with v5.3.0's ship.*
+
+**v5.3.0 has shipped. This is the last planned release of Kanvaz's active development.** Every section below is historical record at this point — nothing on this doc is still "upcoming." Further feature requests go through GitHub issues or direct email (see README.md/CHANGELOG.md's v5.3.0 entries), not a continued numbered-release cadence.
 
 ## Framing
 
@@ -109,25 +111,23 @@ Full detail in `CHANGELOG.md` and `docs/HANDOFF.md`'s "Where things stand techni
 
 ---
 
-## v5.3.0 — Polish & future-proof (Finish Line)
+## v5.3.0 — Finish line: bug bounty, fixes, and what's next
 
-**Goal:** nothing new starts here. Verify, polish, document, stop — the fifth and final release of this stretch, and the last actively-developed version of Kanvaz for the foreseeable future (the user's own framing). Active feature development by p4inz-code ends here; further feature requests go through GitHub issues or direct email, not a continued release cadence.
+**Shipped.** See `CHANGELOG.md` for the full writeup. Goal was: nothing new starts here — verify, polish, document, stop — the fifth and final release of this stretch, and the last actively-developed version of Kanvaz for the foreseeable future (the user's own framing). Active feature development by p4inz-code ends here; further feature requests go through GitHub issues or direct email, not a continued release cadence.
 
-- A real audit/bug-hunt pass ("bug bounty") across the full v4.7–v5.2 diff, with fixes applied before shipping — see below.
-- One more full-stack audit pass — same standing methodology as `docs/AUDIT_METHODOLOGY.md`, across the full v4.7–v5.2 diff.
-- Confirm the two deferred `canvas.js` findings from the 4.2.1 audit are actually resolved — the additive-zoom-step one is very likely already fixed as a side effect of 4.6.0's multiplicative zoom rewrite; verify rather than assume, and check the viewport-clamp-at-extreme-pan one separately since nothing since has touched that path.
-- Real manual Electron-GUI smoke test of everything shipped across v4.7.0–v5.2.0 as a whole, not just per-release (this sandbox cannot run the app at all — confirmed by direct test — so this has never actually been done end-to-end for any of this arc).
-- Final version bump, final CHANGELOG "state of the app" entry.
-- Zero "defer to later" language left anywhere in the docs.
+**What actually happened, honestly scoped:**
+- **Real audit/bug-hunt pass, done.** 8 parallel finder passes (correctness line-by-line, removed-behavior regression audit, cross-file caller/callee trace, reuse, simplification, efficiency, architectural-depth, and a CLAUDE.md conventions check — none applied, no CLAUDE.md exists in this repo) across the full v4.7.0–v5.2.0 diff. 8 real, confirmed bugs fixed before shipping — see `CHANGELOG.md`'s "Fixed (found by this release's own audit pass)" section for the full list, including a genuine regression the v5.2.0 theme cleanup itself introduced (light-theme pinned+selected card shadow) and a real data-corruption path (annotation migration math while Map View is active). 2 more findings (reuse/duplication, not bugs) were logged but deliberately left unrefactored — see CHANGELOG's "Known, deliberately not refactored" note.
+- **NOT done, disclosed rather than silently skipped:** the two deferred `canvas.js` findings from the 4.2.1 audit (additive-zoom-step, viewport-clamp-at-extreme-pan) were not specifically re-verified this pass — the 8-angle bug-bounty above covered the v4.7–v5.2 diff, not a re-audit of pre-4.7 code untouched since. Also not done: a real manual Electron-GUI smoke test of the full v4.7.0–v5.3.0 arc end-to-end — this sandbox has never been able to run the app at all (confirmed by direct test throughout this entire stretch), so every fix in this release (like every feature in v5.0.0–v5.2.0) is logic-verified and `validate.js`-clean, not eyes-on-screen verified. This is a real, standing gap for whoever picks up a genuine bug report against this code going forward, not a claim that's being quietly dropped.
+- Final version bump: done. Final CHANGELOG "what's next" entry: done — see CHANGELOG's v5.3.0 section.
 
-**Done bar:** `validate.js` + `format-roundtrip-test.js` clean. Every card type and Map View feature manually smoke-tested. `SECURITY.md`/`README.md` fully accurate as of the actual final state. No further versions planned after this one.
+**Done bar, honestly assessed:** `validate.js` + `format-roundtrip-test.js` clean — yes. Every card type and Map View feature manually smoke-tested — no, per the disclosed gap above. `SECURITY.md`/`README.md` accurate as of the actual final state — yes. No further versions planned after this one — confirmed, per the user's own instruction to close out development here.
 
 ---
 
 ## Not a version, flagged so it doesn't get lost
 
-The website update has been explicitly held off multiple times — release/CHANGELOG work first, website is a separate deliberate joint step. Once v5.0.0 ships, that's the natural moment to revisit it.
+The website update has been explicitly held off multiple times — release/CHANGELOG work first, website is a separate deliberate joint step. With development now closed out at v5.3.0, this is unscoped future work if the user chooses to pursue it — not part of the app's own release cadence.
 
-Full per-plugin process isolation remains explicitly declined (multi-week rearchitect, not worth it against the current plugin ecosystem size) — logged as deliberate future work in `SECURITY.md`, not a gap anyone missed. Don't propose re-opening this without the user raising it.
+Full per-plugin process isolation remains explicitly declined (multi-week rearchitect, not worth it against the current plugin ecosystem size) — logged as deliberate future work in `SECURITY.md`, not a gap anyone missed. With development closed out, this stays declined; it isn't something a GitHub issue against this repo should expect to reopen.
 
-**Free template gallery — raised mid-session, not yet scoped.** User's own framing: growth/marketing motivated ("im also marketing my apps highly i want kanvaz to go viral atp"), pointing at [storyflow.so/templates/filmmaking](https://storyflow.so/templates/filmmaking) as a reference for what a template-gallery page could look like — pre-built starter boards (by use case: filmmaking, game art, mood boards, etc.) a new user can drop straight into an empty board, free, as an acquisition/onboarding hook. Not investigated yet: whether this is a small in-app feature (a "Start from template" option alongside "New Board", shipping a handful of `.kanvaz` files with the app or fetched from a small catalog the same way Browse Official Plugins already works) or a bigger website/landing-page play outside the app entirely. Needs a real scoping pass before it goes into a numbered version — don't assume either shape without asking.
+~~Free template gallery — raised mid-session, not yet scoped.~~ **Done, shipped in v5.1.0.** Scoped as an in-app "Start from Template" button (not a website/landing-page play) with 3 bundled starter boards — see `CHANGELOG.md`'s v5.1.0 entry.

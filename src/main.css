@@ -747,9 +747,18 @@ html, body {
 
 /* When a card is both selected and pinned, the selection ring takes
    visual priority — the pin dot alone signals "pinned" so the two
-   colored rings don't compete. */
+   colored rings don't compete. Bug-bounty fix (v5.3.0): this used to
+   repeat --shadow-card-selected's dark-theme value as a hardcoded
+   literal instead of the variable itself — harmless before the light-
+   theme override carried `!important` (which beat this rule's higher
+   3-class specificity regardless of value), but the theme-variable
+   cleanup that removed that `!important` left this rule permanently
+   winning over .card.selected's now-un-important box-shadow, so a
+   pinned+selected card in light theme silently kept the dark-tuned
+   shadow. Using the same variable both rules already agree on removes
+   the specificity race entirely — there's nothing left to win. */
 .card.selected.pinned {
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5), 0 0 0 4px var(--color-accent-bg);
+  box-shadow: var(--shadow-card-selected);
 }
 
 /* Card bottom bar */

@@ -42,6 +42,25 @@ var KanvazCards = (function() {
     return r ? { w: r.w, h: r.h } : { w: defaultW, h: defaultH };
   }
 
+  /* Bug-bounty fix (v5.3.0): rememberedSizes and recentTags (declared
+     further down, next to buildTagBar) were both introduced as module-
+     level state with no reset path — clearAll()/deserialise() run on
+     every undo/redo too (see history.js), so resetting them THERE would
+     wipe "recently used" mid-editing-session on a plain Ctrl+Z, which is
+     wrong in the other direction. This is the dedicated reset for the
+     actual board-transition boundary instead: boards.js calls it from
+     newBoard() and loadBoardState() (covering switch/open/recovery/
+     template-restore — every loadBoardState() call site), never from
+     clearAll() itself. Before this fix, resizing a Note on Board A and
+     then switching to Board B would have new Notes on B silently inherit
+     Board A's size, and B's tag-autocomplete would show A's recent tags
+     — a real cross-board leak, not the "session-scoped" (single board)
+     behavior the v5.2.0 CHANGELOG entry described. */
+  function resetSessionState() {
+    rememberedSizes = {};
+    recentTags = [];
+  }
+
   /* ── Init ── */
 
   function init(worldEl) {
@@ -2940,8 +2959,19 @@ var KanvazCards = (function() {
       console.error('[Kanvaz] setTags("' + id + '") — no card with that id, nothing changed');
       return null;
     }
+    /* Bug-bounty fix (v5.3.0): used to noteRecentTag() every tag in the
+       new list, including ones the card already had — a bulk-tag over
+       Map View's selection (setTagsMultiple, below) would re-surface
+       every pre-existing tag on every selected card as "recently used",
+       flooding the 8-slot recency list with old tags and burying the one
+       tag the user actually just typed. Only the genuinely NEW tags
+       (present now, absent from the card's previous list) count as a
+       real "use" for recency purposes. */
+    var prevTags = card.tags || [];
     card.tags = Array.isArray(tags) ? tags.slice() : [];
-    for (var ti = 0; ti < card.tags.length; ti++) noteRecentTag(card.tags[ti]);
+    for (var ti = 0; ti < card.tags.length; ti++) {
+      if (prevTags.indexOf(card.tags[ti]) === -1) noteRecentTag(card.tags[ti]);
+    }
     var el = document.getElementById(id);
     if (el) {
       var existingBar = el.querySelector('.tag-bar');
@@ -3580,6 +3610,7 @@ var KanvazCards = (function() {
     serialise:         serialise,
     deserialise:       deserialise,
     clearAll:          clearAll,
+    resetSessionState: resetSessionState,
     getAll:            getAll,
     getSelected:       function() { return selectedId; },
     getSelectedIds:    getSelectedIds

@@ -46,8 +46,16 @@ var KanvazAnnotate = (function() {
        saved annotations stay pixel-identical across machines with
        different display scaling. */
     var dpr  = window.devicePixelRatio || 1;
-    var cssW = cardEl.offsetWidth  || 300;
-    var cssH = cardEl.offsetHeight || 200;
+    /* Bug-bounty fix (v5.3.0): resolveCardSize() reads the card's own
+       inline style first, which stays correct even under a display:none
+       ancestor (e.g. attach() reached via loadStrokes() while Map View
+       is the active view) — offsetWidth/offsetHeight alone read 0 there
+       and used to fall through to the 300x200 literal below regardless
+       of the card's real size, undersizing the canvas buffer for the
+       rest of that session until an unrelated resize happened to fix it. */
+    var fallbackSize = resolveCardSize(cardEl);
+    var cssW = fallbackSize ? fallbackSize.w : 300;
+    var cssH = fallbackSize ? fallbackSize.h : 200;
     cvs.width  = Math.round(cssW * dpr);
     cvs.height = Math.round(cssH * dpr);
 
@@ -192,11 +200,32 @@ var KanvazAnnotate = (function() {
      detects and one-time-converts those using the card's current size,
      so the file naturally migrates to the new format on next save with
      no explicit version field needed. */
+  /* Bug-bounty fix (v5.3.0): reads the card's OWN inline style first —
+     cards.js always sets el.style.width/height in pixels at render time
+     (renderCard, resize, resetSize), and unlike offsetWidth/offsetHeight
+     that value doesn't require layout, so it stays correct even when the
+     card sits inside a display:none ancestor (e.g. Map View is the
+     active view while a board loads). offsetWidth/offsetHeight is only
+     a fallback for a card element that somehow has no inline size set.
+     This used to read offsetWidth/offsetHeight first, which silently
+     read 0 under exactly that Map View condition and fell through to
+     attach()'s own hardcoded 300x200 default (see attach() below) —
+     migrateLegacyStroke() would then divide by the WRONG size and bake
+     permanently corrupted coordinates into card.annotations on the very
+     next save, a real, reachable data-loss bug for any pre-4.9.1 file
+     opened while Map View happened to be active. */
+  function resolveCardSize(cardEl) {
+    if (!cardEl) return null;
+    var sw = parseFloat(cardEl.style.width);
+    var sh = parseFloat(cardEl.style.height);
+    if (sw > 0 && sh > 0) return { w: sw, h: sh };
+    if (cardEl.offsetWidth && cardEl.offsetHeight) return { w: cardEl.offsetWidth, h: cardEl.offsetHeight };
+    return null;
+  }
+
   function getCardSize(cardId) {
-    var el = document.getElementById(cardId);
-    if (el && el.offsetWidth && el.offsetHeight) {
-      return { w: el.offsetWidth, h: el.offsetHeight };
-    }
+    var size = resolveCardSize(document.getElementById(cardId));
+    if (size) return size;
     var ov = overlays[cardId];
     if (ov) return { w: ov.canvas.width / (ov.dpr || 1), h: ov.canvas.height / (ov.dpr || 1) };
     return { w: 1, h: 1 };
@@ -209,13 +238,24 @@ var KanvazAnnotate = (function() {
     return v > 1.5;
   }
 
+  /* Bug-bounty fix (v5.3.0): used to check only the stroke's FIRST point
+     (or a rect/arrow's x1/y1) — a legacy stroke that happened to START
+     near a card's corner (e.g. x1=1, y1=1) but extended well past it
+     (x2=180, y2=140) was misclassified as already-normalized, skipped
+     migration entirely, and then got double-scaled by redraw() into
+     wildly wrong, permanent-once-resaved geometry. Checking every point
+     closes that gap — legacy data only ever has ALL coordinates as
+     absolute pixels, so any single one past the threshold is conclusive. */
   function strokeLooksLegacy(s) {
     if (s.tool === 'pen' && s.points && s.points.length) {
-      var p0 = s.points[0];
-      return isLegacyPoint(p0.x) || isLegacyPoint(p0.y);
+      for (var i = 0; i < s.points.length; i++) {
+        if (isLegacyPoint(s.points[i].x) || isLegacyPoint(s.points[i].y)) return true;
+      }
+      return false;
     }
     if (s.points && s.points.x1 !== undefined) {
-      return isLegacyPoint(s.points.x1) || isLegacyPoint(s.points.y1);
+      return isLegacyPoint(s.points.x1) || isLegacyPoint(s.points.y1) ||
+             isLegacyPoint(s.points.x2) || isLegacyPoint(s.points.y2);
     }
     return false;
   }

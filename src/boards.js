@@ -7,7 +7,7 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '5.2.0';
+  var VERSION       = '5.3.0';
 
   /* ── Plugin event hooks (4.3.0) ──
      Fired at the two points that mean "the active board's identity or
@@ -161,14 +161,25 @@ var KanvazBoards = (function() {
 
   /* ── New board ── */
 
-  function newBoard(silent, name) {
+  /* Bug-bounty fix (v5.3.0): initialCards (optional) lets a caller — so
+     far only ui.js's showTemplateGallery() — populate the fresh board
+     BEFORE 'boardLoad' fires, instead of calling KanvazCards.deserialise()
+     itself afterward. That second pattern used to be what the Template
+     Gallery did, and it meant any plugin listening for 'boardLoad' (to
+     react to "a new board is now active," e.g. via KanvazCards.getAll())
+     saw a board with zero cards — deserialise() ran, silently, only
+     after the event had already gone out. Every other board-load path
+     (loadBoardState(), below) already deserialises first and fires the
+     event after; this brings newBoard() in line with that same order
+     for its one caller that actually has cards to load up front. */
+  function newBoard(silent, name, initialCards) {
     saveCurrentBoardState();
 
     var id = 'board-' + Date.now();
     var board = {
       id:       id,
       name:     (name && name.trim()) || ('Board ' + (boards.length + 1)),
-      cards:    [],
+      cards:    initialCards || [],
       canvasTx: 0,
       canvasTy: 0,
       canvasScale: 1.0
@@ -177,7 +188,12 @@ var KanvazBoards = (function() {
     boards.push(board);
     activeIdx = boards.length - 1;
 
-    KanvazCards.clearAll();
+    if (KanvazCards.resetSessionState) KanvazCards.resetSessionState();
+    if (initialCards) {
+      KanvazCards.deserialise(initialCards);
+    } else {
+      KanvazCards.clearAll();
+    }
     if (typeof KanvazConnections !== 'undefined') KanvazConnections.clear();
     KanvazCanvas.zoomReset();
     KanvazHistory.clear();
@@ -236,6 +252,7 @@ var KanvazBoards = (function() {
   /* ── Load board state from boards array ── */
 
   function loadBoardState(board) {
+    if (KanvazCards.resetSessionState) KanvazCards.resetSessionState();
     KanvazCards.deserialise(board.cards || []);
     /* Audit fix: panTo() then setZoom() used to fight each other —
        setZoom's pivot math rewrites tx/ty based on the ratio from

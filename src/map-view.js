@@ -18,6 +18,7 @@ var KanvazMapView = (function() {
   var lastGridTy = null;
   var lastGridScale = null;
   var resizeRafId = null;
+  var dragRafId = null; /* bug-bounty fix (v5.3.0) — see mousemove drag handler below */
 
   var tx    = 0;
   var ty    = 0;
@@ -35,6 +36,7 @@ var KanvazMapView = (function() {
 
   var selectedNode = null;
   var dragNode     = null;
+  var dragNodeEl   = null; /* cached element for dragNode — see mousedown handler */
   var dragOffsetX  = 0;
   var dragOffsetY  = 0;
 
@@ -317,6 +319,21 @@ var KanvazMapView = (function() {
       }
     });
 
+    /* Bug-bounty fix (v5.3.0): the node-drag mousemove handler used to
+       call renderLines() directly on every single mousemove — same
+       expensive full-SVG-rebuild-per-frame problem the resize handler
+       above already learned to coalesce through one in-flight rAF, just
+       not yet applied here. A native mousemove can fire far more often
+       than the display refresh rate; collapsing a whole burst into one
+       re-render per animation frame is strictly enough to look smooth. */
+    function scheduleDragRenderLines() {
+      if (dragRafId) return;
+      dragRafId = requestAnimationFrame(function() {
+        dragRafId = null;
+        renderLines();
+      });
+    }
+
     bindEvents();
   }
 
@@ -433,13 +450,28 @@ var KanvazMapView = (function() {
           groupDragOrigins = {};
           for (var gid in multiSelected) {
             var gcard = cardsNow[gid];
-            if (gcard && gcard.mapPosition) groupDragOrigins[gid] = { x: gcard.mapPosition.x, y: gcard.mapPosition.y };
+            /* Bug-bounty fix (v5.3.0): cache the element reference here,
+               once, at drag start — the mousemove handler below used to
+               re-run document.querySelector('.map-node[data-ref-id=...]')
+               for every selected node on every single mousemove, an O(n)
+               full-document attribute-selector scan per frame for as
+               long as the drag lasts. Grabbing it once here is exactly
+               as correct (the DOM node itself doesn't change identity
+               during a drag) and turns that into a single lookup total. */
+            if (gcard && gcard.mapPosition) {
+              groupDragOrigins[gid] = {
+                x:  gcard.mapPosition.x,
+                y:  gcard.mapPosition.y,
+                el: document.querySelector('.map-node[data-ref-id="' + gid + '"]')
+              };
+            }
           }
         } else {
           clearMultiSelect();
         }
 
         dragNode = refId;
+        dragNodeEl = nodeEl; /* same caching fix as groupDragOrigins.el above */
         var nRect = nodeEl.getBoundingClientRect();
         dragOffsetX = (e.clientX - nRect.left) / scale;
         dragOffsetY = (e.clientY - nRect.top)  / scale;
@@ -482,13 +514,12 @@ var KanvazMapView = (function() {
             if (!gcard.mapPosition) gcard.mapPosition = { x: 0, y: 0 };
             gcard.mapPosition.x = Math.round(origin.x + dx);
             gcard.mapPosition.y = Math.round(origin.y + dy);
-            var gel = document.querySelector('.map-node[data-ref-id="' + gid + '"]');
-            if (gel) {
-              gel.style.left = gcard.mapPosition.x + 'px';
-              gel.style.top  = gcard.mapPosition.y + 'px';
+            if (origin.el) {
+              origin.el.style.left = gcard.mapPosition.x + 'px';
+              origin.el.style.top  = gcard.mapPosition.y + 'px';
             }
           }
-          renderLines();
+          scheduleDragRenderLines();
           return;
         }
 
@@ -499,12 +530,11 @@ var KanvazMapView = (function() {
           if (!card.mapPosition) card.mapPosition = { x: 0, y: 0 };
           card.mapPosition.x = Math.round(wx);
           card.mapPosition.y = Math.round(wy);
-          var el = document.querySelector('.map-node[data-ref-id="' + dragNode + '"]');
-          if (el) {
-            el.style.left = card.mapPosition.x + 'px';
-            el.style.top  = card.mapPosition.y + 'px';
+          if (dragNodeEl) {
+            dragNodeEl.style.left = card.mapPosition.x + 'px';
+            dragNodeEl.style.top  = card.mapPosition.y + 'px';
           }
-          renderLines();
+          scheduleDragRenderLines();
         }
         return;
       }
@@ -536,9 +566,18 @@ var KanvazMapView = (function() {
         KanvazApp.markDirty();
         KanvazHistory.push();
         dragNode = null;
+        dragNodeEl = null;
         groupDragStart = null;
         groupDragOrigins = null;
         container.style.cursor = '';
+        /* Cancel any still-pending coalesced re-render from the last few
+           mousemoves and do one synchronous renderLines() instead — final
+           positions are already committed to card data at this point, so
+           this guarantees connections are drawn correctly right away
+           rather than depending on whether a queued rAF happens to still
+           fire after drag-end. */
+        if (dragRafId) { cancelAnimationFrame(dragRafId); dragRafId = null; }
+        renderLines();
       }
     });
 

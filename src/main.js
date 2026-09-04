@@ -864,29 +864,45 @@ function registerIPC() {
      images," not an arbitrary directory tree walk. */
   var DROP_MEDIA_EXTS = ['jpg', 'jpeg', 'png', 'bmp', 'webp', 'gif', 'mp4', 'webm', 'mov', 'mkv', 'avi', 'mp3', 'wav', 'ogg', 'm4a'];
 
+  /* Bug-bounty fix (v5.3.0): this used to be a synchronous statSync/
+     readdirSync loop — one blocking syscall per top-level path, plus one
+     more per file inside every dropped folder, all on Electron's MAIN
+     process thread (which also owns the native window's message pump,
+     same class of bug the v4.6.0 .pur-import hang was). Dropping a large
+     folder (thousands of files) or a folder on a slow/network drive
+     froze the entire app — every window, all IPC, the menu, the auto-
+     updater — for the duration. Switched to fs.promises with each
+     folder's entries stat'd in parallel via Promise.all, same as the
+     rest of this file's async IPC handlers; error handling is unchanged
+     per-entry (an unreadable path is skipped, never fails the whole drop). */
   ipcMain.handle('resolve-dropped-paths', function(event, paths) {
-    var out = [];
-    for (var i = 0; i < paths.length; i++) {
-      var p = paths[i];
-      try {
-        var stat = fs.statSync(p);
+    return Promise.all(paths.map(function(p) {
+      return fs.promises.stat(p).then(function(stat) {
         if (stat.isDirectory()) {
-          var entries = fs.readdirSync(p);
-          for (var j = 0; j < entries.length; j++) {
-            var full = path.join(p, entries[j]);
-            try {
-              if (fs.statSync(full).isFile()) {
-                var ext = entries[j].split('.').pop().toLowerCase();
-                if (DROP_MEDIA_EXTS.indexOf(ext) !== -1) out.push(full);
-              }
-            } catch (e) { /* unreadable entry inside the folder — skip it, don't fail the whole drop */ }
-          }
+          return fs.promises.readdir(p).then(function(entries) {
+            return Promise.all(entries.map(function(name) {
+              var full = path.join(p, name);
+              return fs.promises.stat(full).then(function(s) {
+                if (!s.isFile()) return null;
+                var ext = name.split('.').pop().toLowerCase();
+                return DROP_MEDIA_EXTS.indexOf(ext) !== -1 ? full : null;
+              }).catch(function() { return null; /* unreadable entry — skip it */ });
+            }));
+          }).catch(function() { return []; /* unreadable folder — skip it */ });
         } else if (stat.isFile()) {
-          out.push(p);
+          return [p];
         }
-      } catch (e) { /* path vanished or is unreadable — skip it, don't fail the whole drop */ }
-    }
-    return out;
+        return [];
+      }).catch(function() { return []; /* path vanished or is unreadable — skip it */ });
+    })).then(function(results) {
+      var out = [];
+      for (var i = 0; i < results.length; i++) {
+        for (var j = 0; j < results[i].length; j++) {
+          if (results[i][j]) out.push(results[i][j]);
+        }
+      }
+      return out;
+    });
   });
 
   /* ── IPC: Settings ── */

@@ -2,6 +2,31 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [5.3.0] — Finish line: bug bounty, fixes, and what's next
+
+The final planned release of this development arc. No new features — a real audit/bug-hunt pass across the full v4.7.0–v5.2.0 diff (8 finder passes covering correctness, removed-behavior regressions, cross-file breakage, reuse, simplification, efficiency, and architectural depth), with real fixes applied before shipping, not just a list handed back unactioned.
+
+### Fixed (found by this release's own audit pass)
+- **Annotation data corruption when Map View is active.** `getCardSize()` read `offsetWidth`/`offsetHeight` first, which reads `0` for any element inside a `display:none` ancestor — exactly what Map View does to the whole board while it's the active view. Opening a pre-4.9.1 board while Map View was open silently migrated legacy annotation coordinates against a wrong fallback size and wrote the corrupted result straight back into the save file. Fixed by reading the card's own inline `style.width`/`style.height` first — set at render time regardless of visibility, so it never depends on layout at all.
+- **Legacy-stroke migration only checked a stroke's first point.** A stroke that happened to start near a card's corner (e.g. `x1=1, y1=1`) but extended well past it was misclassified as already-normalized and skipped migration entirely, corrupting its position on the next redraw. Now every coordinate in a stroke is checked, not just the first.
+- **Pinned + selected card shadow broke in light theme** — a real regression from this same arc's own v5.2.0 theme-variable cleanup. Removing the old `!important` (needed to beat `.card.selected.pinned`'s higher CSS specificity) left that rule's stale hardcoded dark-theme literal winning unconditionally in both themes. Fixed by having `.card.selected.pinned` reference the same `--shadow-card-selected` variable `.card.selected` already does — nothing left to win, since both rules now agree.
+- **Remembered card sizes and recent tags leaked across boards.** Both were introduced in v5.2.0 as module-level state with no reset path. Resizing a Note on Board A and switching to Board B meant new Notes on B silently inherited Board A's size, and B's tag autocomplete showed A's recent tags — a real cross-board leak, wider than the "session-scoped" description in the v5.2.0 entry above. Fixed with a dedicated reset tied to the actual board-transition boundary (new board / switch / open / recovery / template-restore), deliberately *not* wired into the same path undo/redo uses, so a plain Ctrl+Z no longer wipes them either.
+- **Bulk-tagging via Map View flooded the recent-tags list with old tags.** `setTagsCore()` marked every tag in a card's full new tag list as "recently used," including tags the card already had — bulk-tagging 50 cards each carrying 5 unrelated tags buried the one tag actually just typed. Now only genuinely new tags count.
+- **Starting a board from a template fired the `boardLoad` plugin event before any cards existed.** Every other board-load path deserialises cards first and fires the event after; the Template Gallery did it backwards. A plugin reacting to `boardLoad` via `getAll()` would see zero cards. `newBoard()` now accepts an optional initial-cards argument so this path matches every other one.
+
+### Fixed — performance
+- **Map View group-drag re-queried the DOM and rebuilt the connection SVG on every mousemove.** Dragging a large multi-selection issued one `document.querySelector` per selected node plus a full `renderLines()` SVG rebuild per mousemove event — the same per-frame-rebuild cost the existing window-resize handler had already learned to coalesce through a single `requestAnimationFrame`, just not yet applied to this newer drag path. Fixed the same way: element references cached once at drag start, `renderLines()` coalesced through one in-flight rAF during a drag (with a final synchronous call on drag-end so the very last frame is never left stale).
+- **Dropping a large folder froze the whole app.** The folder-drop handler used `fs.statSync`/`fs.readdirSync` in a loop on Electron's main process — which also owns the native window's message pump — so a folder with thousands of files, or one on a slow network drive, blocked every window and all IPC for the duration (the same class of bug the v4.6.0 `.pur`-import hang was). Switched to `fs.promises` with per-folder entries stat'd in parallel.
+
+### Known, deliberately not refactored this pass
+Two reuse/duplication findings from the audit were left alone rather than risked this close to the final release: `src/main.js`'s new URL-preview fetch helper duplicates most of the pre-existing `httpsGetBuffer()`'s redirect/timeout/size-cap logic instead of sharing it, and the Template Gallery's overlay construction (`ui.js`) copies the Official Plugins browser's overlay pattern verbatim rather than through a shared helper (the same floating-panel pattern is separately hand-duplicated a third time in Map View's search bar and bulk-action bar). Both are real, nameable cleanup opportunities — logged here rather than quietly refactored under time pressure with no further testing pass to catch a mistake.
+
+### What's next for Kanvaz
+
+**This is the last actively-developed version of Kanvaz for the foreseeable future.** Four feature releases (v5.0.0–v5.2.0) plus this audit/finish-line pass close out the development arc that began after v4.6.1. There's no dated plan for a v5.4.0.
+
+This doesn't mean Kanvaz stops working, or that real bugs go unfixed — it means new feature development isn't on a continued release cadence. If you hit a real bug, or have a feature you'd genuinely find valuable, [open a GitHub issue](https://github.com/p4inz-code/kanvaz/issues) on this repo, or email **atharva.patil.cg@gmail.com** directly. Both are read; neither is guaranteed a release, but both are how anything further happens from here.
+
 ## [5.2.0] — Backlog sweep: tags, sizing, guides, palette, notes, plugin docs
 
 Third release of the post-v4.9.0 arc: every item still open from v4.9.0's original "Closing the Drawer" list gets closed out here.

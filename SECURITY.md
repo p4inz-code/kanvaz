@@ -4,11 +4,15 @@
 
 | Version | Supported |
 |---------|-----------|
-| 4.4.x   | Yes       |
-| < 4.4   | No        |
+| 5.3.x   | Yes       |
+| < 5.3   | No        |
 
 Only the latest release receives security updates. Kanvaz is a solo-maintained
 open-source project — backporting fixes to older versions is not feasible.
+
+**v5.3.0 is the last actively-developed version of Kanvaz** (see README.md/CHANGELOG.md)
+— this does not change how a real, confirmed security vulnerability is handled.
+Report it the same way described below; it will still be fixed and released.
 
 ## Reporting a Vulnerability
 
