@@ -16,5 +16,14 @@
     "author": "Northbyte Studios",
     "permissions": ["server"],
     "downloadUrl": "https://github.com/p4inz-code/kanvaz/releases/download/v4.4.0/kanvaz-mcp-bridge-4.4.0.zip"
+  },
+  {
+    "id": "studio.northbyte.template-maker",
+    "name": "Template Maker & Manager",
+    "description": "Save any board as a reusable template, manage your own collection, and browse/install templates other people made — all local, no in-app payments or marketplace.",
+    "version": "1.0.0",
+    "author": "Northbyte Studios",
+    "permissions": [],
+    "downloadUrl": "https://github.com/p4inz-code/kanvaz/releases/download/v6.5.0/kanvaz-template-maker-6.5.0.zip"
   }
 ]

@@ -18,6 +18,8 @@
 
 > **Development has reopened for one final, deliberate arc**, aimed at closing every real gap against PureRef and every other major tool in this space, then genuinely stopping. v5.3.0's "last release" framing was an honest record of that decision at the time, not a promise broken — this is a considered restart, not scope creep. Found a real bug, or a feature you'd genuinely find valuable? [Open a GitHub issue](https://github.com/p4inz-code/kanvaz/issues) or email **atharva.patil.cg@gmail.com** — both are read.
 
+> **v6.5.0** — Wide-Open Plugin Ecosystem: a richer, still fully backward-compatible plugin API (any card type can now be created from data, not just a plugin's own registered type; shared-cards-across-boards and toast/dialog helpers are now plugin-reachable), a full rewrite of the plugin-authoring guide including an explicit green light to sell your own plugin, and a new official **Template Maker & Manager** plugin — save any board as a template, manage your own, and browse/install community ones. See [CHANGELOG.md](CHANGELOG.md) for the full writeup.
+>
 > **v6.4.0** — Shared cards across boards: the same card can now live on more than one board in a single `.kanvaz` file with zero duplication — right-click → *Share to board*, edit it on either one, and the change is there the next time you open the other. This closes out the "Never Lose Anything Again" pillar. See [CHANGELOG.md](CHANGELOG.md) for the full writeup.
 >
 > **v6.3.0** — Smart Search: on-device lemmatized/fuzzy text search ("cars" now finds "car"), fully offline, off by default. Built on pure-JS libraries with zero native dependencies after a real transformer model turned out to need native binaries that don't fit this project's "no attention for 2 years" bar — see [CHANGELOG.md](CHANGELOG.md) for the full story and a real bug-bounty pass before shipping.
@@ -152,7 +154,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 6.4.0.exe` and `dist/Kanvaz 6.4.0.exe`
+Output: `dist/Kanvaz Setup 6.5.0.exe` and `dist/Kanvaz 6.5.0.exe`
 
 **macOS:**
 ```bash

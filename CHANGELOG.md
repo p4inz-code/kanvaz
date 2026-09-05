@@ -2,6 +2,22 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [6.5.0] — Wide-Open Plugin Ecosystem
+
+Sixth release of the v6.x arc, and the whole of Pillar 3. The final pillar before this arc's last phase (a dedicated UI-polish pass across everything shipped since v6.0.0).
+
+### Added
+- **A richer plugin API — fully additive, zero breaking changes.** `createCardFromData(data, x, y)` inserts any card type (including a built-in like `image` or `video`) from a plain object shaped like `getCards()`'s own output — the missing piece that makes a real template importer possible without a plugin reimplementing every built-in card type's construction logic. `shareCardToBoard`/`unlinkSharedCard` expose v6.4.0's shared-cards mechanism directly. `showToast`/`showConfirmDialog` let a plugin's own UI match Kanvaz's built-in look instead of reinventing it. `fetchCommunityTemplates`/`fetchTemplateContent` read the new community-templates catalog (below). `kanvazApiVersion` stays at `1` — it's an exact-match compatibility gate for a genuinely breaking change (see `plugin-loader.js`), not a feature counter, the same precedent 4.3.0 already set when it added `registerCommand`/`on()`/the Runtime Data API without bumping it. Every existing plugin — `theme-creator`, `mcp-bridge`, and any third-party one already installed — keeps working completely unchanged.
+- **`docs/PLUGIN_AUTHORING.md`, rewritten** with all of the above, plus a new, explicit **"Selling your plugin"** section: yes — sell your plugin wherever you want (Gumroad, itch.io, your own site), at whatever price, with zero revenue sharing or registration required. Kanvaz will never add in-app payments or a marketplace — a considered decision, not an oversight, since the moment Kanvaz itself processes money it's on the hook for refunds/fraud/tax forever, exactly the kind of ongoing liability this entire arc has been trying to avoid everywhere else. One real constraint is disclosed rather than glossed over: a plugin's own network calls are subject to the same page-wide Content-Security-Policy as Kanvaz's own renderer (plugins share the page context, not a sandboxed iframe), so a phone-home license check silently won't work — sell it as a one-time download instead, the same trust model as any other paid desktop tool.
+- **Template Maker & Manager**, a new official plugin (`official-plugins/template-maker/`, zero permissions requested): save the current board as a reusable template, manage your own collection (insert/rename/delete), and browse/install community-submitted ones. Community templates live in a new `community-templates/catalog.json` in this repo, fetched through the same fixed-URL, main-process-only, no-server pattern "Browse Official Plugins" already established (`main.js`'s new `templates-catalog-fetch`/`templates-catalog-fetch-item` IPC handlers, restricted to `raw.githubusercontent.com`) — submitting one is a plain pull request (see `community-templates/README.md`), not something requiring ongoing manual curation.
+
+### Fixed (found while building the Template Maker plugin's own storage path)
+- Per-plugin storage has a real 5MB cap (`plugin-loader.js`) that an image/video-heavy board's embedded `dataUrl`s can exceed easily — the plugin's "save as template" and "install from community" flows now actually check `storage.save()`'s `{ ok, error }` result instead of assuming a resolved Promise means a successful write; a rejected save now surfaces a clear error instead of claiming "Saved" while persisting nothing.
+
+### Scope, disclosed
+- Community templates are JSON-only (no embedded media) — a template built from note/text/color/url cards works great; one that depends on embedded images/video won't fetch its media back on someone else's machine, since there's no CDN behind this catalog to host binary assets.
+- Full per-plugin process isolation (a real sandbox, not the current same-page-context trust model) remains explicitly declined — see `SECURITY.md`; this release doesn't change that trade-off, only what's reachable *within* it.
+
 ## [6.4.0] — Shared cards across boards
 
 Fifth release of the v6.x arc, and the last piece of the "Never Lose Anything Again" pillar (see `docs/ROADMAP.md`) — deliberately saved for last in that pillar specifically so it got the most scrutiny before shipping, since it's the most invasive change of the three.

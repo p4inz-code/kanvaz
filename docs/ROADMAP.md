@@ -147,15 +147,14 @@ Build order is safest/most-isolated first:
 
 ## Pillar "Wide-Open Plugin Ecosystem"
 
-Not started. Planned:
-- A richer plugin API (new hooks beyond what's available today), versioned so existing plugins keep working unchanged.
-- A full rewrite of `docs/PLUGIN_AUTHORING.md` and `docs/plugin-scaffold/` to demonstrate the new capabilities.
-- An official, documented green light for plugin authors to sell their own plugins outside Kanvaz (their own site/Gumroad/Patreon) — no in-app payments or marketplace, deliberately: the moment Kanvaz processes money it's on the hook for refunds/fraud/tax forever, exactly the ongoing liability this arc is trying to avoid by going otherwise-server-free everywhere else.
-- Template Maker & Manager, as its own new official plugin: save any board as a template, manage your own, and browse/install ones other people made through the same free, static-GitHub-catalog trick "Browse Official Plugins" already uses (no server, no ongoing hosting cost). Community submissions handled the open-source way (a PR against the catalog file), not something requiring ongoing manual curation forever.
+**v6.5.0 — shipped.**
+- A richer plugin API, fully additive: `createCardFromData` (insert any card type, not just one a plugin registered itself — what makes a template importer possible at all), `shareCardToBoard`/`unlinkSharedCard` (v6.4.0's shared-cards mechanism, now plugin-reachable), `showToast`/`showConfirmDialog` (so a plugin's own UI matches Kanvaz's instead of reinventing it), and the community-templates catalog fetchers. `kanvazApiVersion` deliberately stays at `1` — it's an exact-match gate for a real breaking change (see `plugin-loader.js`), not a feature counter, same precedent 4.3.0 already set; every existing plugin (`theme-creator`, `mcp-bridge`) keeps working completely unchanged.
+- `docs/PLUGIN_AUTHORING.md` rewritten with all of the above plus an explicit, considered "Selling your plugin" section: yes, sell it wherever you want, at whatever price — Kanvaz will never add in-app payments or a marketplace (would put a solo-maintained project on the hook for refunds/fraud/tax forever), and a real constraint is disclosed rather than glossed over (a plugin's own network calls are subject to the same page-wide CSP as Kanvaz's own renderer, so a phone-home license check won't work — sell it as a one-time download instead, same trust model as any other paid desktop tool bought off itch.io).
+- **Template Maker & Manager**, a new official plugin (`official-plugins/template-maker/`): save the current board as a template, manage your own collection (rename/delete/insert), and browse/install community-submitted ones via a new static `community-templates/catalog.json` in this repo — same free, no-server pattern "Browse Official Plugins" already established, with a PR-based submission process (see `community-templates/README.md`) rather than ongoing manual curation.
 
 ## Final phase — UI polish
 
-Not started, and deliberately last. Once every pillar above is built and tested, one dedicated pass over every new screen/button/dialog added by this whole arc: visual consistency against Kanvaz's existing design system, correctness in both light and dark theme, and the same level of care as the rest of the app — done last on purpose, so it reflects what actually shipped instead of getting redone every time a feature underneath it changes.
+Not started, and deliberately last. Once every pillar above is built and tested, one dedicated pass over every new screen/button/dialog added by this whole arc: visual consistency against Kanvaz's existing design system, correctness in both light and dark theme, and the same level of care as the rest of the app — done last on purpose, so it reflects what actually shipped instead of getting redone every time a feature underneath it changes. **This is the only thing left before the v6.x arc is fully complete.**
 
 ---
 

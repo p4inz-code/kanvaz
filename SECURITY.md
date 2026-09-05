@@ -4,8 +4,8 @@
 
 | Version | Supported |
 |---------|-----------|
-| 6.4.x   | Yes       |
-| < 6.4   | No        |
+| 6.5.x   | Yes       |
+| < 6.5   | No        |
 
 Only the latest release receives security updates. Kanvaz is a solo-maintained
 open-source project — backporting fixes to older versions is not feasible.

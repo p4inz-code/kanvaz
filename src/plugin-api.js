@@ -19,8 +19,14 @@
    registerSettingsPanel. 4.3.0 adds registerCommand, on(event, handler),
    and the read-only Runtime Data API (getCards/getSelected/
    getConnections/getActiveBoard) — see commands.js for the command
-   registry + Ctrl+K palette these commands appear in. Property field
-   types (registerPropertyFieldType) and the network/fs permissioned
+   registry + Ctrl+K palette these commands appear in. 6.5.0 adds
+   createCardFromData (insert any card type from a serialised record —
+   what the Template Maker & Manager official plugin uses), the shared-
+   cards-across-boards pair (shareCardToBoard/unlinkSharedCard, wrapping
+   v6.4.0's feature), showToast/showConfirmDialog (so a plugin's own UI
+   can match Kanvaz's without reimplementing it), and the community-
+   templates catalog fetchers. Property field types
+   (registerPropertyFieldType) and the network/fs permissioned
    namespaces are still not implemented — nothing is stubbed as a silent
    no-op, since a half-working method is worse than an honest "not
    available yet". */
@@ -355,6 +361,80 @@ var KanvazPluginAPI = (function() {
     return KanvazCards.duplicateCard(id);
   }
 
+  /* ── v6.5.0 additions — Wide-Open Plugin Ecosystem pillar ──
+     Everything below is additive and ungated, same trust level as the
+     rest of this un-permissioned surface. kanvazApiVersion stays at 1 —
+     same precedent 4.3.0 already set when it added registerCommand/on()/
+     the Runtime Data API without bumping it: kanvazApiVersion is an
+     exact-match compatibility gate for genuinely BREAKING changes (see
+     plugin-loader.js's validateManifest — a mismatch is a hard reject,
+     not a "minimum supported" check), not a feature counter. A plugin
+     that still declares kanvazApiVersion: 1 keeps working completely
+     unchanged and can start calling any of these the moment it updates
+     its own code — no manifest change required. */
+
+  /* Generic "insert this card" — the escape hatch that makes a plugin
+     like Template Maker & Manager able to instantiate ANY card type
+     (image, video, note, whatever a template contains), not just a type
+     the plugin itself registered via registerCardType(). data must be
+     the same shape getCards()/a saved template already use. */
+  function createCardFromData(data, x, y) {
+    if (typeof KanvazCards === 'undefined' || !KanvazCards.createCardFromSerialized) return null;
+    return KanvazCards.createCardFromSerialized(data, x, y);
+  }
+
+  /* Shared cards across boards (v6.4.0), exposed to plugins — lets a
+     plugin build its own UI on top of the same mechanism the built-in
+     "Share to board" context-menu item uses, instead of reimplementing
+     the registry split. */
+  function shareCardToBoard(id, targetBoardId) {
+    if (typeof KanvazCards === 'undefined' || !KanvazCards.shareCardToBoard) {
+      return { ok: false, error: 'unavailable in this build' };
+    }
+    return KanvazCards.shareCardToBoard(id, targetBoardId);
+  }
+
+  function unlinkSharedCard(id) {
+    if (typeof KanvazCards === 'undefined' || !KanvazCards.unlinkSharedCard) return;
+    KanvazCards.unlinkSharedCard(id);
+  }
+
+  /* Small UI utilities a plugin previously had no sanctioned way to
+     reach — every official plugin so far has worked around this by
+     building its own ad-hoc DOM banner instead of matching Kanvaz's own
+     toast/dialog look. Thin pass-throughs, same as everything else here. */
+  function showToast(message, type) {
+    if (typeof KanvazUI === 'undefined' || !KanvazUI.toast) return;
+    KanvazUI.toast(String(message), type === 'error' || type === 'success' ? type : undefined);
+  }
+
+  /* buttons: [{label, cls, action()}] — cls is an optional CSS class
+     ('danger'/'primary'/''), same shape core Kanvaz dialogs
+     (KanvazUI.showDialog) already use internally, e.g. boards.js's own
+     delete-board confirmation. */
+  function showConfirmDialog(title, message, buttons) {
+    if (typeof KanvazUI === 'undefined' || !KanvazUI.showDialog) return;
+    KanvazUI.showDialog(String(title), String(message), Array.isArray(buttons) ? buttons : []);
+  }
+
+  /* Community templates catalog (Template Maker & Manager) — same
+     fixed-URL, main-process-only network discipline as Browse Official
+     Plugins; see main.js's templates-catalog-fetch(-item) handlers. Not
+     a generic "fetch any URL" capability — deliberately narrow. */
+  function fetchCommunityTemplates() {
+    if (typeof KanvazBridge === 'undefined' || !KanvazBridge.fetchTemplatesCatalog) {
+      return Promise.resolve({ ok: false, error: 'unavailable in this build' });
+    }
+    return KanvazBridge.fetchTemplatesCatalog();
+  }
+
+  function fetchTemplateContent(contentUrl) {
+    if (typeof KanvazBridge === 'undefined' || !KanvazBridge.fetchTemplateContent) {
+      return Promise.resolve({ ok: false, error: 'unavailable in this build' });
+    }
+    return KanvazBridge.fetchTemplateContent(contentUrl);
+  }
+
   function bringCardToFront(id) {
     if (typeof KanvazCards === 'undefined') return;
     KanvazCards.bringToFront(id);
@@ -618,6 +698,14 @@ var KanvazPluginAPI = (function() {
     getSettings: getSettings,
     updateSettings: updateSettings,
     storage: storage,
+    /* v6.5.0 */
+    createCardFromData: createCardFromData,
+    shareCardToBoard: shareCardToBoard,
+    unlinkSharedCard: unlinkSharedCard,
+    showToast: showToast,
+    showConfirmDialog: showConfirmDialog,
+    fetchCommunityTemplates: fetchCommunityTemplates,
+    fetchTemplateContent: fetchTemplateContent,
     /* Public — a plugin (e.g. a theme creator/editor) can call this
        directly to preview or switch to any registered theme, including
        a throwaway id it registered itself purely for a live-preview

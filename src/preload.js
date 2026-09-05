@@ -69,6 +69,8 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
   setPluginStorage:     function(id, data) { return ipcRenderer.invoke('plugins-storage-set', id, data); },
   loadUnpackedPlugin:   function() { return ipcRenderer.invoke('plugins-load-unpacked'); },
   fetchOfficialCatalog: function() { return ipcRenderer.invoke('catalog-fetch'); },
+  fetchTemplatesCatalog: function() { return ipcRenderer.invoke('templates-catalog-fetch'); },
+  fetchTemplateContent: function(contentUrl) { return ipcRenderer.invoke('templates-catalog-fetch-item', contentUrl); },
   installFromCatalog:   function(entry) { return ipcRenderer.invoke('plugins-install-from-catalog', entry); },
 
   /* MCP Bridge (4.4.0) — startMcpBridge/stopMcpBridge re-verify main-

@@ -3181,6 +3181,52 @@ var KanvazCards = (function() {
     KanvazUI.toast('Duplicated');
   }
 
+  /* ── Create a card from a full serialised record (v6.5.0) ──
+     Generic escape hatch: takes ANY card-shaped object matching what
+     serialise()/deserialise() already round-trip (the exact shape a
+     template file or a KanvazPluginAPI.getCards() clone already is) and
+     inserts it into the LIVE board as one new card, without touching or
+     clearing anything else already on the board — unlike deserialise(),
+     which replaces the whole board's cards[] wholesale. This is what
+     lets a plugin (the Template Maker & Manager official plugin, first)
+     insert an arbitrary card type from a saved template, instead of
+     being limited to registerCardType()'s own create() (which only ever
+     makes ONE specific plugin-owned type, not "any card"). Always forks
+     to a fresh, independent card — an imported/inserted card is never
+     silently made a shared-card instance of whatever it happened to be
+     shared with in its original file. */
+  function createCardFromSerialized(data, x, y) {
+    if (!data || typeof data.type !== 'string') return null;
+    var c = {};
+    for (var k in data) {
+      if (Object.prototype.hasOwnProperty.call(data, k)) c[k] = data[k];
+    }
+    c.id = nextId();
+    c.sharedId = null;
+    if (typeof x === 'number') c.x = x;
+    if (typeof y === 'number') c.y = y;
+    c.z = ++zCounter;
+    if (!c.tags) c.tags = [];
+    if (!c.properties) c.properties = {};
+    if (!c.annotations) c.annotations = [];
+    if (c.opacity === undefined) c.opacity = 1.0;
+    if (c.pinned === undefined) c.pinned = false;
+
+    cards[c.id] = c;
+    try {
+      renderCard(c);
+    } catch (e) {
+      console.error('[Kanvaz] createCardFromSerialized: card "' + c.id + '" (type "' + c.type + '") failed to render — removing it:', e.message);
+      delete cards[c.id];
+      return null;
+    }
+    updateEmptyState();
+    updateCount();
+    if (typeof KanvazHistory !== 'undefined') KanvazHistory.push();
+    emitCardEvent('cardCreate', c);
+    return c.id;
+  }
+
   /* Multi-select aware duplicate: one card behaves exactly as before;
      more than one duplicates the whole set behind one history push and
      selects the new copies (mirrors what a single Ctrl+D does — the
@@ -3945,6 +3991,7 @@ var KanvazCards = (function() {
     deleteMultiple:    deleteMultiple,
     duplicateCard:     duplicateCard,
     duplicateSelected: duplicateSelected,
+    createCardFromSerialized: createCardFromSerialized,
     shareCardToBoard:  shareCardToBoard,
     unlinkSharedCard:  unlinkSharedCard,
     showShareToBoardPicker: showShareToBoardPicker,

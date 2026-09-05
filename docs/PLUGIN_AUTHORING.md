@@ -82,11 +82,30 @@ These are on `window.KanvazPluginAPI` for every plugin, always:
 - **`registerCommand(id, { label, run(context), shortcut? })`** — adds an entry to the Ctrl+K Command Palette, indistinguishable from a core Kanvaz command once registered.
 - **`on(event, handler)`** — subscribe to `cardCreate` / `cardUpdate` / `cardDelete` / `boardLoad` / `boardSave` / `selectionChange`. Returns an unsubscribe function.
 - **The read-only Runtime Data API** — `getCards()`, `getSelected()`, `getConnections()`, `getActiveBoard()`.
-- **`storage.load(PLUGIN_ID)` / `storage.save(PLUGIN_ID, data)`** — persistent, size-capped, per-plugin JSON storage. Both return Promises.
+- **`storage.load(PLUGIN_ID)` / `storage.save(PLUGIN_ID, data)`** — persistent, per-plugin JSON storage, capped at 5MB per plugin. Both return Promises; `save()` resolves `{ ok: false, error }` if the write was rejected for exceeding that cap — **check it**, don't assume a save succeeded just because the Promise resolved (a rejected write is not a rejected Promise).
+- **`createCardFromData(data, x, y)`** *(v6.5.0)* — insert any card, of any type (including a built-in one like `image` or `video`, not just a type your own plugin registered), from a plain object shaped like what `getCards()` already returns or a template file already contains. This is what makes something like a template importer possible without reimplementing every built-in card type's construction logic yourself. Always creates an independent card — never a shared-card instance (see below) of whatever the source data happened to be shared with.
+- **`shareCardToBoard(id, targetBoardId)` / `unlinkSharedCard(id)`** *(v6.5.0)* — the same shared-cards-across-boards mechanism (v6.4.0) behind the built-in right-click → *Share to board* menu item, callable from your own plugin UI. `listBoards()` (already existed) gives you the board ids to pass in.
+- **`showToast(message, type?)`** *(v6.5.0)* — `type` is `'success'`, `'error'`, or omitted for a plain neutral toast. Matches Kanvaz's own toast style instead of you building a DOM banner from scratch.
+- **`showConfirmDialog(title, message, buttons)`** *(v6.5.0)* — `buttons` is `[{ label, cls, action() }]`, `cls` being an optional `'danger'`/`'primary'`/`''`. Same modal Kanvaz's own destructive-action confirmations use (e.g. deleting a board).
+- **`fetchCommunityTemplates()` / `fetchTemplateContent(contentUrl)`** *(v6.5.0)* — read the community-templates catalog (see `community-templates/README.md` in this repo) and fetch one template's actual card data. Narrow and fixed-URL, not a general-purpose network capability — see "Permissions" below.
 
-None of this touches the network or the filesystem outside Kanvaz's own
-managed plugin-storage folder — see `SECURITY.md` before reaching for
-anything that would.
+None of this touches the network — except the two community-templates
+fetchers above, which are narrowly restricted to this repo's own catalog
+and to `raw.githubusercontent.com`, the same way `fetchOfficialCatalog`
+(core, not plugin-facing) already is — or the filesystem outside Kanvaz's
+own managed plugin-storage folder. See `SECURITY.md` before reaching for
+anything that would go further than that.
+
+`kanvazApiVersion` in your manifest stays at `1` for all of the above —
+every one of these was added without bumping it, because `kanvazApiVersion`
+is an **exact-match** compatibility gate for a genuinely breaking change
+(see `plugin-loader.js`'s `validateManifest` — a mismatch is a hard reject,
+not "minimum supported version"), not a running feature count. A plugin
+that declared `kanvazApiVersion: 1` on day one keeps working completely
+unchanged forever unless a future Kanvaz release documents a real v2 with
+an actual breaking change in it — at which point existing v1 plugins would
+still keep running under Kanvaz's continued v1 support, exactly like this
+release didn't break `theme-creator` or `mcp-bridge`.
 
 ## Permissions
 
@@ -127,3 +146,47 @@ added to. Distribute your own plugin however makes sense for you (your own
 repo, a zip on a webpage, a Discord server) — Kanvaz doesn't require or
 support any particular distribution channel beyond the local folder/zip
 picker above.
+
+## Selling your plugin
+
+**You're explicitly free to sell your own Kanvaz plugin.** Put it behind a
+paywall on Gumroad, itch.io, Patreon, your own store — whatever platform you
+want, at whatever price you want. Kanvaz doesn't require revenue sharing,
+doesn't require registration, and doesn't require your plugin to be listed
+anywhere Kanvaz-official. The install flow (Settings → Plugins → Add a
+Plugin… → folder/zip picker → consent dialog) works identically for a
+zip someone paid for as for a free one.
+
+**What Kanvaz deliberately does NOT provide, and won't be adding:** in-app
+payments, a plugin marketplace, or license-key/DRM enforcement built into
+the plugin runtime. This is a considered decision, not an oversight — the
+moment Kanvaz itself processes money, it's on the hook for refunds, fraud,
+chargebacks, and tax handling *forever*, for a solo-maintained open-source
+project whose entire architecture up to this point has been "no servers, no
+accounts, no ongoing infrastructure to keep alive." If you want to gate a
+paid plugin, do it the way any other paid one-time-download software does:
+sell the zip itself on your own platform (Gumroad et al. already handle
+payment and delivering the download) and support your customers yourself.
+
+**One real constraint worth knowing before you design around it:** Kanvaz's
+page-wide Content-Security-Policy (`connect-src 'self' https://api.github.com`
+— see `src/index.html`) applies to every script running in the page,
+including a plugin's, since plugins run in the same page context rather than
+a sandboxed iframe (see `SECURITY.md`'s plugin trust-model section). A
+plugin's own `fetch()` call to your own license-check server would be
+silently blocked by that policy — there's no general-purpose outbound-
+network permission a plugin can declare today (see `plugin-api.js`'s own
+header comment: the network/fs permissioned namespaces are still not
+implemented). Practically: build a paid plugin as a one-time purchase with
+no phone-home license check, the same trust model as buying a zip off
+itch.io for any other desktop tool. Nothing about being an "official" vs.
+"third-party" plugin changes any of this — `official-plugins/*` in this repo
+just means Northbyte Studios wrote and maintains it, not that third-party
+plugins are second-class.
+
+If you build something good enough that you'd like it considered for
+Kanvaz's own "Browse Official Plugins" catalog (which stays free, always —
+that catalog is specifically for plugins this project's maintainer commits
+to keeping working across Kanvaz updates), open an issue describing it. That's
+a separate, optional path from selling it yourself — most plugin authors
+will never need or want it.

@@ -1,0 +1,10 @@
+{
+  "id": "studio.northbyte.template-maker",
+  "name": "Template Maker & Manager",
+  "version": "1.0.0",
+  "kanvazApiVersion": 1,
+  "entry": "main.js",
+  "permissions": [],
+  "description": "Save any board as a reusable template, manage your own collection, and browse/install templates other people made — all local, no in-app payments or marketplace.",
+  "author": "Northbyte Studios"
+}

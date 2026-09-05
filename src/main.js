@@ -179,7 +179,17 @@ function startMcpBridgeServer() {
    narrow IPC handler keeps the same "only main process reaches the
    network" discipline every other Kanvaz network call already follows. */
 var OFFICIAL_CATALOG_URL = 'https://raw.githubusercontent.com/p4inz-code/kanvaz/main/official-plugins/catalog.json';
+/* v6.5.0 — same fixed-URL, read-only pattern as OFFICIAL_CATALOG_URL
+   above, for the Template Maker & Manager official plugin's "browse
+   community templates" feature. A template is just JSON (a card array,
+   same shape KanvazCards.serialise() already produces), never a zip/
+   executable, so there's no install-time extraction step to guard here
+   the way plugins-install-from-catalog has to — the plugin itself
+   fetches this catalog, then a template's own contentUrl, both through
+   this one narrow main-process handler, never a raw renderer fetch(). */
+var TEMPLATES_CATALOG_URL = 'https://raw.githubusercontent.com/p4inz-code/kanvaz/main/community-templates/catalog.json';
 var MAX_CATALOG_BYTES = 256 * 1024;
+var MAX_TEMPLATE_BYTES = 8 * 1024 * 1024;
 var MAX_PLUGIN_ZIP_BYTES = 25 * 1024 * 1024;
 /* Decompressed-output cap — see plugins-install-from-catalog's own
    comment for why MAX_PLUGIN_ZIP_BYTES (compressed) alone doesn't
@@ -1520,6 +1530,37 @@ function registerIPC() {
       var parsed = JSON.parse(buf.toString('utf8'));
       if (!Array.isArray(parsed)) throw new Error('catalog is not a list');
       return { ok: true, catalog: parsed };
+    }).catch(function(e) {
+      return { ok: false, error: e.message };
+    });
+  });
+
+  /* v6.5.0 — community templates catalog (Template Maker & Manager
+     official plugin). Same fixed-URL, main-process-only network
+     discipline as catalog-fetch above. */
+  ipcMain.handle('templates-catalog-fetch', function() {
+    return httpsGetBuffer(TEMPLATES_CATALOG_URL, MAX_CATALOG_BYTES).then(function(buf) {
+      var parsed = JSON.parse(buf.toString('utf8'));
+      if (!Array.isArray(parsed)) throw new Error('catalog is not a list');
+      return { ok: true, catalog: parsed };
+    }).catch(function(e) {
+      return { ok: false, error: e.message };
+    });
+  });
+
+  /* Fetches ONE template's actual JSON content (a card array) given a
+     contentUrl from the catalog above — restricted to raw.githubusercontent.com
+     the same way plugin zip downloads are restricted to GitHub's own
+     hosts, so a tampered/malicious catalog entry can't redirect this to
+     an arbitrary server. */
+  ipcMain.handle('templates-catalog-fetch-item', function(event, contentUrl) {
+    if (typeof contentUrl !== 'string' || !contentUrl) {
+      return Promise.resolve({ ok: false, error: 'invalid content URL' });
+    }
+    return httpsGetBuffer(contentUrl, MAX_TEMPLATE_BYTES, ['raw.githubusercontent.com']).then(function(buf) {
+      var parsed = JSON.parse(buf.toString('utf8'));
+      if (!Array.isArray(parsed)) throw new Error('template is not a card list');
+      return { ok: true, cards: parsed };
     }).catch(function(e) {
       return { ok: false, error: e.message };
     });
