@@ -47,6 +47,9 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
   fetchUrlPreview: function(url) { return ipcRenderer.invoke('fetch-url-preview', url); },
   listTemplates:   function() { return ipcRenderer.invoke('templates-list'); },
   loadTemplate:    function(id) { return ipcRenderer.invoke('template-load', id); },
+  setSmartSearchEnabled: function(enabled) { return ipcRenderer.invoke('smart-search-set-enabled', enabled); },
+  smartSearchIndex: function(cards) { return ipcRenderer.invoke('smart-search-index', cards); },
+  smartSearchQuery: function(query) { return ipcRenderer.invoke('smart-search-query', query); },
   openPath:        function(p) { return ipcRenderer.invoke('shell-open-path', p); },
 
   /* PureRef import */
@@ -93,7 +96,7 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
 
   /* Main → Renderer events */
   on: function(channel, fn) {
-    var allowed = ['recovery-available', 'window-maximized-changed', 'check-unsaved-before-close', 'open-file-from-argv', 'update-available', 'update-download-progress', 'update-downloaded', 'mcp-invoke', 'click-through-escape-hatch'];
+    var allowed = ['recovery-available', 'window-maximized-changed', 'check-unsaved-before-close', 'open-file-from-argv', 'update-available', 'update-download-progress', 'update-downloaded', 'mcp-invoke', 'click-through-escape-hatch', 'smart-search-crashed'];
     if (allowed.indexOf(channel) !== -1) {
       ipcRenderer.on(channel, function(event, data) { fn(data); });
     }
@@ -105,7 +108,7 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
        subscribe to in the first place. Not currently exploited anywhere
        (nothing in the renderer calls off() with an arbitrary channel),
        just closing the gap between the two. */
-    var allowed = ['recovery-available', 'window-maximized-changed', 'check-unsaved-before-close', 'open-file-from-argv', 'update-available', 'update-download-progress', 'update-downloaded', 'mcp-invoke', 'click-through-escape-hatch'];
+    var allowed = ['recovery-available', 'window-maximized-changed', 'check-unsaved-before-close', 'open-file-from-argv', 'update-available', 'update-download-progress', 'update-downloaded', 'mcp-invoke', 'click-through-escape-hatch', 'smart-search-crashed'];
     if (allowed.indexOf(channel) !== -1) {
       ipcRenderer.removeAllListeners(channel);
     }

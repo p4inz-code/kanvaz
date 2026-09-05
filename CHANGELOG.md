@@ -2,6 +2,30 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [6.3.0] — Smart Search: on-device, pure-JS, zero native dependencies
+
+Fourth release of the v6.x arc: the first genuinely "AI-adjacent" piece of the "Never Lose Anything Again" pillar. Comes with a real architecture story worth reading, not just a feature list.
+
+### The dependency decision
+The original plan was a real transformer model (`@xenova/transformers`) for true semantic search. Installing it revealed a real problem before any of it shipped: it pulls in `onnxruntime-node` and `sharp`, both **native binary dependencies** — compiled per-OS/per-architecture, requiring Electron-ABI rebuilds this project has no CI step for, and exactly the kind of dependency that silently breaks on a future Electron upgrade with nothing catching it. That's the opposite of "leave it needing no attention for 2 years."
+
+Reversed that decision (uninstalled before anything was committed) and rebuilt Smart Search on **`wink-nlp` + `wink-eng-lite-web-model` + `wink-distance`** instead — pure JavaScript, zero native code, zero dependencies of their own, ~4.5MB total. Less powerful than a full transformer model (lemmatization + fuzzy bag-of-words matching, not deep semantic understanding), but something that will still work, unmodified, on every platform, forever — no rebuild step, no ABI to break.
+
+### Added
+- **Smart Search** — an on-device enhancement layer over the existing substring search: type "cars" and it finds a card whose text only says "car" (lemmatization handles plurals/tenses); type "red car" and cards with more of those words rank above cards with fewer (bag-of-words cosine similarity). Runs in its own long-lived worker thread, exactly like `.pur` import's own worker pattern, so it never blocks the UI.
+- **A real, explicit off switch** (Settings → Smart Search, default **off**) — when it's off, the ~4MB language model never loads into memory, the worker never spawns, nothing NLP-related exists in the running process. Built first, before the feature itself, specifically so the off switch was never a bolted-on afterthought.
+- **A real regression test** (`test/smart-search-test.js`, wired into `validate.js`) — spawns the actual worker process (not just the lemmatization logic in isolation) and verifies plural/tense matching, ranking order, empty-query safety, and re-index behavior against it directly.
+
+### Fixed (found by this release's own review pass, before shipping)
+- Smart Search's async reveal used to ignore an active color filter (v6.2.0), silently breaking the "must match both" contract between the two features.
+- Turning Smart Search off while a search was still in flight left that request's promise permanently unresolved — a real dangling-promise leak, now resolved the same way a worker crash already correctly was.
+- A worker crash used to leave the Settings checkbox claiming Smart Search was still on while the feature was actually dead — the worker now tells the renderer directly, which flips the setting off and explains why.
+- No timeout guard existed on worker calls, unlike the project's own established pattern for this exact risk (MCP Bridge, `.pur` import) — added.
+- The full board's text got re-lemmatized on every single debounced keystroke instead of once per search session — fixed; a card edited while search stays open won't reflect in Smart Search until the bar is reopened, a disclosed, accepted staleness window (the always-accurate substring pass never depends on this index).
+
+### Verified beyond the usual `validate.js` pass
+Directly launched the packaged Electron app (not just static checks) to confirm it boots cleanly with the new worker-thread dependency present — the one thing this release genuinely couldn't have skipped given a brand-new dependency surface was involved.
+
 ## [6.2.0] — Smart Folders + color search
 
 Third release of the v6.x arc: the first two, safest pieces of the "Never Lose Anything Again" pillar (see `docs/ROADMAP.md`) — no save-format changes, no new dependencies, both built directly on the existing Board View search.

@@ -620,10 +620,112 @@ var KanvazApp = (function() {
         el.style.filter = 'grayscale(1)';
       }
     }
+
+    scheduleSmartSearch(q);
+  }
+
+  /* v6.3.0 — Smart Search: an async enhancement layer on top of the
+     synchronous substring match above, never a replacement for it. The
+     substring pass already ran and dimmed/undimmed everything by the
+     time this resolves (a real IPC round-trip to the worker, not
+     instant) — this only ever REVEALS more cards a plain substring
+     match missed (lemmatized/fuzzy hits), never re-dims one substring
+     already matched. Completely inert — no timer set, no IPC call made
+     — when the setting is off, which is the actual point of its own
+     off switch, not just a UI toggle. */
+  var smartSearchDebounceTimer = null;
+  /* Bug-bounty fix: the index used to get rebuilt (full-board
+     re-lemmatization, on the worker side) on every single debounced
+     keystroke, not just when the board's cards had actually changed —
+     independently flagged by two review angles as real, avoidable cost
+     on the search-typing hot path. Indexing now happens at most once
+     per search-bar session (reset whenever the bar opens/closes), and
+     every subsequent keystroke only sends the query itself. A card
+     edited WHILE the search bar stays open won't be reflected in Smart
+     Search's results until the bar is reopened — an accepted, disclosed
+     staleness window, since the synchronous substring pass above it is
+     always accurate regardless and never depends on this index. */
+  var smartSearchIndexedThisSession = false;
+
+  function smartSearchIsOn() {
+    if (typeof KanvazUI_Extended === 'undefined') return false;
+    var s = KanvazUI_Extended.getSettings();
+    return !!(s && s.smartSearchEnabled);
+  }
+
+  /* Bug-bounty fix: crashing the worker used to leave settings.json's
+     smartSearchEnabled sitting at true forever with no way back to
+     false except an unrelated Settings change — the checkbox kept
+     claiming the feature was on while it was actually dead. main.js's
+     worker now tells the renderer directly the moment it crashes. */
+  if (typeof KanvazBridge !== 'undefined' && KanvazBridge.on) {
+    KanvazBridge.on('smart-search-crashed', function() {
+      if (typeof KanvazUI_Extended === 'undefined') return;
+      var s = KanvazUI_Extended.getSettings();
+      if (!s || !s.smartSearchEnabled) return;
+      s.smartSearchEnabled = false;
+      KanvazBridge.writeSettings(JSON.stringify(s));
+      if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Smart Search stopped unexpectedly and was turned off — plain search still works.', 'error');
+    });
+  }
+
+  function scheduleSmartSearch(q) {
+    if (smartSearchDebounceTimer) { clearTimeout(smartSearchDebounceTimer); smartSearchDebounceTimer = null; }
+    if (!q || !smartSearchIsOn() || typeof KanvazBridge === 'undefined' || !KanvazBridge.smartSearchQuery) return;
+
+    smartSearchDebounceTimer = setTimeout(function() {
+      smartSearchDebounceTimer = null;
+
+      var indexed = smartSearchIndexedThisSession
+        ? Promise.resolve()
+        : (function() {
+            var allCards = KanvazCards.getAll();
+            var cardTexts = [];
+            for (var id in allCards) {
+              var c = allCards[id];
+              cardTexts.push({
+                id: id,
+                text: [c.name, c.type, (c.tags || []).join(' '), c.text || ''].join(' ')
+              });
+            }
+            smartSearchIndexedThisSession = true;
+            return KanvazBridge.smartSearchIndex(cardTexts);
+          })();
+
+      indexed.then(function() {
+        return KanvazBridge.smartSearchQuery(q);
+      }).then(function(res) {
+        if (!res || !res.results) return;
+        /* If the query changed again while this round-trip was in
+           flight, the input's current value no longer matches what was
+           actually searched — applying stale results now would reveal
+           cards for a query the user isn't looking at anymore. */
+        if (!searchInput || searchInput.value.trim().toLowerCase() !== q) return;
+        for (var i = 0; i < res.results.length; i++) {
+          var el = document.getElementById(res.results[i]);
+          if (!el) continue;
+          /* Bug-bounty fix: this used to unconditionally reveal every
+             Smart Search match, ignoring activeColorFilter entirely —
+             silently breaking the "must match both" contract the color
+             filter (v6.2.0) already established for the substring pass
+             above. A Smart-Search-only match still has to pass the same
+             color check to actually get revealed. */
+          if (activeColorFilter) {
+            var card = KanvazCards.getAll()[res.results[i]];
+            var dom = card && getDominantColor(card);
+            if (!dom || colorDistance(dom, activeColorFilter) > COLOR_MATCH_THRESHOLD) continue;
+          }
+          el.style.opacity = '';
+          el.style.filter = '';
+        }
+      }).catch(function() { /* Smart Search unavailable — the substring match above already stands on its own */ });
+    }, 300);
   }
 
   function clearSearchFilter() {
     activeColorFilter = null;
+    smartSearchIndexedThisSession = false;
+    if (smartSearchDebounceTimer) { clearTimeout(smartSearchDebounceTimer); smartSearchDebounceTimer = null; }
     var allCards = KanvazCards.getAll();
     for (var id in allCards) {
       var el = document.getElementById(id);

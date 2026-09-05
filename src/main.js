@@ -53,6 +53,15 @@ var mcpBridgeServer = null;
 var mcpBridgePending = {};
 var mcpBridgeRequestSeq = 0;
 
+/* Module-level (not inside registerIPC()) specifically so before-quit's
+   cleanup — defined outside registerIPC(), at the top-level startup
+   block below — can actually reach this to terminate it. A registerIPC()-
+   local var would have been invisible there, silently leaking the
+   worker process past app quit until the OS itself reaped it. */
+var smartSearchWorker = null;
+var smartSearchPending = {};
+var smartSearchReqId = 0;
+
 function getMcpBridgeSocketPath() {
   if (process.platform === 'win32') return '\\\\.\\pipe\\kanvaz-mcp-bridge';
   return path.join(app.getPath('userData'), 'mcp-bridge.sock');
@@ -406,6 +415,7 @@ if (!gotLock) {
        lifetime would silently do nothing useful and just occupy a key
        combo system-wide until the OS itself reclaims it. */
     globalShortcut.unregisterAll();
+    if (smartSearchWorker) { smartSearchWorker.terminate(); smartSearchWorker = null; }
   });
 
   app.on('activate', function() {
@@ -1126,6 +1136,97 @@ function registerIPC() {
     }).catch(function(e) {
       return { ok: false, error: e.message };
     });
+  });
+
+  /* ── Smart Search (v6.3.0) ──
+     A long-lived worker, unlike pur-import's one-shot-per-call worker
+     above — loading wink-nlp's ~4MB language model is real, one-time
+     work not worth repeating on every keystroke. Spawned ONLY when the
+     user turns Smart Search on (smart-search-set-enabled) and killed the
+     instant it's off, so nothing NLP-related sits resident in memory
+     for anyone who hasn't opted in — the point of the feature's own off
+     switch, not just a cosmetic toggle in Settings. (The three vars this
+     reads/writes are declared at module scope up top, not here — see
+     the comment there for why.) */
+  /* Bug-bounty fixes (found by this feature's own review pass, before
+     ever shipping): resolves every still-pending call with a failure —
+     used by BOTH the crash path and the disable path below, which used
+     to only exist on the crash path. Disabling Smart Search while an
+     index/query call was still in flight used to reassign
+     smartSearchPending to a fresh object without settling what was in
+     the old one first, permanently hanging that caller's promise —
+     the exact bug the crash handler already knew to avoid, just not
+     carried through to this second path that needed the same fix. */
+  function settleAllSmartSearchPending(failure) {
+    for (var id in smartSearchPending) {
+      clearTimeout(smartSearchPending[id].timer);
+      smartSearchPending[id].resolve(failure);
+    }
+    smartSearchPending = {};
+  }
+
+  function smartSearchSend(msg) {
+    if (!smartSearchWorker) return Promise.resolve({ ok: false, error: 'Smart Search is off' });
+    var requestId = ++smartSearchReqId;
+    msg.requestId = requestId;
+    return new Promise(function(resolve) {
+      /* Timeout backstop — same class of protection MCP Bridge's own
+         pending-request map and pur-import's worker call already have.
+         Without it, a worker that hangs (rather than crashing, which
+         the 'error' listener below already handles) instead of erroring
+         on some pathological input leaves this promise unsettled
+         forever — and since a search debounce cycle fires a fresh
+         index+query pair every 300ms, that leak compounds on every
+         subsequent keystroke instead of staying a one-off. */
+      var timer = setTimeout(function() {
+        if (!smartSearchPending[requestId]) return;
+        delete smartSearchPending[requestId];
+        resolve({ ok: false, error: 'Smart Search timed out' });
+      }, 10000);
+      smartSearchPending[requestId] = { resolve: resolve, timer: timer };
+      smartSearchWorker.postMessage(msg);
+    });
+  }
+
+  ipcMain.handle('smart-search-set-enabled', function(event, enabled) {
+    if (enabled && !smartSearchWorker) {
+      smartSearchWorker = new Worker(path.join(__dirname, 'smart-search-worker.js'));
+      smartSearchWorker.on('message', function(result) {
+        var pending = smartSearchPending[result.requestId];
+        if (!pending) return;
+        clearTimeout(pending.timer);
+        delete smartSearchPending[result.requestId];
+        pending.resolve(result);
+      });
+      smartSearchWorker.on('error', function() {
+        /* A crashed worker leaves every still-pending call hanging
+           forever otherwise — resolve them all with a clear failure so
+           the renderer's search just falls back to plain text matching
+           instead of silently never getting a response. Also tells the
+           renderer directly (rather than leaving it to find out only
+           when its next call fails) so it can flip the persisted
+           smartSearchEnabled setting back to false — without this, the
+           Settings checkbox keeps claiming Smart Search is on while
+           it's actually silently dead, a real state-lying bug the
+           feature's own review pass caught before shipping. */
+        settleAllSmartSearchPending({ ok: false, error: 'Smart Search worker crashed' });
+        smartSearchWorker = null;
+        if (mainWindow) mainWindow.webContents.send('smart-search-crashed');
+      });
+    } else if (!enabled && smartSearchWorker) {
+      smartSearchWorker.terminate();
+      smartSearchWorker = null;
+      settleAllSmartSearchPending({ ok: false, error: 'Smart Search was turned off' });
+    }
+    return true;
+  });
+
+  ipcMain.handle('smart-search-index', function(event, cards) {
+    return smartSearchSend({ type: 'index', cards: cards });
+  });
+
+  ipcMain.handle('smart-search-query', function(event, query) {
+    return smartSearchSend({ type: 'query', query: query });
   });
 
   /* ── IPC: Plugins ──

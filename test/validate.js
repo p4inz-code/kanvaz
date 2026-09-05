@@ -167,6 +167,21 @@ if (fs.existsSync(path.join(__dirname, 'pur-import-test.js'))) {
   console.log('  (skipped — test/pur-import-test.js missing)');
 }
 
+/* 9b. Smart Search (lemmatized/fuzzy matching, real worker boundary) */
+section('9b. Smart Search');
+if (fs.existsSync(path.join(__dirname, 'smart-search-test.js'))) {
+  try {
+    var smartOut = cp.execSync('node "' + path.join(__dirname, 'smart-search-test.js') + '"', { encoding: 'utf8', timeout: 15000 });
+    if (/ALL SMART SEARCH TESTS PASSED/.test(smartOut)) ok('lemmatized matching, ranking, and re-index all correct against the real worker');
+    else { bad('smart-search test failed'); console.log(smartOut); }
+  } catch (e) {
+    bad('smart-search test crashed');
+    console.log(e.stdout || e.message);
+  }
+} else {
+  console.log('  (skipped — test/smart-search-test.js missing)');
+}
+
 /* 10. Version consistency */
 section('10. Version consistency');
 var pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));

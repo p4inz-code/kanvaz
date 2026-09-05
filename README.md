@@ -18,6 +18,8 @@
 
 > **Development has reopened for one final, deliberate arc**, aimed at closing every real gap against PureRef and every other major tool in this space, then genuinely stopping. v5.3.0's "last release" framing was an honest record of that decision at the time, not a promise broken — this is a considered restart, not scope creep. Found a real bug, or a feature you'd genuinely find valuable? [Open a GitHub issue](https://github.com/p4inz-code/kanvaz/issues) or email **atharva.patil.cg@gmail.com** — both are read.
 
+> **v6.3.0** — Smart Search: on-device lemmatized/fuzzy text search ("cars" now finds "car"), fully offline, off by default. Built on pure-JS libraries with zero native dependencies after a real transformer model turned out to need native binaries that don't fit this project's "no attention for 2 years" bar — see [CHANGELOG.md](CHANGELOG.md) for the full story and a real bug-bounty pass before shipping.
+>
 > **v6.2.0** — Smart Folders (a saved search that keeps re-running itself) and color search (click a color, find matching cards), the first two pieces of the "Never Lose Anything Again" pillar. See [CHANGELOG.md](CHANGELOG.md) for the full list.
 >
 > **v6.1.0** — Measure and eyedropper tools in the annotation toolbar, plus video frame-stepping and onion-skin — closing out the rest of the "Live Reference" pillar. See [CHANGELOG.md](CHANGELOG.md) for the full list.
@@ -148,7 +150,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 6.2.0.exe` and `dist/Kanvaz 6.2.0.exe`
+Output: `dist/Kanvaz Setup 6.3.0.exe` and `dist/Kanvaz 6.3.0.exe`
 
 **macOS:**
 ```bash

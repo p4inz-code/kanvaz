@@ -156,7 +156,7 @@ var KanvazUI_Extended = (function() {
     confirmDelete:    false,
     defaultCardW:     600,
     animationsOn:     true,
-    /* v6.2.0: default flipped to true — always-on-top plus the new
+    /* v6.3.0: default flipped to true — always-on-top plus the new
        click-through/opacity controls (Reference Mode) is the actual
        point of Pillar 2, PureRef's own core reason to exist. See the
        v2->v3 settings migration below for why existing users' saved
@@ -164,6 +164,14 @@ var KanvazUI_Extended = (function() {
     alwaysOnTop:      true,
     windowOpacity:    1,
     smartFolders:     [],
+    /* v6.3.0 — Smart Search: lemmatized/fuzzy text matching (wink-nlp,
+       pure JS, on-device, no data leaves the machine). Defaults OFF —
+       deliberately opt-in, not opt-out, since this is the one feature
+       in this whole app that loads a ~4MB language model into memory;
+       someone who never asked for it shouldn't pay that cost by
+       default. Also the explicit "AI off switch" the user asked for —
+       leave this false and nothing NLP-related ever loads, full stop. */
+    smartSearchEnabled: false,
     doubleClickCreatesNote: false,
     leftDragPan:      true,
     autoHideChrome:   false,
@@ -185,14 +193,14 @@ var KanvazUI_Extended = (function() {
       return s;
     }},
     { from: 2, to: 3, migrate: function(s) {
-      /* v2→v3 (6.2.0): Top Mode is removed — topModeAutoOnTop no longer
+      /* v2→v3 (6.3.0): Top Mode is removed — topModeAutoOnTop no longer
          means anything, drop it rather than leave a dead key sitting in
          everyone's settings.json forever. Always-on-top becomes the
          default experience this version (see SETTINGS_DEFAULTS above) —
          deliberately overriding a prior explicit "off" here too, not
          just filling in the gap for people who never touched it, since
          this is a genuine, disclosed behavior change for this version
-         (see CHANGELOG's 6.2.0 entry), not silent. Still one click/
+         (see CHANGELOG's 6.3.0 entry), not silent. Still one click/
          Command-Palette-entry away from turning back off. */
       delete s.topModeAutoOnTop;
       s.alwaysOnTop = true;
@@ -288,7 +296,7 @@ var KanvazUI_Extended = (function() {
     }
 
     /* Always on top — apply persisted value. Goes through KanvazApp's
-       own syncAlwaysOnTop() (v6.2.0), not a direct KanvazBridge call —
+       own syncAlwaysOnTop() (v6.3.0), not a direct KanvazBridge call —
        app.js's toggleAlwaysOnTop()/Command Palette entry keeps its own
        in-memory copy of this flag, and without this sync call it would
        drift out of step with the real window state on the very first
@@ -300,10 +308,20 @@ var KanvazUI_Extended = (function() {
       KanvazBridge.setAlwaysOnTop(!!settings.alwaysOnTop);
     }
 
-    /* Window opacity (v6.2.0) — persisted, unlike click-through which
+    /* Window opacity (v6.3.0) — persisted, unlike click-through which
        always starts fresh (see app.js's Reference Mode section). */
     if (typeof KanvazBridge !== 'undefined' && KanvazBridge.setWindowOpacity) {
       KanvazBridge.setWindowOpacity(settings.windowOpacity !== undefined ? settings.windowOpacity : 1);
+    }
+
+    /* Smart Search (v6.3.0) - spawns/kills the actual worker process in
+       main.js to match the setting; this is the real off switch, not
+       just a UI state. Safe to call every time applySettings() runs
+       (startup, and every Settings-panel change) - main.js's handler is
+       already idempotent (no-ops if the worker's already in the state
+       being requested). */
+    if (typeof KanvazBridge !== 'undefined' && KanvazBridge.setSmartSearchEnabled) {
+      KanvazBridge.setSmartSearchEnabled(!!settings.smartSearchEnabled);
     }
 
     /* Auto-hide toolbar — a persistent setting, independent of anything
@@ -521,6 +539,8 @@ var KanvazUI_Extended = (function() {
       { key: 'gridSnapIncrement', label: 'Snap increment', type: 'select', options: [['minor','Minor (24px)'],['major','Major (120px)']] },
       { section: 'Reference Mode' },
       { key: 'alwaysOnTop',     label: 'Always on top (default: on)', type: 'toggle' },
+      { section: 'Smart Search' },
+      { key: 'smartSearchEnabled', label: 'Smart Search (on-device NLP, off by default)', type: 'toggle' },
       { section: 'Files' },
       { key: 'autosaveInterval',label: 'Autosave (seconds)',    type: 'number', min: 10, max: 300 },
       { key: 'defaultCardW',    label: 'Default card width (px)',type: 'number', min: 80, max: 1200 },
@@ -1073,7 +1093,7 @@ var KanvazUI_Extended = (function() {
     });
   }
 
-  /* ── Start from Template (6.2.0) ──
+  /* ── Start from Template (6.3.0) ──
      Bundled with the app (assets/templates/) — no network call at all,
      unlike Browse Official Plugins above. Same lazy-overlay-with-fixed-id
      pattern to avoid a double-open stacking two overlays. */
@@ -1328,7 +1348,7 @@ var KanvazUI_Extended = (function() {
       '</div>',
       '<div class="about-title">Kanvaz</div>',
       '<div class="about-subtitle">A visual reference workspace for creative professionals.</div>',
-      '<div class="about-version">Version 6.2.0</div>',
+      '<div class="about-version">Version 6.3.0</div>',
       '<div id="about-update-status" class="about-update-status"></div>',
       '<div class="about-divider"></div>',
       '<div class="about-author">Developed by <strong>Atharva Patil</strong></div>',
@@ -1336,7 +1356,7 @@ var KanvazUI_Extended = (function() {
       '<div class="about-desc">Built for VFX and 3D artists,<br>and the studios and educators who rely on them.</div>',
       '<div class="about-divider"></div>',
       '<div class="about-privacy">Free and open source. MIT License.<br>No telemetry, no background network activity.<br>Your data stays on your machine.</div>',
-      '<div class="about-tagline">Reference Operating System<br>Actively maintained — v6.2.0</div>'
+      '<div class="about-tagline">Reference Operating System<br>Actively maintained — v6.3.0</div>'
     ].join('');
 
     var updateBtn = document.createElement('button');
