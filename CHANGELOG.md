@@ -2,6 +2,25 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [6.4.0] — Shared cards across boards
+
+Fifth release of the v6.x arc, and the last piece of the "Never Lose Anything Again" pillar (see `docs/ROADMAP.md`) — deliberately saved for last in that pillar specifically so it got the most scrutiny before shipping, since it's the most invasive change of the three.
+
+### Added
+- **Shared cards** (Are.na-style) — the same card can now live on more than one board in one `.kanvaz` file with zero duplication. Right-click any card → **Share to board**, pick a board, and a linked instance appears there. Edit the card's content (text, media, tags, annotations — anything except its position/size on a given board) from *either* board and the change is there the next time you open the other one. A small chain badge (⛓) on the card bar marks a card as shared; **Unlink from shared card** forks it back into its own independent copy.
+- **Format**: a new top-level `sharedCards` registry in the `.kanvaz` file holds each shared card's content once, keyed by a stable `sharedId`; each board's own `cards[]` array stores only a lightweight stub (`sharedId` + position/size/z/pinned/opacity) for every instance. Old files simply have no stubs referencing anything, so they load as an empty registry — no migration needed, fully additive.
+- **A real regression test** (`test/shared-cards-test.js`, wired into `validate.js`) — round-trips the actual `src/boards.js` registry logic: content persists and updates across a simulated board switch, per-instance position/size stay independent, sharing to the currently-open board is correctly refused, and an unreferenced shared card gets pruned from the file on save.
+
+### Fixed (found by this release's own review pass, before shipping)
+- **Undo/redo used to corrupt a shared card outright.** `KanvazHistory`'s snapshot relied on the same `KanvazCards.serialise()` used for the save file — which, for a shared card, returns a content-less stub (no `type`, no `text`, no `sharedId` even). Every undo push was silently losing that card's entire content and its shared link; restoring one turned it into a broken card. Fixed with a dedicated `KanvazCards.serialiseForHistory()` that always snapshots the complete, unsplit record — undo/redo now has nothing to do with the save-file registry split. See `src/history.js` and `src/cards.js` for the full reasoning in-line.
+- Restoring an old undo snapshot's content for a shared card would previously have been silently overwritten by whatever the *current*, mutable registry held — meaning undo couldn't actually revert a text/content edit on a shared card. Fixed: a full-content restore (from history) now writes back into the registry instead of reading from it, exactly like any other edit to a shared card would.
+- **Duplicate (Ctrl+D)** used to keep the same `sharedId` on the copy, silently turning "make an independent copy" into "add another linked instance to this board" — a surprising result given every other duplicated field is independent. Duplicate now always forks to a private copy; use *Share to board* if a linked instance is actually what you want.
+
+### Scope, disclosed
+- Text cards don't show the shared-card badge (they render as a bare floating label with no card-bar chrome) — sharing still works correctly, it's just not visually flagged on that one card type.
+- Sharing only works one board at a time via the context-menu picker; there's no bulk "share these 5 cards to board X" yet.
+- This is local-file sharing across boards in the same `.kanvaz` file, not real-time multi-user collaboration — only one board is ever "live" at once, so an edit is visible on another board the next time *you* switch to it, not instantly in a second open window.
+
 ## [6.3.0] — Smart Search: on-device, pure-JS, zero native dependencies
 
 Fourth release of the v6.x arc: the first genuinely "AI-adjacent" piece of the "Never Lose Anything Again" pillar. Comes with a real architecture story worth reading, not just a feature list.

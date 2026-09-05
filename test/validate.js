@@ -182,6 +182,21 @@ if (fs.existsSync(path.join(__dirname, 'smart-search-test.js'))) {
   console.log('  (skipped — test/smart-search-test.js missing)');
 }
 
+/* 9c. Shared cards across boards (registry round-trip, pruning) */
+section('9c. Shared cards across boards');
+if (fs.existsSync(path.join(__dirname, 'shared-cards-test.js'))) {
+  try {
+    var sharedOut = cp.execSync('node "' + path.join(__dirname, 'shared-cards-test.js') + '"', { encoding: 'utf8', timeout: 15000 });
+    if (/ALL SHARED CARDS TESTS PASSED/.test(sharedOut)) ok('content registry round-trips across boards, positions stay independent, pruning works');
+    else { bad('shared-cards test failed'); console.log(sharedOut); }
+  } catch (e) {
+    bad('shared-cards test crashed');
+    console.log(e.stdout || e.message);
+  }
+} else {
+  console.log('  (skipped — test/shared-cards-test.js missing)');
+}
+
 /* 10. Version consistency */
 section('10. Version consistency');
 var pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));

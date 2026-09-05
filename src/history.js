@@ -40,7 +40,14 @@ var KanvazHistory = (function() {
      (position/size/z/pin/text/opacity/flip/annotations/tags/properties/
      mapPosition) need deep copying. */
   function snapshot() {
-    var src = KanvazCards.serialise();
+    /* v6.4.0: serialiseForHistory(), NOT serialise() — serialise() splits
+       a shared card into a content-less stub for the save file (its
+       content lives in KanvazBoards' cross-board registry instead, which
+       has no undo history of its own). Snapshotting that stub here would
+       mean every undo push loses a shared card's type/text/dataUrl/etc
+       outright — see serialiseForHistory()'s own comment for the full
+       reasoning. Undo/redo needs the complete live record every time. */
+    var src = KanvazCards.serialiseForHistory();
     var refs = [];
     for (var i = 0; i < src.length; i++) {
       var c = src[i];
@@ -56,6 +63,9 @@ var KanvazHistory = (function() {
         url:      c.url,
         color:    c.color,
         mimeType: c.mimeType,
+        /* v6.4.0 — identity of a shared card; deliberately NOT cloned
+           (a plain string, immutable by nature like the fields above) */
+        sharedId: c.sharedId,
         /* Mutable — cloned */
         x:           c.x,
         y:           c.y,
@@ -162,6 +172,7 @@ var KanvazHistory = (function() {
       url:      ref.url,
       color:    ref.color,
       mimeType: ref.mimeType,
+      sharedId: ref.sharedId,
       x:            ref.x,
       y:            ref.y,
       w:            ref.w,

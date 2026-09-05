@@ -1166,6 +1166,20 @@ var KanvazApp = (function() {
           }
         });
       }
+      /* Shared cards across boards (v6.4.0) */
+      items.push({ sep: true });
+      items.push({
+        label: 'Share to board',
+        submenu: true,
+        action: function() { KanvazCards.showShareToBoardPicker(card.id, x, y); }
+      });
+      if (card.sharedId) {
+        items.push({
+          label: 'Unlink from shared card',
+          action: function() { KanvazCards.unlinkSharedCard(card.id); }
+        });
+      }
+
       items.push({ sep: true });
       items.push({
           label: 'Delete',

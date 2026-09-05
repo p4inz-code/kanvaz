@@ -2347,6 +2347,14 @@ var KanvazCards = (function() {
     var bar = document.createElement('div');
     bar.className = 'card-bar';
 
+    if (card.sharedId) {
+      var sharedBadge = document.createElement('span');
+      sharedBadge.className = 'card-badge badge-shared';
+      sharedBadge.title = 'Shared across boards — editing it here updates every board it appears on';
+      sharedBadge.textContent = '⛓';
+      bar.appendChild(sharedBadge);
+    }
+
     bar.appendChild(buildNameSpan(card, el));
 
     if (card.type === 'image') {
@@ -3149,6 +3157,13 @@ var KanvazCards = (function() {
     newCard.x  += 20;
     newCard.y  += 20;
     newCard.z   = ++zCounter;
+    /* v6.4.0 — Duplicate always forks to an independent copy, even for a
+       shared card. Keeping the same sharedId here would silently turn
+       "Duplicate" into "add another linked instance to this same board"
+       — a very different, much more surprising action than what
+       Duplicate does for every other field, and one that already has
+       its own explicit entry point ("Share to board"). */
+    newCard.sharedId = null;
 
     cards[newCard.id] = newCard;
     renderCard(newCard);
@@ -3187,6 +3202,80 @@ var KanvazCards = (function() {
     KanvazApp.markDirty();
     KanvazHistory.push();
     KanvazUI.toast('Duplicated ' + newIds.length + ' cards');
+  }
+
+  /* ── Shared cards across boards (v6.4.0) ──
+     "Share to board" turns THIS card into a shared card (assigning it a
+     sharedId the first time, if it doesn't have one yet) and drops a new
+     linked instance onto a different board — content stays in sync
+     because both instances round-trip through KanvazBoards' registry on
+     every save/load (see serialise()/deserialise() above). "Unlink" is
+     the reverse: this one instance keeps its current content as its own
+     private copy and stops listening to the shared registry. */
+  function shareCardToBoard(id, targetBoardId) {
+    var card = cards[id];
+    if (!card) return { ok: false, error: 'card not found' };
+    if (typeof KanvazBoards === 'undefined' || !KanvazBoards.newSharedId) {
+      return { ok: false, error: 'boards module unavailable' };
+    }
+
+    if (!card.sharedId) {
+      card.sharedId = KanvazBoards.newSharedId();
+    }
+
+    /* Push current content into the registry right away (rather than
+       waiting for the next save/switch) so the target board — which may
+       become active before this one saves again — sees it immediately.
+       buildFullCardRecord() is the same normalizer serialise() itself
+       uses, so this can't drift from what an actual save would produce. */
+    var full = buildFullCardRecord(card);
+    var content = {};
+    for (var ck in full) {
+      if (SHARED_CARD_INSTANCE_FIELDS.indexOf(ck) === -1) content[ck] = full[ck];
+    }
+    KanvazBoards.setSharedCardContent(card.sharedId, content);
+
+    var stub = { sharedId: card.sharedId, id: nextId(), x: card.x, y: card.y, w: card.w, h: card.h, z: card.z, pinned: false, opacity: 1.0, mapPosition: null };
+    var result = KanvazBoards.addSharedInstanceToBoard(targetBoardId, stub);
+    if (result.ok) {
+      syncSharedBadge(card);
+      KanvazApp.markDirty();
+    }
+    return result;
+  }
+
+  function unlinkSharedCard(id) {
+    var card = cards[id];
+    if (!card || !card.sharedId) return;
+    card.sharedId = null;
+    syncSharedBadge(card);
+    KanvazApp.markDirty();
+    KanvazHistory.push();
+    KanvazUI.toast('Unlinked — this is now its own independent copy');
+  }
+
+  /* Adds/removes the "shared" badge on an already-rendered card in place
+     — deliberately NOT a full renderCard() re-run, which would append a
+     second DOM element with the same id rather than replacing the first
+     (renderCard() is only ever called for a card that doesn't have an
+     element yet: initial deserialise, create, duplicate). */
+  function syncSharedBadge(card) {
+    var el = document.getElementById(card.id);
+    if (!el) return;
+    var bar = el.querySelector('.card-bar');
+    if (!bar) return;
+    var existing = bar.querySelector('.badge-shared');
+    if (card.sharedId) {
+      if (!existing) {
+        var b = document.createElement('span');
+        b.className = 'card-badge badge-shared';
+        b.title = 'Shared across boards — editing it here updates every board it appears on';
+        b.textContent = '⛓';
+        bar.insertBefore(b, bar.firstChild);
+      }
+    } else if (existing) {
+      existing.parentNode.removeChild(existing);
+    }
   }
 
   /* ── Pin ── */
@@ -3254,60 +3343,120 @@ var KanvazCards = (function() {
 
   /* ── Serialise / deserialise ── */
 
+  /* Fields that stay per-instance even for a shared card — everything
+     about WHERE/HOW it sits on THIS particular board, never what it
+     actually is. Kept as an explicit list (not "everything else") so a
+     future card field defaults to being SHARED (round-tripped through
+     the registry, so every board sees the same content) unless someone
+     deliberately decides it's per-placement and adds it here. */
+  var SHARED_CARD_INSTANCE_FIELDS = ['id', 'sharedId', 'x', 'y', 'w', 'h', 'z', 'pinned', 'opacity', 'mapPosition'];
+
+  /* Builds the full, unsplit record for a live card — every persisted
+     field, shared-card content included. Used by BOTH serialise() (which
+     then splits a shared card's record into registry-content + stub) and
+     serialiseForHistory() (which needs the complete record every time,
+     never a stub — see that function's own comment for why). Pulled out
+     so the two callers can't drift on which fields exist or what their
+     defaults are. */
+  function buildFullCardRecord(c) {
+    var strokes = (typeof KanvazAnnotate !== 'undefined')
+      ? KanvazAnnotate.getStrokes(c.id)
+      : (c.annotations || []);
+    return {
+      id:          c.id,
+      type:        c.type,
+      dataUrl:     c.dataUrl,
+      name:        c.name,
+      path:        c.path,
+      x:           c.x,
+      y:           c.y,
+      w:           c.w,
+      h:           c.h,
+      z:           c.z,
+      pinned:      c.pinned,
+      text:        c.text || '',
+      opacity:     c.opacity !== undefined ? c.opacity : 1.0,
+      flipH:       c.flipH  || false,
+      flipV:       c.flipV  || false,
+      naturalW:    c.naturalW || c.w,
+      naturalH:    c.naturalH || c.h,
+      annotations: strokes,
+      /* v3 fields */
+      tags:        c.tags        || [],
+      properties:  c.properties  || {},
+      mapPosition: c.mapPosition || null,
+      url:         c.url         || null,
+      urlPreview:  c.urlPreview  || null,
+      color:       c.color       || null,
+      palette:     c.palette     || null,
+      mimeType:    c.mimeType    || null,
+      /* v4.2.0 — plugin-owned card types read/write this bucket
+         directly (render(el, card) has the whole card object); a
+         plugin's create()/render() are responsible for its shape,
+         Kanvaz core just round-trips it opaquely. */
+      pluginData:  c.pluginData  || null,
+      /* v4 fields — per-card display/playback preferences. Each of
+         these already has a "missing → default" fallback wherever
+         it's read (objectFit in buildImageCard, playbackRate in
+         buildVideoCard, audioLoop in buildAudioCard, colorFormat in
+         buildColorCard), so omitting them here is silently "safe"
+         but throws the feature away on every save — this whitelist
+         has to be kept in sync by hand whenever a new persisted
+         per-card field is added. */
+      objectFit:    c.objectFit    || null,
+      playbackRate: c.playbackRate || null,
+      audioLoop:    c.audioLoop    || false,
+      colorFormat:  c.colorFormat  || null,
+      muted:        c.muted        !== undefined ? c.muted : null,
+      /* v6.4.0 */
+      sharedId:     c.sharedId     || null
+    };
+  }
+
   function serialise() {
     var out = [];
     for (var id in cards) {
       var c = cards[id];
-      var strokes = (typeof KanvazAnnotate !== 'undefined')
-        ? KanvazAnnotate.getStrokes(id)
-        : (c.annotations || []);
-      out.push({
-        id:          c.id,
-        type:        c.type,
-        dataUrl:     c.dataUrl,
-        name:        c.name,
-        path:        c.path,
-        x:           c.x,
-        y:           c.y,
-        w:           c.w,
-        h:           c.h,
-        z:           c.z,
-        pinned:      c.pinned,
-        text:        c.text || '',
-        opacity:     c.opacity !== undefined ? c.opacity : 1.0,
-        flipH:       c.flipH  || false,
-        flipV:       c.flipV  || false,
-        naturalW:    c.naturalW || c.w,
-        naturalH:    c.naturalH || c.h,
-        annotations: strokes,
-        /* v3 fields */
-        tags:        c.tags        || [],
-        properties:  c.properties  || {},
-        mapPosition: c.mapPosition || null,
-        url:         c.url         || null,
-        urlPreview:  c.urlPreview  || null,
-        color:       c.color       || null,
-        palette:     c.palette     || null,
-        mimeType:    c.mimeType    || null,
-        /* v4.2.0 — plugin-owned card types read/write this bucket
-           directly (render(el, card) has the whole card object); a
-           plugin's create()/render() are responsible for its shape,
-           Kanvaz core just round-trips it opaquely. */
-        pluginData:  c.pluginData  || null,
-        /* v4 fields — per-card display/playback preferences. Each of
-           these already has a "missing → default" fallback wherever
-           it's read (objectFit in buildImageCard, playbackRate in
-           buildVideoCard, audioLoop in buildAudioCard, colorFormat in
-           buildColorCard), so omitting them here is silently "safe"
-           but throws the feature away on every save — this whitelist
-           has to be kept in sync by hand whenever a new persisted
-           per-card field is added. */
-        objectFit:    c.objectFit    || null,
-        playbackRate: c.playbackRate || null,
-        audioLoop:    c.audioLoop    || false,
-        colorFormat:  c.colorFormat  || null,
-        muted:        c.muted        !== undefined ? c.muted : null
-      });
+      var full = buildFullCardRecord(c);
+
+      /* v6.4.0 — shared cards: split into a content payload (pushed into
+         KanvazBoards' cross-board registry) and a lightweight per-board
+         stub (what actually gets stored in THIS board's cards[]). See
+         boards.js's sharedCards block comment for the full design. */
+      if (c.sharedId && typeof KanvazBoards !== 'undefined' && KanvazBoards.setSharedCardContent) {
+        var content = {};
+        for (var k in full) {
+          if (SHARED_CARD_INSTANCE_FIELDS.indexOf(k) === -1) content[k] = full[k];
+        }
+        KanvazBoards.setSharedCardContent(c.sharedId, content);
+
+        var stub = { sharedId: c.sharedId };
+        for (var si = 0; si < SHARED_CARD_INSTANCE_FIELDS.length; si++) {
+          var f = SHARED_CARD_INSTANCE_FIELDS[si];
+          stub[f] = full[f];
+        }
+        out.push(stub);
+      } else {
+        out.push(full);
+      }
+    }
+    return out;
+  }
+
+  /* v6.4.0 — used by history.js for undo/redo snapshots ONLY, never for
+     the save file. Undo needs the complete live state of every card
+     exactly as it was at that point in time, including a shared card's
+     full content — serialise()'s stub/registry split is wrong here: the
+     registry is a single mutable object with no undo history of its
+     own, so restoring an old STUB against the CURRENT registry content
+     would silently "un-revert" any shared-card edit undo is trying to
+     roll back. No registry writes happen here either — snapshotting
+     board state for undo must never have the side effect of overwriting
+     other boards' view of a shared card. */
+  function serialiseForHistory() {
+    var out = [];
+    for (var id in cards) {
+      out.push(buildFullCardRecord(cards[id]));
     }
     return out;
   }
@@ -3317,6 +3466,50 @@ var KanvazCards = (function() {
     if (!arr) return;
     for (var i = 0; i < arr.length; i++) {
       var c = arr[i];
+
+      /* v6.4.0 — shared cards. Two different shapes can arrive here with
+         a sharedId set:
+         (a) a save-file STUB — {sharedId, x, y, w, h, z, pinned, opacity,
+             mapPosition} only, no `type` — needs its real content merged
+             back in from KanvazBoards' registry, every time, so an edit
+             made on a different board while this one wasn't active is
+             picked up the moment this board becomes active again.
+         (b) a FULL record with content already present — from
+             KanvazHistory's undo/redo (serialiseForHistory() always
+             returns full records, see its own comment for why). An
+             undo/redo that reverts a shared card's content IS an edit —
+             like any other edit to a shared card, it must be pushed back
+             into the registry so other boards see the reverted content
+             too, not silently ignored in favor of whatever's currently
+             sitting in the registry. */
+      if (c.sharedId) {
+        if (c.type !== undefined) {
+          if (typeof KanvazBoards !== 'undefined' && KanvazBoards.setSharedCardContent) {
+            var restoredContent = {};
+            for (var rk in c) {
+              if (SHARED_CARD_INSTANCE_FIELDS.indexOf(rk) === -1) restoredContent[rk] = c[rk];
+            }
+            KanvazBoards.setSharedCardContent(c.sharedId, restoredContent);
+          }
+        } else {
+          var sharedContent = (typeof KanvazBoards !== 'undefined' && KanvazBoards.getSharedCardContent)
+            ? KanvazBoards.getSharedCardContent(c.sharedId)
+            : null;
+          if (sharedContent) {
+            var merged = {};
+            for (var ck in sharedContent) merged[ck] = sharedContent[ck];
+            for (var fi = 0; fi < SHARED_CARD_INSTANCE_FIELDS.length; fi++) {
+              var ff = SHARED_CARD_INSTANCE_FIELDS[fi];
+              merged[ff] = c[ff];
+            }
+            merged.sharedId = c.sharedId;
+            c = merged;
+          } else {
+            c.type = c.type || 'unknown';
+          }
+        }
+      }
+
       /* Audit fix: this loop used to have no per-card isolation —
          `cards[c.id] = c` ran, then renderCard(c) ran, with nothing
          catching a throw from either. Since buildPluginCard() already
@@ -3351,6 +3544,7 @@ var KanvazCards = (function() {
         if (!c.audioLoop)    c.audioLoop    = false;
         if (!c.colorFormat)  c.colorFormat  = null;
         if (c.muted === undefined) c.muted  = null;
+        if (c.sharedId === undefined) c.sharedId = null;
 
         cards[c.id] = c;
         renderCard(c);
@@ -3595,6 +3789,84 @@ var KanvazCards = (function() {
     }, 50);
   }
 
+  /* ── Share to board picker (v6.4.0) ──
+     Lists every OTHER board (the active one is excluded — you already
+     have this card here) and drops a shared instance onto whichever one
+     is clicked. Modeled directly on showOpacityPicker's popover pattern
+     just above. */
+  function showShareToBoardPicker(id, x, y) {
+    var existing = document.getElementById('share-board-picker');
+    if (existing) existing.parentNode.removeChild(existing);
+
+    var card = cards[id];
+    if (!card) return;
+    if (typeof KanvazBoards === 'undefined' || !KanvazBoards.listBoardsInfo) return;
+
+    var allBoards = KanvazBoards.listBoardsInfo();
+    var others = allBoards.filter(function(b) { return !b.active; });
+
+    var picker = document.createElement('div');
+    picker.id = 'share-board-picker';
+    picker.style.cssText = [
+      'position:fixed',
+      'left:' + x + 'px',
+      'top:' + y + 'px',
+      'background:var(--color-surface)',
+      'border:1px solid var(--color-border-2)',
+      'border-radius:8px',
+      'padding:8px',
+      'z-index:20001',
+      'box-shadow:0 8px 24px rgba(0,0,0,0.6)',
+      'min-width:180px',
+      'max-height:280px',
+      'overflow-y:auto'
+    ].join(';');
+
+    var label = document.createElement('div');
+    label.style.cssText = 'font-size:11px;color:var(--color-text-3);margin:2px 6px 8px;text-transform:uppercase;letter-spacing:0.06em;';
+    label.textContent = 'Share to board';
+    picker.appendChild(label);
+
+    if (!others.length) {
+      var empty = document.createElement('div');
+      empty.style.cssText = 'font-size:12px;color:var(--color-text-3);padding:6px;';
+      empty.textContent = 'No other boards yet — create one first.';
+      picker.appendChild(empty);
+    }
+
+    for (var oi = 0; oi < others.length; oi++) {
+      (function(b) {
+        var row = document.createElement('div');
+        row.style.cssText = 'padding:7px 8px;border-radius:5px;cursor:pointer;font-size:13px;color:var(--color-text);';
+        row.textContent = b.name;
+        row.onmouseenter = function() { row.style.background = 'var(--color-surface-2)'; };
+        row.onmouseleave = function() { row.style.background = 'transparent'; };
+        row.onclick = function() {
+          var result = shareCardToBoard(id, b.id);
+          if (picker.parentNode) picker.parentNode.removeChild(picker);
+          if (result.ok) {
+            KanvazHistory.push();
+            KanvazUI.toast('Shared to "' + b.name + '"', 'success');
+          } else {
+            KanvazUI.toast(result.error || 'Could not share this card', 'error');
+          }
+        };
+        picker.appendChild(row);
+      })(others[oi]);
+    }
+
+    document.body.appendChild(picker);
+
+    setTimeout(function() {
+      document.addEventListener('mousedown', function closePicker(e) {
+        if (!picker.contains(e.target)) {
+          if (picker.parentNode) picker.parentNode.removeChild(picker);
+          document.removeEventListener('mousedown', closePicker);
+        }
+      });
+    }, 50);
+  }
+
   /* ── Select all ── */
 
   function selectAll() {
@@ -3673,6 +3945,9 @@ var KanvazCards = (function() {
     deleteMultiple:    deleteMultiple,
     duplicateCard:     duplicateCard,
     duplicateSelected: duplicateSelected,
+    shareCardToBoard:  shareCardToBoard,
+    unlinkSharedCard:  unlinkSharedCard,
+    showShareToBoardPicker: showShareToBoardPicker,
     togglePin:         togglePin,
     togglePinSelected: togglePinSelected,
     bringToFront:      bringToFront,
@@ -3685,6 +3960,7 @@ var KanvazCards = (function() {
     refreshAnnotationDot: refreshAnnotationDot,
     nudge:             nudge,
     serialise:         serialise,
+    serialiseForHistory: serialiseForHistory,
     deserialise:       deserialise,
     clearAll:          clearAll,
     resetSessionState: resetSessionState,

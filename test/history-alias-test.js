@@ -39,6 +39,19 @@ function makeFakeKanvazCards() {
       for (var id in cards) out.push(cards[id]);
       return out;
     },
+    /* v6.4.0 — history.js now snapshots via this, not serialise() (see
+       cards.js's own serialiseForHistory() comment for why: serialise()
+       splits a shared card into a content-less stub for the save file,
+       which would be wrong to snapshot for undo). This fake has no
+       shared-card concept at all, so it's identical to serialise() —
+       the point of this test is the aliasing contract, not shared
+       cards, which shared-cards-test.js and the manual v6.4.0 review
+       already cover. */
+    serialiseForHistory: function() {
+      var out = [];
+      for (var id in cards) out.push(cards[id]);
+      return out;
+    },
     deserialise: function(arr) {
       cards = {};
       for (var i = 0; i < arr.length; i++) cards[arr[i].id] = arr[i];
@@ -70,7 +83,8 @@ function minimalCard(id, x) {
     x: x, y: 0, w: 100, h: 100, z: 1, pinned: false, text: '',
     opacity: 1, flipH: false, flipV: false,
     objectFit: null, playbackRate: null, audioLoop: false, colorFormat: null, muted: null,
-    annotations: [], tags: [], properties: {}, mapPosition: null, pluginData: null
+    annotations: [], tags: [], properties: {}, mapPosition: null, pluginData: null,
+    sharedId: null
   };
 }
 

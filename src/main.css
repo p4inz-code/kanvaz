@@ -900,6 +900,14 @@ html, body {
   color: var(--color-red);
 }
 
+/* v6.4.0 — shared-across-boards indicator */
+.card-bar .badge-shared {
+  background: rgba(var(--color-accent-rgb), 0.2);
+  color: var(--color-accent);
+  text-transform: none;
+  padding: 1px 4px;
+}
+
 .card-bar .card-dims,
 .card-bar .card-duration,
 .card-bar .card-char-count {

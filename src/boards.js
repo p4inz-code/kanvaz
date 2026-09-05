@@ -7,7 +7,70 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '6.3.0';
+  var VERSION       = '6.4.0';
+
+  /* ── Shared cards (v6.4.0) — "same card, no duplicate, edit once
+     updates everywhere" (Are.na-style), across boards in ONE .kanvaz
+     file. A shared card's real content (text, media reference, color,
+     annotations, tags — everything except its position/size on a given
+     board) lives ONCE in this registry, keyed by a stable sharedId that
+     survives copies. Every board that has an instance of it stores only
+     a lightweight stub in its own cards[] array — see cards.js's
+     serialise()/deserialise() for the stub/content split. Because only
+     one board is ever "live" in KanvazCards at a time, the other boards'
+     stubs are re-merged with whatever's currently in this registry the
+     next time THEY become active — so an edit made while board A is open
+     is already there once you switch to board B, with zero real-time
+     sync machinery needed. */
+  var sharedCards = {}; /* { sharedId: contentFields } */
+
+  function newSharedId() {
+    return 'shared-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+  }
+
+  function getSharedCardContent(sharedId) {
+    return sharedCards[sharedId] || null;
+  }
+
+  function setSharedCardContent(sharedId, content) {
+    sharedCards[sharedId] = content;
+  }
+
+  /* A shared card stub is only useful as long as SOME board still has an
+     instance pointing at it — otherwise it's dead weight sitting in the
+     save file forever (e.g. every instance got unlinked or deleted).
+     Called from serialise() below, after saveCurrentBoardState() has
+     synced the active board, so every board's .cards array reflects
+     current membership. */
+  function pruneUnusedSharedCards() {
+    var used = {};
+    for (var i = 0; i < boards.length; i++) {
+      var bc = boards[i].cards || [];
+      for (var j = 0; j < bc.length; j++) {
+        if (bc[j].sharedId) used[bc[j].sharedId] = true;
+      }
+    }
+    for (var id in sharedCards) {
+      if (!used[id]) delete sharedCards[id];
+    }
+  }
+
+  /* Adds a new instance of an already-shared card to a DIFFERENT board's
+     serialised cards[] array. Deliberately refuses the currently active
+     board — that board's real state lives in KanvazCards, not in this
+     stale snapshot, so appending here would be invisible until the next
+     switch/save and could be clobbered by saveCurrentBoardState() before
+     that. The active board doesn't need this anyway: "share to a board"
+     only makes sense for a board you're not already looking at. */
+  function addSharedInstanceToBoard(targetBoardId, stub) {
+    var idx = findBoardIndexById(targetBoardId);
+    if (idx === -1) return { ok: false, error: 'no board with that id' };
+    if (idx === activeIdx) return { ok: false, error: 'that board is already open' };
+    if (!boards[idx].cards) boards[idx].cards = [];
+    boards[idx].cards.push(stub);
+    renderTabs();
+    return { ok: true };
+  }
 
   /* ── Plugin event hooks (4.3.0) ──
      Fired at the two points that mean "the active board's identity or
@@ -776,8 +839,12 @@ var KanvazBoards = (function() {
       }
     }
 
-    boards    = data.boards;
-    activeIdx = data.activeIdx || 0;
+    boards      = data.boards;
+    activeIdx   = data.activeIdx || 0;
+    /* v6.4.0: files saved before shared cards existed simply have no
+       stubs referencing anything, so an empty registry is correct, not
+       a fallback that loses data. */
+    sharedCards = data.sharedCards || {};
 
     /* v3: load connections (empty array for v2 files) */
     if (typeof KanvazConnections !== 'undefined') {
@@ -808,11 +875,15 @@ var KanvazBoards = (function() {
 
   function serialise() {
     saveCurrentBoardState();
+    pruneUnusedSharedCards();
     var out = {
       version:     VERSION,
       savedAt:     new Date().toISOString(),
       activeIdx:   activeIdx,
-      boards:      boards
+      boards:      boards,
+      /* v6.4.0: shared-card content registry — see the block comment
+         above sharedCards' declaration for the full design. */
+      sharedCards: sharedCards
     };
 
     /* v3: include connections */
@@ -1088,7 +1159,22 @@ var KanvazBoards = (function() {
     listBoardsInfo:   listBoardsInfo,
     switchBoardById:  switchBoardById,
     renameBoardById:  renameBoardById,
-    deleteBoardById:  deleteBoardById
+    deleteBoardById:  deleteBoardById,
+    /* v6.4.0 — shared cards across boards */
+    newSharedId:             newSharedId,
+    getSharedCardContent:    getSharedCardContent,
+    setSharedCardContent:    setSharedCardContent,
+    addSharedInstanceToBoard: addSharedInstanceToBoard
   };
 
 })();
+
+/* Dual export — same guarded pattern as src/commands.js and src/board-
+   container.js use: a real <script> tag in Kanvaz itself (window
+   global) vs. a plain require() from test/shared-cards-test.js
+   (CommonJS). Nothing above this point touches `window`/`document` at
+   require time — only inside function bodies, which a Node test can
+   avoid calling (or stub document for, as that test does) — so
+   requiring this file is safe. */
+if (typeof window !== 'undefined') { window.KanvazBoards = KanvazBoards; }
+if (typeof module !== 'undefined' && module.exports) { module.exports = KanvazBoards; }
