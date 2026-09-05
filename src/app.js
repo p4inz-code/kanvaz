@@ -1624,9 +1624,15 @@ var KanvazApp = (function() {
       ctLabel.style.cssText = 'font-size:12px;color:var(--color-text-2);';
       ctLabel.textContent = 'Click-through (T)';
       var ctTrack = document.createElement('div');
-      ctTrack.style.cssText = 'position:relative;width:34px;height:18px;border-radius:9px;background:' + (clickThroughOn ? 'var(--color-accent)' : 'var(--color-border-2)') + ';flex-shrink:0;';
+      ctTrack.style.cssText = 'position:relative;width:34px;height:18px;border-radius:9px;background:' + (clickThroughOn ? 'var(--color-accent)' : 'var(--color-border-2)') + ';flex-shrink:0;transition:background 0.2s;';
       var ctThumb = document.createElement('div');
-      ctThumb.style.cssText = 'position:absolute;top:2px;left:' + (clickThroughOn ? '16px' : '2px') + ';width:14px;height:14px;border-radius:50%;background:#fff;';
+      /* Matches ui.js's own toggle-switch thumbs (Settings rows, plugin
+         enable switches) exactly — same size, same #fff (deliberate:
+         the accent-colored track already reads correctly against both
+         themes, a plain white thumb reads clearly against either), same
+         transition, so this popover's toggle doesn't feel like a
+         different control from the rest of the app. */
+      ctThumb.style.cssText = 'position:absolute;top:2px;left:' + (clickThroughOn ? '16px' : '2px') + ';width:14px;height:14px;border-radius:50%;background:#fff;transition:left 0.2s;';
       ctTrack.appendChild(ctThumb);
       ctRow.appendChild(ctLabel);
       ctRow.appendChild(ctTrack);

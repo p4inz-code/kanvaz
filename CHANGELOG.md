@@ -2,6 +2,23 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [6.6.0] — Final UI polish, closing the v6.x arc
+
+Seventh and last release of the v6.x arc — the dedicated polish pass planned from the start to happen only once every pillar was functionally complete, so it reflects what actually shipped instead of getting redone every time a feature underneath it changed.
+
+### Audit
+A full pass over every screen/control this whole arc added: Reference Mode's click-through/opacity popover (v6.0.0), the measure/eyedropper toolbar and video frame-stepping/onion-skin controls (v6.1.0), Smart Folders chips and the color-search swatch (v6.2.0), the Smart Search settings row (v6.3.0), the shared-card badge and "Share to board"/"Unlink" context-menu items (v6.4.0), and the new Template Maker & Manager plugin's settings panel (v6.5.0) — checked each for CSS-variable usage (vs. a hardcoded color that would look wrong in the other theme), spacing/typography consistency against the rest of the app, and hover/transition parity with equivalent existing controls.
+
+**Result: the arc held up well.** Every new surface was already built on Kanvaz's existing theme-variable system (`var(--color-*)`) rather than hardcoded colors — a `grep` sweep across every file this arc touched for a raw hex color outside an actual color-picker/swatch context turned up exactly one hit.
+
+### Fixed
+- Reference Mode popover's click-through toggle switch was missing the `transition: left 0.2s` its own thumb needed to animate smoothly between states — every other toggle switch in Settings (and the plugin-enable switches) already has it. One-line fix; the popover's toggle now feels identical to every other toggle in the app instead of snapping instantly.
+
+### Scope, disclosed
+This was a code-level audit, not an interactive click-through in a live window — the standing limitation every release in this arc has disclosed (no Playwright/`_electron` driver built for this project yet; a boot-test confirming the app starts cleanly is as far as automated verification goes today). A future session building that driver (see the `run` skill's Electron pattern) would be a genuine improvement to how confidently future UI changes can be verified.
+
+**This closes the v6.x arc.** All three pillars — Live Reference (v6.0.0–v6.1.0), Never Lose Anything Again (v6.2.0–v6.4.0), and Wide-Open Plugin Ecosystem (v6.5.0) — are shipped, tested, and documented. Per `docs/ROADMAP.md` and `README.md`, this really is the plan reaching its stated end.
+
 ## [6.5.0] — Wide-Open Plugin Ecosystem
 
 Sixth release of the v6.x arc, and the whole of Pillar 3. The final pillar before this arc's last phase (a dedicated UI-polish pass across everything shipped since v6.0.0).

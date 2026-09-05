@@ -154,7 +154,9 @@ Build order is safest/most-isolated first:
 
 ## Final phase — UI polish
 
-Not started, and deliberately last. Once every pillar above is built and tested, one dedicated pass over every new screen/button/dialog added by this whole arc: visual consistency against Kanvaz's existing design system, correctness in both light and dark theme, and the same level of care as the rest of the app — done last on purpose, so it reflects what actually shipped instead of getting redone every time a feature underneath it changes. **This is the only thing left before the v6.x arc is fully complete.**
+**v6.6.0 — shipped. The v6.x arc is complete.** A full pass over every screen/control added by this whole arc, checked for CSS-variable usage (theme correctness), spacing/typography consistency, and hover/transition parity with equivalent existing controls. Result: the arc held up well — a repo-wide sweep for a raw hardcoded color outside an actual color-picker/swatch context found exactly one hit (a toggle switch missing its transition animation), fixed. See `CHANGELOG.md`'s 6.6.0 entry for the full audit writeup, including the one standing disclosed gap (no interactive Playwright/`_electron` driver exists for this project — every verification this whole arc did was a code audit plus a boot-test, never a live click-through).
+
+**All three pillars — Live Reference, Never Lose Anything Again, Wide-Open Plugin Ecosystem — are shipped, tested, and documented.** This is the plan (see the top of this section) reaching its stated end.
 
 ---
 
