@@ -864,6 +864,17 @@ var KanvazApp = (function() {
     KanvazBridge.on('click-through-escape-hatch', function() {
       if (clickThroughOn) toggleClickThrough();
     });
+
+    /* v6.6.2 — main.js sends this the moment the global hotkey itself
+       failed to register (another running app already owns Ctrl+Shift+T
+       system-wide) — surfaced immediately, before the user ever turns
+       click-through on and discovers their one guaranteed way out is
+       silently dead. Escape still works as a fallback as long as Kanvaz
+       still has OS focus, so this doesn't block turning click-through
+       on, it just makes sure the risk is disclosed up front. */
+    KanvazBridge.on('click-through-hotkey-unavailable', function() {
+      KanvazUI.toast('Heads up: Ctrl+Shift+T couldn\'t register (another app already uses it) — use Esc to exit click-through instead.', 'error');
+    });
   }
 
   /* Small popover off the titlebar button — same fixed-position-panel
@@ -1548,8 +1559,18 @@ var KanvazApp = (function() {
       /* Escape also exits click-through — same reasoning as the global
          hotkey in main.js: once clicks pass through to whatever's
          underneath, Kanvaz may not have OS focus, but a key actually
-         reaching this handler at all means it still does right now. */
-      if (clickThroughOn) toggleClickThrough();
+         reaching this handler at all means it still does right now.
+         Bug fix (v6.6.2): this used to reference the bare `clickThroughOn`/
+         `toggleClickThrough` identifiers directly — valid only back when
+         Reference Mode's code lived in this same scope (see v6.6.1's fix,
+         which moved it to KanvazApp's scope instead). Left behind here,
+         it became a second ReferenceError on the exact path a user relies
+         on to escape click-through with the keyboard when the mouse is
+         useless — the worst possible place for this class of bug to
+         still be lurking after v6.6.1 supposedly fixed it. */
+      if (typeof KanvazApp !== 'undefined' && KanvazApp.isClickThroughOn && KanvazApp.isClickThroughOn()) {
+        KanvazApp.toggleClickThrough();
+      }
     }
 
     var chromeAutoHideOn   = false;
@@ -1870,6 +1891,7 @@ var KanvazApp = (function() {
     toggleAlwaysOnTop: toggleAlwaysOnTop,
     syncAlwaysOnTop:   syncAlwaysOnTop,
     toggleClickThrough: toggleClickThrough,
+    isClickThroughOn:   function() { return clickThroughOn; },
     setWindowOpacity:   setWindowOpacity,
     updateSaveStatus:  updateSaveStatus,
     updateCardCount:   updateCardCount,

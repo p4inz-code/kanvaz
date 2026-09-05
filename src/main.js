@@ -621,9 +621,22 @@ function registerIPC() {
          window very likely no longer has OS focus (the click landed on
          whatever's underneath instead), so an ordinary in-page keydown
          listener can't be trusted to still fire. */
-      globalShortcut.register(clickThroughGlobalShortcut, function() {
+      var registered = globalShortcut.register(clickThroughGlobalShortcut, function() {
         if (mainWindow) mainWindow.webContents.send('click-through-escape-hatch');
       });
+      /* v6.6.2 — globalShortcut.register() returns false, silently, if
+         another running application already owns this exact accelerator
+         system-wide. Click-through's only two ways out are this hotkey
+         and the in-page Escape handler (itself broken by a real bug
+         until v6.6.1/6.6.2 — see CHANGELOG); if THIS registration also
+         silently failed, a user could genuinely have no mouse- or
+         keyboard-reachable way to turn click-through back off short of
+         force-quitting the process. Telling the renderer immediately
+         (before the user ever needs the hotkey and discovers it's dead)
+         is far better than a silent no-op here. */
+      if (!registered && mainWindow) {
+        mainWindow.webContents.send('click-through-hotkey-unavailable');
+      }
     } else {
       globalShortcut.unregister(clickThroughGlobalShortcut);
     }

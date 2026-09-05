@@ -98,7 +98,7 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
 
   /* Main → Renderer events */
   on: function(channel, fn) {
-    var allowed = ['recovery-available', 'window-maximized-changed', 'check-unsaved-before-close', 'open-file-from-argv', 'update-available', 'update-download-progress', 'update-downloaded', 'mcp-invoke', 'click-through-escape-hatch', 'smart-search-crashed'];
+    var allowed = ['recovery-available', 'window-maximized-changed', 'check-unsaved-before-close', 'open-file-from-argv', 'update-available', 'update-download-progress', 'update-downloaded', 'mcp-invoke', 'click-through-escape-hatch', 'smart-search-crashed', 'click-through-hotkey-unavailable'];
     if (allowed.indexOf(channel) !== -1) {
       ipcRenderer.on(channel, function(event, data) { fn(data); });
     }
@@ -110,7 +110,7 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
        subscribe to in the first place. Not currently exploited anywhere
        (nothing in the renderer calls off() with an arbitrary channel),
        just closing the gap between the two. */
-    var allowed = ['recovery-available', 'window-maximized-changed', 'check-unsaved-before-close', 'open-file-from-argv', 'update-available', 'update-download-progress', 'update-downloaded', 'mcp-invoke', 'click-through-escape-hatch', 'smart-search-crashed'];
+    var allowed = ['recovery-available', 'window-maximized-changed', 'check-unsaved-before-close', 'open-file-from-argv', 'update-available', 'update-download-progress', 'update-downloaded', 'mcp-invoke', 'click-through-escape-hatch', 'smart-search-crashed', 'click-through-hotkey-unavailable'];
     if (allowed.indexOf(channel) !== -1) {
       ipcRenderer.removeAllListeners(channel);
     }

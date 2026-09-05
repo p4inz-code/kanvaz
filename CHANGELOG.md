@@ -2,6 +2,20 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [6.6.2] — the escape hatch out of click-through was also broken
+
+Immediately after v6.6.1 shipped (fixing Reference Mode's button/shortcut/palette entry points), a live follow-up test of the actual Escape-key exit path found a second, more serious bug in the same feature — reported by a user as "after turning on, [it] becomes unclickable" and "I can't even close Kanvaz."
+
+### The bug
+`closeAll()` (the function behind the Escape key, in `src/app.js`) still referenced the bare `clickThroughOn`/`toggleClickThrough` identifiers directly — correct back when Reference Mode's code lived in the same scope as `closeAll()`, but v6.6.1 moved that code to `KanvazApp`'s own scope and left this one reference behind. The result: pressing Escape while click-through was on threw its own `ReferenceError`, silently failing to turn click-through back off. Since click-through makes every mouse click (including Kanvaz's own custom close button — this is a frameless window with no native titlebar) pass through to whatever's underneath, a user who enabled click-through via the popover and then relied on Escape to exit had no working mouse-based OR keyboard-based way out short of force-quitting the process. The only thing that could have saved them was the Ctrl+Shift+T global hotkey — which works independently of this bug, but had never been confirmed to register successfully, either.
+
+### Fixed
+- `closeAll()` now calls `KanvazApp.toggleClickThrough()` (checked via a new `KanvazApp.isClickThroughOn()` getter) instead of referencing the moved identifiers directly.
+- `main.js`'s global-hotkey registration (`Ctrl+Shift+T`) now checks `globalShortcut.register()`'s return value — it silently returns `false` if another running application already owns that exact accelerator system-wide — and tells the renderer immediately if it failed, which shows a clear toast explaining Escape is still the fallback. Previously this failure mode was completely silent: a user could enable click-through with their one safety hotkey already dead and have no way to find out except by needing it.
+
+### Verified, this time with a real reproduction technique
+Both this bug and v6.6.1's were found and confirmed fixed by actually driving the running packaged app — not a static read-through. Launched with `electron --remote-debugging-port=NNNN .`, connected over the real Chrome DevTools Protocol using the `ws` package (already a project dependency, no new one added), and used `Runtime.evaluate` to call the real exported functions and `Runtime.exceptionThrown`/console capture to confirm zero uncaught errors on the full on → Escape → off cycle. This is a real, if lightweight, upgrade over the boot-test-only verification every prior release in this arc disclosed — still not a substitute for a proper Playwright/`_electron` driver, but a meaningfully better bar than before.
+
 ## [6.6.1] — Reference Mode was actually broken since v6.0.0
 
 A user reported "Reference Mode did an error" right after v6.6.0 shipped. This is that fix.
