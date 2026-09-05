@@ -7,6 +7,8 @@
 | 6.6.x   | Yes       |
 | < 6.6   | No        |
 
+(6.6.1 is a same-minor bug-fix release, not a new supported line.)
+
 Only the latest release receives security updates. Kanvaz is a solo-maintained
 open-source project — backporting fixes to older versions is not feasible.
 

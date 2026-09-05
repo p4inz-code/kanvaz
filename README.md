@@ -16,8 +16,10 @@
 
 **Reference Operating System**
 
-> **The v6.x arc is complete as of v6.6.0.** All three pillars (Live Reference, Never Lose Anything Again, Wide-Open Plugin Ecosystem) plus a final UI-polish pass are shipped. This really is the plan closing out, the same honest way v5.3.0's own "last release" framing was — not a promise this time either, just where the maintainer's attention goes back to normal life. Found a real bug, or a feature you'd genuinely find valuable? [Open a GitHub issue](https://github.com/p4inz-code/kanvaz/issues) or email **atharva.patil.cg@gmail.com** — both are read.
+> **The v6.x arc is complete as of v6.6.1.** All three pillars (Live Reference, Never Lose Anything Again, Wide-Open Plugin Ecosystem) plus a final UI-polish pass are shipped. This really is the plan closing out, the same honest way v5.3.0's own "last release" framing was — not a promise this time either, just where the maintainer's attention goes back to normal life. Found a real bug, or a feature you'd genuinely find valuable? [Open a GitHub issue](https://github.com/p4inz-code/kanvaz/issues) or email **atharva.patil.cg@gmail.com** — both are read.
 
+> **v6.6.1** — Reference Mode was actually broken since v6.0.0: clicking its titlebar button threw a `ReferenceError` instead of opening its popover, and the `T` shortcut / Command Palette entry silently did nothing — a scoping mistake (its code had landed inside the wrong internal module) that a boot-test alone could never catch, since it only broke when the button was actually clicked. Found by a user report, reproduced live via Chrome DevTools Protocol against the running app, and fixed. See [CHANGELOG.md](CHANGELOG.md) for the full writeup.
+>
 > **v6.6.0** — Final UI-polish pass, closing the v6.x arc. A full consistency audit across every screen this arc added (Reference Mode popover, Smart Folders/color search, Smart Search settings, shared-cards badge/context-menu, the new Template Maker plugin) confirmed the arc was built with theme-variable discipline throughout — one real inconsistency found and fixed (a toggle switch missing its transition animation). See [CHANGELOG.md](CHANGELOG.md) for the full writeup.
 >
 > **v6.5.0** — Wide-Open Plugin Ecosystem: a richer, still fully backward-compatible plugin API (any card type can now be created from data, not just a plugin's own registered type; shared-cards-across-boards and toast/dialog helpers are now plugin-reachable), a full rewrite of the plugin-authoring guide including an explicit green light to sell your own plugin, and a new official **Template Maker & Manager** plugin — save any board as a template, manage your own, and browse/install community ones. See [CHANGELOG.md](CHANGELOG.md) for the full writeup.
@@ -156,7 +158,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 6.6.0.exe` and `dist/Kanvaz 6.6.0.exe`
+Output: `dist/Kanvaz Setup 6.6.1.exe` and `dist/Kanvaz 6.6.1.exe`
 
 **macOS:**
 ```bash

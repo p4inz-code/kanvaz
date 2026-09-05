@@ -2,6 +2,21 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [6.6.1] — Reference Mode was actually broken since v6.0.0
+
+A user reported "Reference Mode did an error" right after v6.6.0 shipped. This is that fix.
+
+### The bug
+Clicking the Reference Mode titlebar button threw `ReferenceError: showReferenceModePopover is not defined` instead of opening its click-through/opacity popover. The `T` keyboard shortcut and the Command Palette's "Toggle Click-Through" entry were equally broken — both call `KanvazApp.toggleClickThrough()`, which didn't exist. **This has been broken since v6.0.0 first shipped Reference Mode** — every release since then, including this arc's own dedicated v6.6.0 UI-polish pass, missed it.
+
+Root cause: the entire Reference Mode implementation (`toggleClickThrough`, `setWindowOpacity`, `showReferenceModePopover`, the click-through-escape-hatch listener) had been written inside the wrong internal module in `src/app.js` — nested inside the `window.KanvazUI` IIFE instead of `KanvazApp`'s own scope, where `bindGlobalUI()`'s button handler and `shortcuts.js`/`commands.js`'s calls actually look for it. A plain scoping mistake, invisible to every static check this project runs (syntax check, lint, `node --check` all passed — the code was valid JavaScript, just unreachable from where it needed to be called), and invisible to the boot-test verification every release in this arc has relied on, since starting the app cleanly never requires clicking the button that was actually broken.
+
+### How this was actually found and verified this time
+Every prior release in this arc disclosed the same limitation — "not yet manually GUI-verified, no Playwright/`_electron` driver exists for this project." This fix was different: launched the packaged app with `--remote-debugging-port`, connected directly to its real running renderer over the Chrome DevTools Protocol (`ws` npm package, already a dependency), and used `Runtime.evaluate` to actually click the Reference Mode button and read back both the console's `ReferenceError` and, after the fix, confirm the popover opens, `KanvazApp.toggleClickThrough` exists and works, and the button's active state toggles correctly — a real reproduction and a real verification, not a static read-through.
+
+### Fixed
+- Moved the whole Reference Mode block to `KanvazApp`'s own scope (next to `toggleAlwaysOnTop`/`syncAlwaysOnTop`, the closely related always-on-top toggle it was designed to pair with). `toggleClickThrough`/`setWindowOpacity` are now genuinely on `KanvazApp`'s returned API (they were previously, incorrectly, only on `KanvazUI`'s).
+
 ## [6.6.0] — Final UI polish, closing the v6.x arc
 
 Seventh and last release of the v6.x arc — the dedicated polish pass planned from the start to happen only once every pillar was functionally complete, so it reflects what actually shipped instead of getting redone every time a feature underneath it changed.

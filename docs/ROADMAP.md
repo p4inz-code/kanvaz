@@ -158,6 +158,8 @@ Build order is safest/most-isolated first:
 
 **All three pillars — Live Reference, Never Lose Anything Again, Wide-Open Plugin Ecosystem — are shipped, tested, and documented.** This is the plan (see the top of this section) reaching its stated end.
 
+**v6.6.1 — a real bug slipped through even this polish pass.** A user reported Reference Mode throwing an error right after v6.6.0 shipped — it turned out the whole feature had been non-functional via its own button/shortcut/palette entry points since v6.0.0 (a scoping mistake: its code lived in the wrong internal module). Found and fixed via a real live reproduction against the running app over the Chrome DevTools Protocol, not a static read-through — see `CHANGELOG.md`'s 6.6.1 entry. The lesson stands exactly as disclosed throughout this arc: a boot-test is not the same as clicking the button.
+
 ---
 
 ## Not a version, flagged so it doesn't get lost

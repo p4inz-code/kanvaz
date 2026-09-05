@@ -798,6 +798,186 @@ var KanvazApp = (function() {
     KanvazBridge.setAlwaysOnTop(alwaysOnTop);
   }
 
+  /* ── v6.0.0 — Reference Mode: click-through + opacity ──
+     Always-on-top now defaults to on (see ui.js's SETTINGS_DEFAULTS) —
+     this is the feature that makes leaving it on actually useful: it
+     lets you trace or color-match straight through the Kanvaz window
+     into whatever's underneath, PureRef's own signature move. Click-
+     through does NOT persist across restarts — starting the app with
+     every click already passing through, before the user has any way
+     to click a button to turn it back off, would be a real trap.
+
+     Bug fix (v6.6.0, found via live CDP reproduction, not static
+     review): this whole block used to live inside the window.KanvazUI
+     IIFE further down this file instead of here, in KanvazApp's own
+     scope — invisible to bindGlobalUI()'s `on('btn-reference-mode', ...)`
+     handler (a different, sibling module), which threw
+     "ReferenceError: showReferenceModePopover is not defined" the
+     instant the button was clicked. It also meant KanvazApp.toggleClick-
+     Through (what shortcuts.js's `T` key and the Command Palette's
+     core.toggleClickThrough actually call) never existed — TWO real,
+     confirmed breakages, both from the same misplacement. Every prior
+     release's own CHANGELOG disclosed "not yet manually GUI-verified" as
+     a standing gap; this is exactly the kind of bug that gap lets
+     through — a boot-test alone can never catch a button that only
+     throws when actually clicked. */
+  var clickThroughOn = false;
+
+  function updateReferenceModeBtn() {
+    var btn = document.getElementById('btn-reference-mode');
+    if (btn) btn.classList.toggle('active', clickThroughOn);
+  }
+
+  function toggleClickThrough() {
+    clickThroughOn = !clickThroughOn;
+    KanvazBridge.setClickThrough(clickThroughOn);
+    updateReferenceModeBtn();
+    KanvazUI.toast(clickThroughOn
+      ? 'Click-through on — clicks pass to whatever\'s underneath. Esc, or Ctrl+Shift+T from anywhere, to exit.'
+      : 'Click-through off');
+  }
+
+  /* value: 0.2–1.0 (see main.js's own floor — a window you can no
+     longer see and can't click is a dead end, not a feature). Persists
+     across restarts, unlike click-through — a dimmed reference window
+     is a standing preference, not a temporary trace-mode side effect. */
+  function setWindowOpacity(value) {
+    var v = Math.max(0.2, Math.min(1, value));
+    KanvazBridge.setWindowOpacity(v);
+    if (typeof KanvazUI_Extended !== 'undefined') {
+      var s = KanvazUI_Extended.getSettings();
+      if (s) {
+        s.windowOpacity = v;
+        KanvazBridge.writeSettings(JSON.stringify(s));
+      }
+    }
+    var slider = document.getElementById('reference-opacity-slider');
+    if (slider && Number(slider.value) !== v) slider.value = v;
+  }
+
+  /* The main process's global-hotkey escape hatch (Ctrl+Shift+T) —
+     needed because once clicks pass through, Kanvaz very likely no
+     longer has OS focus, so an in-page keydown listener alone can't
+     be trusted to still fire. Escape (closeAll(), in KanvazUI below)
+     covers the common case where focus is still here. */
+  if (typeof KanvazBridge !== 'undefined' && KanvazBridge.on) {
+    KanvazBridge.on('click-through-escape-hatch', function() {
+      if (clickThroughOn) toggleClickThrough();
+    });
+  }
+
+  /* Small popover off the titlebar button — same fixed-position-panel
+     pattern cards.js's own per-card opacity picker already uses, just
+     for the window itself instead of one card. */
+  function showReferenceModePopover() {
+    var existing = document.getElementById('reference-mode-popover');
+    if (existing) { existing.remove(); return; }
+
+    var btn = document.getElementById('btn-reference-mode');
+    var rect = btn ? btn.getBoundingClientRect() : { left: 0, bottom: 0 };
+
+    var pop = document.createElement('div');
+    pop.id = 'reference-mode-popover';
+    pop.style.cssText = [
+      'position:fixed',
+      'left:' + Math.max(8, rect.left - 160) + 'px',
+      'top:' + (rect.bottom + 6) + 'px',
+      'background:var(--color-surface)',
+      'border:1px solid var(--color-border-2)',
+      'border-radius:8px',
+      'padding:12px 14px',
+      'z-index:20001',
+      'box-shadow:0 8px 24px rgba(0,0,0,0.6)',
+      'min-width:200px'
+    ].join(';');
+    pop.onclick = function(e) { e.stopPropagation(); };
+
+    var title = document.createElement('div');
+    title.style.cssText = 'font-size:11px;color:var(--color-text-3);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.06em;';
+    title.textContent = 'Reference Mode';
+    pop.appendChild(title);
+
+    /* Click-through row */
+    var ctRow = document.createElement('div');
+    ctRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;cursor:pointer;';
+    var ctLabel = document.createElement('span');
+    ctLabel.style.cssText = 'font-size:12px;color:var(--color-text-2);';
+    ctLabel.textContent = 'Click-through (T)';
+    var ctTrack = document.createElement('div');
+    ctTrack.style.cssText = 'position:relative;width:34px;height:18px;border-radius:9px;background:' + (clickThroughOn ? 'var(--color-accent)' : 'var(--color-border-2)') + ';flex-shrink:0;transition:background 0.2s;';
+    var ctThumb = document.createElement('div');
+    /* Matches ui.js's own toggle-switch thumbs (Settings rows, plugin
+       enable switches) exactly — same size, same #fff (deliberate:
+       the accent-colored track already reads correctly against both
+       themes, a plain white thumb reads clearly against either), same
+       transition, so this popover's toggle doesn't feel like a
+       different control from the rest of the app. */
+    ctThumb.style.cssText = 'position:absolute;top:2px;left:' + (clickThroughOn ? '16px' : '2px') + ';width:14px;height:14px;border-radius:50%;background:#fff;transition:left 0.2s;';
+    ctTrack.appendChild(ctThumb);
+    ctRow.appendChild(ctLabel);
+    ctRow.appendChild(ctTrack);
+    ctRow.onclick = function() {
+      toggleClickThrough();
+      ctTrack.style.background = clickThroughOn ? 'var(--color-accent)' : 'var(--color-border-2)';
+      ctThumb.style.left = clickThroughOn ? '16px' : '2px';
+    };
+    pop.appendChild(ctRow);
+
+    /* Opacity row */
+    var opLabel = document.createElement('div');
+    opLabel.style.cssText = 'font-size:11px;color:var(--color-text-3);margin-bottom:6px;';
+    opLabel.textContent = 'Window opacity';
+    pop.appendChild(opLabel);
+
+    var opRow = document.createElement('div');
+    opRow.style.cssText = 'display:flex;align-items:center;gap:10px;';
+
+    var currentOpacity = 1;
+    if (typeof KanvazUI_Extended !== 'undefined') {
+      var os = KanvazUI_Extended.getSettings();
+      if (os && os.windowOpacity !== undefined) currentOpacity = os.windowOpacity;
+    }
+
+    var slider = document.createElement('input');
+    slider.type = 'range';
+    slider.id = 'reference-opacity-slider';
+    slider.min = 0.2;
+    slider.max = 1.0;
+    slider.step = 0.05;
+    slider.value = currentOpacity;
+    slider.style.cssText = 'flex:1;accent-color:var(--color-accent);';
+
+    var opVal = document.createElement('span');
+    opVal.style.cssText = 'font-family:var(--font-mono);font-size:11px;color:var(--color-text-2);min-width:32px;text-align:right;';
+    opVal.textContent = Math.round(currentOpacity * 100) + '%';
+
+    slider.oninput = function() {
+      var v = parseFloat(slider.value);
+      setWindowOpacity(v);
+      opVal.textContent = Math.round(v * 100) + '%';
+    };
+
+    opRow.appendChild(slider);
+    opRow.appendChild(opVal);
+    pop.appendChild(opRow);
+
+    document.body.appendChild(pop);
+
+    /* Same dismiss-on-outside-click convention as every other popover
+       in this file (color picker, opacity picker) — deferred so the
+       click that OPENED this popover (already stopped from
+       propagating via e.stopPropagation() in the caller) doesn't
+       immediately close it again via this same listener. */
+    setTimeout(function() {
+      document.addEventListener('click', function dismiss(e) {
+        if (pop.parentNode && !pop.contains(e.target)) {
+          pop.remove();
+        }
+        document.removeEventListener('click', dismiss);
+      });
+    }, 0);
+  }
+
   /* ── Save status ── */
 
   function updateSaveStatus(state) {
@@ -1533,171 +1713,6 @@ var KanvazApp = (function() {
 
     initTabMmbWindowDrag();
 
-    /* ── v6.0.0 — Reference Mode: click-through + opacity ──
-       Always-on-top now defaults to on (see ui.js's SETTINGS_DEFAULTS) —
-       this is the feature that makes leaving it on actually useful: it
-       lets you trace or color-match straight through the Kanvaz window
-       into whatever's underneath, PureRef's own signature move. Click-
-       through does NOT persist across restarts — starting the app with
-       every click already passing through, before the user has any way
-       to click a button to turn it back off, would be a real trap. */
-    var clickThroughOn = false;
-
-    function updateReferenceModeBtn() {
-      var btn = document.getElementById('btn-reference-mode');
-      if (btn) btn.classList.toggle('active', clickThroughOn);
-    }
-
-    function toggleClickThrough() {
-      clickThroughOn = !clickThroughOn;
-      KanvazBridge.setClickThrough(clickThroughOn);
-      updateReferenceModeBtn();
-      KanvazUI.toast(clickThroughOn
-        ? 'Click-through on — clicks pass to whatever\'s underneath. Esc, or Ctrl+Shift+T from anywhere, to exit.'
-        : 'Click-through off');
-    }
-
-    /* value: 0.2–1.0 (see main.js's own floor — a window you can no
-       longer see and can't click is a dead end, not a feature). Persists
-       across restarts, unlike click-through — a dimmed reference window
-       is a standing preference, not a temporary trace-mode side effect. */
-    function setWindowOpacity(value) {
-      var v = Math.max(0.2, Math.min(1, value));
-      KanvazBridge.setWindowOpacity(v);
-      if (typeof KanvazUI_Extended !== 'undefined') {
-        var s = KanvazUI_Extended.getSettings();
-        if (s) {
-          s.windowOpacity = v;
-          KanvazBridge.writeSettings(JSON.stringify(s));
-        }
-      }
-      var slider = document.getElementById('reference-opacity-slider');
-      if (slider && Number(slider.value) !== v) slider.value = v;
-    }
-
-    /* The main process's global-hotkey escape hatch (Ctrl+Shift+T) —
-       needed because once clicks pass through, Kanvaz very likely no
-       longer has OS focus, so an in-page keydown listener alone can't
-       be trusted to still fire. Escape (closeAll(), above) covers the
-       common case where focus is still here. */
-    if (typeof KanvazBridge !== 'undefined' && KanvazBridge.on) {
-      KanvazBridge.on('click-through-escape-hatch', function() {
-        if (clickThroughOn) toggleClickThrough();
-      });
-    }
-
-    /* Small popover off the titlebar button — same fixed-position-panel
-       pattern cards.js's own per-card opacity picker already uses, just
-       for the window itself instead of one card. */
-    function showReferenceModePopover() {
-      var existing = document.getElementById('reference-mode-popover');
-      if (existing) { existing.remove(); return; }
-
-      var btn = document.getElementById('btn-reference-mode');
-      var rect = btn ? btn.getBoundingClientRect() : { left: 0, bottom: 0 };
-
-      var pop = document.createElement('div');
-      pop.id = 'reference-mode-popover';
-      pop.style.cssText = [
-        'position:fixed',
-        'left:' + Math.max(8, rect.left - 160) + 'px',
-        'top:' + (rect.bottom + 6) + 'px',
-        'background:var(--color-surface)',
-        'border:1px solid var(--color-border-2)',
-        'border-radius:8px',
-        'padding:12px 14px',
-        'z-index:20001',
-        'box-shadow:0 8px 24px rgba(0,0,0,0.6)',
-        'min-width:200px'
-      ].join(';');
-      pop.onclick = function(e) { e.stopPropagation(); };
-
-      var title = document.createElement('div');
-      title.style.cssText = 'font-size:11px;color:var(--color-text-3);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.06em;';
-      title.textContent = 'Reference Mode';
-      pop.appendChild(title);
-
-      /* Click-through row */
-      var ctRow = document.createElement('div');
-      ctRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;cursor:pointer;';
-      var ctLabel = document.createElement('span');
-      ctLabel.style.cssText = 'font-size:12px;color:var(--color-text-2);';
-      ctLabel.textContent = 'Click-through (T)';
-      var ctTrack = document.createElement('div');
-      ctTrack.style.cssText = 'position:relative;width:34px;height:18px;border-radius:9px;background:' + (clickThroughOn ? 'var(--color-accent)' : 'var(--color-border-2)') + ';flex-shrink:0;transition:background 0.2s;';
-      var ctThumb = document.createElement('div');
-      /* Matches ui.js's own toggle-switch thumbs (Settings rows, plugin
-         enable switches) exactly — same size, same #fff (deliberate:
-         the accent-colored track already reads correctly against both
-         themes, a plain white thumb reads clearly against either), same
-         transition, so this popover's toggle doesn't feel like a
-         different control from the rest of the app. */
-      ctThumb.style.cssText = 'position:absolute;top:2px;left:' + (clickThroughOn ? '16px' : '2px') + ';width:14px;height:14px;border-radius:50%;background:#fff;transition:left 0.2s;';
-      ctTrack.appendChild(ctThumb);
-      ctRow.appendChild(ctLabel);
-      ctRow.appendChild(ctTrack);
-      ctRow.onclick = function() {
-        toggleClickThrough();
-        ctTrack.style.background = clickThroughOn ? 'var(--color-accent)' : 'var(--color-border-2)';
-        ctThumb.style.left = clickThroughOn ? '16px' : '2px';
-      };
-      pop.appendChild(ctRow);
-
-      /* Opacity row */
-      var opLabel = document.createElement('div');
-      opLabel.style.cssText = 'font-size:11px;color:var(--color-text-3);margin-bottom:6px;';
-      opLabel.textContent = 'Window opacity';
-      pop.appendChild(opLabel);
-
-      var opRow = document.createElement('div');
-      opRow.style.cssText = 'display:flex;align-items:center;gap:10px;';
-
-      var currentOpacity = 1;
-      if (typeof KanvazUI_Extended !== 'undefined') {
-        var os = KanvazUI_Extended.getSettings();
-        if (os && os.windowOpacity !== undefined) currentOpacity = os.windowOpacity;
-      }
-
-      var slider = document.createElement('input');
-      slider.type = 'range';
-      slider.id = 'reference-opacity-slider';
-      slider.min = 0.2;
-      slider.max = 1.0;
-      slider.step = 0.05;
-      slider.value = currentOpacity;
-      slider.style.cssText = 'flex:1;accent-color:var(--color-accent);';
-
-      var opVal = document.createElement('span');
-      opVal.style.cssText = 'font-family:var(--font-mono);font-size:11px;color:var(--color-text-2);min-width:32px;text-align:right;';
-      opVal.textContent = Math.round(currentOpacity * 100) + '%';
-
-      slider.oninput = function() {
-        var v = parseFloat(slider.value);
-        setWindowOpacity(v);
-        opVal.textContent = Math.round(v * 100) + '%';
-      };
-
-      opRow.appendChild(slider);
-      opRow.appendChild(opVal);
-      pop.appendChild(opRow);
-
-      document.body.appendChild(pop);
-
-      /* Same dismiss-on-outside-click convention as every other popover
-         in this file (color picker, opacity picker) — deferred so the
-         click that OPENED this popover (already stopped from
-         propagating via e.stopPropagation() in the caller) doesn't
-         immediately close it again via this same listener. */
-      setTimeout(function() {
-        document.addEventListener('click', function dismiss(e) {
-          if (pop.parentNode && !pop.contains(e.target)) {
-            pop.remove();
-          }
-          document.removeEventListener('click', dismiss);
-        });
-      }, 0);
-    }
-
     /* Called by ui.js when the persistent "Auto-hide toolbar" setting
        changes. Never touches the statusbar — it's a standing
        preference, not a presentation mode. */
@@ -1732,8 +1747,6 @@ var KanvazApp = (function() {
       showCardContextMenu: showCardContextMenu,
       showContextMenu:     showContextMenu,
       hideContextMenu:     hideContextMenu,
-      toggleClickThrough:  toggleClickThrough,
-      setWindowOpacity:    setWindowOpacity,
       setChromeAutoHide:   setChromeAutoHide,
       showSearchBar:       showSearchBar,
       hideSearchBar:       hideSearchBar,
@@ -1856,6 +1869,8 @@ var KanvazApp = (function() {
   return {
     toggleAlwaysOnTop: toggleAlwaysOnTop,
     syncAlwaysOnTop:   syncAlwaysOnTop,
+    toggleClickThrough: toggleClickThrough,
+    setWindowOpacity:   setWindowOpacity,
     updateSaveStatus:  updateSaveStatus,
     updateCardCount:   updateCardCount,
     updateEmptyState:  updateEmptyState,
