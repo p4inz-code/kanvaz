@@ -37,7 +37,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## Latest release
 
-**v7.9.0** — Redesign v1's card visual polish: every card now shows an always-visible name + at-a-glance metadata footer (resolution, duration, character count) and one consistent type pill, instead of a hover-only row of small badges. Bigger corner radius, a real hover-lift, cleaner typography. Builds on v7.8.0's "Kanvaz Redesign v1" — a unified left side panel (Boards / Properties / Settings) and a fully offline, no-login multi-profile system with Guest profiles. See [CHANGELOG.md](CHANGELOG.md) for the complete version history — every release back to v3.5, with the reasoning behind each one.
+**v7.10.0** — 10 new board templates (three VFX skill tiers — beginner through studio-scale pipeline — plus Game Dev, Music Production, Animation, Photography, Architecture & Product Design, UI/UX, and Branding), and a new "Save current board as a template" option so your own boards can become starting points too. Builds on v7.9's card visual polish and v7.8's "Kanvaz Redesign v1" (unified side panel + offline multi-profile system). See [CHANGELOG.md](CHANGELOG.md) for the complete version history — every release back to v3.5, with the reasoning behind each one.
 
 <p align="center">
   <img src="assets/screenshot-cards-v7.9.0.png" alt="Kanvaz card design — note, URL, and color cards showing the new always-visible name/metadata footer" width="720">
@@ -120,7 +120,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 7.9.1.exe` and `dist/Kanvaz 7.9.1.exe`
+Output: `dist/Kanvaz Setup 7.10.0.exe` and `dist/Kanvaz 7.10.0.exe`
 
 **macOS:**
 ```bash

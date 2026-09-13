@@ -2,6 +2,43 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [7.10.0] — 10 new templates + Save as Template
+
+### Added
+- **10 new board templates** covering VFX (Beginner, Intermediate, and
+  a full studio-scale Professional Pipeline — bid/breakdown through
+  asset production, lighting, dailies, and delivery), Game Dev
+  (Concept to Production), Music Production, Animation Pipeline
+  (2D/3D), Photography/Concept Art Reference, Architecture & Product
+  Design, UI/UX Design Reference, and Branding & Identity. 13 templates
+  total, up from 3.
+- **Save the current board as a new template** — "+ Save current board
+  as template" in the side panel's Template gallery. User-saved
+  templates live under a separate userData folder (never inside the
+  app's own installed package, which is read-only and gets replaced on
+  every update) and show a "Yours" badge with a delete option; built-in
+  templates can't be deleted this way.
+
+## [7.9.1] — Exceptional-level error debugging
+
+### Fixed
+- **Error toasts vanished before they could be read or screenshotted**
+  — every toast, error or not, auto-dismissed after a flat 2.8s. Error
+  toasts (which can carry real technical detail as of v7.9.0's fix
+  below) now stay up 12s, pause on hover, and get an explicit close
+  button.
+- **An error toast's status icon and its new dismiss button were both
+  an "×" shape** — confusing, caught via a live screenshot. The error
+  status icon is now a circled exclamation mark instead.
+- **The annotation toolbar never scaled with canvas zoom** — direct
+  feedback: "the card remains big and the toolbar goes small." The
+  toolbar now scales with the current zoom level (clamped to a sane
+  range), anchored so it grows away from the card rather than into it.
+- Every handled error is now recorded in a session-scoped log (last 25)
+  and folded into the "Export debug info" button's clipboard output —
+  a bug report now carries the real error history regardless of
+  whether a toast was caught in time.
+
 ## [7.9.0] — Redesign v1 Phase 3: card visual polish
 
 Card visuals were directly flagged as "outdated" against a design
