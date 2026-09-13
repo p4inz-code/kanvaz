@@ -37,7 +37,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## Latest release
 
-**v7.2.0** — Real PDF preview: a file-reference card pointing at a `.pdf` now scrolls and zooms right inside the resizable card, powered by a vendored, ~1.7MB slice of Mozilla's pdf.js (not the full ~35MB npm package). Found and fixed a real compatibility gap along the way — pdf.js assumes JS features Electron's bundled Chromium doesn't have yet, in both the main thread and its own worker thread separately — with a small, targeted polyfill rather than chasing an older library version. See [CHANGELOG.md](CHANGELOG.md) for the complete version history — every release back to v3.5, with the reasoning behind each one.
+**v7.3.0** — Annotation, upgraded toward Figma-level: ellipse, line, highlighter, and a real text-stamp tool join pen/arrow/rectangle; a custom color picker with a recent-colors row replaces the fixed-swatch-only palette; every stroke now has its own opacity. Found and fixed a real bug while adding opacity — translucent strokes used to visibly darken where a pen/highlighter path curved back over itself, since the old drawing approach re-composited the entire path on every mouse-move frame instead of just the newest segment. See [CHANGELOG.md](CHANGELOG.md) for the complete version history — every release back to v3.5, with the reasoning behind each one.
 
 ---
 
@@ -73,7 +73,8 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 - Global `Ctrl+Shift+T` escape hatch — works even when focus has moved elsewhere
 
 **Annotation**
-- Pen, arrow, rectangle, pixel-measure, and eyedropper (real pixel sampling)
+- Pen, highlighter, line, arrow, rectangle, ellipse, text stamp, pixel-measure, and eyedropper (real pixel sampling)
+- Custom color picker + recent-colors row, per-stroke opacity
 - Video frame-stepping + onion-skin ghosting for checking animation timing
 
 **Connections**
@@ -118,7 +119,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 7.2.0.exe` and `dist/Kanvaz 7.2.0.exe`
+Output: `dist/Kanvaz Setup 7.3.0.exe` and `dist/Kanvaz 7.3.0.exe`
 
 **macOS:**
 ```bash
@@ -196,7 +197,7 @@ Files saved by 4.0.1 and earlier (plain JSON, base64 media) still open exactly a
 Kanvaz keeps getting developed as an ongoing side project — no fixed deadline, driven by real feedback. The living plan lives in [docs/ROADMAP.md](docs/ROADMAP.md); the current batch in progress:
 
 - 3D model preview (`.glb`/`.gltf`, `.obj`) via Three.js
-- A bigger annotation upgrade — ellipse/line/text/highlighter tools, custom color picker, per-stroke opacity, select/move/delete individual strokes
+- Select, move, and delete an individual existing annotation stroke — today "Clear annotations" is all-or-nothing
 - Font and HDRI/EXR preview support
 - General UI polish, ongoing
 

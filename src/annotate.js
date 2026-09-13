@@ -4,6 +4,13 @@ var KanvazAnnotate = (function() {
 
   var COLORS = ['#FF5A5A', '#F0A500', '#4A9EFF', '#4CAF82', '#FFFFFF', '#DCDCE8'];
   var WIDTHS  = [2, 4, 8];
+  /* v7.x — session-scoped recent-colors row, same "in-memory only, reset
+     on restart" scope decision as cards.js's own recentTags — the pain
+     point is picking the same off-palette color repeatedly within one
+     working session, not remembering it across restarts. Capped at 6 so
+     the toolbar doesn't grow unbounded. */
+  var RECENT_COLORS_MAX = 6;
+  var recentColors = [];
 
   var activeCardId  = null;
   var activeCanvas  = null;
@@ -11,11 +18,18 @@ var KanvazAnnotate = (function() {
   var activeTool    = 'pen';
   var activeColor   = '#FF5A5A';
   var activeWidth   = 2;
+  /* v7.x — per-stroke opacity (0.15–1), set via the toolbar slider and
+     carried forward as "the last value picked," same as color/width.
+     Highlighter additionally hard-clamps to a max of 0.35 regardless of
+     the slider (see onMove/onUp) — the slider can still push it LOWER
+     than that for a very faint highlight, just never higher. */
+  var activeOpacity = 1;
   var isDrawing     = false;
   var startX        = 0;
   var startY        = 0;
   var snapshot      = null;
   var overlays      = {};   /* cardId → { canvas, ctx, strokes, visible } */
+  var textInputEl   = null; /* the one live text-tool <input>, if any */
 
   /* ── Attach overlay to a card element ── */
 
@@ -157,6 +171,11 @@ var KanvazAnnotate = (function() {
   function deactivate() {
     if (!activeCardId) return;
 
+    /* Commit (not discard) a still-open text-tool input — same as
+       clicking anywhere else while typing already does via its own
+       blur handler. */
+    if (textInputEl) textInputEl.blur();
+
     if (activeCanvas) {
       activeCanvas.style.pointerEvents = 'none';
       activeCanvas.style.cursor = 'default';
@@ -247,7 +266,11 @@ var KanvazAnnotate = (function() {
      closes that gap — legacy data only ever has ALL coordinates as
      absolute pixels, so any single one past the threshold is conclusive. */
   function strokeLooksLegacy(s) {
-    if (s.tool === 'pen' && s.points && s.points.length) {
+    /* v7.x: highlighter shares pen's point-array shape — same legacy
+       check applies. text has its own shape (single x/y + a string) and
+       is a new-only tool with nothing legacy to migrate, so it's simply
+       never legacy. */
+    if ((s.tool === 'pen' || s.tool === 'highlighter') && s.points && s.points.length) {
       for (var i = 0; i < s.points.length; i++) {
         if (isLegacyPoint(s.points[i].x) || isLegacyPoint(s.points[i].y)) return true;
       }
@@ -261,7 +284,7 @@ var KanvazAnnotate = (function() {
   }
 
   function migrateLegacyStroke(s, size) {
-    if (s.tool === 'pen' && s.points && s.points.length) {
+    if ((s.tool === 'pen' || s.tool === 'highlighter') && s.points && s.points.length) {
       for (var i = 0; i < s.points.length; i++) {
         s.points[i] = { x: s.points[i].x / size.w, y: s.points[i].y / size.h };
       }
@@ -304,6 +327,7 @@ var KanvazAnnotate = (function() {
   }
 
   var currentPenPoints = [];
+  var lastPenPoint      = null;
 
   function onDown(e) {
     e.preventDefault();
@@ -328,21 +352,43 @@ var KanvazAnnotate = (function() {
       return;
     }
 
+    /* Text is a click-to-place tool, not a drag-drawn shape — same
+       "never enters isDrawing" carve-out as eyedropper above. Opens a
+       real <input> positioned right over the click point; the actual
+       stroke is only pushed once the user commits it (Enter/blur), in
+       finishTextInput() below. */
+    if (activeTool === 'text') {
+      startTextInput(e, getPos(e));
+      return;
+    }
+
     isDrawing = true;
     var pos = getPos(e);
     startX = pos.x;
     startY = pos.y;
     currentPenPoints = [{ x: pos.x, y: pos.y }];
 
-    if (activeTool === 'pen') {
-      activeCtx.beginPath();
-      activeCtx.moveTo(startX, startY);
+    if (activeTool === 'pen' || activeTool === 'highlighter') {
+      /* Bug fix (v7.x, found while adding per-stroke opacity): the old
+         single-beginPath-for-the-whole-gesture approach meant every
+         mousemove's stroke() call re-strokes the ENTIRE path drawn so
+         far, not just the newest segment — invisible at the old fixed
+         alpha=1 (redrawing something fully opaque on top of itself is a
+         no-op visually), but with translucent strokes now possible
+         (opacity slider, highlighter), that compounding would make a
+         stroke visibly darken/solidify as more points get added, worst
+         at path curves that double back over themselves. Drawing one
+         short two-point segment per move event instead avoids the
+         cumulative re-composite; lastPenPoint tracks the joint between
+         segments. */
+      lastPenPoint = { x: startX, y: startY };
     } else {
-      /* Only 'rect'/'arrow' use this snapshot (see onMove: they repaint
-         it before drawing each live-preview frame so the in-progress
-         shape doesn't smear). 'pen' never reads `snapshot`, so skip the
-         full-canvas readback for it — a real cost on a large annotation
-         canvas, paid on every single pen stroke for no reason. */
+      /* rect/arrow/line/ellipse/measure all use this snapshot (see
+         onMove: they repaint it before drawing each live-preview frame
+         so the in-progress shape doesn't smear). pen/highlighter never
+         read `snapshot`, so skip the full-canvas readback for those —
+         a real cost on a large annotation canvas, paid on every single
+         stroke for no reason. */
       snapshot = activeCtx.getImageData(0, 0, activeCanvas.width, activeCanvas.height);
     }
   }
@@ -351,26 +397,65 @@ var KanvazAnnotate = (function() {
     if (!isDrawing) return;
     var pos = getPos(e);
 
-    if (activeTool === 'pen') {
+    if (activeTool === 'pen' || activeTool === 'highlighter') {
       currentPenPoints.push({ x: pos.x, y: pos.y });
+      activeCtx.save();
+      activeCtx.globalAlpha = activeTool === 'highlighter' ? Math.min(activeOpacity, 0.35) : activeOpacity;
       activeCtx.strokeStyle = activeColor;
-      activeCtx.lineWidth   = activeWidth;
+      activeCtx.lineWidth   = activeTool === 'highlighter' ? Math.max(activeWidth, 10) : activeWidth;
       activeCtx.lineCap     = 'round';
       activeCtx.lineJoin    = 'round';
+      /* One short segment per move event, not one cumulative path re-
+         stroked every frame — see onDown's comment on why that matters
+         once strokes can be translucent. */
+      activeCtx.beginPath();
+      activeCtx.moveTo(lastPenPoint.x, lastPenPoint.y);
       activeCtx.lineTo(pos.x, pos.y);
       activeCtx.stroke();
+      activeCtx.restore();
+      lastPenPoint = pos;
 
     } else if (activeTool === 'rect') {
       activeCtx.putImageData(snapshot, 0, 0);
+      activeCtx.save();
+      activeCtx.globalAlpha = activeOpacity;
       activeCtx.strokeStyle = activeColor;
       activeCtx.lineWidth   = activeWidth;
       activeCtx.strokeRect(startX, startY, pos.x - startX, pos.y - startY);
+      activeCtx.restore();
+
+    } else if (activeTool === 'ellipse') {
+      activeCtx.putImageData(snapshot, 0, 0);
+      activeCtx.save();
+      activeCtx.globalAlpha = activeOpacity;
+      drawEllipse(activeCtx, startX, startY, pos.x, pos.y, activeColor, activeWidth);
+      activeCtx.restore();
+
+    } else if (activeTool === 'line') {
+      activeCtx.putImageData(snapshot, 0, 0);
+      activeCtx.save();
+      activeCtx.globalAlpha = activeOpacity;
+      activeCtx.strokeStyle = activeColor;
+      activeCtx.lineWidth   = activeWidth;
+      activeCtx.lineCap     = 'round';
+      activeCtx.beginPath();
+      activeCtx.moveTo(startX, startY);
+      activeCtx.lineTo(pos.x, pos.y);
+      activeCtx.stroke();
+      activeCtx.restore();
 
     } else if (activeTool === 'arrow') {
       activeCtx.putImageData(snapshot, 0, 0);
+      activeCtx.save();
+      activeCtx.globalAlpha = activeOpacity;
       drawArrow(activeCtx, startX, startY, pos.x, pos.y, activeColor, activeWidth);
+      activeCtx.restore();
 
     } else if (activeTool === 'measure') {
+      /* Measure is deliberately never translucent — it's a temporary
+         analysis readout, not a piece of the actual annotation content,
+         and a dimmed measurement line/label would be harder to read
+         for zero benefit. */
       activeCtx.putImageData(snapshot, 0, 0);
       drawMeasureLine(activeCtx, startX, startY, pos.x, pos.y, activeColor, activeWidth);
     }
@@ -380,19 +465,25 @@ var KanvazAnnotate = (function() {
     if (!isDrawing) return;
     isDrawing = false;
     var pos = getPos(e);
+    var isPointArray = (activeTool === 'pen' || activeTool === 'highlighter');
 
     var size = getCardSize(activeCardId);
     var stroke = {
       tool:   activeTool,
       color:  activeColor,
-      width:  activeWidth,
-      points: activeTool === 'pen'
+      /* Highlighter's actual drawn width/opacity are clamped (see
+         onMove) — store what was really drawn, not the raw activeWidth/
+         activeOpacity, so redraw() reproduces the stroke exactly rather
+         than silently re-deriving a possibly-different clamp later. */
+      width:  activeTool === 'highlighter' ? Math.max(activeWidth, 10) : activeWidth,
+      opacity: activeTool === 'highlighter' ? Math.min(activeOpacity, 0.35) : activeOpacity,
+      points: isPointArray
         ? currentPenPoints.map(function(p) { return { x: p.x / size.w, y: p.y / size.h }; })
         : { x1: startX / size.w, y1: startY / size.h, x2: pos.x / size.w, y2: pos.y / size.h }
     };
 
-    if (activeTool === 'pen') {
-      activeCtx.closePath();
+    if (isPointArray) {
+      lastPenPoint = null;
     }
 
     var ov = overlays[activeCardId];
@@ -413,7 +504,121 @@ var KanvazAnnotate = (function() {
     }
   }
 
+  /* ── Text tool (v7.x) ──
+     Click to place a real <input> right over the click point (screen-
+     fixed, since the card itself can be panned/zoomed/dragged out from
+     under it while typing — matches every other transient input this
+     app already builds this way, e.g. the tab-rename input in
+     boards.js). Enter or blur-with-content commits it as a stroke;
+     Escape or blur-while-empty cancels with nothing drawn or stored. */
+  function startTextInput(e, pos) {
+    finishTextInput(); /* just in case one was already open */
+
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.id = 'annotate-text-input';
+    input.style.cssText = [
+      'position:fixed',
+      'left:' + e.clientX + 'px',
+      'top:' + (e.clientY - 2) + 'px',
+      'z-index:20002',
+      'background:var(--color-surface)',
+      'border:1px solid var(--color-accent)',
+      'border-radius:3px',
+      'color:' + activeColor,
+      'font-size:16px',
+      'font-family:sans-serif',
+      'padding:2px 4px',
+      'outline:none',
+      'min-width:120px'
+    ].join(';');
+    document.body.appendChild(input);
+    input.focus();
+
+    var pendingCardId = activeCardId;
+    var pendingCtx = activeCtx;
+    var committed = false;
+
+    function commit() {
+      /* Removing the input (below) fires its own native 'blur', and the
+         blur listener also calls commit() — guard against running this
+         twice (and double-pushing the same text as two strokes) for
+         the exact same logical "user is done typing" event. */
+      if (committed) return;
+      committed = true;
+
+      var text = input.value;
+      finishTextInput();
+      if (!text) return;
+
+      var size = getCardSize(pendingCardId);
+      var stroke = {
+        tool: 'text',
+        color: activeColor,
+        opacity: activeOpacity,
+        fontSize: 16,
+        point: { x: pos.x / size.w, y: pos.y / size.h },
+        text: text
+      };
+      drawText(pendingCtx, pos.x, pos.y, text, activeColor, 16);
+
+      var ov = overlays[pendingCardId];
+      if (ov) {
+        ov.strokes.push(stroke);
+        if (typeof KanvazCards !== 'undefined') KanvazCards.refreshAnnotationDot(pendingCardId);
+        KanvazApp.markDirty();
+        KanvazHistory.push();
+      }
+    }
+
+    input.addEventListener('keydown', function(ke) {
+      ke.stopPropagation();
+      if (ke.key === 'Enter') { ke.preventDefault(); commit(); }
+      if (ke.key === 'Escape') {
+        ke.preventDefault();
+        committed = true; /* cancel — same guard as commit(), just skips pushing a stroke */
+        finishTextInput();
+      }
+    });
+    input.addEventListener('blur', function() { commit(); });
+    input.addEventListener('mousedown', function(ke) { ke.stopPropagation(); });
+    textInputEl = input;
+  }
+
+  function finishTextInput() {
+    var el = document.getElementById('annotate-text-input');
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+    textInputEl = null;
+  }
+
   /* ── Arrow drawing ── */
+
+  /* ── Ellipse (v7.x) — bounding-box shape, same {x1,y1,x2,y2} storage
+     as rect/arrow/line, so it gets the same 0..1 normalization and
+     legacy-migration handling automatically (strokeLooksLegacy()/
+     migrateLegacyStroke() branch on "does this stroke have x1", not on
+     a tool-name allowlist). */
+  function drawEllipse(ctx, x1, y1, x2, y2, color, width) {
+    var cx = (x1 + x2) / 2;
+    var cy = (y1 + y2) / 2;
+    var rx = Math.abs(x2 - x1) / 2;
+    var ry = Math.abs(y2 - y1) / 2;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  /* ── Text stamp (v7.x) ── */
+  function drawText(ctx, x, y, text, color, fontSize) {
+    if (!text) return;
+    ctx.font = fontSize + 'px sans-serif';
+    ctx.fillStyle = color;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(text, x, y);
+  }
 
   function drawArrow(ctx, x1, y1, x2, y2, color, width) {
     var headLen = 12 + width * 2;
@@ -537,7 +742,13 @@ var KanvazAnnotate = (function() {
     var size = getCardSize(cardId);
     for (var i = 0; i < ov.strokes.length; i++) {
       var s = ov.strokes[i];
-      if (s.tool === 'pen' && s.points && s.points.length) {
+      /* Old files predate per-stroke opacity entirely — default to fully
+         opaque so they redraw pixel-identical to before this feature. */
+      var op = s.opacity !== undefined ? s.opacity : 1;
+
+      if ((s.tool === 'pen' || s.tool === 'highlighter') && s.points && s.points.length) {
+        ov.ctx.save();
+        ov.ctx.globalAlpha = op;
         ov.ctx.strokeStyle = s.color;
         ov.ctx.lineWidth   = s.width;
         ov.ctx.lineCap     = 'round';
@@ -548,17 +759,46 @@ var KanvazAnnotate = (function() {
           ov.ctx.lineTo(s.points[j].x * size.w, s.points[j].y * size.h);
         }
         ov.ctx.stroke();
+        ov.ctx.restore();
       } else if (s.tool === 'rect' && s.points) {
+        ov.ctx.save();
+        ov.ctx.globalAlpha = op;
         ov.ctx.strokeStyle = s.color;
         ov.ctx.lineWidth   = s.width;
         ov.ctx.strokeRect(
           s.points.x1 * size.w, s.points.y1 * size.h,
           (s.points.x2 - s.points.x1) * size.w, (s.points.y2 - s.points.y1) * size.h
         );
+        ov.ctx.restore();
+      } else if (s.tool === 'ellipse' && s.points) {
+        ov.ctx.save();
+        ov.ctx.globalAlpha = op;
+        drawEllipse(ov.ctx, s.points.x1 * size.w, s.points.y1 * size.h, s.points.x2 * size.w, s.points.y2 * size.h, s.color, s.width);
+        ov.ctx.restore();
+      } else if (s.tool === 'line' && s.points) {
+        ov.ctx.save();
+        ov.ctx.globalAlpha = op;
+        ov.ctx.strokeStyle = s.color;
+        ov.ctx.lineWidth   = s.width;
+        ov.ctx.lineCap     = 'round';
+        ov.ctx.beginPath();
+        ov.ctx.moveTo(s.points.x1 * size.w, s.points.y1 * size.h);
+        ov.ctx.lineTo(s.points.x2 * size.w, s.points.y2 * size.h);
+        ov.ctx.stroke();
+        ov.ctx.restore();
       } else if (s.tool === 'arrow' && s.points) {
+        ov.ctx.save();
+        ov.ctx.globalAlpha = op;
         drawArrow(ov.ctx, s.points.x1 * size.w, s.points.y1 * size.h, s.points.x2 * size.w, s.points.y2 * size.h, s.color, s.width);
+        ov.ctx.restore();
       } else if (s.tool === 'measure' && s.points) {
+        /* Never translucent, see onMove's own comment on why. */
         drawMeasureLine(ov.ctx, s.points.x1 * size.w, s.points.y1 * size.h, s.points.x2 * size.w, s.points.y2 * size.h, s.color, s.width);
+      } else if (s.tool === 'text' && s.point) {
+        ov.ctx.save();
+        ov.ctx.globalAlpha = op;
+        drawText(ov.ctx, s.point.x * size.w, s.point.y * size.h, s.text, s.color, s.fontSize || 16);
+        ov.ctx.restore();
       }
     }
   }
@@ -622,6 +862,14 @@ var KanvazAnnotate = (function() {
       'z-index:20000',
       'display:flex',
       'align-items:center',
+      'flex-wrap:wrap',
+      /* v7.x — this row grew from 5 tools to 9 plus a color picker,
+         recent-colors row, and an opacity slider. Without a cap it ran
+         off the edge of the screen for a card near either side; wrapping
+         onto a second line keeps every control reachable regardless of
+         where the card sits or how narrow the window is. */
+      'max-width:min(92vw, 480px)',
+      'row-gap:4px',
       'gap:4px',
       'background:var(--color-surface)',
       'border:1px solid var(--color-border-2)',
@@ -636,8 +884,12 @@ var KanvazAnnotate = (function() {
     /* Tool buttons */
     var tools = [
       { id: 'pen',   title: 'Pen',       icon: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 12l1-3.5L9.5 2 12 4.5 5.5 11 2 12z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M8 3.5L10.5 6" stroke="currentColor" stroke-width="1.3"/></svg>' },
+      { id: 'highlighter', title: 'Highlighter', icon: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4 9.5L9.5 4l2 2L6 11.5H4v-2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M3 12h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>' },
+      { id: 'line',  title: 'Line',      icon: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><line x1="2.5" y1="11.5" x2="11.5" y2="2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>' },
       { id: 'arrow', title: 'Arrow',     icon: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 11.5L11.5 2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M6 2.5h5.5v5.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
       { id: 'rect',  title: 'Rectangle', icon: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="2" y="3.5" width="10" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/></svg>' },
+      { id: 'ellipse', title: 'Ellipse', icon: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><ellipse cx="7" cy="7" rx="5" ry="3.5" stroke="currentColor" stroke-width="1.3"/></svg>' },
+      { id: 'text',  title: 'Text',      icon: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3h8M7 3v8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>' },
       { id: 'measure', title: 'Measure (pixel distance)', icon: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 10L10 2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M2 10l1.5-1.5M4.5 7.5L6 6M7 5l1.5-1.5M9.5 2.5L11 4" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>' },
       { id: 'eyedropper', title: 'Eyedropper (sample a color)', icon: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9.5 2.5l2 2-6 6-2.5.5.5-2.5 6-6z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M8 4l2 2" stroke="currentColor" stroke-width="1.3"/></svg>' }
     ];
@@ -652,6 +904,13 @@ var KanvazAnnotate = (function() {
           activeTool = tool.id;
           updateToolbar();
         };
+        /* v7.x — hover feedback so a bigger, denser toolbar still feels
+           responsive to point at, not just to click — same subtle
+           surface-tint-on-hover already used for the tab bar/chip rows
+           elsewhere in the app. Skipped for the currently-active tool,
+           which already has its own accent highlight. */
+        btn.onmouseenter = function() { if (activeTool !== tool.id) btn.style.background = 'var(--color-surface-2)'; };
+        btn.onmouseleave = function() { if (activeTool !== tool.id) btn.style.background = 'transparent'; };
         btn.dataset.toolBtn = tool.id;
         tb.appendChild(btn);
       })(tools[i]);
@@ -666,15 +925,50 @@ var KanvazAnnotate = (function() {
     for (var j = 0; j < COLORS.length; j++) {
       (function(color) {
         var swatch = document.createElement('button');
-        swatch.style.cssText = 'width:14px;height:14px;border-radius:50%;background:' + color + ';border:2px solid ' + (activeColor === color ? 'var(--color-text)' : 'transparent') + ';cursor:pointer;padding:0;flex-shrink:0;';
+        swatch.style.cssText = 'width:14px;height:14px;border-radius:50%;background:' + color + ';border:2px solid ' + (activeColor === color ? 'var(--color-text)' : 'transparent') + ';cursor:pointer;padding:0;flex-shrink:0;transition:transform 0.1s;';
         swatch.onclick = function() {
           activeColor = color;
           updateToolbar();
         };
+        swatch.onmouseenter = function() { swatch.style.transform = 'scale(1.15)'; };
+        swatch.onmouseleave = function() { swatch.style.transform = 'scale(1)'; };
         swatch.dataset.colorSwatch = color;
         tb.appendChild(swatch);
       })(COLORS[j]);
     }
+
+    /* v7.x — recent-colors row (session-scoped, see recentColors' own
+       comment) rendered into its own container so updateToolbar() can
+       refresh just this piece without rebuilding the whole toolbar. */
+    var recentRow = document.createElement('div');
+    recentRow.id = 'annotate-recent-colors';
+    recentRow.style.cssText = 'display:flex;align-items:center;gap:4px;';
+    tb.appendChild(recentRow);
+
+    /* v7.x — custom color picker. A real native color input, hidden and
+       triggered by a small "+" swatch — same pattern app.js's own
+       color-search swatch button already uses elsewhere in this app. */
+    var customSwatch = document.createElement('button');
+    customSwatch.title = 'Custom color';
+    customSwatch.textContent = '+';
+    customSwatch.style.cssText = 'width:14px;height:14px;border-radius:50%;background:var(--color-surface-2);border:1px dashed var(--color-text-3);cursor:pointer;padding:0;flex-shrink:0;font-size:10px;line-height:12px;color:var(--color-text-3);transition:transform 0.1s;';
+    customSwatch.onmouseenter = function() { customSwatch.style.transform = 'scale(1.15)'; customSwatch.style.color = 'var(--color-text)'; customSwatch.style.borderColor = 'var(--color-text)'; };
+    customSwatch.onmouseleave = function() { customSwatch.style.transform = 'scale(1)'; customSwatch.style.color = 'var(--color-text-3)'; customSwatch.style.borderColor = 'var(--color-text-3)'; };
+    var colorInput = document.createElement('input');
+    colorInput.type = 'color';
+    colorInput.value = activeColor;
+    colorInput.style.cssText = 'position:absolute;width:0;height:0;opacity:0;pointer-events:none;';
+    customSwatch.onclick = function() { colorInput.click(); };
+    colorInput.oninput = function() {
+      activeColor = colorInput.value.toUpperCase();
+      if (recentColors.indexOf(activeColor) === -1 && COLORS.indexOf(activeColor) === -1) {
+        recentColors.unshift(activeColor);
+        if (recentColors.length > RECENT_COLORS_MAX) recentColors.length = RECENT_COLORS_MAX;
+      }
+      updateToolbar();
+    };
+    tb.appendChild(customSwatch);
+    tb.appendChild(colorInput);
 
     /* Separator */
     var sep2 = document.createElement('div');
@@ -693,6 +987,8 @@ var KanvazAnnotate = (function() {
           activeWidth = width;
           updateToolbar();
         };
+        btn.onmouseenter = function() { if (activeWidth !== width) btn.style.background = 'var(--color-surface-2)'; };
+        btn.onmouseleave = function() { if (activeWidth !== width) btn.style.background = 'transparent'; };
         btn.dataset.widthBtn = width;
         tb.appendChild(btn);
       })(WIDTHS[k]);
@@ -702,6 +998,37 @@ var KanvazAnnotate = (function() {
     var sep3 = document.createElement('div');
     sep3.style.cssText = 'width:1px;height:16px;background:var(--color-border);margin:0 2px;';
     tb.appendChild(sep3);
+
+    /* v7.x — per-stroke opacity slider. Direct oninput assignment, not
+       delegated through the tool/color/width buttons' shared onclick
+       pattern above — a native range input needs its own live 'input'
+       listener to track a drag, same reasoning cards.js's own volume
+       slider (buildVolumeSlider) already documents. */
+    var opacitySlider = document.createElement('input');
+    opacitySlider.type = 'range';
+    opacitySlider.min = 0.15;
+    opacitySlider.max = 1;
+    opacitySlider.step = 0.05;
+    opacitySlider.value = activeOpacity;
+    opacitySlider.title = 'Opacity';
+    opacitySlider.style.cssText = 'width:44px;accent-color:var(--color-accent);';
+    opacitySlider.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+
+    var opacityLabel = document.createElement('span');
+    opacityLabel.style.cssText = 'font-family:var(--font-mono);font-size:10px;color:var(--color-text-3);min-width:26px;text-align:right;';
+    opacityLabel.textContent = Math.round(activeOpacity * 100) + '%';
+
+    opacitySlider.oninput = function() {
+      activeOpacity = parseFloat(opacitySlider.value);
+      opacityLabel.textContent = Math.round(activeOpacity * 100) + '%';
+    };
+    tb.appendChild(opacitySlider);
+    tb.appendChild(opacityLabel);
+
+    /* Separator */
+    var sep4 = document.createElement('div');
+    sep4.style.cssText = 'width:1px;height:16px;background:var(--color-border);margin:0 2px;';
+    tb.appendChild(sep4);
 
     /* Clear button */
     var clearBtn = document.createElement('button');
@@ -722,6 +1049,7 @@ var KanvazAnnotate = (function() {
     document.body.appendChild(tb);
     toolbarEl = tb;
     toolbarCardId = cardId;
+    renderRecentColors();
 
     /* Position above the card — and keep repositioning when the canvas
        pans/zooms. The toolbar is position:fixed (so it doesn't scroll
@@ -756,6 +1084,31 @@ var KanvazAnnotate = (function() {
     toolbarEl.style.top  = Math.max(4, rect.top - 44) + 'px';
   }
 
+  /* v7.x — renders the recent-colors row fresh every time (cheap — at
+     most RECENT_COLORS_MAX swatches), called from showToolbar's initial
+     build and again whenever the custom color picker adds a new one. */
+  function renderRecentColors() {
+    if (!toolbarEl) return;
+    var row = toolbarEl.querySelector('#annotate-recent-colors');
+    if (!row) return;
+    row.innerHTML = '';
+    for (var i = 0; i < recentColors.length; i++) {
+      (function(color) {
+        var swatch = document.createElement('button');
+        swatch.style.cssText = 'width:14px;height:14px;border-radius:50%;background:' + color + ';border:2px solid ' + (activeColor === color ? 'var(--color-text)' : 'transparent') + ';cursor:pointer;padding:0;flex-shrink:0;transition:transform 0.1s;';
+        swatch.title = color;
+        swatch.onclick = function() {
+          activeColor = color;
+          updateToolbar();
+        };
+        swatch.onmouseenter = function() { swatch.style.transform = 'scale(1.15)'; };
+        swatch.onmouseleave = function() { swatch.style.transform = 'scale(1)'; };
+        swatch.dataset.colorSwatch = color;
+        row.appendChild(swatch);
+      })(recentColors[i]);
+    }
+  }
+
   function updateToolbar() {
     if (!toolbarEl) return;
     var toolBtns   = toolbarEl.querySelectorAll('[data-tool-btn]');
@@ -767,6 +1120,12 @@ var KanvazAnnotate = (function() {
       toolBtns[i].style.background  = isActive ? 'var(--color-accent-bg)' : 'transparent';
       toolBtns[i].style.borderColor = isActive ? 'var(--color-accent)'    : 'transparent';
     }
+    /* Recent-color swatches carry the same [data-color-swatch] marker as
+       the built-in ones, so re-render them first (in case activeColor
+       just changed to a brand-new custom one that isn't in the DOM yet
+       at all) before the shared border-highlight pass below runs. */
+    renderRecentColors();
+    swatches = toolbarEl.querySelectorAll('[data-color-swatch]');
     for (var j = 0; j < swatches.length; j++) {
       swatches[j].style.borderColor = swatches[j].dataset.colorSwatch === activeColor
         ? 'var(--color-text)' : 'transparent';

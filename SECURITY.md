@@ -4,8 +4,8 @@
 
 | Version | Supported |
 |---------|-----------|
-| 7.2.x   | Yes       |
-| < 7.2   | No        |
+| 7.3.x   | Yes       |
+| < 7.3   | No        |
 
 Development continues past v6.6.2 as an ongoing side project — see `docs/ROADMAP.md`'s "The v7.x line" section.
 

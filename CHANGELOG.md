@@ -2,6 +2,23 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [7.3.0] — annotation, upgraded toward Figma-level
+
+The biggest item on the v7.x line's plan, minus one deliberately-deferred piece (select/move/delete an individual existing stroke — flagged from the start as its own dedicated pass since it touches the stroke data model, not just adds draw tools).
+
+### Added
+- **Ellipse, line, and highlighter tools** join pen/arrow/rectangle. Ellipse/line share rect/arrow's existing `{x1,y1,x2,y2}` bounding-box storage, so they get the same 0..1 normalization and legacy-file migration handling for free. Highlighter shares pen's point-array storage and hard-clamps to a max 35% opacity and a minimum 10px width regardless of the toolbar's own width/opacity settings — a highlighter that isn't actually translucent isn't a highlighter.
+- **Real text tool** — click to place a genuine `<input>` right over the click point, Enter/blur-with-content commits it as a stroke stamped onto the canvas, Escape or blur-while-empty cancels with nothing drawn or stored.
+- **Custom color picker + a recent-colors row**, replacing the fixed-swatch-only palette. A native color input behind a small "+" swatch; anything picked that isn't already a built-in or recent color joins a session-scoped recent-colors row (capped at 6), same in-memory-only scope decision `cards.js`'s own recent-tags feature already made.
+- **Per-stroke opacity** (15–100%, via a toolbar slider with a live percentage readout) on every tool. Old files have no `opacity` field at all and default to fully opaque, so they redraw pixel-identical to before this feature.
+- Toolbar hover feedback on every tool/width/color button (previously only the width/color swatches showed any interactive state at all), and the toolbar now wraps onto a second row instead of running off-screen — it grew from 5 tools to 9 plus a color picker, recent-colors row, and an opacity slider.
+
+### Fixed
+- **Found while adding opacity, not before**: pen and highlighter strokes used to build one continuous canvas path for the whole gesture and re-stroke the ENTIRE path on every single mouse-move frame — invisible at the old fixed 100% opacity (redrawing something fully opaque on top of itself is a no-op visually), but with translucent strokes now possible, that per-frame full-path re-composite would visibly darken a stroke as more points got added, worst wherever the path curved back over itself. Fixed by drawing exactly one short two-point segment per move event instead of the whole cumulative path — the standard approach for translucent multi-segment strokes.
+
+### Verified
+Live via the same Chrome DevTools Protocol technique this whole line has used since v6.6.1 — created a real card, drew a real ellipse via simulated mouse drag (correct bounding-box stroke saved), switched to highlighter and confirmed the 35%-opacity/10px-width clamp applied to the saved stroke, opened the text tool and confirmed both the commit path (Enter → stroke saved with the right color/opacity/text) and the cancel path (Escape → nothing saved), set a custom color and confirmed the recent-colors row rendered it, and round-tripped all four new stroke shapes through `loadStrokes()`/`redraw()` with zero uncaught exceptions. One real testing-tool caveat found and worked around: CDP's `Input.dispatchKeyEvent` doesn't reliably route Enter/Escape to a focused `<input>` in this Electron version — verified those two paths by dispatching a real in-page `KeyboardEvent` instead, which exercises the exact same listener code a real keypress would.
+
 ## [7.2.0] — real PDF preview on file-reference cards
 
 ### Added
