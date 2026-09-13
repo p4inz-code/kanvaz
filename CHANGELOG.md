@@ -2,6 +2,57 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [7.8.0] — Kanvaz Redesign v1: unified side panel + offline Profiles
+
+The "Kanvaz redesign v1" sprint (planned in `docs/REDESIGN_V1_SPRINT.md`),
+merged from the `redesign-v1` branch. Two flagship-scale changes plus a
+handful of real bugs found and fixed along the way.
+
+### Added
+- **A unified left side panel** replacing the old top board-tab strip and
+  the floating Settings popover entirely — an always-visible icon rail
+  (Boards / Properties / Settings) plus a content pane that opens/closes
+  with `S` or a rail click. Boards is now a vertical list (name, card
+  count, New board, Start from Template, a Quick Drop zone). Settings is
+  reorganized into Appearance / General / Canvas & Input / Files &
+  Search / Plugins, plus a collapsible Advanced section split into
+  Diagnostics / Plugin Dev / Reset sub-groups. The corner account icon
+  (About/Shortcuts/Profile) replaces the old Settings|About|? cluster.
+- **A fully offline, multi-profile system** — no login, no cloud, no
+  sync: settings, recent boards, and crash-recovery data are now
+  partitioned per profile under `userData/profiles/<id>/`. An existing
+  install auto-migrates its current settings/recent/recovery into a new
+  default profile (named from the OS username) the first time it
+  launches after this update — nothing resets. "Manage Profiles…" in the
+  corner account menu lists every profile with an avatar (pick any local
+  image, auto-downscaled), name, optional description, and a "Guest"
+  quick-create; switching relaunches the app after the same unsaved-
+  changes save gate the rest of the app already uses. Per-profile plugin
+  storage and a Start Screen profile picker are explicitly deferred —
+  see `docs/PROFILES_SYSTEM_PLAN.md`.
+- **Properties panel now has Transform and Media sections**, Photoshop/
+  Illustrator-style: editable X/Y/W/H fields (pinned cards lock X/Y),
+  read-only resolution for image/gif/video cards, format for 3D models,
+  and an annotation count with a one-click Clear. The panel now also
+  correctly follows whatever card is currently selected — it used to
+  latch onto the first card it ever showed and never update again.
+- The Start Screen (recent boards + New board on a plain launch) is now
+  correctly skipped when Kanvaz is opened directly with a `.kanvaz` file
+  — it used to still flash on screen underneath the board that was about
+  to load.
+
+### Fixed
+- **Map View: every node drag threw an uncaught `ReferenceError` and
+  surfaced the generic "E999" toast** — reported live. A helper function
+  was nested where its own caller (the drag's mousemove handler, in a
+  separate top-level function) couldn't reach it; the connection lines
+  also silently never redrew mid-drag as a result. Moved to module
+  scope; verified with simulated drags that both the crash and the
+  stale-line symptom are gone.
+- **The Import toolbar button did nothing when clicked** — same class of
+  bug as above: it called a method on the wrong module object, which
+  didn't exist there, throwing on every click.
+
 ## [7.7.0] — Feather Icons + a real crash fix
 
 ### Changed

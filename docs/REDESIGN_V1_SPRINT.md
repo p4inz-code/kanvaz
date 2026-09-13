@@ -1,13 +1,17 @@
 # Kanvaz Redesign v1 — Sprint Plan
 
-Tracks the `redesign-v1` branch (kept separate from `main` so the shipped
-7.x line stays stable/testable throughout). Tag as "Kanvaz redesign v1"
-internally; reconcile with the semver line at merge time.
+**Merged into `main` as v7.8.0.** Tracked on the `redesign-v1` branch
+while in progress (kept, not deleted, as the historical record of this
+sprint). Phase 3 (card visual polish, blocked on a Figma design pass)
+and the deliberately-deferred parts of Phase 2 (per-profile plugin
+storage, Export/Import profile, a Start Screen profile picker) remain
+open — track those as their own follow-up work, not part of this
+document's remaining scope.
 
 Full detail for each phase lives in its own plan doc — this is the
 sequencing and the definition of done.
 
-## Phase 1 — Side panel — **DONE, on `redesign-v1`, not yet merged to `main`**
+## Phase 1 — Side panel — **DONE, merged to `main` in v7.8.0**
 
 Plan: `docs/SIDE_PANEL_PLAN.md` (fully resolved, no open questions).
 
@@ -43,7 +47,7 @@ unreachable), live-verified via CDP that switching boards/opening
 Settings/opening Properties all work through the new panel with zero
 console errors.
 
-## Phase 2 — Start Screen + Profiles system — **Start Screen part DONE, on `redesign-v1`; Profiles system not started**
+## Phase 2 — Start Screen + Profiles system — **DONE (both parts), merged to `main` in v7.8.0**
 
 Plan: `docs/PROFILES_SYSTEM_PLAN.md` (fully resolved, no open questions).
 
