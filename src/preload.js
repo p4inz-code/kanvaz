@@ -60,6 +60,8 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
   updateProfile:   function(id, fields) { return ipcRenderer.invoke('profiles-update', id, fields); },
   setProfileAvatar: function(id, dataUrl) { return ipcRenderer.invoke('profiles-set-avatar', id, dataUrl); },
   deleteProfile:   function(id) { return ipcRenderer.invoke('profiles-delete', id); },
+  exportProfile:   function(id) { return ipcRenderer.invoke('profiles-export', id); },
+  importProfile:   function() { return ipcRenderer.invoke('profiles-import'); },
 
   /* Shell */
   openExternal:    function(url) { ipcRenderer.send('shell-open-external', url); },

@@ -1136,6 +1136,140 @@ function registerIPC() {
     return kanvazProfiles.deleteProfile(app.getPath('userData'), id);
   });
 
+  /* Export/Import a profile as a portable .kanvazprofile file — the
+     offline answer to "sync" (docs/PROFILES_SYSTEM_PLAN.md). A profile
+     folder holds only small JSON/text files (settings, recent list,
+     recovery snapshot, optional Smart Search index) — never a real
+     .kanvaz board, so there's no risk of accidentally bundling someone's
+     large media library into this file. Recursively zips every file
+     under the profile's own directory, plus a synthesized profile.json
+     carrying the manifest-level fields (name/description/avatarDataUrl/
+     guest) that live in the SHARED profiles/manifest.json, not inside
+     the profile's own folder — without it, an imported profile would
+     have no name or avatar at all. */
+  function addDirToZip(zip, dir, prefix) {
+    var entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (var i = 0; i < entries.length; i++) {
+      var entry = entries[i];
+      var full = path.join(dir, entry.name);
+      var zipPath = prefix ? prefix + '/' + entry.name : entry.name;
+      if (entry.isDirectory()) {
+        addDirToZip(zip, full, zipPath);
+      } else {
+        zip.file(zipPath, fs.readFileSync(full));
+      }
+    }
+  }
+
+  ipcMain.handle('profiles-export', function(event, id) {
+    var userData = app.getPath('userData');
+    var list = kanvazProfiles.listProfiles(userData);
+    var entry = list.filter(function(p) { return p.id === id; })[0];
+    if (!entry) return Promise.resolve({ ok: false, error: 'no profile with that id' });
+
+    var profileDir = kanvazProfiles.getProfileDirById(userData, id);
+    if (!fs.existsSync(profileDir)) return Promise.resolve({ ok: false, error: 'profile folder not found on disk' });
+
+    var savePath = dialog.showSaveDialogSync(mainWindow, {
+      title: 'Export Profile',
+      defaultPath: (entry.name || 'profile').replace(/[\\/:*?"<>|]/g, '_') + '.kanvazprofile',
+      filters: [{ name: 'Kanvaz Profile', extensions: ['kanvazprofile'] }]
+    });
+    if (!savePath) return Promise.resolve({ ok: false, error: null, cancelled: true });
+
+    var zip = new JSZip();
+    try {
+      addDirToZip(zip, profileDir, '');
+      zip.file('profile.json', JSON.stringify({
+        name: entry.name, description: entry.description || '',
+        avatarDataUrl: entry.avatarDataUrl || null, guest: !!entry.guest
+      }));
+    } catch (e) {
+      return Promise.resolve({ ok: false, error: e.message });
+    }
+
+    return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' }).then(function(buf) {
+      return fs.promises.writeFile(savePath, buf);
+    }).then(function() {
+      return { ok: true, path: savePath };
+    }).catch(function(e) {
+      return { ok: false, error: e.message };
+    });
+  });
+
+  ipcMain.handle('profiles-import', function() {
+    var openPath = dialog.showOpenDialogSync(mainWindow, {
+      title: 'Import Profile',
+      filters: [{ name: 'Kanvaz Profile', extensions: ['kanvazprofile'] }],
+      properties: ['openFile']
+    });
+    if (!openPath || !openPath[0]) return Promise.resolve({ ok: false, error: null, cancelled: true });
+
+    var userData = app.getPath('userData');
+    return fs.promises.readFile(openPath[0]).then(function(buf) {
+      if (buf.length > MAX_PLUGIN_EXTRACTED_BYTES) {
+        throw new Error('file is too large to be a valid profile export');
+      }
+      return JSZip.loadAsync(buf);
+    }).then(function(zip) {
+      var names = Object.keys(zip.files);
+
+      /* Same zip-bomb defense pattern as plugins-install-from-catalog:
+         reject upfront on declared size, then track actual decompressed
+         bytes as they resolve. */
+      var declaredTotal = 0;
+      for (var d = 0; d < names.length; d++) {
+        var f = zip.files[names[d]];
+        if (!f.dir) declaredTotal += (f._data && f._data.uncompressedSize) || 0;
+      }
+      if (declaredTotal > MAX_PLUGIN_EXTRACTED_BYTES) {
+        throw new Error('profile archive declares ' + Math.round(declaredTotal / (1024 * 1024)) + 'MB uncompressed — too large to be a real profile export');
+      }
+
+      return zip.file('profile.json').async('string').then(function(metaRaw) {
+        return JSON.parse(metaRaw);
+      }).catch(function() {
+        return {}; /* missing/corrupt profile.json — import proceeds with default naming rather than failing outright */
+      }).then(function(meta) {
+        var newEntry = kanvazProfiles.createImportedProfileEntry(userData, meta);
+        var targetDir = kanvazProfiles.getProfileDirById(userData, newEntry.id);
+        var resolvedTargetDir = path.resolve(targetDir) + path.sep;
+
+        var writtenTotal = 0;
+        var writes = [];
+        for (var i = 0; i < names.length; i++) {
+          (function(relPath) {
+            if (relPath === 'profile.json') return; /* metadata only, not a real profile file */
+            var file = zip.files[relPath];
+            if (file.dir) return;
+            var destPath = path.resolve(path.join(targetDir, relPath));
+            if (destPath.indexOf(resolvedTargetDir) !== 0) return; /* zip-slip guard — skip, don't abort the whole import */
+            writes.push(file.async('nodebuffer').then(function(data) {
+              writtenTotal += data.length;
+              if (writtenTotal > MAX_PLUGIN_EXTRACTED_BYTES) {
+                throw new Error('profile archive exceeded the decompressed size limit');
+              }
+              fs.mkdirSync(path.dirname(destPath), { recursive: true });
+              fs.writeFileSync(destPath, data);
+            }));
+          })(names[i]);
+        }
+        return Promise.all(writes).then(function() {
+          return { ok: true, id: newEntry.id, name: newEntry.name };
+        }).catch(function(e) {
+          /* Clean up the partially-written profile folder AND its
+             manifest entry — never leave a half-imported profile
+             sitting around that looks real but is missing files. */
+          try { fs.rmSync(targetDir, { recursive: true, force: true }); } catch (cleanupErr) {}
+          kanvazProfiles.deleteProfile(userData, newEntry.id);
+          throw e;
+        });
+      });
+    }).catch(function(e) {
+      return { ok: false, error: e.message };
+    });
+  });
+
   /* Clean reset — clears the ACTIVE PROFILE's settings, recent-files
      list, and recovery/autosave cache, plus the machine-wide first-run
      flag. Deliberately touches ONLY paths under app.getPath('userData')

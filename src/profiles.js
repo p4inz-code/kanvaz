@@ -301,10 +301,46 @@ function deleteProfile(userData, id) {
   return { ok: true };
 }
 
+/* Export/Import (the offline answer to "sync" — a portable
+   .kanvazprofile file, per docs/PROFILES_SYSTEM_PLAN.md). Exposed so
+   main.js's IPC handlers can find a SPECIFIC profile's own directory
+   by id — every other function above only ever needed the ACTIVE
+   one. */
+function getProfileDirById(userData, id) {
+  return profileDir(userData, id);
+}
+
+/* Import always creates a genuinely NEW profile (fresh generated id)
+   rather than trying to reuse the exported id — ids are only ever
+   meant to be unique on ONE machine's manifest, and blindly trusting an
+   imported id could collide with (or be crafted to collide with) an
+   existing local profile. meta is whatever profile.json the export
+   bundled (name/description/avatarDataUrl/guest) — createdAt is always
+   "now," not the original profile's creation time, since this really
+   is a new, separate profile on this machine, just seeded from the old
+   one's data. */
+function createImportedProfileEntry(userData, meta) {
+  var id = genId();
+  var entry = {
+    id: id,
+    name: (meta && meta.name && meta.name.trim()) || safeUsername(),
+    description: (meta && meta.description && meta.description.trim()) || '',
+    avatarDataUrl: (meta && meta.avatarDataUrl) || null,
+    guest: !!(meta && meta.guest),
+    createdAt: Date.now()
+  };
+  var list = readManifest(userData);
+  list.push(entry);
+  writeManifest(userData, list);
+  return entry;
+}
+
 module.exports = {
   ensureMigrated: ensureMigrated,
   getActiveProfileDir: getActiveProfileDir,
   getActiveProfile: getActiveProfile,
+  getProfileDirById: getProfileDirById,
+  createImportedProfileEntry: createImportedProfileEntry,
   listProfiles: listProfiles,
   createProfile: createProfile,
   switchProfile: switchProfile,

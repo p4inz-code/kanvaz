@@ -383,6 +383,27 @@ var KanvazSidePanel = (function() {
           editBtn.onclick = function() { renderEditForm(p); };
           actions.appendChild(editBtn);
 
+          var exportBtn = document.createElement('button');
+          exportBtn.className = 'profiles-dialog-btn';
+          exportBtn.textContent = 'Export';
+          exportBtn.title = 'Save this profile as a portable .kanvazprofile file';
+          exportBtn.onclick = function() {
+            exportBtn.disabled = true;
+            KanvazBridge.exportProfile(p.id).then(function(res) {
+              exportBtn.disabled = false;
+              if (!res || res.cancelled) return;
+              if (!res.ok) {
+                if (typeof KanvazUI !== 'undefined') KanvazUI.toast(res.error || 'Could not export profile', 'error');
+                return;
+              }
+              if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Exported "' + p.name + '"');
+            }).catch(function(e) {
+              exportBtn.disabled = false;
+              if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Could not export profile: ' + e.message, 'error');
+            });
+          };
+          actions.appendChild(exportBtn);
+
           if (!isActive && profiles.length > 1) {
             var deleteBtn = document.createElement('button');
             deleteBtn.className = 'profiles-dialog-btn danger';
@@ -526,6 +547,33 @@ var KanvazSidePanel = (function() {
       });
     };
     panel.insertBefore(guestBtn, createRow);
+
+    /* Import Profile — the offline answer to "sync" (docs/
+       PROFILES_SYSTEM_PLAN.md): a .kanvazprofile file exported from any
+       Kanvaz install (this one or another machine) becomes a brand new
+       local profile here, never overwriting an existing one. */
+    var importBtn = document.createElement('button');
+    importBtn.className = 'profiles-dialog-btn';
+    importBtn.style.cssText = 'width:100%;margin-bottom:12px;';
+    importBtn.textContent = 'Import Profile…';
+    importBtn.onclick = function() {
+      importBtn.disabled = true;
+      KanvazBridge.importProfile().then(function(res) {
+        importBtn.disabled = false;
+        if (!res) return;
+        if (res.cancelled) return;
+        if (!res.ok) {
+          if (typeof KanvazUI !== 'undefined') KanvazUI.toast(res.error || 'Could not import profile', 'error');
+          return;
+        }
+        if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Imported "' + res.name + '" as a new profile');
+        rebuild();
+      }).catch(function(e) {
+        importBtn.disabled = false;
+        if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Could not import profile: ' + e.message, 'error');
+      });
+    };
+    panel.insertBefore(importBtn, createRow);
 
     var closeBtn = document.createElement('button');
     closeBtn.className = 'profiles-dialog-close';
