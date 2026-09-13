@@ -60,6 +60,11 @@ var KanvazProperties = (function() {
 
   var LABEL_CSS = 'font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:var(--color-text-3);font-weight:600;';
 
+  /* Same "reads as an actual heading" treatment ui.js's Settings section
+     headers got — bold, full-brightness text with a bottom border,
+     not muted uppercase label text easy to mistake for a caption. */
+  var SECTION_TITLE_CSS = 'font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--color-text);margin:0 0 8px;padding-bottom:5px;border-bottom:1px solid var(--color-border);';
+
   /* ── Panel open/close ── */
 
   /* open(refId) — toggles the side panel to the Properties section for
@@ -92,17 +97,26 @@ var KanvazProperties = (function() {
   /* ── Render into the side panel's content pane ──
      Called by sidepanel.js whenever the Properties section becomes the
      active one — either via open(refId) above (a specific card) or by
-     the user clicking the Properties rail icon directly, in which case
-     there's no refId yet and this falls back to whatever card is
-     currently selected on the board. */
+     the user clicking the Properties rail icon directly.
+
+     Self-review fix: this used to only fall back to the live selection
+     when activeId was still null, then STICK to whatever it found
+     forever after — every real entry point (the E shortcut, the command
+     palette, and the right-click context menu, which calls selectCard()
+     before opening) always targets the currently selected card anyway,
+     so once activeId was set once, selecting a DIFFERENT card and
+     reopening Properties via the rail icon kept showing the first
+     card's properties instead of the new selection. A real properties/
+     inspector panel (Photoshop, Illustrator) always reflects whatever
+     is currently selected — there's no "pin to a specific object"
+     concept — so this now re-syncs to the live selection on every
+     render instead of latching once. */
   function renderInto(container) {
     container.innerHTML = '';
     panelEl = container;
 
-    if (!activeId) {
-      var sel = (typeof KanvazCards !== 'undefined') ? KanvazCards.getSelected() : null;
-      if (sel) activeId = sel;
-    }
+    var liveSelection = (typeof KanvazCards !== 'undefined') ? KanvazCards.getSelected() : null;
+    if (liveSelection) activeId = liveSelection;
 
     var allCards = (typeof KanvazCards !== 'undefined') ? KanvazCards.getAll() : {};
     var card = activeId ? allCards[activeId] : null;
@@ -164,7 +178,25 @@ var KanvazProperties = (function() {
     body.id = 'properties-body';
     body.style.cssText = BODY_CSS;
 
-    renderProperties(body, card);
+    renderTransformSection(body, card, activeId);
+    renderMediaSection(body, card, activeId);
+
+    var customHeading = document.createElement('div');
+    customHeading.style.cssText = SECTION_TITLE_CSS;
+    customHeading.textContent = 'Custom Properties';
+    body.appendChild(customHeading);
+
+    /* Custom key-value properties get their OWN sub-container rather
+       than rendering straight into `body` — renderProperties() below
+       does `.innerHTML = ''` on whatever it's given every time a
+       property is added/edited/removed, and body now also holds the
+       Transform/Media sections above; clearing the whole body on every
+       edit would wipe those out from under the user mid-session. */
+    var propsListEl = document.createElement('div');
+    propsListEl.id = 'properties-custom-list';
+    body.appendChild(propsListEl);
+
+    renderProperties(propsListEl, card);
     container.appendChild(body);
 
     /* ── Footer: Add property button ── */
@@ -190,6 +222,110 @@ var KanvazProperties = (function() {
     addBtn.onclick = function() { addProperty(card); };
     footer.appendChild(addBtn);
     container.appendChild(footer);
+  }
+
+  /* ── Transform (X / Y / W / H) — Photoshop/Illustrator-style
+     properties bar. Pinned cards can't be moved by dragging (see
+     nudge()'s own pinned guard in cards.js), so their X/Y fields are
+     disabled here too rather than silently no-opping the edit. */
+  function renderTransformSection(body, card, cardId) {
+    var title = document.createElement('div');
+    title.style.cssText = SECTION_TITLE_CSS;
+    title.textContent = 'Transform';
+    body.appendChild(title);
+
+    var grid = document.createElement('div');
+    grid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;';
+
+    function field(label, value, onCommit, disabled) {
+      var wrap = document.createElement('div');
+      var lbl = document.createElement('div');
+      lbl.style.cssText = LABEL_CSS + ';margin-bottom:3px;';
+      lbl.textContent = label;
+      wrap.appendChild(lbl);
+
+      var input = document.createElement('input');
+      input.type = 'number';
+      input.value = Math.round(value);
+      input.style.cssText = INPUT_CSS;
+      input.disabled = !!disabled;
+      if (disabled) input.style.opacity = '0.5';
+      input.onfocus = function() { input.style.borderColor = INPUT_FOCUS_BORDER; };
+      input.onblur = function() {
+        input.style.borderColor = 'var(--color-border)';
+        var n = parseFloat(input.value);
+        if (isFinite(n)) onCommit(n);
+      };
+      input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') input.blur();
+      });
+      wrap.appendChild(input);
+      grid.appendChild(wrap);
+    }
+
+    var locked = !!card.pinned;
+    field('X', card.x, function(n) { KanvazCards.setTransform(cardId, { x: n }); }, locked);
+    field('Y', card.y, function(n) { KanvazCards.setTransform(cardId, { y: n }); }, locked);
+    field('W', card.w, function(n) { KanvazCards.setTransform(cardId, { w: n }); });
+    field('H', card.h, function(n) { KanvazCards.setTransform(cardId, { h: n }); });
+
+    body.appendChild(grid);
+  }
+
+  /* ── Media info (read-only resolution/format) + Annotations ──
+     Resolution comes straight off card.naturalW/naturalH — already
+     stored on the card data model for image/gif/video cards at import
+     time (see cards.js's createFromMedia), not re-measured from the
+     live DOM here. Nothing renders for card types that don't apply
+     (note/text/color/url/file have no natural media dimensions and no
+     annotation overlay of their own). */
+  function renderMediaSection(body, card, cardId) {
+    var hasResolution = (card.type === 'image' || card.type === 'gif' || card.type === 'video') && card.naturalW && card.naturalH;
+    var hasAnnotations = card.annotations && card.annotations.length > 0;
+    var hasModelFormat = card.type === 'model3d' && card.modelFormat;
+
+    if (!hasResolution && !hasAnnotations && !hasModelFormat) return;
+
+    var title = document.createElement('div');
+    title.style.cssText = SECTION_TITLE_CSS;
+    title.textContent = 'Media';
+    body.appendChild(title);
+
+    var infoRow = document.createElement('div');
+    infoRow.style.cssText = 'font-size:12px;color:var(--color-text-2);margin-bottom:8px;line-height:1.6;';
+
+    if (hasResolution) {
+      var res = document.createElement('div');
+      res.textContent = 'Resolution: ' + card.naturalW + ' × ' + card.naturalH;
+      infoRow.appendChild(res);
+    }
+    if (hasModelFormat) {
+      var fmt = document.createElement('div');
+      fmt.textContent = 'Format: ' + card.modelFormat.toUpperCase();
+      infoRow.appendChild(fmt);
+    }
+    if (infoRow.childNodes.length) body.appendChild(infoRow);
+
+    if (hasAnnotations) {
+      var annRow = document.createElement('div');
+      annRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;';
+
+      var annLabel = document.createElement('div');
+      annLabel.style.cssText = 'font-size:12px;color:var(--color-text-2);';
+      annLabel.textContent = card.annotations.length + ' annotation' + (card.annotations.length === 1 ? '' : 's');
+      annRow.appendChild(annLabel);
+
+      var clearBtn = document.createElement('button');
+      clearBtn.textContent = 'Clear';
+      clearBtn.style.cssText = 'padding:4px 10px;background:none;border:1px solid var(--color-border-2);border-radius:5px;color:var(--color-text-2);font-family:var(--font-ui);font-size:11px;cursor:pointer;';
+      clearBtn.onclick = function() {
+        if (typeof KanvazAnnotate !== 'undefined' && KanvazAnnotate.clearAnnotations) {
+          KanvazAnnotate.clearAnnotations(cardId);
+        }
+      };
+      annRow.appendChild(clearBtn);
+      body.appendChild(annRow);
+    }
   }
 
   /* ── Render all properties ── */
@@ -264,7 +400,7 @@ var KanvazProperties = (function() {
   /* ── Add new property ── */
 
   function addProperty(card) {
-    var body = document.getElementById('properties-body');
+    var body = document.getElementById('properties-custom-list');
     if (!body) return;
 
     /* Check if an add form already exists */

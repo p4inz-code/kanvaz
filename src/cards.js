@@ -4804,6 +4804,50 @@ var KanvazCards = (function() {
     emitCardEvent('cardUpdate', card);
   }
 
+  /* ── Direct transform edit (Properties panel's X/Y/W/H fields) ──
+     `patch` supplies only the keys the user actually changed (e.g. just
+     {x: 120}), so this only touches what's given rather than requiring
+     every field on every call. Mirrors resetSize()'s own pattern for
+     applying a size change: clamp to the same CARD_MIN_W/H floor the
+     drag-resize handles already enforce, rescale the annotation overlay
+     via KanvazAnnotate.resize() when the size actually changes (same as
+     resetSize — an annotation layer sized for the OLD dimensions would
+     otherwise misalign the moment the card resizes), markDirty + push
+     history once for the whole patch rather than per-field. */
+  function setTransform(id, patch) {
+    var card = cards[id];
+    if (!card || !patch) return;
+    var el = document.getElementById(id);
+
+    if (typeof patch.x === 'number' && isFinite(patch.x)) {
+      card.x = patch.x;
+      if (el) el.style.left = card.x + 'px';
+    }
+    if (typeof patch.y === 'number' && isFinite(patch.y)) {
+      card.y = patch.y;
+      if (el) el.style.top = card.y + 'px';
+    }
+
+    var sizeChanged = false;
+    if (typeof patch.w === 'number' && isFinite(patch.w)) {
+      card.w = Math.max(CARD_MIN_W, Math.round(patch.w));
+      if (el) el.style.width = card.w + 'px';
+      sizeChanged = true;
+    }
+    if (typeof patch.h === 'number' && isFinite(patch.h)) {
+      card.h = Math.max(CARD_MIN_H, Math.round(patch.h));
+      if (el) el.style.height = card.h + 'px';
+      sizeChanged = true;
+    }
+    if (sizeChanged && typeof KanvazAnnotate !== 'undefined') {
+      KanvazAnnotate.resize(id, card.w, card.h);
+    }
+
+    KanvazApp.markDirty();
+    KanvazHistory.push();
+    emitCardEvent('cardUpdate', card);
+  }
+
   /* ── Reset size to natural dimensions capped at 600px ── */
 
   function resetSize(id) {
@@ -5066,6 +5110,7 @@ var KanvazCards = (function() {
     sendToBack:        sendToBack,
     flipCard:          flipCard,
     resetSize:         resetSize,
+    setTransform:      setTransform,
     showOpacityPicker: showOpacityPicker,
     toggleObjectFit:   toggleObjectFit,
     showSpeedPicker:   showSpeedPicker,
