@@ -319,22 +319,31 @@ var KanvazMapView = (function() {
       }
     });
 
-    /* Bug-bounty fix (v5.3.0): the node-drag mousemove handler used to
-       call renderLines() directly on every single mousemove — same
-       expensive full-SVG-rebuild-per-frame problem the resize handler
-       above already learned to coalesce through one in-flight rAF, just
-       not yet applied here. A native mousemove can fire far more often
-       than the display refresh rate; collapsing a whole burst into one
-       re-render per animation frame is strictly enough to look smooth. */
-    function scheduleDragRenderLines() {
-      if (dragRafId) return;
-      dragRafId = requestAnimationFrame(function() {
-        dragRafId = null;
-        renderLines();
-      });
-    }
-
     bindEvents();
+  }
+
+  /* Bug-bounty fix (v5.3.0): the node-drag mousemove handler used to
+     call renderLines() directly on every single mousemove — same
+     expensive full-SVG-rebuild-per-frame problem the resize handler
+     above already learned to coalesce through one in-flight rAF, just
+     not yet applied here. A native mousemove can fire far more often
+     than the display refresh rate; collapsing a whole burst into one
+     re-render per animation frame is strictly enough to look smooth.
+     Scoping fix: this used to be nested INSIDE init(), but its callers
+     (the mousemove/mouseup drag handlers) live in the separate
+     top-level bindEvents() function — a sibling of init(), not a
+     closure nested inside it — so it was never in scope there at all.
+     Every node drag threw "scheduleDragRenderLines is not defined"
+     (ReferenceError, surfaced to the user as the generic E999 toast)
+     the instant a drag's mousemove handler tried to call it. Moved to
+     module level, alongside dragRafId (already module-level), so both
+     bindEvents() and init() can reach it. */
+  function scheduleDragRenderLines() {
+    if (dragRafId) return;
+    dragRafId = requestAnimationFrame(function() {
+      dragRafId = null;
+      renderLines();
+    });
   }
 
   /* ══════════════════════════════════════════
