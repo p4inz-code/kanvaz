@@ -6,10 +6,18 @@ var KanvazMedia = (function() {
   var GIF_EXTS   = ['gif'];
   var VIDEO_EXTS = ['mp4', 'webm', 'mov', 'mkv', 'avi'];
   var AUDIO_EXTS = ['mp3', 'wav', 'ogg', 'm4a'];
+  var MODEL_EXTS = ['glb', 'gltf', 'obj', 'fbx'];
 
   var MAX_DROP_WIDTH = 600;
   var AUDIO_CARD_W   = 280;
   var AUDIO_CARD_H   = 100;
+  /* 3D models have no meaningful "natural size" like an image does — the
+     card is a viewport onto a scene, not a scaled photo, so it gets a
+     fixed default footprint the same way audio does. Wider than audio's
+     since a 3D viewport needs real screen space to be useful; kept
+     roughly video-shaped so it drops onto a board at a sane default. */
+  var MODEL_CARD_W  = 420;
+  var MODEL_CARD_H  = 340;
 
   /* ── Type detection ── */
 
@@ -19,6 +27,7 @@ var KanvazMedia = (function() {
     if (GIF_EXTS.indexOf(e)   !== -1) return 'gif';
     if (VIDEO_EXTS.indexOf(e) !== -1) return 'video';
     if (AUDIO_EXTS.indexOf(e) !== -1) return 'audio';
+    if (MODEL_EXTS.indexOf(e) !== -1) return 'model3d';
     return null;
   }
 
@@ -170,11 +179,40 @@ var KanvazMedia = (function() {
     });
   }
 
+  /* ── Load a 3D model from path via bridge ──
+     Deliberately separate from loadFromPath: models go through the
+     model-load IPC handler (its own size cap + allowlist), never touch
+     getNaturalSize/getVideoSize (a scene has no natural pixel size), and
+     always land at the same fixed MODEL_CARD_W/H footprint. */
+
+  function loadModelFromPath(filePath, callback) {
+    KanvazBridge.loadModel(filePath).then(function(result) {
+      if (!result.ok) {
+        callback(null, result.error, result);
+        return;
+      }
+      result.type = 'model3d';
+      result.naturalW = MODEL_CARD_W;
+      result.naturalH = MODEL_CARD_H;
+      result.displayW = MODEL_CARD_W;
+      result.displayH = MODEL_CARD_H;
+      callback(result, null);
+    }).catch(function(e) {
+      console.warn('[Kanvaz] loadModel IPC failed:', e);
+      callback(null, 'IPC_FAIL', null);
+    });
+  }
+
   /* ── Load from File object (drag-drop) ── */
 
   function loadFromFile(file, callback) {
     if (!file.path) {
       callback(null, 'FILE_NOT_FOUND');
+      return;
+    }
+    var ext = file.path.split('.').pop().toLowerCase();
+    if (MODEL_EXTS.indexOf(ext) !== -1) {
+      loadModelFromPath(file.path, callback);
       return;
     }
     loadFromPath(file.path, callback);
@@ -253,11 +291,13 @@ var KanvazMedia = (function() {
     getVideoSize:     getVideoSize,
     capSize:          capSize,
     loadFromPath:     loadFromPath,
+    loadModelFromPath: loadModelFromPath,
     loadFromFile:     loadFromFile,
     loadFromDataUrl:  loadFromDataUrl,
     formatSize:       formatSize,
     formatTime:       formatTime,
-    MAX_DROP_WIDTH:   MAX_DROP_WIDTH
+    MAX_DROP_WIDTH:   MAX_DROP_WIDTH,
+    MODEL_EXTS:       MODEL_EXTS
   };
 
 })();

@@ -733,6 +733,18 @@ var KanvazCards = (function() {
       annotations: []
     };
 
+    /* v7.x — 3D model preview defaults. modelFormat drives which Three.js
+       loader buildModel3DCard() picks; renderMode/bgColor/animationPlaying
+       are real per-card display preferences, same "missing → sensible
+       default" pattern as objectFit/playbackRate/colorFormat elsewhere
+       in this whitelist. */
+    if (mediaResult.type === 'model3d') {
+      card.modelFormat = mediaResult.modelFormat || null;
+      card.renderMode = 'normal';
+      card.bgColor = null;
+      card.animationPlaying = false;
+    }
+
     cards[id] = card;
     renderCard(card);
     selectCard(id);
@@ -1085,6 +1097,8 @@ var KanvazCards = (function() {
       buildUrlCard(el, card);
     } else if (card.type === 'file') {
       buildFileRefCard(el, card);
+    } else if (card.type === 'model3d') {
+      buildModel3DCard(el, card);
     } else if (typeof KanvazPluginAPI !== 'undefined' && KanvazPluginAPI._hasCardType(card.type)) {
       buildPluginCard(el, card);
     } else {
@@ -1310,7 +1324,9 @@ var KanvazCards = (function() {
     if (!card) return;
     KanvazBridge.openMediaDialog().then(function(p) {
       if (!p) return;
-      KanvazMedia.loadFromPath(p, function(result, err) {
+      var ext = p.split('.').pop().toLowerCase();
+      var loader = KanvazMedia.MODEL_EXTS.indexOf(ext) !== -1 ? KanvazMedia.loadModelFromPath : KanvazMedia.loadFromPath;
+      loader(p, function(result, err) {
         if (err || !result) {
           KanvazUI.toast('Could not load replacement file', 'error');
           return;
@@ -1324,6 +1340,7 @@ var KanvazCards = (function() {
         card.path     = result.originalPath;
         card.naturalW = result.naturalW;
         card.naturalH = result.naturalH;
+        if (result.type === 'model3d') card.modelFormat = result.modelFormat;
 
         var el = document.getElementById(id);
         if (el) {
@@ -1361,10 +1378,17 @@ var KanvazCards = (function() {
     }
     for (var r = 0; r < toRemove.length; r++) el.removeChild(toRemove[r]);
 
-    if (card.type === 'image')      buildImageCard(el, card);
-    else if (card.type === 'gif')   buildGifCard(el, card);
-    else if (card.type === 'video') buildVideoCard(el, card);
-    else if (card.type === 'audio') buildAudioCard(el, card);
+    /* Relinking a 3D model swaps in a brand new viewer/scene — the old
+       one's GPU resources (geometry/material/texture/renderer) must be
+       released first or they leak exactly like a delete-without-dispose
+       would. */
+    disposeModel3D(card.id);
+
+    if (card.type === 'image')        buildImageCard(el, card);
+    else if (card.type === 'gif')     buildGifCard(el, card);
+    else if (card.type === 'video')   buildVideoCard(el, card);
+    else if (card.type === 'audio')   buildAudioCard(el, card);
+    else if (card.type === 'model3d') buildModel3DCard(el, card);
   }
 
   /* ── Image card ── */
@@ -2637,6 +2661,533 @@ var KanvazCards = (function() {
     el.appendChild(body);
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     3D model card (v7.x) — Kanvaz's 5th flagship feature.
+     Renders card.dataUrl (an embedded GLB/glTF/OBJ/FBX, per the
+     "embed like image/video/audio, not file-reference like .pdf"
+     architecture decision) via a vendored Three.js. This UI is
+     deliberately plain/functional — the user is designing the real
+     UI in Figma separately and will re-skin this later — but the
+     underlying wiring (render modes, animation, disposal) is meant
+     to be correct and complete now.
+     ══════════════════════════════════════════════════════════════ */
+
+  /* Card id -> { dispose: fn } for every live 3D viewer, so
+     removeCardCore()/clearAll() can release GPU resources (geometries,
+     materials, textures, the renderer's WebGL context, the ResizeObserver,
+     any in-flight rAF loop) instead of leaking them the way a plain DOM
+     removal would. */
+  var model3dInstances = {};
+
+  function disposeModel3D(id) {
+    var inst = model3dInstances[id];
+    if (!inst) return;
+    delete model3dInstances[id];
+    try { inst.dispose(); } catch (e) { console.warn('[Kanvaz] 3D viewer dispose failed:', e); }
+  }
+
+  /* Electron 22's bundled Chromium is old enough that dynamic import()
+     of these ES module files still works fine (unlike pdf.js, Three.js
+     0.186 doesn't reach for anything newer than this runtime supports),
+     so no polyfill is needed here the way pdf.js needed Promise.withResolvers. */
+  var threeLoadPromise = null;
+  function loadThreeJs() {
+    if (!threeLoadPromise) {
+      threeLoadPromise = Promise.all([
+        import('./vendor/three/three.module.js'),
+        import('./vendor/three/loaders/GLTFLoader.js'),
+        import('./vendor/three/loaders/OBJLoader.js'),
+        import('./vendor/three/loaders/FBXLoader.js'),
+        import('./vendor/three/controls/OrbitControls.js')
+      ]).then(function(mods) {
+        return {
+          THREE:          mods[0],
+          GLTFLoader:     mods[1].GLTFLoader,
+          OBJLoader:      mods[2].OBJLoader,
+          FBXLoader:      mods[3].FBXLoader,
+          OrbitControls:  mods[4].OrbitControls
+        };
+      });
+    }
+    return threeLoadPromise;
+  }
+
+  function model3dDataToArrayBuffer(dataUrl) {
+    var base64 = dataUrl.substring(dataUrl.indexOf(',') + 1);
+    var binary = atob(base64);
+    var bytes = new Uint8Array(binary.length);
+    for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes.buffer;
+  }
+
+  function model3dDataToText(dataUrl) {
+    var buf = model3dDataToArrayBuffer(dataUrl);
+    return new TextDecoder('utf-8').decode(buf);
+  }
+
+  /* Loads card.dataUrl into a THREE.Object3D per card.modelFormat.
+     onLoad(root, animations). GLTFLoader/FBXLoader/OBJLoader.parse() all
+     work directly off the already-embedded bytes — nothing re-reads from
+     disk, matching the embedded-card architecture decision. A .gltf (as
+     opposed to .glb) that references external .bin/texture files by
+     relative path will fail those specific resource loads since there's
+     no filesystem/server to resolve them against — a disclosed
+     limitation, same class as FBX being "best-effort": only a
+     self-contained (embedded-buffers) .gltf or a .glb is guaranteed to
+     fully render. */
+  function loadModelIntoScene(card, three, onLoad, onError) {
+    var format = card.modelFormat;
+    try {
+      if (format === 'glb' || format === 'gltf') {
+        var gltfLoader = new three.GLTFLoader();
+        gltfLoader.parse(model3dDataToArrayBuffer(card.dataUrl), '', function(gltf) {
+          onLoad(gltf.scene, gltf.animations || []);
+        }, onError);
+      } else if (format === 'obj') {
+        var objLoader = new three.OBJLoader();
+        var obj = objLoader.parse(model3dDataToText(card.dataUrl));
+        onLoad(obj, []);
+      } else if (format === 'fbx') {
+        var fbxLoader = new three.FBXLoader();
+        var fbx = fbxLoader.parse(model3dDataToArrayBuffer(card.dataUrl), '');
+        onLoad(fbx, fbx.animations || []);
+      } else {
+        onError(new Error('Unknown 3D model format: ' + format));
+      }
+    } catch (e) {
+      onError(e);
+    }
+  }
+
+  /* A small procedural gradient used as the Matcap render mode's shading
+     reference — a neutral studio-light look with no shipped asset file,
+     since the plan calls for Matcap without adding binary assets. */
+  function buildMatcapTexture(THREE) {
+    var size = 128;
+    var canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    var ctx = canvas.getContext('2d');
+    var grad = ctx.createRadialGradient(size * 0.35, size * 0.32, size * 0.04, size * 0.5, size * 0.5, size * 0.68);
+    grad.addColorStop(0,   '#ffffff');
+    grad.addColorStop(0.5, '#8fa3c9');
+    grad.addColorStop(1,   '#1b2130');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, size, size);
+    var tex = new THREE.CanvasTexture(canvas);
+    tex.needsUpdate = true;
+    return tex;
+  }
+
+  function model3dDisposeMaterial(mat) {
+    if (!mat) return;
+    var mapSlots = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap',
+      'emissiveMap', 'bumpMap', 'displacementMap', 'alphaMap', 'envMap', 'matcap'];
+    for (var i = 0; i < mapSlots.length; i++) {
+      var tex = mat[mapSlots[i]];
+      if (tex && typeof tex.dispose === 'function') tex.dispose();
+    }
+    mat.dispose();
+  }
+
+  /* Walks the whole loaded scene disposing every geometry and every
+     material this card ever created for it — the as-loaded material,
+     PLUS the wireframe clone and Matcap material lazily built per-mesh
+     when the user switches render modes (see applyRenderMode below). A
+     bare DOM removal would leak all of this: geometries/materials/
+     textures live on the GPU, not just in JS heap, so only explicit
+     .dispose() calls actually free that memory. */
+  function disposeModel3DScene(root) {
+    root.traverse(function(node) {
+      if (node.geometry) node.geometry.dispose();
+      var mats = [];
+      if (node.material) mats.push(node.material);
+      if (node.userData) {
+        if (node.userData.kanvazOrigMaterial && mats.indexOf(node.userData.kanvazOrigMaterial) === -1) {
+          mats.push(node.userData.kanvazOrigMaterial);
+        }
+        if (node.userData.kanvazWireframeMat) mats.push(node.userData.kanvazWireframeMat);
+        if (node.userData.kanvazMatcapMat)    mats.push(node.userData.kanvazMatcapMat);
+      }
+      for (var i = 0; i < mats.length; i++) model3dDisposeMaterial(mats[i]);
+    });
+  }
+
+  /* Switches every mesh in the scene between the three v1 render modes.
+     Normal = the material exactly as the file's own loader produced it
+     (baked textures included, per the "exact-file rendering" decision).
+     Wireframe/Matcap materials are built lazily, once per mesh, and
+     cached on the mesh's userData so toggling back and forth is instant
+     and doesn't keep allocating new GPU materials. */
+  function applyRenderMode(THREE, root, mode, matcapTex) {
+    root.traverse(function(node) {
+      if (!node.isMesh) return;
+      if (!node.userData.kanvazOrigMaterial) node.userData.kanvazOrigMaterial = node.material;
+
+      if (mode === 'wireframe') {
+        if (!node.userData.kanvazWireframeMat) {
+          var wf = node.userData.kanvazOrigMaterial.clone();
+          wf.wireframe = true;
+          node.userData.kanvazWireframeMat = wf;
+        }
+        node.material = node.userData.kanvazWireframeMat;
+      } else if (mode === 'matcap') {
+        if (!node.userData.kanvazMatcapMat) {
+          node.userData.kanvazMatcapMat = new THREE.MeshMatcapMaterial({
+            matcap: matcapTex,
+            map: node.userData.kanvazOrigMaterial.map || null
+          });
+        }
+        node.material = node.userData.kanvazMatcapMat;
+      } else {
+        node.material = node.userData.kanvazOrigMaterial;
+      }
+    });
+  }
+
+  /* Frames the camera on the loaded object's bounding box — every load
+     (and every "Reset view" click) starts from the same predictable
+     framed shot. Camera orbit state is deliberately NOT persisted across
+     save/reload (disclosed simplicity trade-off from the plan) — this is
+     what re-establishes the view every time instead. */
+  function frameModel3DCamera(THREE, root, camera, controls) {
+    var box = new THREE.Box3().setFromObject(root);
+    var size = box.getSize(new THREE.Vector3());
+    var center = box.getCenter(new THREE.Vector3());
+    var maxDim = Math.max(size.x, size.y, size.z) || 1;
+    var fovRad = camera.fov * (Math.PI / 180);
+    var dist = (maxDim / 2) / Math.tan(fovRad / 2) * 1.6;
+    camera.position.set(center.x + dist * 0.55, center.y + dist * 0.4, center.z + dist * 0.72);
+    camera.near = Math.max(maxDim / 100, 0.01);
+    camera.far  = Math.max(maxDim * 100, 100);
+    camera.updateProjectionMatrix();
+    controls.target.copy(center);
+    controls.update();
+  }
+
+  function buildModel3DCard(el, card) {
+    el.classList.add('card-model3d-loading');
+
+    var skeleton = document.createElement('div');
+    skeleton.className = 'card-skeleton';
+    el.appendChild(skeleton);
+    var spinner = document.createElement('div');
+    spinner.className = 'card-spinner';
+    el.appendChild(spinner);
+
+    var viewport = document.createElement('div');
+    viewport.className = 'model3d-viewport';
+    el.appendChild(viewport);
+
+    var canvas = document.createElement('canvas');
+    canvas.className = 'model3d-canvas';
+    viewport.appendChild(canvas);
+
+    var toolbar = document.createElement('div');
+    toolbar.className = 'model3d-toolbar';
+    el.appendChild(toolbar);
+
+    loadThreeJs().then(function(three) {
+      if (!document.body.contains(el)) return; /* card deleted while loading */
+      var THREE = three.THREE;
+
+      var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+      var scene = new THREE.Scene();
+      if (card.bgColor) scene.background = new THREE.Color(card.bgColor);
+
+      var camera = new THREE.PerspectiveCamera(45, 1, 0.01, 1000);
+
+      scene.add(new THREE.HemisphereLight(0xffffff, 0x444455, 1.1));
+      var keyLight = new THREE.DirectionalLight(0xffffff, 1.4);
+      keyLight.position.set(3, 5, 4);
+      scene.add(keyLight);
+
+      var controls = new three.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = false; /* render-on-demand, not a continuous loop — see 'change' handler below */
+      controls.screenSpacePanning = true;
+
+      var matcapTex = buildMatcapTexture(THREE);
+      var root = null;
+      var mixer = null;
+      var clip = null;
+      var action = null;
+      var isPlaying = false;
+      var rafId = null;
+      var clock = new THREE.Timer(); /* THREE.Clock is deprecated as of r186 */
+      var disposed = false;
+
+      function sizeToCard() {
+        var w = Math.max(1, viewport.clientWidth);
+        var h = Math.max(1, viewport.clientHeight);
+        renderer.setSize(w, h, false);
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+      }
+
+      function renderFrame() {
+        if (disposed) return;
+        renderer.render(scene, camera);
+      }
+
+      function animateLoop() {
+        if (disposed) return;
+        clock.update();
+        var delta = clock.getDelta();
+        if (mixer && isPlaying) mixer.update(delta);
+        renderFrame();
+        updateAnimUI(); /* no-ops until buildAnimationControls() exists — safe even before a model with clips has loaded */
+        if (isPlaying) {
+          rafId = requestAnimationFrame(animateLoop);
+        } else {
+          rafId = null;
+        }
+      }
+
+      function startLoopIfPlaying() {
+        if (isPlaying && rafId === null) {
+          clock.update(); /* re-baseline so resuming doesn't jump the clip forward by the idle gap */
+          rafId = requestAnimationFrame(animateLoop);
+        }
+      }
+
+      controls.addEventListener('change', function() {
+        if (!isPlaying) renderFrame();
+      });
+
+      var resizeObserver = new ResizeObserver(function() {
+        sizeToCard();
+        renderFrame();
+      });
+      resizeObserver.observe(viewport);
+
+      /* Registered as early as possible (everything it touches — renderer,
+         controls, matcapTex, resizeObserver — already exists at this
+         point) so that if ANYTHING later in this setup throws (toolbar
+         construction, the model load call, etc.), the outer .catch()'s
+         disposeModel3D() call actually has something to release instead
+         of leaking whatever got created before the throw. root/rafId are
+         read live at dispose-time via closure, so registering before
+         either is assigned is safe. */
+      model3dInstances[card.id] = {
+        dispose: function() {
+          disposed = true;
+          isPlaying = false;
+          if (rafId !== null) cancelAnimationFrame(rafId);
+          resizeObserver.disconnect();
+          controls.dispose();
+          if (root) disposeModel3DScene(root);
+          matcapTex.dispose();
+          renderer.dispose();
+        }
+      };
+
+      /* ── Toolbar: render mode buttons ── */
+      var modeButtons = {};
+      function setActiveModeButton(mode) {
+        var keys = Object.keys(modeButtons);
+        for (var i = 0; i < keys.length; i++) {
+          modeButtons[keys[i]].classList.toggle('active', keys[i] === mode);
+        }
+      }
+      function setRenderMode(mode, persist) {
+        card.renderMode = mode;
+        if (root) applyRenderMode(THREE, root, mode, matcapTex);
+        setActiveModeButton(mode);
+        renderFrame();
+        if (persist) {
+          KanvazApp.markDirty();
+          KanvazHistory.push();
+          emitCardEvent('cardUpdate', card);
+        }
+      }
+      var modes = [['normal', 'Normal'], ['wireframe', 'Wireframe'], ['matcap', 'Matcap']];
+      var modeGroup = document.createElement('div');
+      modeGroup.className = 'model3d-mode-group';
+      for (var mi = 0; mi < modes.length; mi++) {
+        (function(modeKey, modeLabel) {
+          var btn = document.createElement('button');
+          btn.className = 'model3d-mode-btn';
+          btn.textContent = modeLabel;
+          btn.title = modeLabel + ' shading';
+          btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            setRenderMode(modeKey, true);
+          });
+          btn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+          modeButtons[modeKey] = btn;
+          modeGroup.appendChild(btn);
+        })(modes[mi][0], modes[mi][1]);
+      }
+      toolbar.appendChild(modeGroup);
+
+      /* ── Toolbar: background color + reset view ── */
+      var bgSwatch = document.createElement('input');
+      bgSwatch.type = 'color';
+      bgSwatch.className = 'model3d-bg-swatch';
+      bgSwatch.title = 'Background color';
+      bgSwatch.value = card.bgColor || '#1c1c22';
+      bgSwatch.addEventListener('input', function(e) {
+        e.stopPropagation();
+        scene.background = new THREE.Color(bgSwatch.value);
+        renderFrame();
+      });
+      bgSwatch.addEventListener('change', function(e) {
+        e.stopPropagation();
+        card.bgColor = bgSwatch.value;
+        KanvazApp.markDirty();
+        KanvazHistory.push();
+        emitCardEvent('cardUpdate', card);
+      });
+      bgSwatch.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+      toolbar.appendChild(bgSwatch);
+
+      var resetBtn = document.createElement('button');
+      resetBtn.className = 'model3d-reset-btn';
+      resetBtn.title = 'Reset view';
+      resetBtn.textContent = '⟲';
+      resetBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (root) frameModel3DCamera(THREE, root, camera, controls);
+        renderFrame();
+      });
+      resetBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+      toolbar.appendChild(resetBtn);
+
+      /* ── Animation play/pause + scrub (only added once we know the
+         model actually has clips — see onLoad below) ── */
+      var animScrub = null;
+      var animPlayBtn = null;
+      var animTrack = null;
+      var animFill = null;
+      var animTimeEl = null;
+
+      function buildAnimationControls() {
+        animScrub = document.createElement('div');
+        animScrub.className = 'video-scrub model3d-anim-scrub';
+
+        animPlayBtn = document.createElement('button');
+        animPlayBtn.className = 'media-play-btn';
+        animPlayBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-text-2);padding:0;display:flex;align-items:center;';
+        animPlayBtn.innerHTML = isPlaying ? PAUSE_ICON : PLAY_ICON;
+        animPlayBtn.title = 'Play/Pause animation';
+        animPlayBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          isPlaying = !isPlaying;
+          if (action) action.paused = !isPlaying;
+          animPlayBtn.innerHTML = isPlaying ? PAUSE_ICON : PLAY_ICON;
+          startLoopIfPlaying();
+          if (!isPlaying) renderFrame();
+          card.animationPlaying = isPlaying;
+          KanvazApp.markDirty();
+          KanvazHistory.push();
+          emitCardEvent('cardUpdate', card);
+        });
+        animPlayBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+
+        animTrack = document.createElement('div');
+        animTrack.className = 'scrub-bar';
+        animFill = document.createElement('div');
+        animFill.className = 'scrub-fill';
+        animTrack.appendChild(animFill);
+        animTrack.addEventListener('mousedown', function(e) {
+          e.stopPropagation();
+          scrubToClientX(e.clientX);
+          var onMove = function(ev) { scrubToClientX(ev.clientX); };
+          var onUp = function() {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+          };
+          document.addEventListener('mousemove', onMove);
+          document.addEventListener('mouseup', onUp);
+        });
+
+        function scrubToClientX(clientX) {
+          if (!action || !clip) return;
+          var rect = animTrack.getBoundingClientRect();
+          var pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+          action.time = pct * clip.duration;
+          action.paused = true;
+          isPlaying = false;
+          animPlayBtn.innerHTML = PLAY_ICON;
+          if (mixer) mixer.update(0);
+          renderFrame();
+          updateAnimUI();
+          card.animationPlaying = false;
+          KanvazApp.markDirty();
+          KanvazHistory.push();
+          emitCardEvent('cardUpdate', card);
+        }
+
+        animTimeEl = document.createElement('span');
+        animTimeEl.className = 'scrub-time';
+        animTimeEl.textContent = '0:00';
+
+        animScrub.appendChild(animPlayBtn);
+        animScrub.appendChild(animTrack);
+        animScrub.appendChild(animTimeEl);
+        el.appendChild(animScrub);
+      }
+
+      function updateAnimUI() {
+        if (!action || !clip || !animFill) return;
+        var t = action.time % clip.duration;
+        var pct = clip.duration ? (t / clip.duration) * 100 : 0;
+        animFill.style.width = pct + '%';
+        animTimeEl.textContent = KanvazMedia.formatTime(t) + ' / ' + KanvazMedia.formatTime(clip.duration);
+      }
+
+
+      loadModelIntoScene(card, three, function(loadedRoot, animations) {
+        if (disposed) return;
+        root = loadedRoot;
+        scene.add(root);
+        applyRenderMode(THREE, root, card.renderMode || 'normal', matcapTex);
+        setActiveModeButton(card.renderMode || 'normal');
+        sizeToCard();
+        frameModel3DCamera(THREE, root, camera, controls);
+
+        if (animations && animations.length) {
+          mixer = new THREE.AnimationMixer(root);
+          clip = animations[0];
+          action = mixer.clipAction(clip);
+          action.play();
+          isPlaying = !!card.animationPlaying;
+          action.paused = !isPlaying;
+          buildAnimationControls();
+          updateAnimUI();
+          startLoopIfPlaying();
+        }
+
+        el.classList.remove('card-model3d-loading');
+        clearLoadingState(el);
+        renderFrame();
+      }, function(err) {
+        console.warn('[Kanvaz] 3D model load failed:', err);
+        clearLoadingState(el);
+        el.classList.remove('card-model3d-loading');
+        viewport.style.display = 'none';
+        toolbar.style.display = 'none';
+        showMediaError(el, card, 'Could not load this 3D model — the file may be corrupt, or (for .gltf) reference external files Kanvaz can\'t reach.');
+      });
+    }).catch(function(e) {
+      console.error('[Kanvaz] Three.js failed to load:', e);
+      clearLoadingState(el);
+      el.classList.remove('card-model3d-loading');
+      /* Bug fix: if something threw partway through the .then() callback
+         above (e.g. WebGLRenderer construction failing because the board
+         already has enough live 3D cards to hit Chromium's WebGL context
+         limit — a real risk given multiple idle 3D cards are an explicit
+         supported case here), the renderer/controls/matcap texture that
+         DID get created before the throw would otherwise never be
+         disposed. disposeModel3D() is a safe no-op if registration never
+         got that far. */
+      disposeModel3D(card.id);
+      showMediaError(el, card, 'Could not initialize the 3D viewer.');
+    });
+  }
+
   /* ── Card bar (filename + badge) ── */
 
   function buildCardBar(el, card) {
@@ -3111,11 +3662,22 @@ var KanvazCards = (function() {
     var card = cards[id];
     if (!card) return false;
 
-    /* Pause any playing media before removing the DOM element */
+    /* Pause any playing media before removing the DOM element.
+       Audit fix: this used to only pause() — clearAll() (board switch/
+       undo/redo) already learned that pause() alone leaves the decoder
+       in limbo (uncollectable, and audible if unmuted) and fixed it with
+       removeAttribute('src')+load(); single-card delete had the same gap
+       and never got the same fix. Matched here so both delete paths
+       release decoders the same way. */
     var el = document.getElementById(id);
     if (el) {
       var mediaEl = el.querySelector('video, audio');
-      if (mediaEl) mediaEl.pause();
+      if (mediaEl) {
+        mediaEl.pause();
+        mediaEl.removeAttribute('src');
+        mediaEl.load();
+      }
+      disposeModel3D(id);
       el.parentNode.removeChild(el);
     }
 
@@ -3757,6 +4319,16 @@ var KanvazCards = (function() {
          as the rest of this per-card-display-preference block. */
       pdfPage:      c.pdfPage      || null,
       pdfZoom:      c.pdfZoom      || null,
+      /* v7.x — 3D model preview display preferences (embedded model
+         card, dataUrl holds the actual .glb/.gltf/.obj/.fbx bytes like
+         any other media type). Camera orbit state is deliberately NOT
+         persisted — every load resets to a framed default view, same
+         disclosed simplicity trade-off as not persisting canvas zoom
+         for annotation. */
+      modelFormat:      c.modelFormat      || null,
+      renderMode:       c.renderMode       || null,
+      bgColor:          c.bgColor          || null,
+      animationPlaying: c.animationPlaying || false,
       /* v6.4.0 */
       sharedId:     c.sharedId     || null
     };
@@ -3896,6 +4468,10 @@ var KanvazCards = (function() {
         if (c.volume === undefined) c.volume = null;
         if (!c.pdfPage) c.pdfPage = null;
         if (!c.pdfZoom) c.pdfZoom = null;
+        if (!c.modelFormat) c.modelFormat = null;
+        if (!c.renderMode)  c.renderMode  = 'normal';
+        if (!c.bgColor)     c.bgColor     = null;
+        if (c.animationPlaying === undefined) c.animationPlaying = false;
         if (c.sharedId === undefined) c.sharedId = null;
 
         cards[c.id] = c;
@@ -3958,6 +4534,7 @@ var KanvazCards = (function() {
           mediaEl.removeAttribute('src');
           mediaEl.load();
         }
+        disposeModel3D(id);
         el.parentNode.removeChild(el);
       }
     }

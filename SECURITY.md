@@ -81,6 +81,19 @@ Kanvaz is a **100% offline desktop application**. Key points:
   so no renderer/plugin script gains a new fetchable host as a side effect of
   this feature existing.
 - **All data stays local** — your `.kanvaz` files never leave your machine.
+- **3D model parsing (added 7.4.0)** — a `.glb`/`.gltf`/`.obj`/`.fbx` dropped
+  onto a board is parsed entirely in the renderer by a vendored Three.js
+  (`src/vendor/three/`, pinned at a specific version, zero native
+  dependencies) — the same trust model already accepted for pdf.js parsing
+  untrusted PDFs (7.2.0) and Chromium's own image/video/audio decoders
+  parsing untrusted media: a malicious file could in principle exploit a bug
+  in the parser itself, but there is no elevated privilege gained by doing
+  so — the renderer already has zero direct filesystem/OS access
+  (`contextIsolation: true`, `nodeIntegration: false`), so a compromised
+  parse is contained to whatever a compromised renderer could already do.
+  The `model-load` IPC handler enforces its own 150MB size cap and a strict
+  `.glb`/`.gltf`/`.obj`/`.fbx` extension allowlist before reading any bytes,
+  same pattern as `media-load`.
 
 ## Plugin System (added in 4.2.0) — trust model
 

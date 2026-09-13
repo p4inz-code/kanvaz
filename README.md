@@ -37,7 +37,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## Latest release
 
-**v7.3.0** — Annotation, upgraded toward Figma-level: ellipse, line, highlighter, and a real text-stamp tool join pen/arrow/rectangle; a custom color picker with a recent-colors row replaces the fixed-swatch-only palette; every stroke now has its own opacity. Found and fixed a real bug while adding opacity — translucent strokes used to visibly darken where a pen/highlighter path curved back over itself, since the old drawing approach re-composited the entire path on every mouse-move frame instead of just the newest segment. See [CHANGELOG.md](CHANGELOG.md) for the complete version history — every release back to v3.5, with the reasoning behind each one.
+**v7.4.0** — Real 3D model preview: drop in a `.glb`/`.gltf`/`.obj`/`.fbx` and get an actual live viewport on the card — orbit it with the mouse, switch between Normal/Wireframe/Matcap shading, play back embedded animations with a scrub bar, pick a background color. Renders on demand (idle 3D cards cost zero CPU) and fully releases its GPU resources on delete, so a board full of them stays cheap. See [CHANGELOG.md](CHANGELOG.md) for the complete version history — every release back to v3.5, with the reasoning behind each one.
 
 ---
 
@@ -61,6 +61,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 **Canvas & organization**
 - Infinite pan/zoom canvas (8%–500%), multiple boards per file
 - Image, GIF, video, and audio cards with full playback controls + a real volume slider
+- 3D model cards (`.glb`/`.gltf`/`.obj`/`.fbx`, up to 150MB) — orbit with the mouse, Normal/Wireframe/Matcap shading, animation playback with a scrub bar, background color picker
 - Note, text, color, URL, and file-reference card types — a file-reference pointing at a `.pdf` gets a real scroll/zoom preview inside the resizable card
 - Shared cards across boards — same content, no duplication, edit anywhere
 - Tag editing, live search/filter (`/`), and Smart Folders (saved searches that re-run themselves)
@@ -119,7 +120,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 7.3.0.exe` and `dist/Kanvaz 7.3.0.exe`
+Output: `dist/Kanvaz Setup 7.4.0.exe` and `dist/Kanvaz 7.4.0.exe`
 
 **macOS:**
 ```bash
@@ -189,6 +190,7 @@ Files saved by 4.0.1 and earlier (plain JSON, base64 media) still open exactly a
 - Autosave writes to a recovery file only — "Unsaved changes" in the status bar clears only on explicit Save (Ctrl+S). The recovery file is cleared on every clean close, so the "Recover unsaved board?" prompt only appears after an actual crash.
 - The base installer bundles zero plugins by design (see [SECURITY.md](SECURITY.md)'s Plugin System section) — Theme Creator, MCP Bridge, and Template Maker & Manager all install separately, the same way any third-party plugin does.
 - `registerPropertyFieldType` (custom Properties panel field types via a plugin) is still unimplemented.
+- 3D model cards embed the file (like image/video/audio) rather than pointing at it — a `.gltf` that references external `.bin`/texture files by relative path won't fully resolve (only a self-contained `.gltf` or a `.glb` is guaranteed to render everything); `.fbx` support is best-effort (the most complex, least standardized of the four formats). Camera orbit position isn't saved — every load starts from the same framed default view. Custom user-swappable textures aren't supported yet (planned as a future plugin).
 
 ---
 
@@ -196,7 +198,6 @@ Files saved by 4.0.1 and earlier (plain JSON, base64 media) still open exactly a
 
 Kanvaz keeps getting developed as an ongoing side project — no fixed deadline, driven by real feedback. The living plan lives in [docs/ROADMAP.md](docs/ROADMAP.md); the current batch in progress:
 
-- 3D model preview (`.glb`/`.gltf`, `.obj`) via Three.js
 - Select, move, and delete an individual existing annotation stroke — today "Clear annotations" is all-or-nothing
 - Font and HDRI/EXR preview support
 - General UI polish, ongoing

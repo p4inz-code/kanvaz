@@ -38,6 +38,12 @@ var RECENT_FILES_PATH = path.join(app.getPath('userData'), 'recent.json');
 var MAX_RECENT = 8;
 var LARGE_FILE_WARN_MB = 200;
 var MAX_FILE_SIZE_MB   = 500;
+/* v7.x — 3D models get their own, tighter cap than general media. A 500MB
+   glTF/OBJ/FBX is almost always an authoring mistake (unbaked textures,
+   uncompressed point clouds) and would stall the render-on-demand viewer
+   for way too long on load; 150MB comfortably covers real game/VFX assets
+   while keeping the embed-into-savefile cost sane. */
+var MAX_MODEL_SIZE_MB  = 150;
 
 /* ── MCP Bridge (4.4.0) — main-process side ──
    The only official plugin allowed to open this listener; checked by
@@ -129,6 +135,18 @@ function handleMcpBridgeConnection(socket) {
           req = JSON.parse(line);
         } catch (e) {
           socket.write(JSON.stringify({ id: null, error: 'invalid JSON: ' + e.message }) + '\n');
+          return;
+        }
+        /* Bug bounty fix: a syntactically valid JSON line whose value is
+           the literal `null` (or any non-object) passed the try/catch
+           above unharmed, then req.method/req.params below threw
+           synchronously — uncaught, since this runs inside a socket
+           'data' callback with nothing above it to catch it, crashing
+           the ENTIRE main process (every open board, not just this
+           connection) on one malformed line from whatever's connected
+           to the pipe/socket. */
+        if (!req || typeof req !== 'object' || Array.isArray(req)) {
+          socket.write(JSON.stringify({ id: null, error: 'request must be a JSON object with method/params' }) + '\n');
           return;
         }
         invokeRenderer(req.method, req.params).then(function(result) {
@@ -738,10 +756,11 @@ function registerIPC() {
     var result = dialog.showOpenDialogSync(mainWindow, {
       title: 'Relink Media',
       filters: [
-        { name: 'All Supported Media', extensions: ['jpg','jpeg','png','gif','bmp','webp','mp4','webm','mov','mkv','avi','mp3','wav','ogg','m4a'] },
+        { name: 'All Supported Media', extensions: ['jpg','jpeg','png','gif','bmp','webp','mp4','webm','mov','mkv','avi','mp3','wav','ogg','m4a','glb','gltf','obj','fbx'] },
         { name: 'Images', extensions: ['jpg','jpeg','png','gif','bmp','webp'] },
         { name: 'Video', extensions: ['mp4','webm','mov','mkv','avi'] },
-        { name: 'Audio', extensions: ['mp3','wav','ogg','m4a'] }
+        { name: 'Audio', extensions: ['mp3','wav','ogg','m4a'] },
+        { name: '3D Models', extensions: ['glb','gltf','obj','fbx'] }
       ],
       properties: ['openFile']
     });
@@ -888,6 +907,47 @@ function registerIPC() {
 
   /* ── IPC: Recent files ── */
 
+  /* v7.x — 3D model loading. Follows media-load's EMBED pattern (a
+     model3d card is self-contained like image/video/audio, not a
+     file-reference), but kept as its own handler with its own size cap
+     and extension allowlist rather than folding into media-load — same
+     reasoning as pdf-read-bytes being kept separate above: a distinct
+     card type with distinct constraints deserves a distinct, easy-to-audit
+     entry point instead of one handler accreting special cases. */
+  ipcMain.handle('model-load', function(event, filePath) {
+    return fs.promises.stat(filePath).then(function(stats) {
+      var sizeMB = stats.size / (1024 * 1024);
+
+      if (sizeMB > MAX_MODEL_SIZE_MB) {
+        return { ok: false, error: 'FILE_TOO_LARGE', sizeMB: sizeMB };
+      }
+
+      var ext = path.extname(filePath).toLowerCase().replace('.', '');
+      var allowed = ['glb', 'gltf', 'obj', 'fbx'];
+      if (allowed.indexOf(ext) === -1) {
+        return { ok: false, error: 'FILE_TYPE_INVALID', ext: ext };
+      }
+
+      return fs.promises.readFile(filePath).then(function(data) {
+        var b64 = data.toString('base64');
+        var mimeMap = {
+          glb: 'model/gltf-binary', gltf: 'model/gltf+json',
+          obj: 'text/plain', fbx: 'application/octet-stream'
+        };
+        return {
+          ok: true,
+          dataUrl: 'data:' + mimeMap[ext] + ';base64,' + b64,
+          modelFormat: ext,
+          sizeMB: sizeMB,
+          name: path.basename(filePath),
+          originalPath: filePath
+        };
+      });
+    }).catch(function(e) {
+      return { ok: false, error: e.message };
+    });
+  });
+
   ipcMain.handle('recent-get', function() {
     try {
       if (!fs.existsSync(RECENT_FILES_PATH)) return [];
@@ -978,7 +1038,7 @@ function registerIPC() {
      classic-script renderer file, not something this main-process
      module can require(). Non-recursive on purpose: "a folder of loose
      images," not an arbitrary directory tree walk. */
-  var DROP_MEDIA_EXTS = ['jpg', 'jpeg', 'png', 'bmp', 'webp', 'gif', 'mp4', 'webm', 'mov', 'mkv', 'avi', 'mp3', 'wav', 'ogg', 'm4a'];
+  var DROP_MEDIA_EXTS = ['jpg', 'jpeg', 'png', 'bmp', 'webp', 'gif', 'mp4', 'webm', 'mov', 'mkv', 'avi', 'mp3', 'wav', 'ogg', 'm4a', 'glb', 'gltf', 'obj', 'fbx'];
 
   /* Bug-bounty fix (v5.3.0): this used to be a synchronous statSync/
      readdirSync loop — one blocking syscall per top-level path, plus one

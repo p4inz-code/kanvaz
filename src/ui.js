@@ -1348,7 +1348,7 @@ var KanvazUI_Extended = (function() {
       '</div>',
       '<div class="about-title">Kanvaz</div>',
       '<div class="about-subtitle">A visual reference workspace for creative professionals.</div>',
-      '<div class="about-version">Version 7.3.0</div>',
+      '<div class="about-version">Version 7.4.0</div>',
       '<div id="about-update-status" class="about-update-status"></div>',
       '<div class="about-divider"></div>',
       '<div class="about-author">Developed by <strong>Atharva Patil</strong></div>',

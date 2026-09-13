@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
 
   /* Media */
   loadMedia:       function(p) { return ipcRenderer.invoke('media-load', p); },
+  loadModel:       function(p) { return ipcRenderer.invoke('model-load', p); },
 
   /* Recent files */
   getRecent:       function() { return ipcRenderer.invoke('recent-get'); },

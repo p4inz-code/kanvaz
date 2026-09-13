@@ -2,6 +2,29 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [7.4.0] — real 3D model preview (Kanvaz's 5th flagship feature)
+
+The centerpiece of the v7.x line: a genuinely usable 3D model viewer on the canvas, not a static thumbnail. Built to a specific brief — exact-file rendering with a shading-mode toggle now, architecture left open for a future plugin to add custom textures later, plain/functional UI since the real UI is being designed separately in Figma.
+
+### Added
+- **New `model3d` card type** — drop in a `.glb`, `.gltf`, `.obj`, or `.fbx` (150MB cap, separate from and tighter than the general 500MB media cap — a model that large is almost always an authoring mistake) and get a live, orbitable 3D viewport right on the card.
+- **Three render modes**: Normal (the file's own materials/baked textures, exactly as loaded — no reinterpretation), Wireframe, and Matcap (a procedurally-generated gradient texture in code — no shipped asset file). Switches are instant after the first toggle (materials are built lazily per-mesh and cached, not rebuilt every click).
+- **Mouse-drag orbit** via Three.js's `OrbitControls`, plus a background-color swatch and a one-click "reset view" that reframes the camera on the model's bounding box.
+- **Animation playback** — play/pause and a scrub bar (styled to match the existing video card's scrub bar), shown only when the loaded model actually has animation clips. Scrubbing while paused seeks exactly; resuming playback re-baselines the clock so the idle gap doesn't jump the clip forward.
+- **Render-on-demand, not a continuous loop**: an idle 3D card (not being orbited, no animation playing) costs zero CPU — it re-renders only on an actual camera-move event or an active animation frame. Several idle 3D cards on one board stay cheap.
+- Vendored Three.js 0.186.0 (`src/vendor/three/`, ~2.5MB — core + GLTFLoader/OBJLoader/FBXLoader/OrbitControls and their transitive deps, out of a ~0-dependency npm package) rather than the full published package.
+- New `model-load` main-process IPC handler (own size cap + extension allowlist, kept separate from `media-load` the same way `pdf-read-bytes` was kept separate in v7.2.0) and `KanvazMedia.loadModelFromPath()`. Drag-drop, folder-drop expansion, and Relink all route `.glb`/`.gltf`/`.obj`/`.fbx` through it automatically based on extension.
+- New per-card fields (`modelFormat`, `renderMode`, `bgColor`, `animationPlaying`) added to the save-format whitelist and `deserialise()`'s defaults. Camera orbit position is deliberately **not** persisted — every load starts from the same reframed default view, a disclosed simplicity trade-off.
+- **Architecture note for future work**: the card embeds the model's bytes (like image/video/audio), not a file-reference — a deliberate "reference boards should stay self-contained" decision, unlike the PDF preview's disk-reread approach. Material/texture access wasn't restricted in a way that would block a future plugin adding user-swappable custom textures — that capability just isn't built yet.
+
+### Fixed
+- **Found while vendoring, not before**: the vendored `three.module.js` (r186+ splits Three's core into `three.module.js` + `three.core.js`, the former re-exporting the latter) was copied without its `three.core.js` half — every loader/controls file that ultimately imports from `three.module.js` failed to load with a generic, misleading "Failed to fetch dynamically imported module" error (Chromium collapses a module-graph resolution failure into this message instead of surfacing the real `net::ERR_FILE_NOT_FOUND` for the missing file). Caught live via CDP, not by static review — `node --check` happily parses a file whose *import target* doesn't exist. Copied the missing 1.4MB file in; net-zero `package.json`/`package-lock.json` diff preserved via the same install-copy-uninstall vendoring discipline as every other vendored library.
+- **Found in self-review**: a 3D viewer whose Three.js setup threw partway through construction (most plausible cause: Chromium's WebGL context limit, if a board already has many live 3D cards open) had its dispose-registration as the very last line of that setup — any earlier throw meant the renderer/controls/matcap-texture already created were never released. Moved the dispose registration to right after those objects are created, and the outer error handler now calls it defensively too.
+- Single-card delete (`removeCardCore`) never fully released video/audio decoders — it called `.pause()` but not `.removeAttribute('src')` + `.load()`, the fuller release sequence `clearAll()` (board switch/undo/redo) already used. A single deleted video/audio card kept its decoder alive and, if unmuted, audible, until GC eventually caught up. Matched to `clearAll()`'s sequence.
+
+### Verified
+Live via the same Chrome DevTools Protocol technique this whole line has used since v6.6.1 — hand-built valid `.glb` (triangle mesh + a 2-second rotation animation clip) and `.obj` test fixtures, created real cards from both, confirmed the viewport renders, all three render-mode buttons switch and persist correctly, background color and reset-view work, animation play/pause toggles correctly and the scrub bar's fill % updates live frame-by-frame during playback, a full `serialise()` → `clearAll()` → `deserialise()` round trip preserves every new field and re-renders cleanly, and delete produces zero uncaught exceptions (confirming disposal doesn't throw). Zero exceptions logged across the entire test run.
+
 ## [7.3.0] — annotation, upgraded toward Figma-level
 
 The biggest item on the v7.x line's plan, minus one deliberately-deferred piece (select/move/delete an individual existing stroke — flagged from the start as its own dedicated pass since it touches the stroke data model, not just adds draw tools).

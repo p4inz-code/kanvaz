@@ -1768,6 +1768,110 @@ html, body {
   opacity: 1;
 }
 
+/* ── 3D model card (v7.x) ──
+   Deliberately plain/functional (buttons + a native color swatch, no
+   custom iconography) — the user is designing this card's real UI in
+   Figma separately and will re-skin it; this just needs to be correctly
+   wired underneath that skin. */
+.card-model3d-loading .model3d-viewport,
+.card-model3d-loading .model3d-toolbar {
+  visibility: hidden;
+}
+
+.model3d-viewport {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+}
+
+.model3d-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.model3d-toolbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: var(--color-chrome);
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 3;
+}
+
+.card:hover .model3d-toolbar {
+  opacity: 1;
+}
+
+.model3d-mode-group {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.model3d-mode-btn {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-2);
+  border-radius: 5px;
+  color: var(--color-text-2);
+  font-size: 10px;
+  padding: 3px 7px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.model3d-mode-btn.active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-accent-contrast, #fff);
+}
+
+.model3d-bg-swatch {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--color-border-2);
+  border-radius: 5px;
+  background: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.model3d-reset-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-2);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+  flex-shrink: 0;
+}
+
+.model3d-anim-scrub {
+  position: absolute;
+  bottom: 34px;
+  left: 0;
+  right: 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.card:hover .model3d-anim-scrub {
+  opacity: 1;
+}
+
 /* Onion-skin ghost (v6.x) — sits above the video itself but below the
    progress line/scrub controls; drawn at reduced alpha directly on the
    canvas (see cards.js's captureOnionGhost), not via CSS opacity, so a

@@ -302,12 +302,15 @@ var KanvazApp = (function() {
           KanvazErrors.handle('FILE_NOT_FOUND', file.name);
           return;
         }
+        var isModelFile = KanvazMedia.MODEL_EXTS.indexOf(file.path.split('.').pop().toLowerCase()) !== -1;
         KanvazMedia.loadFromFile(file, function(result, err) {
           if (err) {
             if (err === 'FILE_TOO_LARGE') {
-              KanvazUI.toast('File too large for Kanvaz (max 500MB). Use a smaller preview or proxy file.', 'error');
+              KanvazUI.toast(isModelFile
+                ? 'Model too large for Kanvaz (max 150MB). Try a decimated/compressed export.'
+                : 'File too large for Kanvaz (max 500MB). Use a smaller preview or proxy file.', 'error');
             } else if (err === 'FILE_TYPE_INVALID') {
-              KanvazUI.toast('"' + file.name + '" is not supported. Supported: JPG, PNG, GIF, BMP, WEBP, MP4, WEBM, MOV, MP3, WAV, OGG, M4A', 'error');
+              KanvazUI.toast('"' + file.name + '" is not supported. Supported: JPG, PNG, GIF, BMP, WEBP, MP4, WEBM, MOV, MP3, WAV, OGG, M4A, GLB, GLTF, OBJ, FBX', 'error');
             } else {
               KanvazUI.toast('Could not load "' + file.name + '"', 'error');
             }
