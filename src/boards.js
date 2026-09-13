@@ -1272,7 +1272,22 @@ var KanvazBoards = (function() {
        via IPC and may not have completed yet when showStartupScreen() is
        first called during init(). By the time getRecent() resolves, the
        settings IPC will have resolved too. */
-    KanvazBridge.getRecent().then(function(recent) {
+    /* Redesign v1 Phase 2: "the Start Screen... the profile switcher
+       lives here too if more than one profile exists" — fetched
+       alongside recent boards so both are available by the time the
+       screen actually renders, rather than a second IPC round-trip
+       after the fact. Multi-profile launch behavior stays "auto-load
+       last-active, no forced picker" (decided in
+       docs/PROFILES_SYSTEM_PLAN.md) — this is a lightweight indicator +
+       switch link, not a picker gating the rest of the screen. */
+    var profilesPromise = (typeof KanvazBridge !== 'undefined' && KanvazBridge.listProfiles && KanvazBridge.getActiveProfile)
+      ? Promise.all([KanvazBridge.listProfiles(), KanvazBridge.getActiveProfile()])
+      : Promise.resolve([[], null]);
+
+    Promise.all([KanvazBridge.getRecent(), profilesPromise]).then(function(results) {
+      var recent = results[0];
+      var profiles = results[1][0] || [];
+      var activeProfile = results[1][1];
       if (!recent || !recent.length) return;
 
 
@@ -1311,6 +1326,33 @@ var KanvazBoards = (function() {
       logoRow.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:20px;';
       logoRow.innerHTML = '<svg width="24" height="24" viewBox="0 0 18 18" fill="none"><rect x="2" y="6" width="12" height="9" rx="2" fill="#2A2A35"/><rect x="3" y="4" width="12" height="9" rx="2" fill="#1A1A22" stroke="#2E2E3A" stroke-width="0.5"/><rect x="4" y="2" width="12" height="9" rx="2" fill="#DCDCE8"/><circle cx="14" cy="3" r="2" fill="#4A9EFF"/></svg><span style="font-size:18px;font-weight:600;color:var(--color-text);">Kanvaz</span>';
       panel.appendChild(logoRow);
+
+      /* Profile indicator + switcher — only shown once there's an
+         actual choice to make; a single-profile household sees nothing
+         extra here, matching "no forced picker" from the plan. Opens
+         the exact same Manage Profiles dialog the account menu uses. */
+      if (profiles.length > 1 && activeProfile) {
+        var profileRow = document.createElement('div');
+        profileRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;margin-bottom:16px;background:var(--color-surface-2);border-radius:6px;font-size:11px;';
+
+        var profileLabel = document.createElement('span');
+        profileLabel.style.cssText = 'color:var(--color-text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+        profileLabel.textContent = 'Profile: ' + activeProfile.name;
+        profileRow.appendChild(profileLabel);
+
+        var switchLink = document.createElement('button');
+        switchLink.textContent = 'Switch';
+        switchLink.style.cssText = 'flex-shrink:0;background:none;border:none;color:var(--color-accent);font-family:var(--font-ui);font-size:11px;cursor:pointer;padding:0;';
+        switchLink.onclick = function() {
+          closeStartup();
+          if (typeof KanvazSidePanel !== 'undefined' && KanvazSidePanel.showManageProfilesDialog) {
+            KanvazSidePanel.showManageProfilesDialog();
+          }
+        };
+        profileRow.appendChild(switchLink);
+
+        panel.appendChild(profileRow);
+      }
 
       /* Recent files */
       var label = document.createElement('div');
@@ -1410,7 +1452,7 @@ var KanvazBoards = (function() {
         if (e.target === overlay) closeStartup();
       };
     }).catch(function(e) {
-      console.warn('[Kanvaz] getRecent IPC failed:', e);
+      console.warn('[Kanvaz] startup screen IPC failed:', e);
     });
   }
 

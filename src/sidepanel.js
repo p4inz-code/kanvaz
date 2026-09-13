@@ -631,7 +631,11 @@ var KanvazSidePanel = (function() {
     toggle:               toggle,
     isOpen:               isOpen,
     isSectionOpen:        isSectionOpen,
-    refreshPersistedState: refreshPersistedState
+    refreshPersistedState: refreshPersistedState,
+    /* Exported so the Start Screen (boards.js) can open the exact same
+       Manage Profiles dialog the account menu uses, rather than a
+       second copy of the same switch/edit/delete UI. */
+    showManageProfilesDialog: showManageProfilesDialog
   };
 
 })();
