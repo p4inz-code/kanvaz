@@ -502,6 +502,31 @@ html, body {
   cursor: grab;
 }
 
+/* Marquee (rubber-band) multi-select — V toggles this mode, or hold
+   Ctrl for a one-off drag without leaving default mode. Crosshair
+   signals "draw a box" the same way most other canvas/design tools do. */
+#canvas-container.marquee-mode {
+  cursor: crosshair;
+}
+
+#marquee-select-box {
+  position: fixed;
+  display: none;
+  box-sizing: border-box;
+  border: 1px solid var(--color-accent);
+  /* The translucent fill's exact color is set inline in canvas.js
+     (startMarquee) instead of here — --color-accent can't be given
+     partial alpha in plain CSS (it isn't stored as separate R/G/B
+     components) without color-mix(), which isn't available on this
+     app's Electron/Chromium baseline (shipped Chrome 111, this app
+     targets 108) — same class of gap as Promise.withResolvers/
+     createImageBitmap found elsewhere in this codebase. Computing the
+     rgba() in JS from the theme's actual current accent color avoids
+     hardcoding a color that would mismatch a plugin theme. */
+  pointer-events: none;
+  z-index: 15000;
+}
+
 #canvas-world {
   position: absolute;
   top: 0;

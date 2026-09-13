@@ -5032,6 +5032,7 @@ var KanvazCards = (function() {
     generateTestCards: generateTestCards,
     selectCard:        selectCard,
     selectAll:         selectAll,
+    setMultiSelection: setMultiSelection,
     deselectAll:       deselectAll,
     deleteCard:        deleteCard,
     deleteCardImmediate: deleteCardImmediate,

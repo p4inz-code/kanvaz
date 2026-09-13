@@ -2,6 +2,12 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [7.6.0] — box-select + a real Import button
+
+### Added
+- **Box-select (marquee/rubber-band multi-select)** — Ctrl+left-drag on empty canvas (or press `V` to toggle a mode where a plain left-drag does it, without needing to hold Ctrl) draws a selection box; every card it overlaps becomes the new multi-selection. This capability genuinely didn't exist before — the only way to build a multi-card selection was `Ctrl+A` (everything) or duplicating an existing multi-select; there was no way to select an arbitrary subset by dragging. `KanvazCards.setMultiSelection()` (already existed internally, used by bulk-duplicate) is now also exported publicly for this. `Esc` exits the mode, same convention as every other modal-ish state in the app. The fill color is computed at drag-start via a 1x1-canvas readback of the theme's actual `--color-accent` (a plain CSS variable can't be given partial alpha without `color-mix()`, which isn't available on this app's Electron/Chromium baseline) rather than a hardcoded color that would mismatch a plugin theme.
+- **A visible Import toolbar button** — "Import .pur file" existed only buried in the empty-canvas right-click context menu, the least discoverable place for a real, named, README-highlighted feature. Added next to Open/Save where a user would actually look for it.
+
 ## [7.5.0] — 3D preview fixes + Reference Mode removed
 
 Direct user feedback on the just-shipped 3D preview feature, acted on the same day: textures weren't loading, wireframe was broken, and orbiting inside a 3D card was dragging the whole board underneath it. All three are real bugs, all three are fixed, all found and verified live (not by static review). Reference Mode was also removed after the user reported it non-functional and unrecoverable (couldn't turn it off, escape hatch didn't work) and asked for it to be deleted rather than kept half-working.

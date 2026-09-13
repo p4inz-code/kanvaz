@@ -199,6 +199,13 @@ var KanvazCommands = (function() {
       label: 'Toggle Map View', shortcut: 'M',
       run: function() { if (typeof KanvazMapView !== 'undefined') KanvazMapView.toggle(); }
     });
+    registerCommand('core.toggleMarqueeSelect', {
+      label: 'Toggle Box-Select Mode', shortcut: 'V',
+      run: function() {
+        if (typeof KanvazCanvas === 'undefined') return;
+        KanvazCanvas.setMarqueeMode(!KanvazCanvas.isMarqueeModeOn());
+      }
+    });
     registerCommand('core.toggleTheme', {
       label: 'Toggle Theme (Dark/Light)', shortcut: 'L',
       run: function() {

@@ -37,7 +37,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## Latest release
 
-**v7.5.0** — 3D preview fixes: embedded textures actually load now (a CSP gap was silently blocking every one), wireframe/matcap no longer break on multi-material models, and orbiting/zooming inside a 3D card no longer drags or zooms the board underneath it. Reference Mode (click-through + window opacity) has been removed — it wasn't working reliably and wasn't worth the surface area to keep half-working. See [CHANGELOG.md](CHANGELOG.md) for the complete version history — every release back to v3.5, with the reasoning behind each one.
+**v7.6.0** — Box-select: Ctrl+drag (or press `V` to toggle it) draws a marquee to select multiple cards at once — the only way to multi-select before this was Ctrl+A for everything. Also added a real, visible Import button for `.pur` files (it used to be buried in a right-click menu). See [CHANGELOG.md](CHANGELOG.md) for the complete version history — every release back to v3.5, with the reasoning behind each one.
 
 ---
 
@@ -116,7 +116,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 7.5.0.exe` and `dist/Kanvaz 7.5.0.exe`
+Output: `dist/Kanvaz Setup 7.6.0.exe` and `dist/Kanvaz 7.6.0.exe`
 
 **macOS:**
 ```bash
@@ -147,6 +147,7 @@ npm run build:linux
 | Ctrl+F or / | Search/filter cards |
 | Ctrl+Z / Ctrl+Y | Undo / Redo |
 | Ctrl+A | Select all cards |
+| Ctrl+drag, or V then drag | Box-select multiple cards (V toggles the mode, Esc exits) |
 | Delete | Delete selected card |
 | Ctrl+D | Duplicate card |
 | P | Pin / unpin card |

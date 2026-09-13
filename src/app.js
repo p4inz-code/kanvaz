@@ -1374,6 +1374,9 @@ var KanvazApp = (function() {
       hideContextMenu();
       if (typeof KanvazAnnotate !== 'undefined') KanvazAnnotate.deactivate();
       if (typeof KanvazProperties !== 'undefined') KanvazProperties.close();
+      if (typeof KanvazCanvas !== 'undefined' && KanvazCanvas.isMarqueeModeOn && KanvazCanvas.isMarqueeModeOn()) {
+        KanvazCanvas.setMarqueeMode(false);
+      }
     }
 
     var chromeAutoHideOn   = false;

@@ -35,6 +35,17 @@ var KanvazCanvas = (function() {
 
   var spaceDown = false;
 
+  /* Marquee (rubber-band) multi-select — Ctrl+left-drag on empty canvas,
+     or a plain left-drag while "V" mode is toggled on (V has no other
+     meaning in Kanvaz; there's no persistent per-tool mode elsewhere in
+     the app, so this is a lightweight momentary/toggle affordance, not
+     a full tool-switching system). */
+  var marqueeModeOn = false;
+  var isMarqueeSelecting = false;
+  var marqueeStartX = 0;
+  var marqueeStartY = 0;
+  var marqueeEl = null;
+
   /* ── Init ── */
 
   function init(containerEl, worldEl, gridEl) {
@@ -336,9 +347,20 @@ var KanvazCanvas = (function() {
       setZoom(newScale, pivotX, pivotY);
     }, { passive: false });
 
-    /* Panning — middle mouse, space+drag, or left-drag on empty canvas */
+    /* Panning — middle mouse, space+drag, or left-drag on empty canvas.
+       Ctrl+left-drag (or plain left-drag while marqueeModeOn) takes
+       priority over the default left-drag-pans-canvas behavior — a
+       marquee selection box needs the same gesture pan already claims,
+       so it has to be checked and excluded first. */
     container.addEventListener('mousedown', function(e) {
       var isEmptyTarget = (e.target === container || e.target === world || e.target === gridCanvas);
+
+      if (e.button === 0 && isEmptyTarget && (e.ctrlKey || e.metaKey || marqueeModeOn)) {
+        e.preventDefault();
+        startMarquee(e.clientX, e.clientY);
+        return;
+      }
+
       var leftDragEnabled = true;
       if (typeof KanvazUI_Extended !== 'undefined') {
         var s = KanvazUI_Extended.getSettings();
@@ -362,6 +384,7 @@ var KanvazCanvas = (function() {
     });
 
     window.addEventListener('mousemove', function(e) {
+      if (isMarqueeSelecting) { updateMarquee(e.clientX, e.clientY); return; }
       if (!isPanning) return;
       var dx = e.clientX - panStartX;
       var dy = e.clientY - panStartY;
@@ -372,6 +395,7 @@ var KanvazCanvas = (function() {
     });
 
     window.addEventListener('mouseup', function(e) {
+      if (isMarqueeSelecting) { finishMarquee(e.clientX, e.clientY); return; }
       if (isPanning) {
         isPanning = false;
         container.classList.remove('grabbing');
@@ -402,6 +426,18 @@ var KanvazCanvas = (function() {
       }
     });
 
+    /* "V" toggles marquee-select mode — a plain left-drag on empty
+       canvas then draws a selection box instead of panning, without
+       needing to hold Ctrl every time. Same text-input guard every
+       other bare-letter shortcut in this app uses. Escape (handled in
+       ui.js's closeAll(), which calls setMarqueeMode(false)) also exits
+       it, same convention as every other modal-ish state in this app. */
+    window.addEventListener('keydown', function(e) {
+      if ((e.key === 'v' || e.key === 'V') && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT') {
+        setMarqueeMode(!marqueeModeOn);
+      }
+    });
+
     /* Double-click canvas to create note — opt-in via Settings (off by default) */
     container.addEventListener('dblclick', function(e) {
       if (e.target === container || e.target === world || e.target === gridCanvas) {
@@ -427,6 +463,98 @@ var KanvazCanvas = (function() {
         }
       }
     });
+  }
+
+  function setMarqueeMode(on) {
+    marqueeModeOn = !!on;
+    if (container) container.classList.toggle('marquee-mode', marqueeModeOn);
+    if (typeof KanvazUI !== 'undefined' && KanvazUI.toast) {
+      KanvazUI.toast(marqueeModeOn ? 'Selection mode on — drag to box-select (V or Esc to exit)' : 'Selection mode off');
+    }
+  }
+
+  /* Resolves whatever format --color-accent happens to be (hex/rgb/hsl/
+     named — themes and plugin themes aren't guaranteed to use any one
+     of these) into an rgba() string at a fixed low alpha, via a 1x1
+     canvas readback — the one reliable, format-agnostic way to parse an
+     arbitrary CSS color string in JS without a real color-parsing
+     library. Recomputed on every marquee start rather than cached, so a
+     theme switch is always reflected immediately — this only runs once
+     per drag, not per mousemove, so there's no real cost to not caching
+     it. */
+  function getMarqueeFillColor() {
+    var accent = getComputedStyle(document.documentElement).getPropertyValue('--color-accent').trim();
+    var c = document.createElement('canvas');
+    c.width = 1; c.height = 1;
+    var ctx = c.getContext('2d');
+    ctx.fillStyle = accent || '#7C5CFC';
+    ctx.fillRect(0, 0, 1, 1);
+    var d = ctx.getImageData(0, 0, 1, 1).data;
+    return 'rgba(' + d[0] + ',' + d[1] + ',' + d[2] + ',0.12)';
+  }
+
+  function startMarquee(clientX, clientY) {
+    isMarqueeSelecting = true;
+    marqueeStartX = clientX;
+    marqueeStartY = clientY;
+    if (!marqueeEl) {
+      marqueeEl = document.createElement('div');
+      marqueeEl.id = 'marquee-select-box';
+      document.body.appendChild(marqueeEl);
+    }
+    marqueeEl.style.left = clientX + 'px';
+    marqueeEl.style.top = clientY + 'px';
+    marqueeEl.style.width = '0px';
+    marqueeEl.style.height = '0px';
+    marqueeEl.style.background = getMarqueeFillColor();
+    marqueeEl.style.display = 'block';
+  }
+
+  /* Tracked in raw screen/client coordinates (not world) — the box is a
+     fixed-position screen overlay, so it needs to visually stay put
+     under the cursor regardless of the board's own pan/zoom; conversion
+     to world space only happens once, in finishMarquee, for the actual
+     card-intersection test. */
+  function updateMarquee(clientX, clientY) {
+    var left = Math.min(marqueeStartX, clientX);
+    var top = Math.min(marqueeStartY, clientY);
+    var w = Math.abs(clientX - marqueeStartX);
+    var h = Math.abs(clientY - marqueeStartY);
+    marqueeEl.style.left = left + 'px';
+    marqueeEl.style.top = top + 'px';
+    marqueeEl.style.width = w + 'px';
+    marqueeEl.style.height = h + 'px';
+  }
+
+  function finishMarquee(clientX, clientY) {
+    isMarqueeSelecting = false;
+    if (marqueeEl) marqueeEl.style.display = 'none';
+
+    /* A click with no real drag (box smaller than a few px) is a plain
+       click, not a selection attempt — matches the existing "click
+       empty canvas = deselect" convention below rather than selecting
+       nothing via an accidental zero-size box. */
+    if (Math.abs(clientX - marqueeStartX) < 3 && Math.abs(clientY - marqueeStartY) < 3) {
+      if (typeof KanvazCards !== 'undefined') KanvazCards.deselectAll();
+      return;
+    }
+
+    var p1 = screenToWorld(marqueeStartX, marqueeStartY);
+    var p2 = screenToWorld(clientX, clientY);
+    var boxX1 = Math.min(p1.x, p2.x);
+    var boxY1 = Math.min(p1.y, p2.y);
+    var boxX2 = Math.max(p1.x, p2.x);
+    var boxY2 = Math.max(p1.y, p2.y);
+
+    if (typeof KanvazCards === 'undefined') return;
+    var all = KanvazCards.getAll();
+    var hitIds = [];
+    for (var id in all) {
+      var c = all[id];
+      var cardIntersects = c.x < boxX2 && (c.x + c.w) > boxX1 && c.y < boxY2 && (c.y + c.h) > boxY1;
+      if (cardIntersects) hitIds.push(id);
+    }
+    KanvazCards.setMultiSelection(hitIds);
   }
 
   /* ── Coordinate conversion ── */
@@ -533,7 +661,9 @@ var KanvazCanvas = (function() {
     getScale:       function() { return scale; },
     getTx:          function() { return tx; },
     getTy:          function() { return ty; },
-    drawGrid:       drawGrid
+    drawGrid:       drawGrid,
+    setMarqueeMode: setMarqueeMode,
+    isMarqueeModeOn: function() { return marqueeModeOn; }
   };
 
 })();
