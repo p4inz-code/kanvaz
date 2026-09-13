@@ -2,6 +2,14 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [7.7.0] — Feather Icons + a real crash fix
+
+### Changed
+- **Icon set switched to [Feather Icons](https://github.com/feathericons/feather) (MIT License)** across the titlebar (save-as, minimize, maximize/restore, close), the main toolbar (New, Open, Import, Save, zoom in/out, undo/redo, Board/Map view toggle, Settings, About, Shortcuts), video/audio card controls (play, pause, mute, muted, frame-step back/forward, onion-skin), the file-reference card's Open/Change buttons, the annotation dot indicator, and the annotation toolbar (pen, highlighter, arrow, rectangle, ellipse, text — line/measure/eyedropper redrawn at the same convention since Feather has no exact equivalent for those three). Every icon uses Feather's actual path data verbatim at its native 24×24 viewBox/stroke-width-2, so they scale correctly at any rendered size instead of being hand-approximated. Play/pause keep a solid fill instead of Feather's default outline — legibility at 14px matters more than perfect consistency for exactly those two, and solid play/pause is the near-universal convention even in otherwise outline-icon apps. Feather Icons and Three.js (vendored since 7.4.0 but never listed) are now both credited in `THIRD_PARTY_NOTICES.md`.
+
+### Fixed
+- **A text annotation could throw an uncaught `NotFoundError` and surface the generic "E999: unexpected error" toast** — found live while verifying the icon changes, unrelated to them. `finishTextInput()`'s `el.parentNode` check wasn't a reliable guard against a specific timing race (a card switch or `deactivate()` detaching the input element between the check and the `removeChild()` call); wrapped the actual removal in a try/catch, since the intent — "make sure this input isn't in the DOM anymore" — holds regardless of which code path actually removed it first.
+
 ## [7.6.0] — box-select + a real Import button
 
 ### Added

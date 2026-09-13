@@ -487,15 +487,26 @@ var KanvazCards = (function() {
      (the universal media-player convention, unlike the stroke-outline
      style everything else here uses) but now share the same 16x16 grid
      and optical sizing as their neighbors. */
-  var PLAY_ICON  = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M4.5 2.8a1 1 0 0 1 1.53-.85l7.2 4.53a1.6 1.6 0 0 1 0 2.7l-7.2 4.53A1 1 0 0 1 4.5 12.7V2.8z"/></svg>';
-  var PAUSE_ICON = '<svg viewBox="0 0 16 16" fill="currentColor"><rect x="3.8" y="2.5" width="3.2" height="11" rx="1"/><rect x="9" y="2.5" width="3.2" height="11" rx="1"/></svg>';
-  var MUTE_ICON  = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5.5h2l3-3v11l-3-3H3a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1z"/><line x1="12" y1="5" x2="12" y2="11" stroke-linecap="round"/><line x1="14.5" y1="3.5" x2="14.5" y2="12.5" stroke-linecap="round"/></svg>';
-  var MUTED_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5.5h2l3-3v11l-3-3H3a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1z"/><line x1="11" y1="5.5" x2="15" y2="10.5" stroke-linecap="round"/><line x1="15" y1="5.5" x2="11" y2="10.5" stroke-linecap="round"/></svg>';
+  /* v7.x — icon set switched to Feather Icons (MIT license,
+     https://github.com/feathericons/feather) paths, verbatim, at
+     Feather's native 24x24 viewBox/stroke-width. Play/pause keep a
+     solid currentColor fill instead of Feather's default outline —
+     legible-at-14px matters more than perfect consistency for exactly
+     these two, and solid play/pause is the near-universal convention
+     (YouTube, Spotify, every OS media control) even in otherwise
+     outline-icon apps. */
+  var PLAY_ICON  = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+  var PAUSE_ICON = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
+  var MUTE_ICON  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>';
+  var MUTED_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>';
   /* v6.x — ArtDeck-inspired frame analysis tools, redrawn v7.x for the
      same 16x16 grid unification as above. */
-  var FRAME_BACK_ICON    = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M9.5 3.5L4.5 8l5 4.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="2.8" y1="2.8" x2="2.8" y2="13.2" stroke-linecap="round"/></svg>';
-  var FRAME_FORWARD_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6.5 3.5L11.5 8l-5 4.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="13.2" y1="2.8" x2="13.2" y2="13.2" stroke-linecap="round"/></svg>';
-  var ONION_SKIN_ICON     = '<svg viewBox="0 0 16 16" fill="none"><circle cx="6.2" cy="8" r="4.3" fill="currentColor" opacity="0.35"/><circle cx="9.8" cy="8" r="4.3" stroke="currentColor" stroke-width="1.4"/></svg>';
+  var FRAME_BACK_ICON    = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>';
+  var FRAME_FORWARD_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>';
+  /* No direct Feather equivalent for "onion skin" (ghost the previous
+     frame) — "layers" is the closest existing Feather icon to the same
+     underlying idea (stacked/overlaid frames). */
+  var ONION_SKIN_ICON     = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>';
   var LOOP_ICON  = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8a6 6 0 0 1 10.5-4"/><path d="M14 8a6 6 0 0 1-10.5 4"/><path d="M12 1.2v3.5H8.5"/><path d="M4 14.8v-3.5H7.5"/></svg>';
   var COPY_ICON  = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8.5" height="8.5" rx="1.5"/><path d="M10.5 5.5V3.5A1.5 1.5 0 0 0 9 2H3.5A1.5 1.5 0 0 0 2 3.5V9a1.5 1.5 0 0 0 1.5 1.5h2"/></svg>';
 
@@ -1191,7 +1202,7 @@ var KanvazCards = (function() {
      ══════════════════════════════════════════════════════════════ */
 
   var BROKEN_MEDIA_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/><line x1="4" y1="4" x2="20" y2="20" stroke="var(--color-red)"/></svg>';
-  var ANNOTATION_DOT_ICON = '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 1.5l2 2L4 10 1.5 10.5 2 8z"/></svg>';
+  var ANNOTATION_DOT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>';
 
   function removeSkeleton(el) {
     var sk = el.querySelector('.card-skeleton');
@@ -2199,7 +2210,7 @@ var KanvazCards = (function() {
   /* ── URL reference card ── */
 
   var LINK_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 9.5a3 3 0 0 0 4.24 0l2-2a3 3 0 0 0-4.24-4.24l-1 1"/><path d="M9.5 6.5a3 3 0 0 0-4.24 0l-2 2a3 3 0 0 0 4.24 4.24l1-1"/></svg>';
-  var OPEN_ICON = '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2H2v10h10V8"/><path d="M8 2h4v4"/><path d="M12 2 6.5 7.5"/></svg>';
+  var OPEN_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
   var PREVIEW_ICON = '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M1 7s2.2-4 6-4 6 4 6 4-2.2 4-6 4-6-4-6-4z"/><circle cx="7" cy="7" r="1.6"/></svg>';
 
   /* v5.0.0 — the one deliberate exception to "Kanvaz makes zero background
@@ -2350,7 +2361,7 @@ var KanvazCards = (function() {
   /* ── File reference card ── */
 
   var FOLDER_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4.5a1 1 0 0 1 1-1h3l1.5 1.5H13a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-7.5z"/></svg>';
-  var CHANGE_ICON = '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7a5 5 0 0 1 8.5-3.5M12 7a5 5 0 0 1-8.5 3.5"/><path d="M10 1v3h-3M4 13v-3h3"/></svg>';
+  var CHANGE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
 
   /* v5.0.0 — a "file" card used to always show the same flat folder icon
      regardless of what it actually pointed at. A shared document-shaped
@@ -2358,7 +2369,7 @@ var KanvazCards = (function() {
      stamped on it reads as a real per-type preview without needing a
      different SVG per format — same idea as a Finder/Explorer file icon.
      Purely local: derived from the path string only, no file read. */
-  var FILE_ICON_BASE = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1.5h5.5L12.5 4.5V14a.5.5 0 0 1-.5.5H4a.5.5 0 0 1-.5-.5V2a.5.5 0 0 1 .5-.5z"/><path d="M9.5 1.5V4.5h3"/></svg>';
+  var FILE_ICON_BASE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
   var FILE_EXT_GROUPS = {
     pdf:  ['pdf'],
     zip:  ['zip', 'rar', '7z', 'tar', 'gz'],

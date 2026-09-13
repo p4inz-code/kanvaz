@@ -626,7 +626,19 @@ var KanvazAnnotate = (function() {
 
   function finishTextInput() {
     var el = document.getElementById('annotate-text-input');
-    if (el && el.parentNode) el.parentNode.removeChild(el);
+    /* Audit fix: the el.parentNode check alone isn't a reliable guard —
+       found live, not by static review. removeChild() can still throw
+       "node is no longer a child of this node" even right after
+       confirming el.parentNode is truthy, if something else (a card
+       switch mid-edit, deactivate() tearing down the whole overlay)
+       already detached this exact element between the check and the
+       call. The intent here is just "make sure this input isn't in the
+       DOM anymore" — that's equally true whether removeChild succeeds
+       or was already redundant, so swallow the race instead of letting
+       it surface as an uncaught-exception toast. */
+    if (el && el.parentNode) {
+      try { el.parentNode.removeChild(el); } catch (e) { /* already detached by something else */ }
+    }
     textInputEl = null;
   }
 
@@ -921,16 +933,24 @@ var KanvazAnnotate = (function() {
     ].join(';');
 
     /* Tool buttons */
+    /* v7.x — icon set switched to Feather Icons (MIT license,
+       https://github.com/feathericons/feather) paths, verbatim, at
+       Feather's native 24x24 viewBox/stroke-width, for every tool that
+       has a real Feather equivalent (pen/arrow/rect/ellipse/text).
+       Highlighter/line/measure/eyedropper have no Feather icon to draw
+       from — kept as custom shapes but redrawn at the same 24-viewBox/
+       stroke-width-2 convention so the whole toolbar reads as one
+       consistent icon set rather than two different visual weights. */
     var tools = [
-      { id: 'pen',   title: 'Pen',       icon: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 12l1-3.5L9.5 2 12 4.5 5.5 11 2 12z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M8 3.5L10.5 6" stroke="currentColor" stroke-width="1.3"/></svg>' },
-      { id: 'highlighter', title: 'Highlighter', icon: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4 9.5L9.5 4l2 2L6 11.5H4v-2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M3 12h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>' },
-      { id: 'line',  title: 'Line',      icon: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><line x1="2.5" y1="11.5" x2="11.5" y2="2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>' },
-      { id: 'arrow', title: 'Arrow',     icon: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 11.5L11.5 2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M6 2.5h5.5v5.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
-      { id: 'rect',  title: 'Rectangle', icon: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="2" y="3.5" width="10" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/></svg>' },
-      { id: 'ellipse', title: 'Ellipse', icon: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><ellipse cx="7" cy="7" rx="5" ry="3.5" stroke="currentColor" stroke-width="1.3"/></svg>' },
-      { id: 'text',  title: 'Text',      icon: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3h8M7 3v8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>' },
-      { id: 'measure', title: 'Measure (pixel distance)', icon: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 10L10 2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M2 10l1.5-1.5M4.5 7.5L6 6M7 5l1.5-1.5M9.5 2.5L11 4" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>' },
-      { id: 'eyedropper', title: 'Eyedropper (sample a color)', icon: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9.5 2.5l2 2-6 6-2.5.5.5-2.5 6-6z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M8 4l2 2" stroke="currentColor" stroke-width="1.3"/></svg>' }
+      { id: 'pen',   title: 'Pen',       icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>' },
+      { id: 'highlighter', title: 'Highlighter', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>' },
+      { id: 'line',  title: 'Line',      icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="20" x2="20" y2="4"/></svg>' },
+      { id: 'arrow', title: 'Arrow',     icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>' },
+      { id: 'rect',  title: 'Rectangle', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" ry="2"/></svg>' },
+      { id: 'ellipse', title: 'Ellipse', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="9" ry="6"/></svg>' },
+      { id: 'text',  title: 'Text',      icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>' },
+      { id: 'measure', title: 'Measure (pixel distance)', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="21" x2="21" y2="3"/><path d="M3 21l3-3M8 16l3-3M13 11l3-3M18 6l3-3" stroke-width="1.6"/></svg>' },
+      { id: 'eyedropper', title: 'Eyedropper (sample a color)', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5l4 4-10.5 10.5-4.5 1 1-4.5L16.5 3.5z"/><line x1="13.5" y1="6.5" x2="17.5" y2="10.5"/></svg>' }
     ];
 
     for (var i = 0; i < tools.length; i++) {

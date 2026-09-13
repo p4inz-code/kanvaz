@@ -37,7 +37,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## Latest release
 
-**v7.6.0** — Box-select: Ctrl+drag (or press `V` to toggle it) draws a marquee to select multiple cards at once — the only way to multi-select before this was Ctrl+A for everything. Also added a real, visible Import button for `.pur` files (it used to be buried in a right-click menu). See [CHANGELOG.md](CHANGELOG.md) for the complete version history — every release back to v3.5, with the reasoning behind each one.
+**v7.7.0** — Icon set switched to [Feather Icons](https://github.com/feathericons/feather) (MIT) across the titlebar, toolbar, media controls, and annotation tools — a consistent, professional stroke-based look in place of the original hand-drawn set. Also fixed a real crash: closing a text annotation could throw an uncaught error under a specific timing race. See [CHANGELOG.md](CHANGELOG.md) for the complete version history — every release back to v3.5, with the reasoning behind each one.
 
 ---
 
@@ -116,7 +116,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 7.6.0.exe` and `dist/Kanvaz 7.6.0.exe`
+Output: `dist/Kanvaz Setup 7.7.0.exe` and `dist/Kanvaz 7.7.0.exe`
 
 **macOS:**
 ```bash
