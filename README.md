@@ -65,7 +65,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 - Shared cards across boards — same content, no duplication, edit anywhere
 - Tag editing, live search/filter (`/`), and Smart Folders (saved searches that re-run themselves)
 - Color search — click a swatch, find every card that matches
-- `.pur` file import — drag-drop a PureRef board with position/scale preserved
+- `.pur` file import — a toolbar Import button, or drag-drop, either preserves position/scale
 - Undo/redo up to 50 steps, autosave crash recovery, crash-safe atomic save
 - Always-on-top by default (toggleable in Settings)
 

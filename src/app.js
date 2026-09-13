@@ -159,6 +159,13 @@ var KanvazApp = (function() {
     /* Toolbar */
     on('btn-new',       function() { KanvazBoards.newBoard(); });
     on('btn-open',      function() { KanvazBoards.openBoard(); });
+    /* Audit fix: "Import .pur file" existed only buried in the empty-
+       canvas right-click context menu — the single least discoverable
+       place in the whole app for a real, named feature (PureRef import
+       is one of the headline items in this app's own README). A plain
+       toolbar button next to Open/Save is the obvious, expected home
+       for it. */
+    on('btn-import',    function() { KanvazUI.importPurFile(); });
     on('btn-save',      function() { KanvazBoards.saveBoard(); });
     on('btn-zoom-in',   function() { KanvazCanvas.zoomIn(); });
     on('btn-zoom-out',  function() { KanvazCanvas.zoomOut(); });
