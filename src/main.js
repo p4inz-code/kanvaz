@@ -6,7 +6,6 @@ var BrowserWindow = electron.BrowserWindow;
 var ipcMain = electron.ipcMain;
 var dialog = electron.dialog;
 var shell = electron.shell;
-var globalShortcut = electron.globalShortcut;
 var path = require('path');
 var fs = require('fs');
 var net = require('net');
@@ -438,11 +437,6 @@ if (!gotLock) {
      be a genuinely confusing state for the next launch to find. */
   app.on('before-quit', function() {
     stopMcpBridgeServer();
-    /* Same reasoning as the pipe/socket cleanup above — a global hotkey
-       (see window-set-click-through) left registered past the app's own
-       lifetime would silently do nothing useful and just occupy a key
-       combo system-wide until the OS itself reclaims it. */
-    globalShortcut.unregisterAll();
     if (smartSearchWorker) { smartSearchWorker.terminate(); smartSearchWorker = null; }
   });
 
@@ -611,61 +605,6 @@ function registerIPC() {
 
   ipcMain.on('window-set-always-on-top', function(event, flag) {
     if (mainWindow) mainWindow.setAlwaysOnTop(flag);
-  });
-
-  /* ── v6.0.0 — Reference Mode: click-through + opacity ──
-     Always-on-top on its own just blocks whatever's underneath it —
-     PureRef's actual signature move is pairing that with click-through
-     (mouse events pass to the app below) and reduced opacity, so you can
-     trace or color-match directly through the reference window without
-     ever switching focus. Now that always-on-top is the default (see
-     ui.js's SETTINGS_DEFAULTS), this is the feature that makes leaving
-     it on actually useful instead of just being in the way. */
-  var clickThroughGlobalShortcut = 'CommandOrControl+Shift+T';
-
-  ipcMain.on('window-set-click-through', function(event, flag) {
-    if (!mainWindow) return;
-    /* forward:true still delivers mousemove (for hover-based UI elsewhere
-       in the app) even though clicks pass through to the window below —
-       without it, Chromium drops all mouse events, not just clicks. */
-    mainWindow.setIgnoreMouseEvents(!!flag, { forward: true });
-    if (flag) {
-      /* Registered ONLY while active, and unregistered the moment it's
-         off — this is a real system-wide hotkey while it exists, and
-         permanently reserving it even when the feature isn't in use
-         would be a bad citizen move (could collide with the OS or
-         another app's own shortcut for no benefit). This is also the
-         reliable way out: once clicks pass through, Kanvaz's own
-         window very likely no longer has OS focus (the click landed on
-         whatever's underneath instead), so an ordinary in-page keydown
-         listener can't be trusted to still fire. */
-      var registered = globalShortcut.register(clickThroughGlobalShortcut, function() {
-        if (mainWindow) mainWindow.webContents.send('click-through-escape-hatch');
-      });
-      /* v6.6.2 — globalShortcut.register() returns false, silently, if
-         another running application already owns this exact accelerator
-         system-wide. Click-through's only two ways out are this hotkey
-         and the in-page Escape handler (itself broken by a real bug
-         until v6.6.1/6.6.2 — see CHANGELOG); if THIS registration also
-         silently failed, a user could genuinely have no mouse- or
-         keyboard-reachable way to turn click-through back off short of
-         force-quitting the process. Telling the renderer immediately
-         (before the user ever needs the hotkey and discovers it's dead)
-         is far better than a silent no-op here. */
-      if (!registered && mainWindow) {
-        mainWindow.webContents.send('click-through-hotkey-unavailable');
-      }
-    } else {
-      globalShortcut.unregister(clickThroughGlobalShortcut);
-    }
-  });
-
-  ipcMain.on('window-set-opacity', function(event, value) {
-    if (!mainWindow) return;
-    var v = typeof value === 'number' ? value : 1;
-    if (v < 0.2) v = 0.2; /* floor — fully invisible-and-stuck-on-top with no way to see it exists is a real trap */
-    if (v > 1) v = 1;
-    mainWindow.setOpacity(v);
   });
 
   /* BUG 6 fix: renderer calls this after save/open with the display

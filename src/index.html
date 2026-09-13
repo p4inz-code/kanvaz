@@ -20,8 +20,21 @@
        as the rest of the app. See SECURITY.md and the comment above the
        plugin IPC handlers in main.js for the actual trust boundary. -->
 
+  <!-- connect-src gained "blob:" in 7.4.x — found live, not by static
+       review: Three.js's GLTFLoader prefers ImageBitmapLoader for
+       embedded texture images (createImageBitmap is supported here), and
+       ImageBitmapLoader's load() path is fetch()-based, not a plain
+       <img src>. It creates a blob: URL for each embedded texture and
+       fetch()'s it — a fetch of ANY scheme, including blob:, is governed
+       by connect-src, not img-src (img-src only gates direct <img>/CSS
+       url() loads). Without "blob:" here, every embedded GLB/glTF
+       texture silently failed to decode — Normal mode rendered
+       untextured and Matcap's own `map` passthrough had nothing to show
+       either, while the network-security intent (offline-only) is
+       untouched: a blob: URL is a same-process, locally-generated
+       object reference, never real network egress. -->
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; script-src 'self' file:; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://api.github.com; object-src 'none'; base-uri 'self';">
+    content="default-src 'self'; script-src 'self' file:; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://api.github.com blob:; object-src 'none'; base-uri 'self';">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kanvaz</title>
   <link rel="stylesheet" href="main.css">
@@ -52,16 +65,6 @@
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
           <path d="M7 1v8M4 4l3-3 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           <path d="M2 9v2.5A1.5 1.5 0 003.5 13h7A1.5 1.5 0 0012 11.5V9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
-      <!-- v6.0.0: replaces the old Always-on-Top toggle button — that's
-           on by default now (Settings → Reference Mode), so this slot
-           and the T key go to the thing that actually needs a fast
-           toggle: click-through + opacity ("Reference Mode" popover). -->
-      <button class="titlebar-btn" id="btn-reference-mode" title="Reference Mode: click-through + opacity (T)">
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.5"/>
-          <circle cx="7" cy="7" r="2" fill="currentColor"/>
         </svg>
       </button>
       <button class="titlebar-btn" id="btn-minimize" title="Minimize">

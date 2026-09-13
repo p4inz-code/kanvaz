@@ -70,7 +70,7 @@ client. Not needed on Windows — named pipes don't depend on that at all.
 
 ## Tools
 
-34 tools, covering nearly the whole app — everything except plugin
+32 tools, covering nearly the whole app — everything except plugin
 management (install/enable/disable/remove a plugin), which stays UI-only on
 purpose (see "Scope" below).
 
@@ -116,13 +116,6 @@ again with `confirm:true` to actually delete it.
 | `undo` / `redo` | Undo/redo the last change |
 | `zoomIn` / `zoomOut` / `zoomReset` / `zoomFit` | Canvas zoom |
 | `toggleMapView` | Switches between Board view and Map view |
-
-**Reference Mode** — PureRef's own signature move: click-through + adjustable window opacity.
-
-| Tool | Does |
-|---|---|
-| `setClickThrough` | Turns click-through on/off (idempotent — pass the state you want) |
-| `setWindowOpacity` | Sets window opacity, 0.2–1.0 (persists across restarts) |
 
 **Settings** — everything Settings covers except plugin management.
 

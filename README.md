@@ -18,7 +18,7 @@
 
 Stop tabbing between fifty browser windows and a messy Explore folder. Kanvaz is a free, open-source, **100% offline** infinite canvas built for VFX artists, 3D artists, and anyone whose real workflow is "collect references, connect ideas, and actually find them again later."
 
-Drop in images, video, audio, PureRef boards, and files. Trace or color-match *through* the window with real click-through Reference Mode. Wire references together with typed connections. Share the same card across boards with zero duplication. Extend it with plugins — or write your own and sell it.
+Drop in images, video, audio, 3D models, PureRef boards, and files. Wire references together with typed connections. Share the same card across boards with zero duplication. Extend it with plugins — or write your own and sell it.
 
 No account. No cloud. No subscription. Just a canvas that's actually yours.
 
@@ -37,7 +37,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## Latest release
 
-**v7.4.0** — Real 3D model preview: drop in a `.glb`/`.gltf`/`.obj`/`.fbx` and get an actual live viewport on the card — orbit it with the mouse, switch between Normal/Wireframe/Matcap shading, play back embedded animations with a scrub bar, pick a background color. Renders on demand (idle 3D cards cost zero CPU) and fully releases its GPU resources on delete, so a board full of them stays cheap. See [CHANGELOG.md](CHANGELOG.md) for the complete version history — every release back to v3.5, with the reasoning behind each one.
+**v7.5.0** — 3D preview fixes: embedded textures actually load now (a CSP gap was silently blocking every one), wireframe/matcap no longer break on multi-material models, and orbiting/zooming inside a 3D card no longer drags or zooms the board underneath it. Reference Mode (click-through + window opacity) has been removed — it wasn't working reliably and wasn't worth the surface area to keep half-working. See [CHANGELOG.md](CHANGELOG.md) for the complete version history — every release back to v3.5, with the reasoning behind each one.
 
 ---
 
@@ -45,8 +45,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 | | |
 |---|---|
-| 🖼️ **One canvas for everything** | Images, GIFs, video, audio, notes, colors, URLs, and file pointers — drop it in, arrange it freely, annotate on top. Multiple boards per file, each with its own view state. |
-| 👻 **Reference Mode** | Click-through + adjustable window opacity, paired with always-on-top by default. Trace or color-match *straight through* the Kanvaz window into Photoshop, ZBrush, or wherever else — no alt-tabbing. |
+| 🖼️ **One canvas for everything** | Images, GIFs, video, audio, 3D models, notes, colors, URLs, and file pointers — drop it in, arrange it freely, annotate on top. Multiple boards per file, each with its own view state. |
 | 🔗 **Shared cards across boards** | The same card can live on more than one board with zero duplication. Edit it on either one — the change is there next time you open the other. |
 | 🧠 **Smart Search** | On-device, lemmatized/fuzzy search ("cars" finds "car"). Fully offline, off by default, ~4.5MB, zero native dependencies. |
 | ✏️ **Real annotation tools** | Pen, arrow, rectangle, pixel-measure, and an eyedropper that samples actual pixel color — right on top of your reference. |
@@ -68,10 +67,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 - Color search — click a swatch, find every card that matches
 - `.pur` file import — drag-drop a PureRef board with position/scale preserved
 - Undo/redo up to 50 steps, autosave crash recovery, crash-safe atomic save
-
-**Reference Mode (PureRef's signature move, and then some)**
-- Click-through + adjustable opacity, always-on-top by default
-- Global `Ctrl+Shift+T` escape hatch — works even when focus has moved elsewhere
+- Always-on-top by default (toggleable in Settings)
 
 **Annotation**
 - Pen, highlighter, line, arrow, rectangle, ellipse, text stamp, pixel-measure, and eyedropper (real pixel sampling)
@@ -120,7 +116,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 7.4.0.exe` and `dist/Kanvaz 7.4.0.exe`
+Output: `dist/Kanvaz Setup 7.5.0.exe` and `dist/Kanvaz 7.5.0.exe`
 
 **macOS:**
 ```bash
@@ -143,8 +139,6 @@ npm run build:linux
 | Middle mouse / Space+drag | Pan |
 | 0 | Reset zoom |
 | F | Fit all cards |
-| T | Reference Mode — click-through toggle |
-| Ctrl+Shift+T | Exit click-through (works from anywhere, even without focus) |
 | Ctrl+K | Command Palette — fuzzy-search any shortcut or plugin command |
 | L | Toggle light / dark theme |
 | Ctrl+S | Save board |
@@ -167,7 +161,7 @@ npm run build:linux
 | S | Settings (toggle open/close) |
 | I | About (toggle open/close) |
 | ? | Shortcuts overlay (toggle open/close) |
-| Esc | Deselect / close panels / cancel wire / exit click-through |
+| Esc | Deselect / close panels / cancel wire |
 
 ---
 

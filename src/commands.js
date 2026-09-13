@@ -199,10 +199,6 @@ var KanvazCommands = (function() {
       label: 'Toggle Map View', shortcut: 'M',
       run: function() { if (typeof KanvazMapView !== 'undefined') KanvazMapView.toggle(); }
     });
-    registerCommand('core.toggleClickThrough', {
-      label: 'Toggle Click-through (Reference Mode)', shortcut: 'T',
-      run: function() { if (typeof KanvazApp !== 'undefined') KanvazApp.toggleClickThrough(); }
-    });
     registerCommand('core.toggleTheme', {
       label: 'Toggle Theme (Dark/Light)', shortcut: 'L',
       run: function() {

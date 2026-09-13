@@ -1385,7 +1385,7 @@ var KanvazMapView = (function() {
   function renderLines(isFirstOpen) {
     if (!svg) return;
 
-    var oldLines = svg.querySelectorAll('.conn-line, .conn-label, .conn-glow');
+    var oldLines = svg.querySelectorAll('.conn-line, .conn-label, .conn-glow, .conn-dot');
     for (var i = 0; i < oldLines.length; i++) svg.removeChild(oldLines[i]);
 
     if (typeof KanvazConnections === 'undefined') return;
@@ -1422,6 +1422,7 @@ var KanvazMapView = (function() {
       glow.setAttribute('fill', 'none');
       glow.setAttribute('stroke-linecap', 'round');
       glow.dataset.connId = conn.id;
+      glow.dataset.baseStrokeOpacity = '0.07';
       svg.appendChild(glow);
 
       /* Inner shadow for depth */
@@ -1434,6 +1435,7 @@ var KanvazMapView = (function() {
       shadow.setAttribute('fill', 'none');
       shadow.setAttribute('stroke-linecap', 'round');
       shadow.dataset.connId = conn.id;
+      shadow.dataset.baseStrokeOpacity = '0.25';
       svg.appendChild(shadow);
 
       /* Main tube — solid, rounded, no arrowhead */
@@ -1446,28 +1448,41 @@ var KanvazMapView = (function() {
       line.setAttribute('fill', 'none');
       line.setAttribute('stroke-linecap', 'round');
       line.dataset.connId = conn.id;
+      line.dataset.baseStrokeOpacity = '0.75';
+      line.dataset.baseStrokeWidth = '3';
       svg.appendChild(line);
 
-      /* Dot terminator at output port (source ball) */
+      /* Dot terminator at output port (source ball).
+         Audit fix: this used to share the 'conn-glow' class with glow/
+         shadow above — highlightConnections()/unhighlightConnections()
+         both select '.conn-glow' and set `stroke-opacity` on the match,
+         which is a total no-op on a circle styled purely with `fill`/
+         `fill-opacity` and no `stroke` at all. Hovering a node to
+         highlight its connections left every OTHER connection's dots
+         fully opaque while its tube/halo correctly dimmed. Own
+         'conn-dot' class + fill-opacity-based highlight/unhighlight
+         fixes that. */
       var dotOut = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      dotOut.setAttribute('class', 'conn-glow');
+      dotOut.setAttribute('class', 'conn-dot');
       dotOut.setAttribute('cx', op.x);
       dotOut.setAttribute('cy', op.y);
       dotOut.setAttribute('r', '4');
       dotOut.setAttribute('fill', color);
       dotOut.setAttribute('fill-opacity', '0.85');
       dotOut.dataset.connId = conn.id;
+      dotOut.dataset.baseFillOpacity = '0.85';
       svg.appendChild(dotOut);
 
       /* Dot terminator at input port (destination ball) */
       var dotIn = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      dotIn.setAttribute('class', 'conn-glow');
+      dotIn.setAttribute('class', 'conn-dot');
       dotIn.setAttribute('cx', ip.x);
       dotIn.setAttribute('cy', ip.y);
       dotIn.setAttribute('r', '4');
       dotIn.setAttribute('fill', color);
       dotIn.setAttribute('fill-opacity', '0.9');
       dotIn.dataset.connId = conn.id;
+      dotIn.dataset.baseFillOpacity = '0.9';
       svg.appendChild(dotIn);
 
       /* Label at bezier midpoint */
@@ -1483,6 +1498,7 @@ var KanvazMapView = (function() {
       label.setAttribute('font-family', 'var(--font-ui)');
       label.setAttribute('font-weight', '500');
       label.setAttribute('opacity', '0.65');
+      label.dataset.baseOpacity = '0.65';
       var devIds = false;
       if (typeof KanvazUI_Extended !== 'undefined') {
         var devS = KanvazUI_Extended.getSettings();
@@ -1533,26 +1549,50 @@ var KanvazMapView = (function() {
     for (var g = 0; g < glows.length; g++) {
       glows[g].setAttribute('stroke-opacity', ids[glows[g].dataset.connId] ? '0.18' : '0.02');
     }
+    /* Audit fix: dot terminators (source/destination balls) are filled
+       circles with no `stroke` at all — they used to share the
+       '.conn-glow' selector above and get a no-op stroke-opacity set,
+       so every unrelated connection's endpoint dots stayed fully
+       visible while its tube/halo correctly dimmed. Own '.conn-dot'
+       class + fill-opacity fixes that. */
+    var dots = svg.querySelectorAll('.conn-dot');
+    for (var d = 0; d < dots.length; d++) {
+      dots[d].setAttribute('fill-opacity', ids[dots[d].dataset.connId] ? dots[d].dataset.baseFillOpacity : '0.05');
+    }
     var labels = svg.querySelectorAll('.conn-label');
     for (var k = 0; k < labels.length; k++) {
       labels[k].setAttribute('opacity', '0.15');
     }
   }
 
+  /* Audit fix: this used to reset every element to one hardcoded set of
+     "baseline" values that didn't actually match what renderLines()
+     draws (e.g. shadow's real baseline stroke-opacity is 0.25, but this
+     reset it to 0.08 — the same value used for glow, which is a
+     DIFFERENT element with a different baseline). The result: hovering
+     any node even once permanently dimmed/thinned every connection
+     relative to how it was just rendered, until the next full
+     renderLines() call. Restoring from each element's own
+     dataset.base* — stamped at creation time in renderLines() — instead
+     of a second, drifted copy of the same magic numbers. */
   function unhighlightConnections() {
     if (!svg) return;
     var lines = svg.querySelectorAll('.conn-line');
     for (var j = 0; j < lines.length; j++) {
-      lines[j].setAttribute('stroke-opacity', '0.55');
-      lines[j].setAttribute('stroke-width', '2.5');
+      lines[j].setAttribute('stroke-opacity', lines[j].dataset.baseStrokeOpacity);
+      lines[j].setAttribute('stroke-width', lines[j].dataset.baseStrokeWidth);
     }
     var glows = svg.querySelectorAll('.conn-glow');
     for (var g = 0; g < glows.length; g++) {
-      glows[g].setAttribute('stroke-opacity', '0.08');
+      glows[g].setAttribute('stroke-opacity', glows[g].dataset.baseStrokeOpacity);
+    }
+    var dots = svg.querySelectorAll('.conn-dot');
+    for (var d = 0; d < dots.length; d++) {
+      dots[d].setAttribute('fill-opacity', dots[d].dataset.baseFillOpacity);
     }
     var labels = svg.querySelectorAll('.conn-label');
     for (var k = 0; k < labels.length; k++) {
-      labels[k].setAttribute('opacity', '0.6');
+      labels[k].setAttribute('opacity', labels[k].dataset.baseOpacity);
     }
   }
 

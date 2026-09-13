@@ -143,7 +143,7 @@ var KanvazUI_Extended = (function() {
   var settingsOpen = false;
   var currentPluginsListEl = null;
 
-  var SETTINGS_VERSION = 3;
+  var SETTINGS_VERSION = 4;
 
   var SETTINGS_DEFAULTS = {
     _version:         SETTINGS_VERSION,
@@ -156,13 +156,10 @@ var KanvazUI_Extended = (function() {
     confirmDelete:    false,
     defaultCardW:     600,
     animationsOn:     true,
-    /* v6.3.0: default flipped to true — always-on-top plus the new
-       click-through/opacity controls (Reference Mode) is the actual
-       point of Pillar 2, PureRef's own core reason to exist. See the
-       v2->v3 settings migration below for why existing users' saved
-       settings get this too, not just fresh installs. */
+    /* v6.3.0: default flipped to true — see the v2->v3 settings
+       migration below for why existing users' saved settings get this
+       too, not just fresh installs. */
     alwaysOnTop:      true,
-    windowOpacity:    1,
     smartFolders:     [],
     /* v6.3.0 — Smart Search: lemmatized/fuzzy text matching (wink-nlp,
        pure JS, on-device, no data leaves the machine). Defaults OFF —
@@ -204,7 +201,13 @@ var KanvazUI_Extended = (function() {
          Command-Palette-entry away from turning back off. */
       delete s.topModeAutoOnTop;
       s.alwaysOnTop = true;
-      if (s.windowOpacity === undefined) s.windowOpacity = 1;
+      return s;
+    }},
+    { from: 3, to: 4, migrate: function(s) {
+      /* v3→v4: Reference Mode (click-through + window opacity) removed
+         entirely — same "drop the dead key, don't leave it sitting in
+         settings.json forever" reasoning as topModeAutoOnTop above. */
+      delete s.windowOpacity;
       return s;
     }}
   ];
@@ -306,12 +309,6 @@ var KanvazUI_Extended = (function() {
       KanvazApp.syncAlwaysOnTop(!!settings.alwaysOnTop);
     } else if (typeof KanvazBridge !== 'undefined' && KanvazBridge.setAlwaysOnTop) {
       KanvazBridge.setAlwaysOnTop(!!settings.alwaysOnTop);
-    }
-
-    /* Window opacity (v6.3.0) — persisted, unlike click-through which
-       always starts fresh (see app.js's Reference Mode section). */
-    if (typeof KanvazBridge !== 'undefined' && KanvazBridge.setWindowOpacity) {
-      KanvazBridge.setWindowOpacity(settings.windowOpacity !== undefined ? settings.windowOpacity : 1);
     }
 
     /* Smart Search (v6.3.0) - spawns/kills the actual worker process in
@@ -537,7 +534,7 @@ var KanvazUI_Extended = (function() {
       { key: 'doubleClickCreatesNote', label: 'Double-click canvas creates note', type: 'toggle' },
       { key: 'gridSnapEnabled', label: 'Snap to grid (move & resize)', type: 'toggle' },
       { key: 'gridSnapIncrement', label: 'Snap increment', type: 'select', options: [['minor','Minor (24px)'],['major','Major (120px)']] },
-      { section: 'Reference Mode' },
+      { section: 'Window' },
       { key: 'alwaysOnTop',     label: 'Always on top (default: on)', type: 'toggle' },
       { section: 'Smart Search' },
       { key: 'smartSearchEnabled', label: 'Smart Search (on-device NLP, off by default)', type: 'toggle' },
@@ -1348,7 +1345,7 @@ var KanvazUI_Extended = (function() {
       '</div>',
       '<div class="about-title">Kanvaz</div>',
       '<div class="about-subtitle">A visual reference workspace for creative professionals.</div>',
-      '<div class="about-version">Version 7.4.0</div>',
+      '<div class="about-version">Version 7.5.0</div>',
       '<div id="about-update-status" class="about-update-status"></div>',
       '<div class="about-divider"></div>',
       '<div class="about-author">Developed by <strong>Atharva Patil</strong></div>',
@@ -1356,7 +1353,7 @@ var KanvazUI_Extended = (function() {
       '<div class="about-desc">Built for VFX and 3D artists,<br>and the studios and educators who rely on them.</div>',
       '<div class="about-divider"></div>',
       '<div class="about-privacy">Free and open source. MIT License.<br>No telemetry, no background network activity.<br>Your data stays on your machine.</div>',
-      '<div class="about-tagline">Reference Operating System<br>Actively maintained — v7.4.0</div>'
+      '<div class="about-tagline">Reference Operating System<br>Actively maintained — v7.5.0</div>'
     ].join('');
 
     var updateBtn = document.createElement('button');
@@ -1489,8 +1486,6 @@ var KanvazUI_Extended = (function() {
         items: [
           ['M',           'Board \u2194 Map view'],
           ['L',           'Light \u2194 Dark theme'],
-          ['T',           'Click-through (Reference Mode)'],
-          ['Ctrl+Shift+T','Exit click-through (works from any app)'],
           ['S',           'Settings'],
           ['I',           'About'],
           ['?',           'This screen'],

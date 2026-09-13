@@ -2817,6 +2817,20 @@ var KanvazCards = (function() {
     return tex;
   }
 
+  /* A mesh's .material is a single Material object UNLESS it has more
+     than one geometry group (multiple material "slots" — a very common
+     real-world case: most multi-part glTF/FBX exports use this), in
+     which case Three.js gives it an ARRAY of materials instead. Every
+     piece of code below that touches node.material needs to treat both
+     shapes uniformly rather than assuming a single object — an array
+     has no .clone()/.dispose()/.map property of its own, so code written
+     only for the single-material case silently breaks (throws, caught
+     by a try/catch further up, aborting mid-operation) the moment it
+     meets a multi-material mesh. */
+  function model3dAsMaterialArray(matOrArray) {
+    return Array.isArray(matOrArray) ? matOrArray : [matOrArray];
+  }
+
   function model3dDisposeMaterial(mat) {
     if (!mat) return;
     var mapSlots = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap',
@@ -2839,13 +2853,18 @@ var KanvazCards = (function() {
     root.traverse(function(node) {
       if (node.geometry) node.geometry.dispose();
       var mats = [];
-      if (node.material) mats.push(node.material);
-      if (node.userData) {
-        if (node.userData.kanvazOrigMaterial && mats.indexOf(node.userData.kanvazOrigMaterial) === -1) {
-          mats.push(node.userData.kanvazOrigMaterial);
+      function addMats(m) {
+        if (!m) return;
+        var arr = model3dAsMaterialArray(m);
+        for (var i = 0; i < arr.length; i++) {
+          if (mats.indexOf(arr[i]) === -1) mats.push(arr[i]);
         }
-        if (node.userData.kanvazWireframeMat) mats.push(node.userData.kanvazWireframeMat);
-        if (node.userData.kanvazMatcapMat)    mats.push(node.userData.kanvazMatcapMat);
+      }
+      addMats(node.material);
+      if (node.userData) {
+        addMats(node.userData.kanvazOrigMaterial);
+        addMats(node.userData.kanvazWireframeMat);
+        addMats(node.userData.kanvazMatcapMat);
       }
       for (var i = 0; i < mats.length; i++) model3dDisposeMaterial(mats[i]);
     });
@@ -2862,19 +2881,38 @@ var KanvazCards = (function() {
       if (!node.isMesh) return;
       if (!node.userData.kanvazOrigMaterial) node.userData.kanvazOrigMaterial = node.material;
 
+      /* Bug fix: a mesh with more than one material slot (multiple
+         geometry groups — routine in real-world multi-part exports, not
+         an edge case) has node.material as an ARRAY, not a single
+         Material. The old code called .clone()/read .map directly on
+         whatever node.material was, which threw on an array (no such
+         methods) — silently aborting this traverse callback for that
+         mesh, so wireframe/matcap never took effect on it (and, since
+         .traverse()'s callback errors aren't caught per-node, could stop
+         the WHOLE walk partway through the scene depending on traversal
+         order). Building the wireframe/matcap replacement as the SAME
+         shape (array in, array out; single in, single out) keeps every
+         later consumer of node.material — the renderer, disposal below —
+         working exactly like it does for a single-material mesh. */
+      var isMultiMat = Array.isArray(node.userData.kanvazOrigMaterial);
+      var origMats = model3dAsMaterialArray(node.userData.kanvazOrigMaterial);
+
       if (mode === 'wireframe') {
         if (!node.userData.kanvazWireframeMat) {
-          var wf = node.userData.kanvazOrigMaterial.clone();
-          wf.wireframe = true;
-          node.userData.kanvazWireframeMat = wf;
+          var wfMats = origMats.map(function(m) {
+            var wf = m.clone();
+            wf.wireframe = true;
+            return wf;
+          });
+          node.userData.kanvazWireframeMat = isMultiMat ? wfMats : wfMats[0];
         }
         node.material = node.userData.kanvazWireframeMat;
       } else if (mode === 'matcap') {
         if (!node.userData.kanvazMatcapMat) {
-          node.userData.kanvazMatcapMat = new THREE.MeshMatcapMaterial({
-            matcap: matcapTex,
-            map: node.userData.kanvazOrigMaterial.map || null
+          var mcMats = origMats.map(function(m) {
+            return new THREE.MeshMatcapMaterial({ matcap: matcapTex, map: m.map || null });
           });
+          node.userData.kanvazMatcapMat = isMultiMat ? mcMats : mcMats[0];
         }
         node.material = node.userData.kanvazMatcapMat;
       } else {
@@ -2890,6 +2928,20 @@ var KanvazCards = (function() {
      what re-establishes the view every time instead. */
   function frameModel3DCamera(THREE, root, camera, controls) {
     var box = new THREE.Box3().setFromObject(root);
+    /* Audit fix: a model with zero actual mesh geometry (a .glb/.obj/.fbx
+       that parses fine but contains only lights/cameras/empty nodes, or
+       a degenerate export) leaves the box at its default empty state —
+       min=+Infinity, max=-Infinity. getSize() then yields -Infinity per
+       axis and getCenter() yields NaN (Infinity + -Infinity). The old
+       `|| 1` fallback below never caught this because -Infinity is
+       truthy, so it silently produced a NaN camera position/target that
+       never renders anything and that "Reset view" (which calls this
+       same function) can't recover from either. isFinite() catches both
+       the NaN and Infinite cases the old falsy-check missed. */
+    if (!isFinite(box.min.x) || !isFinite(box.max.x)) {
+      box.min.set(-0.5, -0.5, -0.5);
+      box.max.set(0.5, 0.5, 0.5);
+    }
     var size = box.getSize(new THREE.Vector3());
     var center = box.getCenter(new THREE.Vector3());
     var maxDim = Math.max(size.x, size.y, size.z) || 1;
@@ -2915,6 +2967,33 @@ var KanvazCards = (function() {
 
     var viewport = document.createElement('div');
     viewport.className = 'model3d-viewport';
+    /* Bug fix: orbiting/panning/zooming inside the 3D viewport was
+       dragging and zooming the WHOLE BOARD underneath it — this listener
+       was simply missing. cards.js's world-level mousedown delegate
+       (bindDelegatedEvents) falls through to startDrag() for any
+       mousedown on a card that isn't one of a short list of known
+       interactive regions (video scrub bar, tag chips, etc.); the 3D
+       viewport was never added to that list, so every orbit-drag also
+       started a real card drag at the same time. Same story for wheel —
+       the board's own pan/zoom listens on wheel globally, so scrolling
+       to dolly the 3D camera also zoomed the canvas underneath. Matches
+       the exact pattern the PDF preview already established for the
+       same reason (buildPdfPreview's scrollArea, above). */
+    viewport.addEventListener('mousedown', function(e) {
+      /* Stopping propagation here blocks world's delegated handler from
+         ever seeing this mousedown, which would otherwise also skip the
+         select/bring-to-front it normally does before deciding whether
+         to drag — replicate just that part directly so clicking into
+         the viewport (nearly the whole card) still selects it like
+         clicking anywhere else on a card does, it just never starts a
+         board-level card drag. OrbitControls' own listener is bound
+         directly to the canvas (a descendant of viewport) and always
+         gets this same mousedown first, before it bubbles up here. */
+      selectCard(card.id);
+      bringToFront(card.id);
+      e.stopPropagation();
+    });
+    viewport.addEventListener('wheel', function(e) { e.stopPropagation(); });
     el.appendChild(viewport);
 
     var canvas = document.createElement('canvas');
@@ -2923,6 +3002,12 @@ var KanvazCards = (function() {
 
     var toolbar = document.createElement('div');
     toolbar.className = 'model3d-toolbar';
+    /* Same fix as viewport above — a mousedown that lands on the
+       toolbar's own background (its padding/gaps between buttons, not
+       a button itself — each button already stops propagation
+       individually) would otherwise still fall through to world's
+       delegated handler and start a card drag. */
+    toolbar.addEventListener('mousedown', function(e) { e.stopPropagation(); });
     el.appendChild(toolbar);
 
     loadThreeJs().then(function(three) {
@@ -3187,6 +3272,13 @@ var KanvazCards = (function() {
         frameModel3DCamera(THREE, root, camera, controls);
 
         if (animations && animations.length) {
+          /* Disclosed limitation (audit finding, v1 scope): only the
+             FIRST clip plays — a multi-clip-authored model (e.g. separate
+             "idle"/"walk"/"run" actions baked into one file) has no clip
+             picker in this plain/functional v1 UI. Matches the plan's
+             "just render" scope for animation; a picker is exactly the
+             kind of control surface meant to wait for the real Figma-
+             designed UI rather than bolt one in ahead of it. */
           mixer = new THREE.AnimationMixer(root);
           clip = animations[0];
           action = mixer.clipAction(clip);
@@ -3194,6 +3286,10 @@ var KanvazCards = (function() {
           isPlaying = !!card.animationPlaying;
           action.paused = !isPlaying;
           buildAnimationControls();
+          if (animations.length > 1 && animTimeEl) {
+            animTimeEl.title = 'This model has ' + animations.length + ' animation clips — only the first ("' +
+              (clip.name || 'Clip 1') + '") plays. Clip selection isn\'t supported yet.';
+          }
           updateAnimUI();
           startLoopIfPlaying();
         }
@@ -3898,6 +3994,19 @@ var KanvazCards = (function() {
 
     var wasSelected = (selectedId === id);
     var el = document.getElementById(id);
+    /* Audit fix: same removeChild+renderCard rebuild as above leaked a
+       3D card's live Three.js viewer (renderer/GPU context/geometries/
+       textures/ResizeObserver/rAF loop) every time — buildModel3DCard()
+       unconditionally overwrites model3dInstances[id] with a fresh
+       instance, so the OLD one's dispose() was never called and just
+       got dropped. Reachable via something as ordinary as renaming a 3D
+       card (startRenameCard -> updateCardData), not just MCP/plugins —
+       a few renames exhausts Chromium's ~16 WebGL-context limit. Same
+       leak existed for a PDF file-ref card's pdf.js document. Both are
+       already the exact functions rebuildCardMedia() calls for the same
+       reason on its own rebuild path — mirrored here. */
+    disposeModel3D(id);
+    disposePdfPreview(id);
     if (el && el.parentNode) el.parentNode.removeChild(el);
     /* Audit fix: this removes+recreates the card's whole DOM element
        (needed since the patch can change type-dependent structure), but

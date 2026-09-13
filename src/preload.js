@@ -12,8 +12,6 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
   forceClose:      function() { ipcRenderer.send('force-close'); },
   isMaximized:     function() { return ipcRenderer.invoke('window-is-maximized'); },
   setAlwaysOnTop:  function(flag) { ipcRenderer.send('window-set-always-on-top', flag); },
-  setClickThrough: function(flag) { ipcRenderer.send('window-set-click-through', flag); },
-  setWindowOpacity: function(value) { ipcRenderer.send('window-set-opacity', value); },
   setWindowTitle:  function(title) { ipcRenderer.send('set-window-title', title); },
   setMoodLockSize: function(active) { ipcRenderer.send('window-set-moodlock-size', active); },
   dragWindowBy: function(dx, dy) { ipcRenderer.send('window-drag-by', { dx: dx, dy: dy }); },
@@ -100,7 +98,7 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
 
   /* Main → Renderer events */
   on: function(channel, fn) {
-    var allowed = ['recovery-available', 'window-maximized-changed', 'check-unsaved-before-close', 'open-file-from-argv', 'update-available', 'update-download-progress', 'update-downloaded', 'mcp-invoke', 'click-through-escape-hatch', 'smart-search-crashed', 'click-through-hotkey-unavailable'];
+    var allowed = ['recovery-available', 'window-maximized-changed', 'check-unsaved-before-close', 'open-file-from-argv', 'update-available', 'update-download-progress', 'update-downloaded', 'mcp-invoke', 'smart-search-crashed'];
     if (allowed.indexOf(channel) !== -1) {
       ipcRenderer.on(channel, function(event, data) { fn(data); });
     }
@@ -112,7 +110,7 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
        subscribe to in the first place. Not currently exploited anywhere
        (nothing in the renderer calls off() with an arbitrary channel),
        just closing the gap between the two. */
-    var allowed = ['recovery-available', 'window-maximized-changed', 'check-unsaved-before-close', 'open-file-from-argv', 'update-available', 'update-download-progress', 'update-downloaded', 'mcp-invoke', 'click-through-escape-hatch', 'smart-search-crashed', 'click-through-hotkey-unavailable'];
+    var allowed = ['recovery-available', 'window-maximized-changed', 'check-unsaved-before-close', 'open-file-from-argv', 'update-available', 'update-download-progress', 'update-downloaded', 'mcp-invoke', 'smart-search-crashed'];
     if (allowed.indexOf(channel) !== -1) {
       ipcRenderer.removeAllListeners(channel);
     }

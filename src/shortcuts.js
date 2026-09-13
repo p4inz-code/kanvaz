@@ -142,12 +142,6 @@ var KanvazShortcuts = (function() {
       return;
     }
 
-    /* Always on top — works in both views */
-    /* v6.0.0: T used to toggle Always on Top — that's on by default now
-       (see ui.js's SETTINGS_DEFAULTS), so T is repointed to the feature
-       that actually needs a fast toggle: click-through. */
-    if (e.key === 't' || e.key === 'T') { KanvazApp.toggleClickThrough(); return; }
-
     /* Theme toggle — works in both views. Binary dark/light toggle, same
        as before (a plugin theme still collapses to 'light' on press —
        cycling through every registered theme is a possible future
