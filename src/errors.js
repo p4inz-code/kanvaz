@@ -41,6 +41,26 @@ var KanvazErrors = (function() {
     'E999': { msg: 'An unexpected error occurred.',         action: 'Try restarting Kanvaz. If it persists, export debug info (Settings → Developer) and report the issue.' }
   };
 
+  /* Exceptional-level debugging: every handled error (not just the ones
+     the user happens to catch a toast for before it dismisses) gets
+     recorded here, capped to the most recent 25 — cheap, session-only,
+     never written to disk. Folded into exportDebugInfo()'s "Export
+     debug info" copy (ui.js) so a bug report the user sends me carries
+     the actual error history instead of relying on catching one toast
+     in time. */
+  var MAX_LOG = 25;
+  var recentErrors = [];
+
+  function recordError(code, msg, action, detail) {
+    var detailStr = (detail && detail.message) ? detail.message : (detail ? String(detail) : '');
+    recentErrors.push({ time: new Date().toISOString(), code: code, message: msg, action: action, detail: detailStr });
+    if (recentErrors.length > MAX_LOG) recentErrors.shift();
+  }
+
+  function getRecentErrors() {
+    return recentErrors.slice();
+  }
+
   function getCode(key) {
     return ERROR_CODES[key] || ERROR_CODES.UNKNOWN;
   }
@@ -78,6 +98,10 @@ var KanvazErrors = (function() {
     var code = getCode(key);
     var msg = getMessage(code);
     var action = getAction(code);
+    /* Recorded even when silent:true — a silent error is still an
+       error a bug report benefits from showing, it just didn't
+       interrupt the user with a toast at the time. */
+    recordError(code, msg, action, detail);
 
     if (!silent) {
       /* Debuggability fix: the toast used to show ONLY the generic
@@ -139,7 +163,8 @@ var KanvazErrors = (function() {
     init: init,
     handle: handle,
     classify: classifyError,
-    codes: ERROR_CODES
+    codes: ERROR_CODES,
+    getRecentErrors: getRecentErrors
   };
 
 })();

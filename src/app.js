@@ -966,7 +966,14 @@ var KanvazApp = (function() {
        with zero extra color logic needed here). */
     var TOAST_ICONS = {
       success: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 7.5l3 3 6-6.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-      error:   '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+      /* Redesign v1: was an X shape — now that error toasts also carry a
+         real dismiss (×) button (see toast() below), the same glyph
+         used for both "this is an error" and "click to close this"
+         in one toast was genuinely confusing (reported directly, after
+         a screenshot showed both). A circled exclamation reads as
+         status, not as another clickable-looking × next to the real
+         one. */
+      error:   '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.4"/><path d="M7 4v3.5M7 9.8v.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
       warning: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5l6 10.5H1L7 1.5z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M7 5.5v3M7 10.5v.01" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>'
     };
 
@@ -987,14 +994,51 @@ var KanvazApp = (function() {
       textEl.textContent = msg;
       el.appendChild(textEl);
 
-      container.appendChild(el);
-
-      setTimeout(function() {
+      function dismiss() {
         el.classList.add('out');
         setTimeout(function() {
           if (el.parentNode) el.parentNode.removeChild(el);
         }, 200);
-      }, 2800);
+      }
+
+      /* Direct feedback: an error toast now often carries real technical
+         detail (see errors.js's handle()) worth actually reading, or
+         screenshotting to report — the old flat 2800ms for every toast
+         type made that "vanish before I can catch it." Errors now stay
+         up ~4x longer and get an explicit close button so dismissing
+         one is a deliberate click, not a race against a timer; plain
+         success/info/warning toasts keep the original quick auto-
+         dismiss, since those are just brief confirmations. Hovering an
+         error toast also pauses its timer — reading takes longer than
+         skimming, and a mouse sitting over it is a clear "still looking
+         at this" signal. */
+      if (type === 'error') {
+        var closeBtn = document.createElement('button');
+        closeBtn.className = 'toast-close';
+        closeBtn.innerHTML = '&times;';
+        closeBtn.title = 'Dismiss';
+        closeBtn.onclick = dismiss;
+        el.appendChild(closeBtn);
+
+        var autoTimer = null;
+        var remaining = 12000;
+        var startedAt = Date.now();
+        function arm(ms) {
+          startedAt = Date.now();
+          autoTimer = setTimeout(dismiss, ms);
+        }
+        el.addEventListener('mouseenter', function() {
+          if (autoTimer) { clearTimeout(autoTimer); remaining -= (Date.now() - startedAt); }
+        });
+        el.addEventListener('mouseleave', function() {
+          arm(Math.max(1500, remaining));
+        });
+        arm(remaining);
+      } else {
+        setTimeout(dismiss, 2800);
+      }
+
+      container.appendChild(el);
     }
 
     function showDialog(title, message, buttons) {

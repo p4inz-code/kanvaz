@@ -434,7 +434,7 @@ var KanvazUI_Extended = (function() {
     if (typeof KanvazConnections !== 'undefined' && KanvazConnections.serialise) {
       connCount = KanvazConnections.serialise().length;
     }
-    var info = [
+    var infoLines = [
       'Kanvaz Debug Info',
       '==================',
       'Version: ' + (typeof KanvazBoards !== 'undefined' && KanvazBoards.getVersion ? KanvazBoards.getVersion() : 'unknown'),
@@ -445,7 +445,28 @@ var KanvazUI_Extended = (function() {
       'Connections (file-level): ' + connCount,
       'Window size: ' + window.innerWidth + 'x' + window.innerHeight,
       'Settings: ' + JSON.stringify(settings, null, 2)
-    ].join('\n');
+    ];
+
+    /* Exceptional-level debugging: recent errors from THIS session
+       (KanvazErrors.getRecentErrors(), capped at 25), whether or not
+       the user actually caught the toast before it dismissed — a bug
+       report copied via this button now carries the real error
+       history instead of relying on that timing. */
+    if (typeof KanvazErrors !== 'undefined' && KanvazErrors.getRecentErrors) {
+      var errLog = KanvazErrors.getRecentErrors();
+      infoLines.push('');
+      infoLines.push('Recent errors this session (' + errLog.length + '):');
+      if (!errLog.length) {
+        infoLines.push('  (none)');
+      } else {
+        for (var ei = 0; ei < errLog.length; ei++) {
+          var e = errLog[ei];
+          infoLines.push('  [' + e.time + '] ' + e.code + ': ' + e.message + (e.detail ? ' — ' + e.detail : ''));
+        }
+      }
+    }
+
+    var info = infoLines.join('\n');
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(info).then(function() {
@@ -1251,7 +1272,7 @@ var KanvazUI_Extended = (function() {
       '</div>',
       '<div class="about-title">Kanvaz</div>',
       '<div class="about-subtitle">A visual reference workspace for creative professionals.</div>',
-      '<div class="about-version">Version 7.9.0</div>',
+      '<div class="about-version">Version 7.9.1</div>',
       '<div id="about-update-status" class="about-update-status"></div>',
       '<div class="about-divider"></div>',
       '<div class="about-author">Developed by <strong>Atharva Patil</strong></div>',
@@ -1259,7 +1280,7 @@ var KanvazUI_Extended = (function() {
       '<div class="about-desc">Built for VFX and 3D artists,<br>and the studios and educators who rely on them.</div>',
       '<div class="about-divider"></div>',
       '<div class="about-privacy">Free and open source. MIT License.<br>No telemetry, no background network activity.<br>Your data stays on your machine.</div>',
-      '<div class="about-tagline">Reference Operating System<br>Actively maintained — v7.9.0</div>'
+      '<div class="about-tagline">Reference Operating System<br>Actively maintained — v7.9.1</div>'
     ].join('');
 
     var updateBtn = document.createElement('button');

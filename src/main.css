@@ -2539,6 +2539,27 @@ html, body {
   white-space: nowrap;
   box-shadow: 0 4px 16px var(--color-shadow);
   animation: toast-in 0.2s ease;
+  /* #toast-container has pointer-events:none so toasts never block
+     clicks on the canvas underneath by default — each toast opts back
+     in individually so an error's close button (and hover-to-pause,
+     see app.js's toast()) actually work. */
+  pointer-events: auto;
+}
+
+.toast-close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.65;
+  font-size: 15px;
+  line-height: 1;
+  padding: 0 0 0 4px;
+}
+
+.toast-close:hover {
+  opacity: 1;
 }
 
 .toast.error {

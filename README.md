@@ -120,7 +120,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 7.9.0.exe` and `dist/Kanvaz 7.9.0.exe`
+Output: `dist/Kanvaz Setup 7.9.1.exe` and `dist/Kanvaz 7.9.1.exe`
 
 **macOS:**
 ```bash
