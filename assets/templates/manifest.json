@@ -20,25 +20,25 @@
   {
     "id": "vfx-beginner",
     "name": "VFX — Beginner",
-    "description": "Learning the basics: reference gathering, first comps, and a practice checklist for someone starting out in VFX.",
+    "description": "A first real pipeline: plate prep, a proper roto/key/track/comp order of operations, and the exact mistakes that give away a beginner comp.",
     "file": "vfx-beginner.json"
   },
   {
     "id": "vfx-intermediate",
     "name": "VFX — Intermediate",
-    "description": "Shot-based workflow for someone comfortable with the basics and now working on real client or spec shots with a small pipeline.",
+    "description": "Real shot-based tracking for a small crew or freelance pipeline: bidding logic, a proper shot-status board, and the comp-script discipline that keeps ten shots from turning into chaos.",
     "file": "vfx-intermediate.json"
   },
   {
     "id": "vfx-professional",
     "name": "VFX — Professional Pipeline",
-    "description": "Studio-scale pipeline board: bidding, asset production stages, dailies review, and delivery — for a full crew working across departments.",
+    "description": "A studio-scale sequence board across every department — bid through dailies to final delivery — laid out the way a real production tracks a show, not a simplified version of it.",
     "file": "vfx-professional.json"
   },
   {
     "id": "game-dev",
     "name": "Game Dev — Concept to Production",
-    "description": "Concept art, style guide, level design references, and technical constraints for a game art/design pipeline.",
+    "description": "The real pre-production sequence — pillars before pixels, greybox before final art — plus the technical budget conversation that saves a re-do three months in.",
     "file": "game-dev.json"
   },
   {
@@ -50,7 +50,7 @@
   {
     "id": "animation-pipeline",
     "name": "Animation Pipeline (2D/3D)",
-    "description": "Storyboard through final render for a short animation — character/background design, animatic timing, and shot list.",
+    "description": "Story to final render for a short — with the actual \"lock before you proceed\" gates that keep late redesigns from blowing up the schedule.",
     "file": "animation-pipeline.json"
   },
   {
@@ -68,7 +68,7 @@
   {
     "id": "ui-ux-design",
     "name": "UI/UX Design Reference",
-    "description": "User flows, competitive analysis, and a design-system reference board for a digital product.",
+    "description": "Research through a locked design-system, in the order real product teams actually work: understand the user, map the flow, THEN design the screen.",
     "file": "ui-ux-design.json"
   },
   {
@@ -76,5 +76,11 @@
     "name": "Branding & Identity",
     "description": "Mood, competitor landscape, and logo/typography exploration for a brand identity project.",
     "file": "branding-identity.json"
+  },
+  {
+    "id": "character-design",
+    "name": "Character Design",
+    "description": "A real character-design pass: silhouette-first thinking, a locked color/prop palette, and the turnaround sheet a rigger or 3D artist actually needs to build from.",
+    "file": "character-design.json"
   }
 ]
