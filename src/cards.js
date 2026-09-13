@@ -404,16 +404,27 @@ var KanvazCards = (function() {
       if (lockThisResize) {
         /* Snap width only, then re-derive height from the snapped width
            — snapping both dimensions independently would distort the
-           locked aspect ratio (e.g. a 4:3 image ending up 1:1-ish). */
+           locked aspect ratio (e.g. a 4:3 image ending up 1:1-ish).
+           Audit fix: newW/newH used to be clamped to CARD_MIN_W/H
+           INDEPENDENTLY after this derivation — for a card whose aspect
+           ratio is far from square, shrinking past the point where the
+           derived height would fall below CARD_MIN_H clamped ONLY the
+           height back up, silently breaking the locked ratio right at
+           the floor (e.g. a 4:1 card could clamp to a 1:1 square).
+           Instead, clamp newW itself to whichever floor keeps BOTH
+           dimensions at or above their minimums once height is derived
+           from it — so the independent post-hoc clamp below is never
+           needed for the locked case. */
         newW = snapToGrid(newW);
+        var minWForLock = Math.max(CARD_MIN_W, CARD_MIN_H * aspectRatio);
+        newW = Math.max(minWForLock, newW);
         newH = newW / aspectRatio;
       } else {
         newW = snapToGrid(newW);
         newH = snapToGrid(newH);
+        newW = Math.max(CARD_MIN_W, newW);
+        newH = Math.max(CARD_MIN_H, newH);
       }
-
-      newW = Math.max(CARD_MIN_W, newW);
-      newH = Math.max(CARD_MIN_H, newH);
 
       /* Audit fix: position must be derived from the FIXED opposite
          edge using the FINAL clamped/snapped size, not from the raw
@@ -2428,6 +2439,22 @@ var KanvazCards = (function() {
     return bytes;
   }
 
+  /* Card id -> pdf.js document instance, so removeCardCore()/clearAll()/
+     the "Change file" re-point-away-from-PDF path can .destroy() it.
+     Audit fix: this didn't exist before — a PDF preview's pdf.js document
+     (which owns its own decoded-page cache and, for the Worker build,
+     a live Worker thread) was never released on delete, a real memory
+     leak matching the same class of bug already fixed for video/audio
+     decoders in removeCardCore/clearAll. */
+  var pdfPreviewDocs = {};
+
+  function disposePdfPreview(id) {
+    var doc = pdfPreviewDocs[id];
+    if (!doc) return;
+    delete pdfPreviewDocs[id];
+    try { doc.destroy(); } catch (e) { console.warn('[Kanvaz] pdf.js document dispose failed:', e); }
+  }
+
   function buildPdfPreview(el, card) {
     var wrap = document.createElement('div');
     wrap.className = 'pdf-preview';
@@ -2545,7 +2572,9 @@ var KanvazCards = (function() {
         return lib.getDocument({ data: bytes }).promise;
       });
     }).then(function(doc) {
+      if (!document.body.contains(el)) { doc.destroy(); return; } /* card deleted while loading */
       state.doc = doc;
+      pdfPreviewDocs[card.id] = doc;
       state.numPages = doc.numPages;
       if (state.page > state.numPages) state.page = 1;
       statusEl.style.display = 'none';
@@ -2637,13 +2666,22 @@ var KanvazCards = (function() {
 
         /* v7.x — re-point may cross the PDF/non-PDF line: add or remove
            the in-card preview to match, rather than leaving a stale
-           preview (or a missing one) until the next full reload. */
+           preview (or a missing one) until the next full reload.
+           Audit fix: re-pointing from one PDF to a DIFFERENT PDF used to
+           hit neither branch below (isPdfPath was true both before and
+           after, and a preview already existed) — the OLD file's already-
+           rendered preview just sat there unchanged, showing the wrong
+           document's pages. Now any re-point that lands on a PDF rebuilds
+           the preview fresh, and the old pdf.js document (if any) is
+           always disposed first regardless of which branch is taken. */
         var existingPreview = el.querySelector('.pdf-preview');
-        if (isPdfPath(card.path) && !existingPreview) {
+        disposePdfPreview(card.id);
+        if (isPdfPath(card.path)) {
           delete card.pdfPage; delete card.pdfZoom;
+          if (existingPreview) existingPreview.remove();
           el.classList.add('has-pdf-preview');
           buildPdfPreview(el, card);
-        } else if (!isPdfPath(card.path) && existingPreview) {
+        } else if (existingPreview) {
           el.classList.remove('has-pdf-preview');
           existingPreview.remove();
         }
@@ -3678,6 +3716,7 @@ var KanvazCards = (function() {
         mediaEl.load();
       }
       disposeModel3D(id);
+      disposePdfPreview(id);
       el.parentNode.removeChild(el);
     }
 
@@ -4123,9 +4162,19 @@ var KanvazCards = (function() {
       return { ok: false, error: 'boards module unavailable' };
     }
 
-    if (!card.sharedId) {
-      card.sharedId = KanvazBoards.newSharedId();
-    }
+    /* Audit fix: card.sharedId used to be assigned and the registry
+       written UNCONDITIONALLY, before knowing whether
+       addSharedInstanceToBoard() would actually succeed (it refuses an
+       unknown target board id, or the currently-active board). A failed
+       call left the card with a sharedId set and a live registry entry
+       for it, but zero board instances actually pointing at it anywhere
+       — an orphaned "shared" card that isn't shared with anything, and
+       whose badge never synced (syncSharedBadge only runs on success)
+       so the inconsistency wasn't even visible. Track whether sharedId
+       was newly assigned here so a failure can roll it — and the
+       registry write — back to exactly the pre-call state. */
+    var isNewSharedId = !card.sharedId;
+    var sharedId = card.sharedId || KanvazBoards.newSharedId();
 
     /* Push current content into the registry right away (rather than
        waiting for the next save/switch) so the target board — which may
@@ -4133,29 +4182,40 @@ var KanvazCards = (function() {
        buildFullCardRecord() is the same normalizer serialise() itself
        uses, so this can't drift from what an actual save would produce. */
     var full = buildFullCardRecord(card);
+    full.sharedId = sharedId;
     var content = {};
     for (var ck in full) {
       if (SHARED_CARD_INSTANCE_FIELDS.indexOf(ck) === -1) content[ck] = full[ck];
     }
-    KanvazBoards.setSharedCardContent(card.sharedId, content);
+    KanvazBoards.setSharedCardContent(sharedId, content);
 
-    var stub = { sharedId: card.sharedId, id: nextId(), x: card.x, y: card.y, w: card.w, h: card.h, z: card.z, pinned: false, opacity: 1.0, mapPosition: null };
+    var stub = { sharedId: sharedId, id: nextId(), x: card.x, y: card.y, w: card.w, h: card.h, z: card.z, pinned: false, opacity: 1.0, mapPosition: null };
     var result = KanvazBoards.addSharedInstanceToBoard(targetBoardId, stub);
     if (result.ok) {
+      card.sharedId = sharedId;
       syncSharedBadge(card);
       KanvazApp.markDirty();
+    } else if (isNewSharedId && typeof KanvazBoards.deleteSharedCardContent === 'function') {
+      KanvazBoards.deleteSharedCardContent(sharedId);
     }
     return result;
   }
 
+  /* Audit fix: used to return nothing at all — a bad id or a card that
+     was never shared silently did nothing, indistinguishable from a real
+     unlink to any caller. The MCP Bridge plugin's own unlinkSharedCard
+     tool wrapped this and always reported {ok:true} regardless, since it
+     had no signal to check. Returns a real boolean now so callers (and
+     that plugin) can tell a no-op from an actual unlink. */
   function unlinkSharedCard(id) {
     var card = cards[id];
-    if (!card || !card.sharedId) return;
+    if (!card || !card.sharedId) return false;
     card.sharedId = null;
     syncSharedBadge(card);
     KanvazApp.markDirty();
     KanvazHistory.push();
     KanvazUI.toast('Unlinked — this is now its own independent copy');
+    return true;
   }
 
   /* Adds/removes the "shared" badge on an already-rendered card in place
@@ -4535,6 +4595,7 @@ var KanvazCards = (function() {
           mediaEl.load();
         }
         disposeModel3D(id);
+        disposePdfPreview(id);
         el.parentNode.removeChild(el);
       }
     }

@@ -161,7 +161,18 @@
               var t = d.templates.filter(function(x) { return x.id === tpl.id; })[0];
               if (t) t.name = next.trim();
               return saveData(d);
-            }).then(renderMyTemplates);
+            }).then(function(result) {
+              /* Audit fix: same class of bug the Save-as-template flow
+                 above was already fixed for — an unchecked storage.save()
+                 result meant a rejected write (e.g. the 5MB per-plugin
+                 cap) rendered the list from a fresh loadData() showing
+                 the OLD name back, with no explanation of why the rename
+                 didn't stick. */
+              if (!result || !result.ok) {
+                KanvazPluginAPI.showToast('Could not rename — ' + (result && result.error ? result.error : 'storage write failed'), 'error');
+              }
+              renderMyTemplates();
+            });
           }));
           r.appendChild(smallBtn('Delete', function() {
             KanvazPluginAPI.showConfirmDialog('Delete template?', '"' + tpl.name + '" will be removed. This cannot be undone.', [
@@ -169,7 +180,12 @@
                 loadData().then(function(d) {
                   d.templates = d.templates.filter(function(x) { return x.id !== tpl.id; });
                   return saveData(d);
-                }).then(renderMyTemplates);
+                }).then(function(result) {
+                  if (!result || !result.ok) {
+                    KanvazPluginAPI.showToast('Could not delete — ' + (result && result.error ? result.error : 'storage write failed'), 'error');
+                  }
+                  renderMyTemplates();
+                });
               } },
               { label: 'Cancel', cls: '', action: function() {} }
             ]);

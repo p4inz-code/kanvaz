@@ -266,6 +266,15 @@ var KanvazAnnotate = (function() {
      closes that gap — legacy data only ever has ALL coordinates as
      absolute pixels, so any single one past the threshold is conclusive. */
   function strokeLooksLegacy(s) {
+    /* Trust an explicit normalized:true marker outright — see the
+       comment where it's stamped onto every newly-created stroke in
+       onUp() above. Only a stroke saved before this flag existed (a true
+       legacy file) falls through to the magnitude heuristic below, which
+       can't tell "legacy absolute pixels" from "a modern normalized
+       coordinate that legitimately extends past the card" apart by
+       value alone. */
+    if (s.normalized === true) return false;
+
     /* v7.x: highlighter shares pen's point-array shape — same legacy
        check applies. text has its own shape (single x/y + a string) and
        is a new-only tool with nothing legacy to migrate, so it's simply
@@ -294,6 +303,11 @@ var KanvazAnnotate = (function() {
         x2: s.points.x2 / size.w, y2: s.points.y2 / size.h
       };
     }
+    /* Mark it done so a second pass (if anything ever re-checks this
+       exact stroke object later in the same session) trusts it rather
+       than re-running the magnitude heuristic against now-normalized
+       values that could themselves exceed 1.5. */
+    s.normalized = true;
   }
 
   function getPos(e) {
@@ -479,7 +493,21 @@ var KanvazAnnotate = (function() {
       opacity: activeTool === 'highlighter' ? Math.min(activeOpacity, 0.35) : activeOpacity,
       points: isPointArray
         ? currentPenPoints.map(function(p) { return { x: p.x / size.w, y: p.y / size.h }; })
-        : { x1: startX / size.w, y1: startY / size.h, x2: pos.x / size.w, y2: pos.y / size.h }
+        : { x1: startX / size.w, y1: startY / size.h, x2: pos.x / size.w, y2: pos.y / size.h },
+      /* Audit fix: strokeLooksLegacy()'s only signal is "does any
+         coordinate exceed 1.5?" — a real, deliberate limitation for old
+         files with no version marker. But a BRAND NEW stroke dragged
+         more than ~1.5x the card's width/height outside its bounds
+         (annotations are allowed to extend past the card) produces
+         genuinely normalized coordinates that ALSO exceed 1.5, and used
+         to get misclassified as legacy and double-normalized by
+         migrateLegacyStroke() the next time the board loaded — silently
+         corrupting the stroke's position. Stamping every newly-created
+         stroke with normalized:true lets strokeLooksLegacy() trust it
+         outright instead of guessing from magnitude; only strokes from
+         before this flag existed (true old files) still need the
+         heuristic at all. */
+      normalized: true
     };
 
     if (isPointArray) {
@@ -560,7 +588,18 @@ var KanvazAnnotate = (function() {
         point: { x: pos.x / size.w, y: pos.y / size.h },
         text: text
       };
+      /* Audit fix: this used to draw directly with no globalAlpha set at
+         all — every other tool's immediate on-canvas render wraps its
+         draw call in save()/globalAlpha=activeOpacity/restore() (see
+         the rect/ellipse/line/arrow branches above), but the text tool's
+         commit() path was missing it, so a text stamp always appeared
+         fully opaque on the canvas regardless of the opacity slider —
+         only the SAVED stroke object had the right value, meaning the
+         opacity only became visible after a reload/redraw. */
+      pendingCtx.save();
+      pendingCtx.globalAlpha = activeOpacity;
       drawText(pendingCtx, pos.x, pos.y, text, activeColor, 16);
+      pendingCtx.restore();
 
       var ov = overlays[pendingCardId];
       if (ov) {
@@ -1011,16 +1050,18 @@ var KanvazAnnotate = (function() {
     opacitySlider.step = 0.05;
     opacitySlider.value = activeOpacity;
     opacitySlider.title = 'Opacity';
+    opacitySlider.dataset.opacitySlider = '1';
     opacitySlider.style.cssText = 'width:44px;accent-color:var(--color-accent);';
     opacitySlider.addEventListener('mousedown', function(e) { e.stopPropagation(); });
 
     var opacityLabel = document.createElement('span');
+    opacityLabel.dataset.opacityLabel = '1';
     opacityLabel.style.cssText = 'font-family:var(--font-mono);font-size:10px;color:var(--color-text-3);min-width:26px;text-align:right;';
-    opacityLabel.textContent = Math.round(activeOpacity * 100) + '%';
+    opacityLabel.textContent = Math.round((activeTool === 'highlighter' ? Math.min(activeOpacity, 0.35) : activeOpacity) * 100) + '%';
 
     opacitySlider.oninput = function() {
       activeOpacity = parseFloat(opacitySlider.value);
-      opacityLabel.textContent = Math.round(activeOpacity * 100) + '%';
+      updateOpacityDisplay();
     };
     tb.appendChild(opacitySlider);
     tb.appendChild(opacityLabel);
@@ -1080,8 +1121,19 @@ var KanvazAnnotate = (function() {
     var cardEl = document.getElementById(toolbarCardId);
     if (!cardEl) return;
     var rect = cardEl.getBoundingClientRect();
+    /* Audit fix: this used to subtract a fixed 44px (one row's worth),
+       assuming the toolbar is always exactly one row tall — true when
+       it shipped with 5 tools, no longer true since v7.3.0 grew it to
+       9 tools plus a color picker/recent-colors row/opacity slider,
+       which commonly wraps onto a second row (toolbarEl has
+       flex-wrap:wrap). A stale single-row offset put the toolbar's
+       bottom row overlapping the top of the card it's annotating.
+       Measuring the toolbar's own live rendered height instead of
+       guessing a constant keeps this correct regardless of how many
+       rows it currently wraps to. */
+    var toolbarHeight = toolbarEl.offsetHeight || 44;
     toolbarEl.style.left = rect.left + 'px';
-    toolbarEl.style.top  = Math.max(4, rect.top - 44) + 'px';
+    toolbarEl.style.top  = Math.max(4, rect.top - toolbarHeight - 8) + 'px';
   }
 
   /* v7.x — renders the recent-colors row fresh every time (cheap — at
@@ -1109,8 +1161,29 @@ var KanvazAnnotate = (function() {
     }
   }
 
+  /* Audit fix: the opacity slider/label were only ever set once, at
+     toolbar-build time — switching tools never refreshed them, so after
+     picking the highlighter (which hard-clamps its EFFECTIVE opacity to
+     35% regardless of the slider) the slider kept showing whatever
+     percentage was last set for a different tool, visibly lying about
+     what the highlighter would actually draw at. Shows the clamped
+     value for the highlighter, the real activeOpacity for every other
+     tool — the slider's own position (draggable range) is left alone
+     either way, since activeOpacity itself is unclamped and shared
+     across tools; only the highlighter's rendering clamps it. */
+  function updateOpacityDisplay() {
+    if (!toolbarEl) return;
+    var slider = toolbarEl.querySelector('[data-opacity-slider]');
+    var label  = toolbarEl.querySelector('[data-opacity-label]');
+    if (!label) return;
+    var effective = activeTool === 'highlighter' ? Math.min(activeOpacity, 0.35) : activeOpacity;
+    if (slider) slider.value = activeOpacity;
+    label.textContent = Math.round(effective * 100) + '%';
+  }
+
   function updateToolbar() {
     if (!toolbarEl) return;
+    updateOpacityDisplay();
     var toolBtns   = toolbarEl.querySelectorAll('[data-tool-btn]');
     var swatches   = toolbarEl.querySelectorAll('[data-color-swatch]');
     var widthBtns  = toolbarEl.querySelectorAll('[data-width-btn]');

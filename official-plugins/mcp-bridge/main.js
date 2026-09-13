@@ -282,8 +282,12 @@
 
   function unlinkSharedCard(id) {
     if (!MCP_API.unlinkSharedCard) throw new Error('shared cards are unavailable in this build of Kanvaz');
-    MCP_API.unlinkSharedCard(id);
-    return { ok: true };
+    /* Audit fix: this used to report {ok:true} unconditionally — Kanvaz's
+       own unlinkSharedCard() now returns a real boolean (a bad id or a
+       card that was never shared is a no-op), so forward that instead of
+       lying about success on a call that did nothing. */
+    var didUnlink = MCP_API.unlinkSharedCard(id);
+    return didUnlink ? { ok: true } : { ok: false, error: 'card not found or not currently shared' };
   }
 
   function handleInvoke(method, args) {

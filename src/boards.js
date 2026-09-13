@@ -36,6 +36,17 @@ var KanvazBoards = (function() {
     sharedCards[sharedId] = content;
   }
 
+  /* Rollback helper for a failed shareCardToBoard() call (cards.js) —
+     removes a registry entry that was only ever written speculatively,
+     before its first (and, at the time of the failed call, only) board
+     instance actually got added. pruneUnusedSharedCards() would also
+     catch this on the next serialise(), but cleaning it up immediately
+     avoids a stale entry sitting in memory (and, if the app crashes
+     before the next save, in a recovery-file snapshot) in the meantime. */
+  function deleteSharedCardContent(sharedId) {
+    delete sharedCards[sharedId];
+  }
+
   /* A shared card stub is only useful as long as SOME board still has an
      instance pointing at it — otherwise it's dead weight sitting in the
      save file forever (e.g. every instance got unlinked or deleted).
@@ -385,14 +396,39 @@ var KanvazBoards = (function() {
       return;
     }
 
+    /* Audit fix: `idx` is a snapshot of this board's position at the
+       moment the user clicked the tab's close button — but the actual
+       deletion below only runs later, after they confirm in this dialog,
+       and boards.splice()/insertion can happen in the meantime (an MCP
+       Bridge call creating/deleting/renaming a board while the dialog is
+       still open is a real, not just theoretical, source of this since
+       an AI client isn't blocked by a modal the way a human is). A stale
+       positional index at confirm-time could delete the wrong board
+       entirely, or one that no longer exists. Capturing the board's
+       stable id now and re-resolving its CURRENT index right before the
+       actual mutation closes that gap — same principle `findBoardIndexById`
+       already exists for. */
+    var targetId = boards[idx].id;
+    var targetName = boards[idx].name;
+
     KanvazUI.showDialog(
       'Delete board?',
-      '"' + boards[idx].name + '" and all its cards will be removed.',
+      '"' + targetName + '" and all its cards will be removed.',
       [
         {
           label: 'Delete',
           cls: 'danger',
           action: function() {
+            var currentIdx = findBoardIndexById(targetId);
+            if (currentIdx === -1) {
+              KanvazUI.toast('That board no longer exists', 'error');
+              return;
+            }
+            if (boards.length <= 1) {
+              KanvazUI.toast('Cannot delete the last board', 'error');
+              return;
+            }
+            idx = currentIdx;
             var wasActive = (idx === activeIdx);
 
             /* Cascade-delete connections for all cards on this board.
@@ -1164,6 +1200,7 @@ var KanvazBoards = (function() {
     newSharedId:             newSharedId,
     getSharedCardContent:    getSharedCardContent,
     setSharedCardContent:    setSharedCardContent,
+    deleteSharedCardContent: deleteSharedCardContent,
     addSharedInstanceToBoard: addSharedInstanceToBoard
   };
 

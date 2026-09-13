@@ -163,6 +163,26 @@ official-plugins releases.
     still, for everything except reaching `mcpBridge` at load time, not
     meaningfully more restricted at the code level than one declaring
     several.
+  - **A malicious zero-permission plugin loaded BEFORE a privileged one could
+    install a property trap on `window.KanvazPluginAPI`** (e.g.
+    `Object.defineProperty(window, 'KanvazPluginAPI', {set: ...})`) that
+    fires when the loader later assigns a scoped API object for a
+    different, privileged plugin — capturing that object even without
+    still being "active" at the moment of injection. This is a real
+    extension of the same disclosed root cause above (a single shared,
+    plainly-reassignable global, not a per-plugin channel), evaluated
+    during a 7.x-line audit and intentionally left undefended for now: a
+    real fix (freezing the property descriptor, or moving off a bare
+    global entirely) is exactly the kind of narrow-vs-structural trade-off
+    this section already argues shouldn't be patched piecemeal — it needs
+    the same real per-process isolation decision as everything else in
+    this section, not a defineProperty arms race against whatever trap
+    technique comes next. (A separate, earlier theory from that same audit
+    — that `registerTheme()`'s `document.dispatchEvent('kanvaz-theme-
+    registered', ...)` could leak a privileged API object to an
+    eavesdropping listener — does not hold up: that event's `detail` only
+    ever carries a theme's `{id, name}`, never an API reference. Recorded
+    here so a future session doesn't re-spend time chasing it.)
   - Once MCP Bridge is running, the pipe/socket itself has no per-connection
     authentication beyond "you're a process on this machine" — any local
     process running as the same OS user can connect and issue tool calls,

@@ -395,8 +395,13 @@ var KanvazPluginAPI = (function() {
   }
 
   function unlinkSharedCard(id) {
-    if (typeof KanvazCards === 'undefined' || !KanvazCards.unlinkSharedCard) return;
-    KanvazCards.unlinkSharedCard(id);
+    if (typeof KanvazCards === 'undefined' || !KanvazCards.unlinkSharedCard) return false;
+    /* Audit fix: dropped KanvazCards.unlinkSharedCard()'s return value
+       entirely — the MCP Bridge plugin's own wrapper calls this exact
+       function and had no way to tell a real unlink from a no-op (bad id,
+       or a card that was never shared) as a result, so it always reported
+       success. Forward the real boolean. */
+    return KanvazCards.unlinkSharedCard(id);
   }
 
   /* Small UI utilities a plugin previously had no sanctioned way to
