@@ -10,6 +10,9 @@
     "type": "git",
     "url": "https://github.com/p4inz-code/kanvaz.git"
   },
+  "bugs": {
+    "url": "https://github.com/p4inz-code/kanvaz/issues"
+  },
   "homepage": "https://github.com/p4inz-code/kanvaz#readme",
   "scripts": {
     "start": "electron .",

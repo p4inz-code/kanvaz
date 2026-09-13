@@ -216,4 +216,8 @@ Kanvaz keeps getting developed as an ongoing side project — no fixed deadline,
 ## License
 
 MIT — free forever.
-Made by **Atharva Patil** — Northbyte Studios, Navi Mumbai, India.
+Made by **[Atharva Patil](https://github.com/p4inz-code)** — Northbyte Studios, Navi Mumbai, India.
+
+<p align="left">
+  <a href="https://github.com/p4inz-code"><img src="https://img.shields.io/github/followers/p4inz-code?style=flat-square&color=9D7FFF&label=follow%20%40p4inz-code" alt="Follow p4inz-code on GitHub"></a>
+</p>

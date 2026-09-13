@@ -1356,7 +1356,7 @@ var KanvazUI_Extended = (function() {
       '<div class="about-desc">Built for VFX and 3D artists,<br>and the studios and educators who rely on them.</div>',
       '<div class="about-divider"></div>',
       '<div class="about-privacy">Free and open source. MIT License.<br>No telemetry, no background network activity.<br>Your data stays on your machine.</div>',
-      '<div class="about-tagline">Reference Operating System<br>Actively maintained — v7.3.0</div>'
+      '<div class="about-tagline">Reference Operating System<br>Actively maintained — v7.4.0</div>'
     ].join('');
 
     var updateBtn = document.createElement('button');
@@ -1365,6 +1365,19 @@ var KanvazUI_Extended = (function() {
     updateBtn.title = 'Checks GitHub for a newer release — a user-clicked network request, never automatic. See SECURITY.md for every network call Kanvaz can make.';
     updateBtn.onclick = function() { checkForUpdates(updateBtn); };
     box.appendChild(updateBtn);
+
+    /* Branding/discoverability — a direct, one-click link to the
+       project's real home (source, issues, releases) instead of making
+       people hunt for it. Opens externally, same user-click-only pattern
+       as "Check for updates" — never automatic. */
+    var githubBtn = document.createElement('button');
+    githubBtn.className = 'about-btn about-btn-github';
+    githubBtn.textContent = 'View on GitHub';
+    githubBtn.title = 'Opens github.com/p4inz-code/kanvaz in your browser';
+    githubBtn.onclick = function() {
+      KanvazBridge.openExternal('https://github.com/p4inz-code/kanvaz');
+    };
+    box.appendChild(githubBtn);
 
     var closeBtn = document.createElement('button');
     closeBtn.className = 'about-btn about-btn-close';
