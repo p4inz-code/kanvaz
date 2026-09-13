@@ -158,7 +158,46 @@ Build order is safest/most-isolated first:
 
 **All three pillars — Live Reference, Never Lose Anything Again, Wide-Open Plugin Ecosystem — are shipped, tested, and documented.** This is the plan (see the top of this section) reaching its stated end.
 
-**v6.6.1 — a real bug slipped through even this polish pass.** A user reported Reference Mode throwing an error right after v6.6.0 shipped — it turned out the whole feature had been non-functional via its own button/shortcut/palette entry points since v6.0.0 (a scoping mistake: its code lived in the wrong internal module). Found and fixed via a real live reproduction against the running app over the Chrome DevTools Protocol, not a static read-through — see `CHANGELOG.md`'s 6.6.1 entry. The lesson stands exactly as disclosed throughout this arc: a boot-test is not the same as clicking the button.
+**v6.6.1/v6.6.2 — real bugs slipped through even this polish pass.** A user reported Reference Mode throwing an error right after v6.6.0 shipped — it turned out the whole feature had been non-functional via its own button/shortcut/palette entry points since v6.0.0 (a scoping mistake: its code lived in the wrong internal module). Fixing that (v6.6.1) left one stale reference behind, breaking the Escape-key exit from click-through too — badly enough that a user could get stuck unable to click or close the app (v6.6.2). Both found and fixed via a real live reproduction against the running app over the Chrome DevTools Protocol, not a static read-through — see `CHANGELOG.md`'s 6.6.1/6.6.2 entries. The lesson stands exactly as disclosed throughout this arc: a boot-test is not the same as clicking the button, and it's now a standing requirement for the v7.x line below, not just this arc's own retrospective.
+
+---
+
+# The v7.x line — side-project continuation
+
+*Opened 2026-09-13.* The v6.x arc's "genuinely done" framing (v6.6.0–v6.6.2) stands as an honest record of that decision — this isn't walking it back. The user has chosen to keep developing Kanvaz anyway, explicitly as a side project now rather than the main focus: "we will keep adding things to Kanvaz, keep developing it with feedback and new ideas." No fixed deadline, no "final arc" framing this time — ship items below whenever there's time, in whatever order makes sense, driven by real feedback as it comes in (like the Reference Mode bugs were). This section is the plan for a specific batch of feedback the user gave on 2026-09-13; it isn't a promise this is the last batch.
+
+## Items, roughly in suggested order
+
+1. **Resize modifier-key semantics — fix or confirm.** Current behavior is backwards from every other design tool: resize is aspect-locked *by default*, and holding Shift *frees* it to distort. Figma/Photoshop/Illustrator all do the opposite — free resize by default, Shift locks proportions. The user's ask ("shift makes it evenly bigger/smaller") describes the standard behavior. **Open question, not yet confirmed**: swapping this changes existing muscle memory for current users of the app, even though it matches near-universal convention. Proposed default: swap to match convention, disclosed clearly in the next release notes as a deliberate behavior change (same discipline as v6.3.0's alwaysOnTop default flip). Smallest item on this list — a few lines in `cards.js`'s `startResize()`.
+
+2. **Video/audio control polish.** Functionality is already solid (scrub bar, mute, frame-stepping, onion-skin — all real, all shipped). The play/pause/mute icons are hand-drawn `<polygon>`/`<rect>` primitives, not a proper icon set. Scope: replace with higher-fidelity SVGs consistent with the rest of the app's icon language (see `main.css`'s existing stroke-icon convention), add a real volume level control (currently mute-only, no level), and a small expand/fullscreen affordance. Pure visual/UX polish, zero architecture change, low risk.
+
+3. **PDF preview for file-reference cards.** Right now a `file` card is icon + filename + Open/Change buttons — no content preview at all. This is also literally the file-ref ask: "should show a screen where the doc is able to scroll, zoom, and the card itself can be resized." Plan: **PDF.js** (pure JS, same "no native binaries" bar `wink-nlp` was chosen against) for `.pdf` specifically — gives real scroll + zoom + pagination inside the existing resizable card frame for free. Every other file type (zip, exe, unrecognized binaries) has nothing sensible to preview and keeps today's icon-only card — this is scoped to PDF, not "make every file type previewable."
+
+4. **Annotation tool upgrade — the biggest item on this list.** Current tools: pen, arrow, rectangle, measure, eyedropper; fixed color swatches; fixed width presets. To close the gap with Figma-level annotation:
+   - Ellipse and straight-line tools (rect/arrow already exist, these are the clear gaps)
+   - A text tool on the annotation layer itself (distinct from the existing Text *card* type — this stamps a label onto an image/video, not a floating card)
+   - Highlighter (thick, semi-transparent stroke)
+   - Custom color picker + a recent-colors row, replacing the fixed swatch-only palette
+   - Per-stroke opacity
+   - **Select, move, and delete an individual existing stroke** — today, once a stroke is drawn, the only way to change anything is "Clear annotations" (nukes everything) or undo (rolls back the whole board's last action, not stroke-scoped). This is the single biggest quality-of-life gap versus Figma and the part of this item that actually touches the stroke data model, not just adds new draw tools — plan this one as its own dedicated pass rather than folding it into the same release as the new tools above.
+
+5. **3D model preview.** New card type (`model3d`), same architectural pattern `image`/`video`/`audio` already use in `media.js`/`cards.js`. **Three.js** — pure JS + WebGL, no native binaries, fits the exact bar `wink-nlp` was chosen against. Format support, realistically:
+   - `.glb`/`.gltf` — solid via `GLTFLoader`, ship first
+   - `.obj`+`.mtl` — doable via `OBJLoader`, second
+   - `.fbx` — `FBXLoader` exists but is the least reliable of the three against real-world exports; disclose as "best effort," not a firm commitment
+   Controls for v1: orbit-rotate/pan/zoom (mouse-drag, consistent with how the canvas itself already works), a wireframe toggle, a background-color swatch — not a full material/lighting inspector. Real cost to flag: Three.js + loaders add meaningful bundle weight (600KB+), unlike every dependency chosen so far this arc — worth it, just not free the way `wink-nlp`'s ~4.5MB was framed as "small."
+
+6. **Additional supported formats, lower priority than the above.** Given Kanvaz's VFX/3D audience specifically:
+   - **Fonts** (`.ttf`/`.otf`) — sample-text preview, cheap to build
+   - **HDRI/EXR** — genuinely on-brand for lighting/reference HDRIs, needs a pure-JS EXR decoder plus exposure/tone-map controls; meaningfully bigger lift than fonts or PDF
+   - Markdown/code file preview — moderate value, low cost, not requested directly but a natural extension of the PDF-preview work in item 3
+
+7. **General UI polish** — explicitly "not blocking but great to have" per the user's own framing. No fixed scope yet; revisit after the items above land, the same way v6.6.0's polish pass happened after its pillars were functionally complete rather than alongside them.
+
+## Standing constraints carried forward
+
+Same discipline as the whole v6.x arc: no native dependencies without a real audit first (`npm view <pkg> dependencies`, check for `.node` files) — Three.js and PDF.js both need this check confirmed at implementation time, not just assumed from their reputation as "pure JS" libraries. 100% offline core stays non-negotiable; none of the above touches the network. Every release still gets CHANGELOG.md/docs/HANDOFF.md/SECURITY.md updated, and real live verification (the CDP-driven technique from v6.6.1/6.6.2, not just a boot-test) before calling anything done — that lesson from this exact arc's own bugs stands as a hard requirement going forward, not a suggestion.
 
 ---
 
