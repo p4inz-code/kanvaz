@@ -14,129 +14,85 @@
 
 # Kanvaz
 
-**Reference Operating System**
+### The Reference Operating System — for artists who think in images, not folders.
 
-> **The v6.x arc closed out clean at v6.6.2 — development continues anyway, now as an ongoing side project.** No fixed end date this time, no "final arc" framing: Kanvaz keeps getting real feature work driven by actual feedback, just at a slower, unhurried pace. See `docs/ROADMAP.md`'s "The v7.x line" section for the current plan. Found a real bug, or a feature you'd genuinely find valuable? [Open a GitHub issue](https://github.com/p4inz-code/kanvaz/issues) or email **atharva.patil.cg@gmail.com** — both are read.
+Stop tabbing between fifty browser windows and a messy Explore folder. Kanvaz is a free, open-source, **100% offline** infinite canvas built for VFX artists, 3D artists, and anyone whose real workflow is "collect references, connect ideas, and actually find them again later."
 
-> **v7.0.0** — First release of the ongoing side-project line. Resize now matches every other design tool: free resize by default, **Shift locks proportions** (previously backwards — aspect-locked by default, Shift freed it). Found and fixed a real related bug along the way: the aspect-lock exclusion for note/audio/url/file/text cards was only enforced in one of two code paths, so those types could still get corner-aspect-locked despite the exclusion. Video/audio controls got a real visual pass — play/pause and frame-step/onion-skin icons redrawn to match the rest of the app's icon grid — plus a genuinely new capability: a real per-card **volume level** slider, not just mute on/off. See [CHANGELOG.md](CHANGELOG.md) for the full writeup.
->
-> **v6.6.2** — A second, more serious Reference Mode bug found immediately after v6.6.1 shipped: pressing Esc to exit click-through also threw an error (a leftover reference to the exact code v6.6.1 had just moved), meaning turning click-through on with the mouse and then trying to leave via Esc could leave the window effectively unusable until force-quit. Fixed, plus the global Ctrl+Shift+T hotkey now tells you clearly if it failed to register instead of silently leaving you with no way out. See [CHANGELOG.md](CHANGELOG.md) for the full writeup.
->
-> **v6.6.1** — Reference Mode was actually broken since v6.0.0: clicking its titlebar button threw a `ReferenceError` instead of opening its popover, and the `T` shortcut / Command Palette entry silently did nothing — a scoping mistake (its code had landed inside the wrong internal module) that a boot-test alone could never catch, since it only broke when the button was actually clicked. Found by a user report, reproduced live via Chrome DevTools Protocol against the running app, and fixed. See [CHANGELOG.md](CHANGELOG.md) for the full writeup.
->
-> **v6.6.0** — Final UI-polish pass, closing the v6.x arc. A full consistency audit across every screen this arc added (Reference Mode popover, Smart Folders/color search, Smart Search settings, shared-cards badge/context-menu, the new Template Maker plugin) confirmed the arc was built with theme-variable discipline throughout — one real inconsistency found and fixed (a toggle switch missing its transition animation). See [CHANGELOG.md](CHANGELOG.md) for the full writeup.
->
-> **v6.5.0** — Wide-Open Plugin Ecosystem: a richer, still fully backward-compatible plugin API (any card type can now be created from data, not just a plugin's own registered type; shared-cards-across-boards and toast/dialog helpers are now plugin-reachable), a full rewrite of the plugin-authoring guide including an explicit green light to sell your own plugin, and a new official **Template Maker & Manager** plugin — save any board as a template, manage your own, and browse/install community ones. See [CHANGELOG.md](CHANGELOG.md) for the full writeup.
->
-> **v6.4.0** — Shared cards across boards: the same card can now live on more than one board in a single `.kanvaz` file with zero duplication — right-click → *Share to board*, edit it on either one, and the change is there the next time you open the other. This closes out the "Never Lose Anything Again" pillar. See [CHANGELOG.md](CHANGELOG.md) for the full writeup.
->
-> **v6.3.0** — Smart Search: on-device lemmatized/fuzzy text search ("cars" now finds "car"), fully offline, off by default. Built on pure-JS libraries with zero native dependencies after a real transformer model turned out to need native binaries that don't fit this project's "no attention for 2 years" bar — see [CHANGELOG.md](CHANGELOG.md) for the full story and a real bug-bounty pass before shipping.
->
-> **v6.2.0** — Smart Folders (a saved search that keeps re-running itself) and color search (click a color, find matching cards), the first two pieces of the "Never Lose Anything Again" pillar. See [CHANGELOG.md](CHANGELOG.md) for the full list.
->
-> **v6.1.0** — Measure and eyedropper tools in the annotation toolbar, plus video frame-stepping and onion-skin — closing out the rest of the "Live Reference" pillar. See [CHANGELOG.md](CHANGELOG.md) for the full list.
->
-> **v6.0.0** — Reference Mode: click-through + adjustable opacity, paired with Always-on-Top now defaulting to *on*. This is PureRef's actual signature move — trace or color-match straight through the Kanvaz window into whatever's underneath — finally complete and finally on by default. Top Mode is removed entirely; its whole reason to exist is now just how Kanvaz behaves out of the box. See [CHANGELOG.md](CHANGELOG.md) for the full writeup, including what's still to come in this arc.
->
-> **v5.3.0** — A real audit/bug-hunt pass across the full v4.7.0–v5.2.0 arc, with fixes applied before shipping: annotation data corruption when Map View was active, a legacy-stroke migration edge case, a light-theme shadow regression from v5.2.0's own theme cleanup, cross-board state leaks, a bulk-tag recency bug, a plugin-event ordering bug in the Template Gallery, and two real performance fixes (Map View group-drag, folder-drop). See [CHANGELOG.md](CHANGELOG.md) for the full writeup, including two cleanup items found but deliberately left for later rather than refactored under time pressure.
->
-> **v5.2.0** — Recently-used tags, remembered card size per type, drag-to-align snapping guides, color card palette mode, Markdown preview for notes, and a bulk-tag undo-batching fix. Plus [plugin authoring docs and a starter scaffold](docs/PLUGIN_AUTHORING.md) for anyone building their own Kanvaz plugin. See [CHANGELOG.md](CHANGELOG.md) for the full list.
->
-> **v5.1.0** — "Start from Template" next to New Board: three bundled starter boards (Filmmaking, Game Art, Mood Board), 100% offline — no catalog fetch, no network call, just files shipped with the app. See [CHANGELOG.md](CHANGELOG.md) for the full list.
->
-> **v5.0.0** — Annotation resize-drift is actually fixed (strokes now store as fractions of card size, not absolute pixels — they stay put across a resize + save/reload, and old files self-migrate). URL cards can fetch a one-click title/thumbnail preview (the one deliberate, disclosed, opt-in-per-click exception to the offline-core promise — see [SECURITY.md](SECURITY.md)). File reference cards now show a type-specific icon (PDF/ZIP/DOC/etc.) instead of one flat folder icon for everything. See [CHANGELOG.md](CHANGELOG.md) for the full list.
->
-> **v4.9.0** — Auto-updater downloads now show progress instead of going silent until "ready to restart." New "Zoom to Selection" command (Ctrl+K). See [CHANGELOG.md](CHANGELOG.md) for the full list, including what's deliberately carried forward to keep this release honest about scope.
->
-> **v4.5.1** — MCP Bridge goes from "edit cards" to nearly the whole app: board management (create/switch/rename/save/delete — deletion confirm-gated, since it's the one action on this whole surface that isn't undo-reversible), undo/redo, view control, card extras (flip/duplicate/z-order), and every app setting except plugin management, all now AI-drivable through the same 30-tool MCP surface. (4.5.1 is a CI-only follow-up — same app, fixes the macOS release build.) See [CHANGELOG.md](CHANGELOG.md) for the full list.
->
-> **v4.4.0** — Plugin ecosystem: hardening, distribution & MCP Bridge. Kanvaz becomes agent-controllable: the new MCP Bridge official plugin lets Claude Desktop, Claude Code, or any MCP client read and edit your active board over a local-only connection (off by default, every change undo-reversible). Ships alongside real per-plugin permission enforcement (a gated capability is now genuinely absent from a plugin's API view unless declared and approved, not just undocumented), CI packaging automation for official plugins, a one-click "Browse Official Plugins" tab, and a "Load unpacked plugin" dev workflow. See [CHANGELOG.md](CHANGELOG.md) for the full list.
->
-> **v4.3.0** — Command Palette & Plugin Runtime API: press Ctrl+K to run any Kanvaz shortcut or plugin-registered command by name, plugins can now register their own commands and react to app events (card create/update/delete, board load/save, selection change), and a read-only Runtime Data API (`getCards`/`getSelected`/`getConnections`/`getActiveBoard`) lays the groundwork for v4.4's MCP Bridge. See [CHANGELOG.md](CHANGELOG.md) for the full list.
->
-> **v4.2.2** — Visual polish and reliability pass: unified modal/panel styling (radius, shadow, entrance animation) across every panel in the app, a proper design-language icon set replacing leftover emoji, native connection-type colors instead of a borrowed palette, plus fixes for Top Mode's drag-to-move losing its grip mid-drag and Map View connections drifting after a window resize. See [CHANGELOG.md](CHANGELOG.md) for the full list.
->
-> **v4.2.1** — Full-stack audit and hardening pass across every source file: a plugin-storage race, several data-loss and XSS-adjacent bugs, Caps-Lock-broken shortcuts, and a round of UI copy that no longer matched actual behavior, all fixed. See [CHANGELOG.md](CHANGELOG.md) for the full list.
->
-> **v4.2.0** — The foundation of a plugin system: third parties can add new card types without forking Kanvaz, installed by dropping a folder in (no build step). Enabling a plugin always goes through a native, permission-disclosing OS dialog, and Theme Creator ships as the first official plugin. See [CHANGELOG.md](CHANGELOG.md) for the full list.
->
-> **v4.1.0** — URL and File reference cards (link/point at something without embedding it), a safer `.kanvaz` file format (zip container with per-asset integrity checks instead of one giant base64 JSON blob — old files still open fine), and another security/reliability pass.
->
-> **v4.0.1** — Foundation hardening pass: a full bug-hunt audit across every source file, fixing a save-file data-loss bug, a broken Select All, a minimap pan bug, two Escape-key bugs, and a dozen other issues.
->
-> **v4.0.0** — Quality release: full UI/UX polish pass across all 6 card types (relink broken media, video speed control + scrub, audio waveforms, live annotation indicator, color format cycling, and more), an unsaved-changes indicator, a polished installer, GitHub Actions CI, and an opt-in auto-updater.
-> Board View, Connection System, and Inspector are stable and shipping.
-> Map View is functional and receiving polish updates.
+Drop in images, video, audio, PureRef boards, and files. Trace or color-match *through* the window with real click-through Reference Mode. Wire references together with typed connections. Share the same card across boards with zero duplication. Extend it with plugins — or write your own and sell it.
 
-Collect, organize, connect, and understand your references — all offline.
-Kanvaz is a free, open-source desktop app for VFX artists, 3D artists, and creative professionals who work with visual references.
+No account. No cloud. No subscription. Just a canvas that's actually yours.
 
-### [⬇ Download for Windows](https://github.com/p4inz-code/kanvaz/releases/latest)
+<p align="center">
 
-Grab the latest installer from the [Releases page](https://github.com/p4inz-code/kanvaz/releases/latest).
+### [⬇ Download for Windows — it's free](https://github.com/p4inz-code/kanvaz/releases/latest)
 
-> **Note:** Kanvaz isn't code-signed (signing certificates cost money and
-> this app is free). When you run the installer, Windows will likely show
-> a blue **"Windows protected your PC"** screen. This is normal for
-> unsigned indie apps — click **"More info"** → **"Run anyway"**.
->
-> Prebuilt downloads are Windows only. macOS and Linux users can build
-> from source — see [Build installers](#build-installers) below.
+</p>
 
-See [CHANGELOG.md](CHANGELOG.md) for version history.
+> **Note:** Kanvaz isn't code-signed (certificates cost money; this app doesn't). Windows will likely show **"Windows protected your PC"** — click **"More info" → "Run anyway."** That's normal for unsigned indie software, not a red flag.
+> Prebuilt installers are Windows only — macOS/Linux users build from source, see [Build installers](#build-installers).
+
+<p align="center"><i>Actively developed as an ongoing project — driven by real feedback, no fixed roadmap deadline. Found a bug or want a feature? <a href="https://github.com/p4inz-code/kanvaz/issues">Open an issue</a> or email <b>atharva.patil.cg@gmail.com</b> — both get read.</i></p>
 
 ---
 
-## What Kanvaz Does
+## Latest release
 
-**Board View** — an infinite pan/zoom canvas where you drop images, GIFs, videos, audio, and notes. Arrange freely, annotate on top, organize across multiple boards in one file.
+**v7.0.0** — Resize now matches Figma/Photoshop/Illustrator: free resize by default, **Shift locks proportions** (a genuine bug fix — it was backwards before). Video/audio controls got a real per-card **volume slider** (not just mute), plus a full icon redraw for visual consistency. See [CHANGELOG.md](CHANGELOG.md) for the complete version history — every release back to v3.5, with the reasoning behind each one.
 
-**Connection System** — link any reference to another with typed, directional relationships (Related To, Inspired By, Derived From, Alternative To, Supports, Used In, References). Each connection carries optional notes and priority.
+---
 
-**Map View** *(under active development)* — a node-editor-style graph that visualizes all your references and connections. Drag from output ports to input ports to create connections. Bezier tube cables with glow and colored dot terminators. Independent pan/zoom from the board canvas.
+## Why Kanvaz
 
-**Connection Inspector** — select any reference and press C to see all its incoming and outgoing connections. Create, edit, and delete relationships from a side panel.
-
-**100% Offline** — no accounts, no telemetry, no internet required. Your `.kanvaz` files never leave your machine. The one exception: an optional "Check for updates" button in the About screen, which fires two GitHub requests (the built-in updater's own check, plus a version-info lookup for the About screen) — only if you click it, never automatically.
+| | |
+|---|---|
+| 🖼️ **One canvas for everything** | Images, GIFs, video, audio, notes, colors, URLs, and file pointers — drop it in, arrange it freely, annotate on top. Multiple boards per file, each with its own view state. |
+| 👻 **Reference Mode** | Click-through + adjustable window opacity, paired with always-on-top by default. Trace or color-match *straight through* the Kanvaz window into Photoshop, ZBrush, or wherever else — no alt-tabbing. |
+| 🔗 **Shared cards across boards** | The same card can live on more than one board with zero duplication. Edit it on either one — the change is there next time you open the other. |
+| 🧠 **Smart Search** | On-device, lemmatized/fuzzy search ("cars" finds "car"). Fully offline, off by default, ~4.5MB, zero native dependencies. |
+| ✏️ **Real annotation tools** | Pen, arrow, rectangle, pixel-measure, and an eyedropper that samples actual pixel color — right on top of your reference. |
+| 🕸️ **Connections + Map View** | Link any two references with typed, directional relationships. Visualize the whole web as a node-editor-style graph with bezier cables. |
+| 🧩 **A real plugin ecosystem** | Add card types, commands, themes, or full features without forking Kanvaz. Sell your own plugin if you want — Kanvaz will never take a cut or run a marketplace. |
+| 🔒 **100% offline, always** | No accounts, no telemetry, nothing phones home. The *only* network activity anywhere in the app is a button you have to click yourself (Check for Updates, Browse Plugins) — never automatic. |
 
 ---
 
 ## Features
 
-- Infinite pan/zoom canvas (8%–500%)
-- Image, GIF, video, and audio cards with full playback controls
-- Note cards with inline text editing
-- Pen, arrow, and rectangle annotation tools in 6 colors
-- Multiple boards in one file, each with its own cards and view state
-- Reference Connection System with 7 relationship types
-- Map View with node-editor-style bezier tube connections
-- Connection Inspector panel (view, create, edit, delete connections)
-- Undo/redo up to 50 steps (includes connection changes)
-- Autosave crash recovery (writes to recovery file every 30s)
-- Top Mode (Tab, or Ctrl+Shift+F) — hide all UI for distraction-free presenting; hover the top edge to briefly bring back the title/toolbar without exiting, Esc or Tab to fully exit
-- Auto-hide toolbar (Settings → Behavior, off by default) — same hover-to-reveal chrome as Top Mode, but as a standing preference instead of a shortcut-gated mode; also relaxes the minimum window size for a PureRef-style compact footprint
-- Grid snap (Settings → Behavior, off by default) — snaps card width/height/position to the grid on both move and resize, choice of Minor (24px) or Major (120px) increment
-- Developer settings (Settings → Developer) — FPS/render-time overlay, card/connection ID overlay, manual diagnostics trigger, bulk test-card generator, one-click debug-info export for bug reports
-- Top Mode auto-enables Always on Top (Settings → Behavior, off by default) — restores your prior Always-on-Top state when you exit Top Mode
-- Tab+MMB whole-window drag — hold Tab and drag with the middle mouse button to move the window from anywhere on screen
-- Optional update check (About screen) — the only network activity in the entire app (two GitHub requests: the built-in updater's own check, plus a version-info lookup), fires only when you click it, never automatically
-- Reset Kanvaz (Settings → Reset) — clears settings, recent-files list, and autosave/recovery cache, then restarts. Never touches saved `.kanvaz` boards, which always live outside the app's own data folder regardless of where you save them
-- Tag editing — add/remove tags directly on any card, shown as chips on hover/selection
-- Search/filter (`/` or Ctrl+F) — live filter by name, type, or tag; matches stay full-opacity, everything else dims so you keep spatial context
-- Always on top (T) — persists across restarts
-- Board/Map segmented toggle in toolbar
-- Light / dark theme (press L or change in Settings)
-- Type-aware context menus (note cards hide irrelevant media options)
-- Crash-safe save — writes to a temp file first, then renames, so a crash mid-save can't corrupt your board
-- Settings migration — automatically upgrades settings across versions without data loss
-- `.pur` file import — drag-drop or menu-import PureRef boards with position/scale preserved
-- Properties panel (E) — attach custom key-value metadata to any card
-- Color picker card type — solid color swatches with native OS color picker
-- URL reference cards — paste a link, open it in your default browser or copy it; never fetches previews/favicons, so this stays 100% offline like everything else
-- File reference cards — point at a file anywhere on disk (a source PSD, a script, a brief) without embedding it; open with its default app or re-point it to a different file anytime
-- Plugin system — drop a folder in or use the one-click "Browse Official Plugins" tab (Settings → Plugins) to add new card types, commands, event hooks, or full themes; enabling one always goes through a native, permission-disclosing dialog, and a board never breaks even if a plugin it depends on is later disabled or removed
-- Command Palette (Ctrl+K) — fuzzy-search and run any Kanvaz shortcut or plugin-registered command by name
-- MCP Bridge (official plugin, off by default) — lets an MCP-compatible AI client (Claude Desktop, Claude Code, ...) read and edit your active board over a local-only connection; every change lands in undo history like a manual edit
+**Canvas & organization**
+- Infinite pan/zoom canvas (8%–500%), multiple boards per file
+- Image, GIF, video, and audio cards with full playback controls + a real volume slider
+- Note, text, color, URL, and file-reference card types
+- Shared cards across boards — same content, no duplication, edit anywhere
+- Tag editing, live search/filter (`/`), and Smart Folders (saved searches that re-run themselves)
+- Color search — click a swatch, find every card that matches
+- `.pur` file import — drag-drop a PureRef board with position/scale preserved
+- Undo/redo up to 50 steps, autosave crash recovery, crash-safe atomic save
+
+**Reference Mode (PureRef's signature move, and then some)**
+- Click-through + adjustable opacity, always-on-top by default
+- Global `Ctrl+Shift+T` escape hatch — works even when focus has moved elsewhere
+
+**Annotation**
+- Pen, arrow, rectangle, pixel-measure, and eyedropper (real pixel sampling)
+- Video frame-stepping + onion-skin ghosting for checking animation timing
+
+**Connections**
+- 7 typed relationship kinds (Related To, Inspired By, Derived From, Alternative To, Supports, Used In, References)
+- Map View — node-editor-style graph, bezier tube connections, independent pan/zoom
+- Connection Inspector panel (C) — view, create, edit, delete from a side panel
+
+**Plugin ecosystem**
+- Drop a folder in, or one-click install from the in-app "Browse Official Plugins" catalog
+- A richer runtime API: register card types, commands, themes, event hooks — even insert any card type from raw data
+- MCP Bridge (official plugin) — let an MCP-compatible AI client (Claude Desktop, Claude Code, ...) read and edit your board locally, every change undo-reversible
+- Template Maker & Manager (official plugin) — save boards as templates, browse/install community ones
+- Explicit, considered permission to sell your own plugin — no in-app marketplace, ever
+
+**Everything else**
+- Command Palette (`Ctrl+K`) — fuzzy-search and run any shortcut or plugin command
+- Light/dark theme, Properties panel for custom metadata, type-aware context menus
+- Settings migration across versions with zero data loss
+- Developer tools — FPS overlay, ID overlays, one-click debug export for bug reports
 
 ---
 
@@ -185,7 +141,9 @@ npm run build:linux
 | Middle mouse / Space+drag | Pan |
 | 0 | Reset zoom |
 | F | Fit all cards |
-| T | Always on top |
+| T | Reference Mode — click-through toggle |
+| Ctrl+Shift+T | Exit click-through (works from anywhere, even without focus) |
+| Ctrl+K | Command Palette — fuzzy-search any shortcut or plugin command |
 | L | Toggle light / dark theme |
 | Ctrl+S | Save board |
 | Ctrl+Shift+S | Save board as new file |
@@ -203,44 +161,45 @@ npm run build:linux
 | H | Hide annotations |
 | Arrow keys | Nudge card 1px |
 | Shift+Arrow | Nudge card 10px |
-| Tab | Top Mode — hide all UI (also Ctrl+Shift+F) |
+| Shift (while resizing) | Lock aspect ratio |
 | S | Settings (toggle open/close) |
 | I | About (toggle open/close) |
 | ? | Shortcuts overlay (toggle open/close) |
-| Esc | Deselect / close panels / cancel wire / exit Top Mode |
+| Esc | Deselect / close panels / cancel wire / exit click-through |
 
 ---
 
 ## File format
 
-As of 4.1.0, a `.kanvaz` file is a zip container — `board.json` (the same board/card/connection structure Kanvaz has always used) plus one file per embedded image/video/audio asset, each with a SHA-256 hash recorded for corruption detection. This replaced the old plain-JSON-with-everything-base64-encoded format, which inflated media by ~33% and put your whole board at risk if a single byte anywhere in that one giant JSON string got corrupted. A damaged asset now degrades to that one card showing "missing media" instead of threatening the rest of the file.
+As of 4.1.0, a `.kanvaz` file is a zip container — `board.json` (the board/card/connection structure) plus one file per embedded image/video/audio asset, each with a SHA-256 hash recorded for corruption detection. This replaced the old plain-JSON-with-everything-base64-encoded format, which inflated media by ~33% and put your whole board at risk if a single byte anywhere in that one giant JSON string got corrupted. A damaged asset now degrades to that one card showing "missing media" instead of threatening the rest of the file.
 
-Files saved by 4.0.1 and earlier (plain JSON, base64 media) still open exactly as before — Kanvaz detects the format automatically and only ever writes the new container going forward. Connections are stored as a top-level `connections` array alongside boards. Files from v2.x load cleanly with zero connections.
+As of 6.4.0, `board.json` also carries a top-level `sharedCards` registry — the content of any card shared across boards lives there once, keyed by a stable id, with each board's own `cards[]` holding only a lightweight position/size stub referencing it. Fully additive: older files simply have no stubs referencing anything and load with an empty registry.
+
+Files saved by 4.0.1 and earlier (plain JSON, base64 media) still open exactly as before — Kanvaz detects the format automatically and only ever writes the current container going forward. Connections are stored as a top-level `connections` array alongside boards. Files from v2.x load cleanly with zero connections.
 
 ---
 
 ## Known limitations
 
 - Properties panel is basic key-value editing only (text values) — no dropdown/date/number field types yet.
-- MKV and AVI video files may not play (Chromium codec limitation) — MP4 (H.264) and WebM recommended. Kanvaz now tells you plainly when this is why a video card failed, instead of a generic "missing media" message.
-- PDF reference cards aren't implemented — there's no `pdf` card type or creation UI today (unlike `url` and `file`, which fully ship as of 4.1.0). A real PDF card type (with page thumbnails) is a possible future addition, not something partially built.
-- Cross-board connections aren't possible from the UI — the data model doesn't prevent it, but only one board's cards are ever loaded at a time, so the "Connect to" picker can only offer cards from the board you're currently on.
-- Autosave writes to a recovery file only — "Unsaved changes" in the status bar clears only on explicit Save (Ctrl+S). The recovery file is now cleared on every clean close (v3.6.5) so the "Recover unsaved board?" prompt only appears after an actual crash, not on every launch.
-- The base installer itself still bundles zero plugins by design (see the Plugin System section of [SECURITY.md](SECURITY.md)) — Theme Creator and MCP Bridge, Kanvaz's two official plugins, both install separately (folder-drop or the one-click Browse Official Plugins tab), the same way any third-party plugin does. Enabling a newly-approved plugin takes effect immediately; disabling one takes effect after restart. Per-permission enforcement is real for the `server` capability (MCP Bridge's) as of 4.4.0, but not yet for `network`/`filesystem` — see SECURITY.md's trust-model section for exactly what that does and doesn't cover today.
-- `registerPropertyFieldType` (custom Properties panel field types via a plugin) is still unimplemented — the API sketch exists in `docs/PLUGIN_SYSTEM_DRAFT.md` but nothing calls it yet.
+- MKV and AVI video files may not play (Chromium codec limitation) — MP4 (H.264) and WebM recommended. Kanvaz tells you plainly when this is why a video card failed, instead of a generic "missing media" message.
+- PDF reference cards aren't implemented yet — there's no `pdf` card type today. A real PDF card with scroll/zoom preview is planned (see Roadmap below), not something partially built.
+- Cross-board connections between two independent cards aren't possible from the UI (only one board's cards load at a time, so the "Connect to" picker only offers cards on the board you're on) — but as of 6.4.0, sharing the *same* card across boards is possible and covers most of what people actually want this for.
+- Autosave writes to a recovery file only — "Unsaved changes" in the status bar clears only on explicit Save (Ctrl+S). The recovery file is cleared on every clean close, so the "Recover unsaved board?" prompt only appears after an actual crash.
+- The base installer bundles zero plugins by design (see [SECURITY.md](SECURITY.md)'s Plugin System section) — Theme Creator, MCP Bridge, and Template Maker & Manager all install separately, the same way any third-party plugin does.
+- `registerPropertyFieldType` (custom Properties panel field types via a plugin) is still unimplemented.
 
 ---
 
 ## Roadmap
 
-Kanvaz 4.x is intended to be the last major version, with only small fixes after a few more builds — so this is a short list of genuinely-still-open items rather than a long-term plan:
+Kanvaz keeps getting developed as an ongoing side project — no fixed deadline, driven by real feedback. The living plan lives in [docs/ROADMAP.md](docs/ROADMAP.md); the current batch in progress:
 
-- Real PDF reference cards (page thumbnails, not just an "open externally" pointer)
-- Richer Properties panel field types (dropdown, date, number, checkbox) — likely to ship as a plugin now that the plugin system exists, rather than a core feature
-- Cross-board connections, if it turns out to matter enough to design the UI for it
-- Map View auto-layout algorithms
-- Plugin authoring docs + a scaffold template (there's a design draft and two real official plugins to learn from — Theme Creator and MCP Bridge — but no "start here" template yet), planned for v5.0
-- `registerPropertyFieldType` (custom Properties panel field types via a plugin)
+- 3D model preview (`.glb`/`.gltf`, `.obj`) via Three.js
+- Real PDF reference cards with actual scroll/zoom preview inside the card
+- A bigger annotation upgrade — ellipse/line/text/highlighter tools, custom color picker, per-stroke opacity, select/move/delete individual strokes
+- Font and HDRI/EXR preview support
+- General UI polish, ongoing
 
 ---
 
