@@ -76,12 +76,26 @@ schema level.
 3. **Launch with multiple profiles**: defaults to the last-active profile
    automatically (like Chrome remembering your last profile) rather than
    forcing a picker screen every launch — the corner icon is always there
-   to switch if needed. (Open question below: should multi-profile
-   installs get an explicit picker instead — see Q3.)
+   to switch if needed. **Decided.**
 4. **In-app switcher**: click the corner profile icon → a small menu:
    *Switch profile* (list with avatars), *Manage profiles* (rename/
-   delete/create), *Edit this profile*, then About/Shortcuts below,
+   delete/create — lives right here, not a separate top-level entry
+   point — **decided**), *Edit this profile*, then About/Shortcuts below,
    exactly matching the side-panel plan already agreed.
+5. **Start Screen (new, Premiere/Illustrator-style)** — launching Kanvaz
+   with no specific file argument (a plain double-click on the app icon,
+   Start Menu, taskbar) shows a Home screen first: recent boards (bigger,
+   more visual than the current tiny "recent files" list), a prominent
+   "New board" action, Kanvaz branding, and — naturally, since it's
+   already the first screen the user sees — the profile switcher lives
+   here too if more than one profile exists, not just tucked in the
+   corner icon. **Skipped entirely** when the app is launched by opening
+   a `.kanvaz` file directly (double-click on a board file, "Open with
+   Kanvaz", or a second-instance file-open — see `app.on('second-
+   instance', ...)` and the `open-file-from-argv` flow already in
+   `main.js`) — that goes straight to the board, exactly like today.
+   This reuses the existing single-instance/file-argv plumbing to decide
+   which path to take; no new IPC surface needed to make that decision.
 5. **Switching mid-session with unsaved changes**: reuses the exact
    "Save before closing?" gate the app already shows on window close —
    switching profiles is treated as ending this user session, not a new
@@ -102,19 +116,21 @@ sharing a machine. Worth stating this as plainly as the plugin trust model
 is disclosed today, so nobody mistakes "Profiles" for "my board is
 protected from whoever else uses this computer."
 
-## Open questions before implementation starts
+## Decisions (all resolved)
 
-1. **Plugin enable/disable state** — per-profile, or still machine-wide?
-   (Recommendation: per-profile — matches everything else in this plan.)
-2. **Smart Search index per profile** — rebuilding it costs real time/CPU
-   on first use per profile. Acceptable, or should the index itself be
-   shared machine-wide even though settings/enable-state are per-profile?
-3. **Multi-profile launch behavior** — auto-load last-active (my
-   recommendation above), or always show an explicit picker screen when
-   more than one profile exists (more "account-system"-feeling, less
-   frictionless)?
-4. **Where "Manage profiles" lives** — inside the new side panel's
-   About/Profile section, or its own top-level entry point?
+1. **Plugin enable/disable state** — **per-profile.**
+2. **Smart Search index per profile** — **per-profile** (rebuilt on first
+   enable per profile, fully isolated, no cross-profile data leakage).
+3. **Multi-profile launch behavior** — **auto-load last-active**, no
+   forced picker. The new Start Screen (above) is where a picker-like
+   experience naturally lives instead, without forcing it on a
+   direct-file-open launch.
+4. **Where "Manage profiles" lives** — **inside the side panel's Profile
+   section**, alongside About/Shortcuts.
+
+No open questions remain — this plan is ready to schedule whenever you
+want to build it (after the side-panel/card-visual redesign, per the
+sequencing below).
 
 ## Suggested sequencing
 
