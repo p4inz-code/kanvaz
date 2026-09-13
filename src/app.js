@@ -166,7 +166,15 @@ var KanvazApp = (function() {
        is one of the headline items in this app's own README). A plain
        toolbar button next to Open/Save is the obvious, expected home
        for it. */
-    on('btn-import',    function() { KanvazUI.importPurFile(); });
+    /* Bug fix: this called KanvazUI.importPurFile() — but importPurFile
+       is defined and exported from THIS module (KanvazApp), not from
+       the separate window.KanvazUI IIFE further down this same file;
+       KanvazUI's own returned object has no such method. Every click
+       threw "KanvazUI.importPurFile is not a function," silently eaten
+       since on()'s handler isn't wrapped in try/catch — the button
+       simply appeared to do nothing. Calling the bare (hoisted, same-
+       scope) importPurFile() directly fixes it. */
+    on('btn-import',    function() { importPurFile(); });
     on('btn-save',      function() { KanvazBoards.saveBoard(); });
     on('btn-zoom-in',   function() { KanvazCanvas.zoomIn(); });
     on('btn-zoom-out',  function() { KanvazCanvas.zoomOut(); });
@@ -1580,8 +1588,7 @@ var KanvazApp = (function() {
       hideSearchBar:       hideSearchBar,
       closeAll:            closeAll,
       showAbout:           function() { KanvazUI_Extended.showAbout(); },
-      showShortcuts:       showShortcuts,
-      showTemplateGallery: function() { KanvazUI_Extended.showTemplateGallery(); }
+      showShortcuts:       showShortcuts
     };
 
   })();

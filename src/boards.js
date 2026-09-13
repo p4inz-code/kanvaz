@@ -220,9 +220,7 @@ var KanvazBoards = (function() {
     templateBtn.style.cssText = 'padding:7px 10px;background:transparent;border:1px solid var(--color-border);border-radius:6px;color:var(--color-text-2);font-family:var(--font-ui);font-size:12px;cursor:pointer;transition:background 0.1s;';
     templateBtn.onmouseenter = function() { templateBtn.style.background = 'var(--color-surface-2)'; };
     templateBtn.onmouseleave = function() { templateBtn.style.background = 'transparent'; };
-    templateBtn.onclick = function() {
-      if (typeof KanvazUI !== 'undefined' && KanvazUI.showTemplateGallery) KanvazUI.showTemplateGallery();
-    };
+    templateBtn.onclick = function() { renderTemplateGalleryInto(container); };
     actionsRow.appendChild(templateBtn);
     container.appendChild(actionsRow);
 
@@ -263,10 +261,129 @@ var KanvazBoards = (function() {
     container.appendChild(quickDrop);
   }
 
+  /* ── Start from Template (moved inline, v7.x redesign) ──
+     Used to be ui.js's showTemplateGallery() — a fixed centered modal
+     popup. Direct feedback: this space (the Boards section of the side
+     panel) already exists for exactly this decision (what should a new
+     board start as), so the gallery now renders IN PLACE of the boards
+     list here instead of opening a popup on top of everything, with a
+     "← Boards" button to go back. Same KanvazBridge.listTemplates()/
+     loadTemplate() calls the old popup used — only the container and
+     the back-navigation are new. */
+  function renderTemplateGalleryInto(container) {
+    container.innerHTML = '';
+    lastBoardsContainer = container;
+
+    var header = document.createElement('div');
+    header.style.cssText = 'display:flex;align-items:center;gap:8px;padding:10px 8px 4px;';
+
+    var backBtn = document.createElement('button');
+    backBtn.textContent = '← Boards';
+    backBtn.style.cssText = 'background:none;border:none;color:var(--color-text-2);font-family:var(--font-ui);font-size:12px;cursor:pointer;padding:2px 0;';
+    backBtn.onclick = function() { renderBoardsList(container); };
+    header.appendChild(backBtn);
+    container.appendChild(header);
+
+    var title = document.createElement('div');
+    title.style.cssText = 'font-size:14px;font-weight:600;color:var(--color-text);padding:4px 8px 2px;';
+    title.textContent = 'Start from Template';
+    container.appendChild(title);
+
+    var sub = document.createElement('div');
+    sub.style.cssText = 'font-size:11px;color:var(--color-text-3);padding:0 8px 12px;';
+    sub.textContent = 'Bundled with Kanvaz — no network call, ever.';
+    container.appendChild(sub);
+
+    var listEl = document.createElement('div');
+    listEl.style.cssText = 'padding:0 8px;font-size:12px;color:var(--color-text-3);';
+    listEl.textContent = 'Loading…';
+    container.appendChild(listEl);
+
+    if (typeof KanvazBridge === 'undefined' || !KanvazBridge.listTemplates) {
+      listEl.textContent = 'Not available in this build.';
+      return;
+    }
+
+    KanvazBridge.listTemplates().then(function(result) {
+      /* Stale-response guard: the user may have clicked "← Boards"
+         (or switched to a different section entirely) before this
+         promise resolved — container would then belong to whatever
+         renders there now. lastBoardsContainer only ever points at the
+         MOST RECENT render target, so this check is enough to detect
+         "am I still the thing showing" without a separate token/flag. */
+      if (lastBoardsContainer !== container || !container.isConnected) return;
+
+      if (!result || !result.ok) {
+        listEl.textContent = 'Could not load templates' + (result && result.error ? ': ' + result.error : '.');
+        return;
+      }
+      var templates = result.templates || [];
+      listEl.textContent = '';
+      if (!templates.length) {
+        listEl.textContent = 'No templates bundled with this build.';
+        return;
+      }
+
+      for (var i = 0; i < templates.length; i++) {
+        (function(entry) {
+          var row = document.createElement('div');
+          row.style.cssText = 'padding:10px 0;border-bottom:1px solid var(--color-border);';
+
+          var top = document.createElement('div');
+          top.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;';
+
+          var name = document.createElement('div');
+          name.style.cssText = 'font-size:12px;color:var(--color-text);font-weight:500;';
+          name.textContent = entry.name;
+          top.appendChild(name);
+
+          var useBtn = document.createElement('button');
+          useBtn.textContent = 'Use';
+          useBtn.style.cssText = 'background:var(--color-accent-bg);border:1px solid var(--color-accent);border-radius:4px;color:var(--color-accent);padding:3px 10px;font-size:11px;font-family:var(--font-ui);cursor:pointer;flex-shrink:0;';
+          useBtn.onclick = function() {
+            useBtn.disabled = true;
+            useBtn.textContent = 'Loading…';
+            KanvazBridge.loadTemplate(entry.id).then(function(res) {
+              if (!res || !res.ok) {
+                KanvazUI.toast((res && res.error) || 'Could not load template', 'error');
+                useBtn.disabled = false;
+                useBtn.textContent = 'Use';
+                return;
+              }
+              newBoard(true, entry.name, res.cards);
+              KanvazApp.markDirty();
+              KanvazHistory.push();
+              renderBoardsList(container);
+              KanvazUI.toast('Started board from "' + entry.name + '"');
+            }).catch(function(e) {
+              KanvazUI.toast('Could not load template: ' + e.message, 'error');
+              useBtn.disabled = false;
+              useBtn.textContent = 'Use';
+            });
+          };
+          top.appendChild(useBtn);
+          row.appendChild(top);
+
+          if (entry.description) {
+            var desc = document.createElement('div');
+            desc.style.cssText = 'font-size:11px;color:var(--color-text-3);margin-top:3px;line-height:1.4;';
+            desc.textContent = entry.description;
+            row.appendChild(desc);
+          }
+
+          listEl.appendChild(row);
+        })(templates[i]);
+      }
+    }).catch(function(e) {
+      if (lastBoardsContainer !== container || !container.isConnected) return;
+      listEl.textContent = 'Could not load templates: ' + e.message;
+    });
+  }
+
   /* ── New board ── */
 
   /* Bug-bounty fix (v5.3.0): initialCards (optional) lets a caller — so
-     far only ui.js's showTemplateGallery() — populate the fresh board
+     far only boards.js's renderTemplateGalleryInto() — populate the fresh board
      BEFORE 'boardLoad' fires, instead of calling KanvazCards.deserialise()
      itself afterward. That second pattern used to be what the Template
      Gallery did, and it meant any plugin listening for 'boardLoad' (to
