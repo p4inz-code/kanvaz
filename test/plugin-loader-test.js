@@ -16,6 +16,13 @@ var pluginLoader = require(path.join(__dirname, '..', 'src', 'plugin-loader.js')
 
 var TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'kanvaz-plugin-test-'));
 
+/* Redesign v1: plugin-loader.js functions that touch state now take a
+   SEPARATE statePath parameter (per-profile plugin-state.json) from
+   userDataPath (the shared plugins/ code folder) — see plugin-loader.js's
+   own comment above getStatePath(). This test has no profile system in
+   play, so it passes TMP for both — a single-directory configuration
+   the real app only uses pre-migration, but perfectly valid here. */
+
 function writePlugin(id, folder, manifestOverrides, entryContent) {
   var dir = path.join(TMP, 'plugins', folder);
   fs.mkdirSync(dir, { recursive: true });
@@ -35,7 +42,7 @@ function writePlugin(id, folder, manifestOverrides, entryContent) {
 function run() {
   /* 1. A valid, never-approved plugin loads and correctly needs consent */
   writePlugin('com.test.valid', 'valid-plugin');
-  var results = pluginLoader.scanPlugins(TMP);
+  var results = pluginLoader.scanPlugins(TMP, TMP);
   var valid = results.filter(function(p) { return p.folder === 'valid-plugin'; })[0];
   assert.ok(valid, 'valid plugin must appear in scan results');
   assert.strictEqual(valid.valid, true, 'well-formed manifest must be accepted');
@@ -48,7 +55,7 @@ function run() {
   /* Object.assign with an undefined value still sets the key to
      undefined, which JSON.stringify drops entirely — exactly simulates
      a manifest.json that never had "version" in the first place. */
-  var afterMissing = pluginLoader.scanPlugins(TMP);
+  var afterMissing = pluginLoader.scanPlugins(TMP, TMP);
   var missing = afterMissing.filter(function(p) { return p.folder === 'missing-field-plugin'; })[0];
   assert.ok(missing, 'malformed plugin must still appear (as invalid), not disappear silently');
   assert.strictEqual(missing.valid, false, 'a manifest missing a required field must be rejected');
@@ -57,7 +64,7 @@ function run() {
 
   /* 3. kanvazApiVersion mismatch degrades gracefully */
   writePlugin('com.test.futureversion', 'future-version-plugin', { kanvazApiVersion: 999 });
-  var afterFuture = pluginLoader.scanPlugins(TMP);
+  var afterFuture = pluginLoader.scanPlugins(TMP, TMP);
   var future = afterFuture.filter(function(p) { return p.folder === 'future-version-plugin'; })[0];
   assert.strictEqual(future.valid, false, 'an unsupported kanvazApiVersion must be rejected');
   assert.ok(/v999/.test(future.reason), 'reason should mention the requested version: ' + future.reason);
@@ -66,14 +73,14 @@ function run() {
   /* 4. Permission escalation on an update re-triggers consent */
   writePlugin('com.test.escalate', 'escalate-plugin', { permissions: ['cardTypes'] });
   pluginLoader.approvePlugin(TMP, 'com.test.escalate', '1.0.0', ['cardTypes']);
-  var afterApprove = pluginLoader.scanPlugins(TMP);
+  var afterApprove = pluginLoader.scanPlugins(TMP, TMP);
   var approved = afterApprove.filter(function(p) { return p.folder === 'escalate-plugin'; })[0];
   assert.strictEqual(approved.needsConsent, false, 'an approved plugin with unchanged permissions must not need consent again');
   assert.strictEqual(approved.enabled, true, 'an approved plugin must be enabled');
 
   /* Simulate an update that adds a new permission */
   writePlugin('com.test.escalate', 'escalate-plugin', { version: '1.1.0', permissions: ['cardTypes', 'network'] });
-  var afterEscalate = pluginLoader.scanPlugins(TMP);
+  var afterEscalate = pluginLoader.scanPlugins(TMP, TMP);
   var escalated = afterEscalate.filter(function(p) { return p.folder === 'escalate-plugin'; })[0];
   assert.strictEqual(escalated.needsConsent, true, 'a permission-escalating update must re-require consent');
   assert.strictEqual(escalated.enabled, false, 'a plugin needing re-consent must not silently stay enabled');
@@ -84,13 +91,13 @@ function run() {
   fs.mkdirSync(outsideDir, { recursive: true });
   fs.writeFileSync(path.join(outsideDir, 'sentinel.txt'), 'should not be deleted', 'utf8');
 
-  var traversalResult = pluginLoader.removePlugin(TMP, '..' + path.sep + 'outside-target');
+  var traversalResult = pluginLoader.removePlugin(TMP, TMP, '..' + path.sep + 'outside-target');
   assert.strictEqual(traversalResult.ok, false, 'a path-traversal folder name must be refused');
   assert.ok(fs.existsSync(path.join(outsideDir, 'sentinel.txt')), 'the outside file must still exist — traversal must not have deleted it');
   console.log('  ✓ removePlugin() refuses a path-traversal attempt, outside file untouched');
 
   /* And a legitimate removal of a plugin's own folder still works */
-  var legitResult = pluginLoader.removePlugin(TMP, 'valid-plugin', 'com.test.valid');
+  var legitResult = pluginLoader.removePlugin(TMP, TMP, 'valid-plugin', 'com.test.valid');
   assert.strictEqual(legitResult.ok, true, 'removing a plugin\'s own folder must succeed');
   assert.ok(!fs.existsSync(path.join(TMP, 'plugins', 'valid-plugin')), 'the plugin folder must actually be gone');
   console.log('  ✓ removing a plugin\'s own folder works correctly');
@@ -101,21 +108,21 @@ function run() {
   assert.ok(pluginLoader.ALLOWED_PERMISSIONS.indexOf('server') !== -1, '"server" must be a recognized permission');
 
   writePlugin('com.test.mcpbridgelike', 'mcp-bridge-like-plugin', { permissions: ['server'] });
-  var afterServerScan = pluginLoader.scanPlugins(TMP);
+  var afterServerScan = pluginLoader.scanPlugins(TMP, TMP);
   var serverPlugin = afterServerScan.filter(function(p) { return p.folder === 'mcp-bridge-like-plugin'; })[0];
   assert.strictEqual(serverPlugin.valid, true, 'a manifest declaring "server" must validate');
   assert.strictEqual(serverPlugin.needsConsent, true, 'a never-approved "server" plugin must need consent, same as any other permission');
   console.log('  ✓ "server" permission validates and requires consent like any other');
 
   pluginLoader.approvePlugin(TMP, 'com.test.mcpbridgelike', '1.0.0', ['server']);
-  var afterServerApprove = pluginLoader.scanPlugins(TMP);
+  var afterServerApprove = pluginLoader.scanPlugins(TMP, TMP);
   var approvedServerPlugin = afterServerApprove.filter(function(p) { return p.folder === 'mcp-bridge-like-plugin'; })[0];
   assert.strictEqual(approvedServerPlugin.needsConsent, false, 'approving "server" must clear needsConsent');
   assert.ok(approvedServerPlugin.approvedPermissions.indexOf('server') !== -1, 'approvedPermissions must record "server"');
   console.log('  ✓ "server" permission, once approved, is recorded and consent is not re-asked');
 
   writePlugin('com.test.badperm', 'bad-permission-plugin', { permissions: ['server', 'nonsense-permission'] });
-  var afterBadPerm = pluginLoader.scanPlugins(TMP);
+  var afterBadPerm = pluginLoader.scanPlugins(TMP, TMP);
   var badPermPlugin = afterBadPerm.filter(function(p) { return p.folder === 'bad-permission-plugin'; })[0];
   assert.strictEqual(badPermPlugin.valid, false, 'an unrecognized permission string must still be rejected even alongside a valid one');
   assert.ok(/nonsense-permission/.test(badPermPlugin.reason), 'reason should name the unrecognized permission: ' + badPermPlugin.reason);

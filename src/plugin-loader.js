@@ -71,8 +71,17 @@ function getPluginsDir(userDataPath) {
   return path.join(userDataPath, 'plugins');
 }
 
-function getStatePath(userDataPath) {
-  return path.join(userDataPath, STATE_FILE);
+/* Redesign v1: which plugins are enabled is PER-PROFILE (plugin CODE
+   stays machine-wide — installing a plugin is a machine-level action,
+   see docs/PROFILES_SYSTEM_PLAN.md's "what a profile owns" section) —
+   so every state-touching function below takes a SEPARATE `statePath`
+   (the active profile's own directory) alongside `userDataPath` (still
+   used only for the shared plugins/ code folder). Callers that haven't
+   been updated for profiles yet can pass the same value for both —
+   state just lives at the userData root in that case, matching the
+   pre-profiles behavior exactly. */
+function getStatePath(statePath) {
+  return path.join(statePath, STATE_FILE);
 }
 
 function ensurePluginsDir(userDataPath) {
@@ -83,9 +92,9 @@ function ensurePluginsDir(userDataPath) {
   return dir;
 }
 
-function readState(userDataPath) {
+function readState(statePath) {
   try {
-    var p = getStatePath(userDataPath);
+    var p = getStatePath(statePath);
     if (!fs.existsSync(p)) return {};
     return JSON.parse(fs.readFileSync(p, 'utf8'));
   } catch (e) {
@@ -93,8 +102,8 @@ function readState(userDataPath) {
   }
 }
 
-function writeState(userDataPath, state) {
-  var p = getStatePath(userDataPath);
+function writeState(statePath, state) {
+  var p = getStatePath(statePath);
   var tmp = p + '.tmp';
   fs.writeFileSync(tmp, JSON.stringify(state, null, 2), 'utf8');
   fs.renameSync(tmp, p);
@@ -152,9 +161,9 @@ function validateManifest(manifest) {
 /* Scans the plugins directory. Returns an array of descriptors, each
    either { valid:true, ... } or { valid:false, reason:'...' }. A broken
    plugin.json never stops the others from loading and never throws. */
-function scanPlugins(userDataPath) {
+function scanPlugins(userDataPath, statePath) {
   var dir = ensurePluginsDir(userDataPath);
-  var state = readState(userDataPath);
+  var state = readState(statePath || userDataPath);
   var results = [];
 
   var entries;
@@ -237,28 +246,28 @@ function scanPlugins(userDataPath) {
 
 /* Records that the user approved a plugin at a given version with a
    given permission set, and enables it. */
-function approvePlugin(userDataPath, pluginId, version, permissions) {
-  var state = readState(userDataPath);
+function approvePlugin(statePath, pluginId, version, permissions) {
+  var state = readState(statePath);
   state[pluginId] = {
     enabled: true,
     approvedPermissions: permissions || [],
     approvedVersion: version
   };
-  writeState(userDataPath, state);
+  writeState(statePath, state);
 }
 
-function setEnabled(userDataPath, pluginId, enabled) {
-  var state = readState(userDataPath);
+function setEnabled(statePath, pluginId, enabled) {
+  var state = readState(statePath);
   if (!state[pluginId]) return;
   state[pluginId].enabled = !!enabled;
-  writeState(userDataPath, state);
+  writeState(statePath, state);
 }
 
 /* Removes a plugin's own folder only. pluginFolder must resolve to a
    direct descendant of the plugins directory — blocks a crafted folder
    name from ever deleting anything outside it, and refuses to delete
    the plugins directory itself if pluginFolder is empty/'.'/'..'. */
-function removePlugin(userDataPath, pluginFolder, pluginId) {
+function removePlugin(userDataPath, statePath, pluginFolder, pluginId) {
   var dir = getPluginsDir(userDataPath);
   var target = path.join(dir, pluginFolder || '');
 
@@ -272,10 +281,10 @@ function removePlugin(userDataPath, pluginFolder, pluginId) {
   try {
     fs.rmSync(resolvedTarget, { recursive: true, force: true });
     if (pluginId) {
-      var state = readState(userDataPath);
+      var state = readState(statePath);
       if (state[pluginId]) {
         delete state[pluginId];
-        writeState(userDataPath, state);
+        writeState(statePath, state);
       }
     }
     return { ok: true };

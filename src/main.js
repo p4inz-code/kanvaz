@@ -1537,9 +1537,18 @@ function registerIPC() {
     });
   });
 
+  /* Redesign v1: which plugins are enabled/approved is now PER-PROFILE
+     (docs/PROFILES_SYSTEM_PLAN.md) — plugin CODE stays under the shared
+     userData/plugins/ folder (installing a plugin is a machine-level
+     action), but plugin-state.json (enabled/approved/permissions) now
+     lives under the ACTIVE profile's own directory. Every handler below
+     resolves both paths separately and passes them to plugin-loader.js
+     as (userData, statePath, ...). */
   ipcMain.handle('plugins-scan', function() {
     try {
-      return { ok: true, plugins: pluginLoader.scanPlugins(app.getPath('userData')) };
+      var userData = app.getPath('userData');
+      var statePath = kanvazProfiles.getActiveProfileDir(userData);
+      return { ok: true, plugins: pluginLoader.scanPlugins(userData, statePath) };
     } catch (e) {
       return { ok: false, error: e.message, plugins: [] };
     }
@@ -1552,7 +1561,8 @@ function registerIPC() {
 
   ipcMain.handle('plugins-review-and-enable', function(event, pluginFolder) {
     var userData = app.getPath('userData');
-    var scanned = pluginLoader.scanPlugins(userData);
+    var statePath = kanvazProfiles.getActiveProfileDir(userData);
+    var scanned = pluginLoader.scanPlugins(userData, statePath);
     var plugin = scanned.filter(function(p) { return p.folder === pluginFolder; })[0];
 
     if (!plugin || !plugin.valid) {
@@ -1574,7 +1584,7 @@ function registerIPC() {
       if (result.response !== 1) {
         return { ok: true, approved: false };
       }
-      pluginLoader.approvePlugin(userData, manifest.id, manifest.version, manifest.permissions || []);
+      pluginLoader.approvePlugin(statePath, manifest.id, manifest.version, manifest.permissions || []);
       return { ok: true, approved: true };
     });
   });
@@ -1582,18 +1592,19 @@ function registerIPC() {
   ipcMain.handle('plugins-set-enabled', function(event, pluginId, enabled) {
     try {
       var userData = app.getPath('userData');
+      var statePath = kanvazProfiles.getActiveProfileDir(userData);
       if (enabled) {
         /* Re-check fresh — never trust a stored flag alone for turning
            something ON. If this plugin currently needs consent (new
            install, or a permission-escalating update since it was last
            approved), refuse rather than silently enabling it. */
-        var scanned = pluginLoader.scanPlugins(userData);
+        var scanned = pluginLoader.scanPlugins(userData, statePath);
         var plugin = scanned.filter(function(p) { return p.manifest && p.manifest.id === pluginId; })[0];
         if (!plugin || !plugin.valid || plugin.needsConsent) {
           return { ok: false, error: 'this plugin needs to be reviewed and approved first' };
         }
       }
-      pluginLoader.setEnabled(userData, pluginId, !!enabled);
+      pluginLoader.setEnabled(statePath, pluginId, !!enabled);
       return { ok: true };
     } catch (e) {
       return { ok: false, error: e.message };
@@ -1602,6 +1613,7 @@ function registerIPC() {
 
   ipcMain.handle('plugins-remove', function(event, pluginFolder, pluginId) {
     var userData = app.getPath('userData');
+    var statePath = kanvazProfiles.getActiveProfileDir(userData);
     /* If both a folder and an id were given, only clear that id's stored
        approval state if we can POSITIVELY confirm folder and id belong
        to each other — never on the mere absence of a proven mismatch.
@@ -1616,7 +1628,7 @@ function registerIPC() {
        removePlugin('bogus-folder', 'victim.plugin.id').) */
     var idToClear = null;
     if (pluginId) {
-      var scanned = pluginLoader.scanPlugins(userData);
+      var scanned = pluginLoader.scanPlugins(userData, statePath);
       var match = scanned.filter(function(p) { return p.folder === pluginFolder; })[0];
       if (match && match.valid) {
         if (match.manifest.id !== pluginId) {
@@ -1628,7 +1640,7 @@ function registerIPC() {
          manifest): fall through and remove the folder only. Never clear
          a caller-supplied pluginId's state without a verified match. */
     }
-    return pluginLoader.removePlugin(userData, pluginFolder, idToClear);
+    return pluginLoader.removePlugin(userData, statePath, pluginFolder, idToClear);
   });
 
   /* Per-plugin storage — used by e.g. the Theme Creator plugin to
@@ -1650,16 +1662,21 @@ function registerIPC() {
      dialog listed. See SECURITY.md. writePluginStorage() itself does
      cap payload size (see plugin-loader.js) so a runaway/malicious
      write can't freeze the main process or exhaust disk. */
+  /* Redesign v1: per-plugin storage (a plugin's saved presets/settings)
+     is user content/preference, so it's per-profile too — same
+     getActiveProfileDir() resolution as settings/recent/recovery. */
   ipcMain.handle('plugins-storage-get', function(event, pluginId) {
     try {
-      return { ok: true, data: pluginLoader.readPluginStorage(app.getPath('userData'), pluginId) };
+      var statePath = kanvazProfiles.getActiveProfileDir(app.getPath('userData'));
+      return { ok: true, data: pluginLoader.readPluginStorage(statePath, pluginId) };
     } catch (e) {
       return { ok: false, error: e.message, data: {} };
     }
   });
 
   ipcMain.handle('plugins-storage-set', function(event, pluginId, data) {
-    return pluginLoader.writePluginStorage(app.getPath('userData'), pluginId, data);
+    var statePath = kanvazProfiles.getActiveProfileDir(app.getPath('userData'));
+    return pluginLoader.writePluginStorage(statePath, pluginId, data);
   });
 
   /* Settings -> Developer "Load unpacked plugin" (4.4.0) — dev-mode only,
@@ -1894,7 +1911,8 @@ function registerIPC() {
      when the real reason is this handler simply doesn't authorize any
      id but MCP_BRIDGE_PLUGIN_ID. Distinguishing the two honestly below. */
   ipcMain.handle('mcp-bridge-start', function() {
-    var scanned = pluginLoader.scanPlugins(app.getPath('userData'));
+    var userData = app.getPath('userData');
+    var scanned = pluginLoader.scanPlugins(userData, kanvazProfiles.getActiveProfileDir(userData));
     var plugin = scanned.filter(function(p) {
       return p.manifest && p.manifest.id === MCP_BRIDGE_PLUGIN_ID;
     })[0];

@@ -1,13 +1,14 @@
 # Kanvaz Redesign v1 — Sprint Plan
 
-**Merged into `main` as v7.8.0; Phase 3 shipped as v7.9.0.** Tracked on
-the `redesign-v1` branch while in progress (kept, not deleted, as the
-historical record of this sprint). No Figma file ended up coming — the
-user's own reference screenshot (shared directly in chat) was used as
-the literal design spec for Phase 3 instead. The deliberately-deferred
-parts of Phase 2 (per-profile plugin storage, Export/Import profile, a
-Start Screen profile picker) remain open — track those as their own
-follow-up work, not part of this document's remaining scope.
+**Merged into `main` as v7.8.0; Phase 3 shipped as v7.9.0; per-profile
+plugin state landed after that (see the note under Phase 2 below).**
+Tracked on the `redesign-v1` branch while in progress (kept, not
+deleted, as the historical record of this sprint). No Figma file ended
+up coming — the user's own reference screenshot (shared directly in
+chat) was used as the literal design spec for Phase 3 instead. Two
+deferred parts of Phase 2 remain open — Export/Import profile as a
+portable file, and a Start Screen profile picker — track those as their
+own follow-up work, not part of this document's remaining scope.
 
 Full detail for each phase lives in its own plan doc — this is the
 sequencing and the definition of done.
@@ -110,14 +111,31 @@ profile's own isolated (empty) recent-boards list while the original
 profile's data stayed untouched on disk.
 
 Deliberately deferred (see profiles.js's own scope-note comment,
-not oversights): per-profile plugin enable-state/storage (plugin-
-loader.js's storage layout is shared, higher-blast-radius surface,
-sequenced as its own follow-up); the dedicated first-run "Set up your
-profile" wizard screen from the plan (a fresh install auto-names from
-the OS username instead, renameable any time); Export/Import profile as
-a portable file; and the multi-profile Start Screen picker (today's
-Start Screen doesn't yet surface a profile switcher itself — only the
-account-menu dialog does).
+not oversights): the dedicated first-run "Set up your profile" wizard
+screen from the plan (a fresh install auto-names from the OS username
+instead, renameable any time); Export/Import profile as a portable
+file; and the multi-profile Start Screen picker (today's Start Screen
+doesn't yet surface a profile switcher itself — only the account-menu
+dialog does).
+
+**Update — per-profile plugin state landed after all, as its own
+follow-up slice.** plugin-loader.js's state-touching functions
+(`scanPlugins`, `approvePlugin`, `setEnabled`, `removePlugin`,
+`readPluginStorage`/`writePluginStorage`) now take a separate
+`statePath` parameter — the ACTIVE PROFILE's own directory — alongside
+`userDataPath`, which stays the shared `userData/plugins/` folder for
+plugin CODE only (installing a plugin is still a machine-level action,
+per this plan's "what a profile owns" section). Which plugins are
+enabled/approved, and each plugin's own saved storage (e.g. Theme
+Creator's presets), are now genuinely per-profile — Profile A approving
+and enabling a plugin has zero effect on whether Profile B sees it as
+approved. `test/plugin-loader-test.js` updated for the new
+two-parameter signature (a single test tmpdir passed as both
+arguments, since the test has no profile system in play). Verified with
+a standalone script exercising two real profile directories sharing one
+plugin-code folder: Profile A shows the plugin enabled and consent-free
+after approving it there; Profile B, never having approved it, still
+correctly shows `needsConsent: true`.
 
 Also, per direct feedback mid-sprint: Settings' categories were
 adjusted — a dedicated "Appearance" section split out from "General"
