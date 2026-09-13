@@ -234,7 +234,7 @@ var KanvazCommands = (function() {
     });
     registerCommand('core.openSettings', {
       label: 'Open Settings', shortcut: 'S',
-      run: function() { if (typeof KanvazUI_Extended !== 'undefined') KanvazUI_Extended.showSettings(); }
+      run: function() { if (typeof KanvazSidePanel !== 'undefined') KanvazSidePanel.toggle('settings'); }
     });
     registerCommand('core.openAbout', {
       label: 'About Kanvaz', shortcut: 'I',

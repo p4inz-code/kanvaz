@@ -7,9 +7,24 @@ internally; reconcile with the semver line at merge time.
 Full detail for each phase lives in its own plan doc — this is the
 sequencing and the definition of done.
 
-## Phase 1 — Side panel
+## Phase 1 — Side panel — **DONE, on `redesign-v1`, not yet merged to `main`**
 
 Plan: `docs/SIDE_PANEL_PLAN.md` (fully resolved, no open questions).
+
+Implemented in new `src/sidepanel.js` (orchestrator) plus changes to
+`boards.js` (`renderTabs` → `renderBoardsList`, targets a container
+instead of the removed `#board-tabs`), `properties.js` (`open`/`close`/
+new `renderInto` delegate to `KanvazSidePanel` instead of building a
+floating panel), `ui.js` (`showSettings`/`closeSettings` replaced with
+`renderSettingsInto`/`closeSettingsSection`, reorganized into General /
+Canvas & Input / Files & Search / Plugins / Advanced-collapsible),
+`index.html`/`main.css` (new DOM + styles), and call-site updates in
+`app.js`/`commands.js`/`shortcuts.js`. One real bug caught in self-
+review before commit: `properties.js`'s per-section keydown listener
+was attached to the persistent panel container on every render with no
+guard, stacking indefinitely across section switches — fixed with a
+one-time-attachment marker, verified live that 10 rapid section
+switches still leave exactly one listener bound.
 
 - Left-docked panel, icon rail always visible, content pane toggles
   with `S`.

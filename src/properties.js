@@ -1,8 +1,13 @@
 /* properties.js — Properties panel for key-value metadata editing (v3.8)
  *
- * Opens a side panel for the selected card, showing all custom
- * key-value properties. Users can add, edit, and delete properties.
- * Press E with a card selected to toggle the panel.
+ * Shows the selected card's custom key-value properties, editable
+ * in place. Press E with a card selected to toggle it.
+ *
+ * v7.x redesign: renders into the left side panel's content pane
+ * (see sidepanel.js) instead of building its own floating fixed-
+ * position panel — open()/close() now delegate to
+ * KanvazSidePanel.toggle('properties')/close() so this is just one
+ * more section in the unified panel rather than a competing overlay.
  */
 
 var KanvazProperties = (function() {
@@ -11,28 +16,6 @@ var KanvazProperties = (function() {
   var activeId = null;
 
   /* ── Styles ── */
-
-  var PANEL_CSS = [
-    'position:fixed',
-    'left:12px',
-    'top:52px',
-    'bottom:12px',
-    'width:280px',
-    'background:var(--color-surface)',
-    'border:1px solid var(--color-border-2)',
-    'border-radius:var(--radius-lg)',
-    /* Polish fix: hardcoded shadow that didn't adapt to Light theme —
-       matches the fix applied to Inspector's structurally-twin panel. */
-    'box-shadow:0 8px 32px var(--color-shadow)',
-    'z-index:20000',
-    'display:flex',
-    'flex-direction:column',
-    'overflow:hidden',
-    'font-family:var(--font-ui)',
-    'font-size:13px',
-    'color:var(--color-text)',
-    'animation:panel-slide-in 0.15s ease-out'
-  ].join(';');
 
   var HEADER_CSS = [
     'padding:14px 16px 10px',
@@ -79,53 +62,83 @@ var KanvazProperties = (function() {
 
   /* ── Panel open/close ── */
 
+  /* open(refId) — toggles the side panel to the Properties section for
+     this card. Delegates to KanvazSidePanel entirely; this module no
+     longer owns any floating panel or DOM attachment itself. */
   function open(refId) {
-    if (panelEl && activeId === refId) { close(); return; }
-    if (panelEl) close();
-
+    if (typeof KanvazSidePanel === 'undefined') return;
+    if (activeId === refId && KanvazSidePanel.isSectionOpen('properties')) {
+      close();
+      return;
+    }
     activeId = refId;
-    var allCards = KanvazCards.getAll();
-    var card = allCards[refId];
-    if (!card) return;
+    KanvazSidePanel.showSection('properties');
+  }
 
-    /* Ensure properties object exists */
+  function close() {
+    activeId = null;
+    if (typeof KanvazSidePanel !== 'undefined' && KanvazSidePanel.isSectionOpen('properties')) {
+      KanvazSidePanel.close();
+    }
+  }
+
+  /* isOpen() keeps its historical meaning ("is a specific card's
+     Properties currently showing"), used by app.js's closeAll() to
+     decide whether to close it along with every other overlay. */
+  function isOpen() {
+    return activeId !== null && typeof KanvazSidePanel !== 'undefined' && KanvazSidePanel.isSectionOpen('properties');
+  }
+
+  /* ── Render into the side panel's content pane ──
+     Called by sidepanel.js whenever the Properties section becomes the
+     active one — either via open(refId) above (a specific card) or by
+     the user clicking the Properties rail icon directly, in which case
+     there's no refId yet and this falls back to whatever card is
+     currently selected on the board. */
+  function renderInto(container) {
+    container.innerHTML = '';
+    panelEl = container;
+
+    if (!activeId) {
+      var sel = (typeof KanvazCards !== 'undefined') ? KanvazCards.getSelected() : null;
+      if (sel) activeId = sel;
+    }
+
+    var allCards = (typeof KanvazCards !== 'undefined') ? KanvazCards.getAll() : {};
+    var card = activeId ? allCards[activeId] : null;
+
+    if (!card) {
+      var empty = document.createElement('div');
+      empty.style.cssText = 'padding:24px 16px;text-align:center;color:var(--color-text-3);font-size:12px;line-height:1.5;';
+      empty.textContent = 'Select a card to see its properties.';
+      container.appendChild(empty);
+      return;
+    }
+
     if (!card.properties) card.properties = {};
-
-    panelEl = document.createElement('div');
-    panelEl.id = 'properties-panel';
-    panelEl.style.cssText = PANEL_CSS;
 
     /* Stop keyboard shortcuts (Delete, P, etc.) from leaking through to
        the global card-shortcuts dispatcher while focus/interaction is
-       anywhere inside this panel — not just its inputs (shortcuts.js
-       already skips text inputs on its own; this also covers the
-       panel's buttons and other non-input elements). Escape and E are
-       handled here directly instead of being swallowed, so the panel's
-       own documented close shortcuts (see closeBtn's "Close (E)" title)
-       keep working no matter where focus is once the panel is open —
-       previously they only worked while focus was still outside the
-       panel entirely, since stopping propagation blocked them from
-       ever reaching the global handler that normally toggles this panel. */
-    panelEl.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape' || e.key === 'e' || e.key === 'E') {
-        e.stopPropagation();
-        close();
-        return;
-      }
-      /* Audit fix: this used to stop propagation unconditionally, which
-         also swallowed the Ctrl/Cmd-modified shortcuts shortcuts.js
-         documents as "always fire regardless of focus" (Ctrl+S, Ctrl+O,
-         Ctrl+Shift+S, Ctrl+F) — Save silently did nothing while focus
-         happened to be on a property value input inside this panel, no
-         error or feedback shown. Only swallow plain, unmodified keys —
-         this panel's actual concern is stopping something like a bare
-         "p" or Delete from leaking through to the global per-card
-         shortcuts dispatcher while the user is interacting with this
-         panel's own controls, not intercepting app-level shortcuts. */
-      if (!e.ctrlKey && !e.metaKey) {
-        e.stopPropagation();
-      }
-    });
+       anywhere inside this section — not just its inputs (shortcuts.js
+       already skips text inputs on its own; this also covers this
+       section's buttons and other non-input elements). Only swallows
+       plain, unmodified keys — Ctrl/Cmd-modified shortcuts (Save, Open,
+       ...) still reach the global handler regardless of focus here.
+       Self-review fix: `container` is the persistent #side-panel-content
+       element, re-used across every render (only its CHILDREN get wiped
+       by innerHTML='' above) — attaching this listener unconditionally
+       on every renderInto() call stacked a new one each time the
+       Properties section was switched to, never removed, each retaining
+       its own closure. Guard with a one-time marker so this attaches
+       exactly once per container, ever. */
+    if (!container.dataset.propertiesKeydownBound) {
+      container.dataset.propertiesKeydownBound = '1';
+      container.addEventListener('keydown', function(e) {
+        if (!e.ctrlKey && !e.metaKey) {
+          e.stopPropagation();
+        }
+      });
+    }
 
     /* ── Header ── */
     var header = document.createElement('div');
@@ -144,16 +157,7 @@ var KanvazProperties = (function() {
     subtitle.textContent = card.name || 'Untitled';
     titleWrap.appendChild(subtitle);
     header.appendChild(titleWrap);
-
-    var closeBtn = document.createElement('button');
-    closeBtn.textContent = '✕';
-    closeBtn.title = 'Close (E)';
-    closeBtn.style.cssText = 'background:none;border:none;color:var(--color-text-3);font-size:16px;cursor:pointer;padding:4px 6px;line-height:1;flex-shrink:0;';
-    closeBtn.onmouseenter = function() { closeBtn.style.color = 'var(--color-text)'; };
-    closeBtn.onmouseleave = function() { closeBtn.style.color = 'var(--color-text-3)'; };
-    closeBtn.onclick = close;
-    header.appendChild(closeBtn);
-    panelEl.appendChild(header);
+    container.appendChild(header);
 
     /* ── Body ── */
     var body = document.createElement('div');
@@ -161,7 +165,7 @@ var KanvazProperties = (function() {
     body.style.cssText = BODY_CSS;
 
     renderProperties(body, card);
-    panelEl.appendChild(body);
+    container.appendChild(body);
 
     /* ── Footer: Add property button ── */
     var footer = document.createElement('div');
@@ -185,20 +189,8 @@ var KanvazProperties = (function() {
     addBtn.onmouseleave = function() { addBtn.style.background = 'var(--color-accent-bg)'; };
     addBtn.onclick = function() { addProperty(card); };
     footer.appendChild(addBtn);
-    panelEl.appendChild(footer);
-
-    document.body.appendChild(panelEl);
+    container.appendChild(footer);
   }
-
-  function close() {
-    if (panelEl && panelEl.parentNode) {
-      panelEl.parentNode.removeChild(panelEl);
-    }
-    panelEl  = null;
-    activeId = null;
-  }
-
-  function isOpen() { return panelEl !== null; }
 
   /* ── Render all properties ── */
 
@@ -351,9 +343,10 @@ var KanvazProperties = (function() {
   /* ── API ── */
 
   return {
-    open:    open,
-    close:   close,
-    isOpen:  isOpen
+    open:       open,
+    close:      close,
+    isOpen:     isOpen,
+    renderInto: renderInto
   };
 
 })();

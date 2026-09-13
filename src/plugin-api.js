@@ -124,7 +124,7 @@ var KanvazPluginAPI = (function() {
      switching to "dark" or "light" already works. */
   /* Audit fix: 'dark' and 'light' are Kanvaz's own built-in theme ids,
      hardcoded as the first two <option>s in the Settings theme dropdown
-     (see ui.js's showSettings()). Nothing previously stopped a plugin
+     (see ui.js's renderSettingsInto()). Nothing previously stopped a plugin
      from registering one of those exact ids too — the dropdown would
      then show two entries both saying "Dark" (or "Light"), and
      applyTheme('dark') would inject the PLUGIN's css for

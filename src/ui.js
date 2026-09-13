@@ -140,7 +140,7 @@ var KanvazUI_Extended = (function() {
 
   /* ── Settings panel ── */
 
-  var settingsOpen = false;
+  var lastSettingsContainer = null;
   var currentPluginsListEl = null;
 
   var SETTINGS_VERSION = 4;
@@ -175,7 +175,15 @@ var KanvazUI_Extended = (function() {
     gridSnapEnabled:  false,
     gridSnapIncrement: 'minor',
     devShowFPS:       false,
-    devShowIds:       false
+    devShowIds:       false,
+    /* v7.x redesign — side panel state. Persisted like every other
+       preference in this app (settings.json via IPC), not localStorage
+       — this app has zero prior localStorage usage, and keeping one
+       consistent persistence path means "Reset Kanvaz" (which clears
+       known settings/cache files) actually resets this too instead of
+       leaving stray state behind. */
+    sidePanelOpen:    false,
+    sidePanelSection: 'boards'
   };
 
   /* ── Settings migrations ──
@@ -262,6 +270,19 @@ var KanvazUI_Extended = (function() {
   }
 
   function applySettings() {
+    /* v7.x redesign — the side panel's open/section state is read once
+       at KanvazSidePanel.init() time, which runs synchronously right
+       after loadSettings() kicks off its OWN async IPC read — meaning
+       that first read sees only the in-memory defaults, not whatever
+       was actually persisted from last session. applySettings() runs a
+       second time once the real settings.json contents land (see
+       loadSettings() below), so re-syncing here catches up to the real
+       persisted state shortly after boot instead of silently ignoring
+       it every single launch. */
+    if (typeof KanvazSidePanel !== 'undefined' && KanvazSidePanel.refreshPersistedState) {
+      KanvazSidePanel.refreshPersistedState();
+    }
+
     /* Minimap */
     var mw = document.getElementById('minimap-wrap');
     if (mw) mw.style.display = settings.showMinimap ? '' : 'none';
@@ -468,48 +489,23 @@ var KanvazUI_Extended = (function() {
     });
   }
 
-  function showSettings() {
-    if (settingsOpen) { closeSettings(); return; }
-    settingsOpen = true;
+  /* v7.x redesign — renders directly into the side panel's content pane
+     instead of building its own floating popover. Reorganized from 8
+     flat section fragments (two of which were single-setting orphans:
+     "Window" had only alwaysOnTop, "Smart Search" had only its enable
+     toggle) into docs/SETTINGS_UX_PLAN.md's structure: General / Canvas
+     & Input / Files & Search, plus Plugins (kept top-level — regular
+     users install plugins, it's not a developer feature) and a
+     collapsible Advanced section (Developer tools + Reset), closed by
+     default so a casual user never sees FPS overlays and reset buttons
+     ahead of anything they'd actually look for. */
+  function renderSettingsInto(container) {
+    container.innerHTML = '';
+    currentPluginsListEl = null;
+    lastSettingsContainer = container;
 
     var panel = document.createElement('div');
-    panel.id = 'settings-panel';
-    panel.style.cssText = [
-      'position:fixed',
-      'top:80px',
-      'right:12px',
-      'width:280px',
-      'max-height:calc(100vh - 100px)',
-      'overflow-y:auto',
-      'background:var(--color-surface)',
-      'border:1px solid var(--color-border-2)',
-      'border-radius:var(--radius-lg)',
-      'padding:16px',
-      'z-index:9000',
-      'box-shadow:0 8px 32px var(--color-shadow)',
-      'font-size:13px',
-      /* Polish fix: no entrance animation at all — instant pop, unlike
-         About/Dialog/Shortcuts (all now fade+scale in) and Inspector/
-         Properties (slide in from their docked edge). Settings is a
-         right-anchored panel like Inspector, so it gets the same
-         panel-slide-in-right treatment. */
-      'animation:panel-slide-in-right 0.15s ease-out'
-    ].join(';');
-
-    var title = document.createElement('div');
-    title.style.cssText = 'font-size:14px;font-weight:600;color:var(--color-text);margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;';
-
-    var titleText = document.createElement('span');
-    titleText.textContent = 'Settings';
-    title.appendChild(titleText);
-
-    var closeX = document.createElement('button');
-    closeX.innerHTML = '&times;';
-    closeX.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-text-3);font-size:16px;padding:0;line-height:1;';
-    closeX.addEventListener('click', function() { closeSettings(); });
-    title.appendChild(closeX);
-
-    panel.appendChild(title);
+    panel.style.cssText = 'padding:0 16px 16px;';
 
     var themeOptions = [['dark', 'Dark'], ['light', 'Light']];
     if (typeof KanvazPluginAPI !== 'undefined' && KanvazPluginAPI._getAllThemes) {
@@ -520,31 +516,28 @@ var KanvazUI_Extended = (function() {
     }
 
     var rows = [
-      { section: 'Appearance' },
+      { section: 'General' },
       { key: 'theme',           label: 'Theme',                 type: 'select', options: themeOptions },
       { key: 'showMinimap',     label: 'Show minimap',          type: 'toggle' },
       { key: 'dotGridVisible',  label: 'Grid lines',            type: 'toggle' },
       { key: 'cardShadows',     label: 'Card shadows',          type: 'toggle' },
       { key: 'animationsOn',    label: 'Animations',            type: 'toggle' },
-      { section: 'Behavior' },
       { key: 'openOnStartup',   label: 'Show recent on startup',type: 'toggle' },
-      { key: 'confirmDelete',   label: 'Confirm before delete', type: 'toggle' },
+      { section: 'Canvas & Input' },
       { key: 'leftDragPan',     label: 'Left-drag empty canvas to pan', type: 'toggle' },
       { key: 'autoHideChrome',  label: 'Auto-hide toolbar (hover top edge to reveal)', type: 'toggle' },
       { key: 'doubleClickCreatesNote', label: 'Double-click canvas creates note', type: 'toggle' },
       { key: 'gridSnapEnabled', label: 'Snap to grid (move & resize)', type: 'toggle' },
       { key: 'gridSnapIncrement', label: 'Snap increment', type: 'select', options: [['minor','Minor (24px)'],['major','Major (120px)']] },
-      { section: 'Window' },
       { key: 'alwaysOnTop',     label: 'Always on top (default: on)', type: 'toggle' },
-      { section: 'Smart Search' },
-      { key: 'smartSearchEnabled', label: 'Smart Search (on-device NLP, off by default)', type: 'toggle' },
-      { section: 'Files' },
+      { section: 'Files & Search' },
+      { key: 'confirmDelete',   label: 'Confirm before delete', type: 'toggle' },
       { key: 'autosaveInterval',label: 'Autosave (seconds)',    type: 'number', min: 10, max: 300 },
       { key: 'defaultCardW',    label: 'Default card width (px)',type: 'number', min: 80, max: 1200 },
-      { section: 'Reset' },
-      { label: 'Reset Kanvaz (settings & cache only)', type: 'button', buttonLabel: 'Reset',
-        action: function() { confirmResetAppData(); } },
-      { section: 'Developer' },
+      { key: 'smartSearchEnabled', label: 'Smart Search (on-device NLP, off by default)', type: 'toggle' }
+    ];
+
+    var advancedRows = [
       { key: 'devShowFPS',      label: 'FPS / render-time overlay', type: 'toggle' },
       { key: 'devShowIds',      label: 'Show card/connection IDs',  type: 'toggle' },
       { label: 'Run diagnostics now', type: 'button', buttonLabel: 'Run',
@@ -583,17 +576,19 @@ var KanvazUI_Extended = (function() {
               KanvazUI.toast(result.error || 'Could not load that folder', 'error');
             }
           });
-        } }
+        } },
+      { label: 'Reset Kanvaz (settings & cache only)', type: 'button', buttonLabel: 'Reset',
+        action: function() { confirmResetAppData(); } }
     ];
 
-    for (var i = 0; i < rows.length; i++) {
-      (function(row) {
+    function buildRow(row, target) {
+        target = target || panel;
         /* Section header */
         if (row.section) {
           var hdr = document.createElement('div');
           hdr.style.cssText = 'font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;color:var(--color-text-3);margin:14px 0 4px;';
           hdr.textContent = row.section;
-          panel.appendChild(hdr);
+          target.appendChild(hdr);
           return;
         }
         var el = document.createElement('div');
@@ -664,9 +659,10 @@ var KanvazUI_Extended = (function() {
           el.appendChild(btn);
         }
 
-        panel.appendChild(el);
-      })(rows[i]);
+        target.appendChild(el);
     }
+
+    for (var i = 0; i < rows.length; i++) { buildRow(rows[i]); }
 
     /* Plugins section (4.2.0) — not part of the generic rows[] renderer
        above since its content is async (comes from a scan IPC call) and
@@ -734,43 +730,65 @@ var KanvazUI_Extended = (function() {
       }
     }
 
-    /* About link */
-    var aboutBtn = document.createElement('button');
-    aboutBtn.textContent = 'About Kanvaz';
-    aboutBtn.style.cssText = 'margin-top:12px;width:100%;padding:7px;background:transparent;border:1px solid var(--color-border);border-radius:6px;color:var(--color-text-2);font-family:var(--font-ui);font-size:12px;cursor:pointer;transition:background 0.1s;';
-    aboutBtn.onmouseenter = function() { aboutBtn.style.background = 'var(--color-surface-2)'; };
-    aboutBtn.onmouseleave = function() { aboutBtn.style.background = 'transparent'; };
-    aboutBtn.onclick = function() { closeSettings(); showAbout(); };
-    panel.appendChild(aboutBtn);
+    /* Advanced — collapsed by default (Developer tools + Reset). A
+       casual user shouldn't see an FPS overlay toggle and a reset
+       button ahead of anything they'd actually look for; one click
+       reveals them for anyone who wants them. About/Shortcuts moved to
+       the corner account menu (see sidepanel.js), no longer live here. */
+    var advToggle = document.createElement('button');
+    advToggle.style.cssText = 'display:flex;align-items:center;gap:6px;width:100%;background:none;border:none;padding:10px 0 4px;cursor:pointer;color:var(--color-text-3);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;';
+    var advChevron = document.createElement('span');
+    advChevron.textContent = '▸';
+    advChevron.style.cssText = 'display:inline-block;transition:transform 0.12s;font-size:9px;';
+    advToggle.appendChild(advChevron);
+    var advLabel = document.createElement('span');
+    advLabel.textContent = 'Advanced';
+    advToggle.appendChild(advLabel);
+    panel.appendChild(advToggle);
 
-    document.body.appendChild(panel);
+    var advBody = document.createElement('div');
+    advBody.style.cssText = 'display:none;';
+    panel.appendChild(advBody);
 
-    /* Now that the panel is attached to document.body, run each plugin
-       settings panel's render(container) — getComputedStyle/getBoundingClientRect
-       inside a plugin's render() now behave normally. Still individually
+    var advOpen = false;
+    advToggle.onclick = function() {
+      advOpen = !advOpen;
+      advBody.style.display = advOpen ? '' : 'none';
+      advChevron.style.transform = advOpen ? 'rotate(90deg)' : 'rotate(0deg)';
+    };
+
+    for (var ai = 0; ai < advancedRows.length; ai++) { buildRow(advancedRows[ai], advBody); }
+
+    container.appendChild(panel);
+
+    /* Now that the panel is attached to the real DOM (inside the side
+       panel's content pane), run each plugin settings panel's
+       render(container) — getComputedStyle/getBoundingClientRect inside
+       a plugin's render() now behave normally. Still individually
        try/catch-wrapped so one broken plugin panel can't break the rest
        of Settings; on failure the container gets a small visible note
        instead of being silently empty (was console-only before). */
     for (var ppi = 0; ppi < pendingPluginPanelRenders.length; ppi += 2) {
-      (function(panelEntry, container) {
+      (function(panelEntry, pluginContainer) {
         try {
-          panelEntry.def.render(container);
+          panelEntry.def.render(pluginContainer);
         } catch (e) {
           console.error('[Kanvaz Plugin] settings panel "' + panelEntry.id + '" render() failed:', e.message);
           var errNote = document.createElement('div');
           errNote.style.cssText = 'font-size:11px;color:var(--color-red);';
           errNote.textContent = 'This plugin panel failed to load.';
-          container.appendChild(errNote);
+          pluginContainer.appendChild(errNote);
         }
       })(pendingPluginPanelRenders[ppi], pendingPluginPanelRenders[ppi + 1]);
     }
   }
 
-  function closeSettings() {
-    settingsOpen = false;
+  /* Called by sidepanel.js whenever the panel closes or switches away
+     from the Settings section — releases the plugin-list identity guard
+     (see refreshPluginsList's own comment on why this matters for an
+     in-flight scan). */
+  function closeSettingsSection() {
     currentPluginsListEl = null;
-    var el = document.getElementById('settings-panel');
-    if (el && el.parentNode) el.parentNode.removeChild(el);
   }
 
   /* ── Plugins (4.2.0) ──
@@ -785,17 +803,15 @@ var KanvazUI_Extended = (function() {
   function refreshPluginsList(container) {
     if (typeof KanvazBridge === 'undefined' || !KanvazBridge.scanPlugins) return;
     KanvazBridge.scanPlugins().then(function(result) {
-      /* Audit fix: closeSettings() removes #settings-panel from
-         document.body, which only nulls THAT panel's parentNode —
-         `container` (the #plugins-list div passed in here) still has
-         its own parentNode pointing at the now-detached panel element,
-         which is still truthy. So the old `!container.parentNode` check
-         never actually caught "Settings was closed while this scan was
-         in flight". Comparing identity against the current
-         currentPluginsListEl (reset to null by closeSettings(), and
-         reassigned to a brand-new element by the next showSettings())
-         correctly detects both cases: Settings closed entirely, or
-         closed and reopened before this older scan resolved. */
+      /* Audit fix (pre-v7.x redesign, still holds): a naive
+         `!container.parentNode` check doesn't reliably catch "the
+         Settings section moved on while this scan was in flight" —
+         comparing identity against the current currentPluginsListEl
+         (reset to null by closeSettingsSection(), reassigned to a
+         fresh element by the next renderSettingsInto()) correctly
+         detects both cases: the side panel closed entirely, or
+         switched to a different section and back before this older
+         scan resolved. */
       if (container !== currentPluginsListEl) return;
       container.innerHTML = '';
       var plugins = (result && result.ok) ? result.plugins : [];
@@ -1660,7 +1676,7 @@ var KanvazUI_Extended = (function() {
        as the user tabs back — only does anything if the Plugins section
        is actually on screen right now. */
     window.addEventListener('focus', function() {
-      if (settingsOpen && currentPluginsListEl) {
+      if (currentPluginsListEl) {
         refreshPluginsList(currentPluginsListEl);
       }
     });
@@ -1684,22 +1700,26 @@ var KanvazUI_Extended = (function() {
     document.addEventListener('kanvaz-theme-registered', function(e) {
       var id = e && e.detail && e.detail.id;
       if (id && id.indexOf('__') === 0) return;
-      if (settingsOpen) {
-        closeSettings();
-        showSettings();
+      /* Re-render in place only if the Settings section is still the
+         one actually on screen (lastSettingsContainer stays attached to
+         the DOM the whole time the side panel's Settings section is
+         showing — see sidepanel.js). */
+      if (lastSettingsContainer && lastSettingsContainer.isConnected) {
+        renderSettingsInto(lastSettingsContainer);
       }
     });
   }
 
   return {
     init:           init,
-    showSettings:   showSettings,
-    closeSettings:  closeSettings,
+    renderSettingsInto:   renderSettingsInto,
+    closeSettingsSection: closeSettingsSection,
     showAbout:      showAbout,
     showShortcuts:  showShortcuts,
     showTemplateGallery: showTemplateGallery,
     loadSettings:   loadSettings,
     getSettings:    function() { return settings; },
+    saveSettings:   saveSettings,
     /* Narrow, deliberate setter for plugins (e.g. Theme Creator) that
        need to change the active theme and have it persist + apply
        through the exact same path the Settings dropdown itself uses —

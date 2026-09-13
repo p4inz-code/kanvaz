@@ -24,6 +24,7 @@ var KanvazApp = (function() {
       KanvazBoards.init();
       if (typeof KanvazMapView !== 'undefined') KanvazMapView.init();
       KanvazUI_Extended.init();
+      if (typeof KanvazSidePanel !== 'undefined') KanvazSidePanel.init();
 
       KanvazCanvas.initDrop(function(files, worldPos) {
         handleDroppedFiles(files, worldPos);
@@ -178,9 +179,9 @@ var KanvazApp = (function() {
     on('btn-view-map', function() {
       if (typeof KanvazMapView !== 'undefined' && !KanvazMapView.isActive()) KanvazMapView.toggle();
     });
-    on('btn-settings',  function() { KanvazUI.showSettings(); });
-    on('btn-about',     function() { KanvazUI.showAbout(); });
-    on('btn-shortcuts', function() { KanvazUI.showShortcuts(); });
+    /* v7.x redesign — Settings moved into the left side panel; About/
+       Shortcuts consolidated into the corner account-menu button (see
+       sidepanel.js's initAccountMenu, wired from KanvazSidePanel.init()). */
 
     /* Maximize/restore icon toggle */
     var iconMax = document.getElementById('icon-maximize');
@@ -1374,6 +1375,10 @@ var KanvazApp = (function() {
       hideContextMenu();
       if (typeof KanvazAnnotate !== 'undefined') KanvazAnnotate.deactivate();
       if (typeof KanvazProperties !== 'undefined') KanvazProperties.close();
+      /* Escape closes the side panel's content pane regardless of which
+         section was showing — KanvazProperties.close() above only acts
+         when Properties specifically was the active section. */
+      if (typeof KanvazSidePanel !== 'undefined') KanvazSidePanel.close();
       if (typeof KanvazCanvas !== 'undefined' && KanvazCanvas.isMarqueeModeOn && KanvazCanvas.isMarqueeModeOn()) {
         KanvazCanvas.setMarqueeMode(false);
       }
@@ -1551,10 +1556,6 @@ var KanvazApp = (function() {
       syncChromeAutoHide(wasActive);
     }
 
-    function showSettings() {
-      KanvazUI_Extended.showSettings();
-    }
-
     function showShortcuts() {
       KanvazUI_Extended.showShortcuts();
     }
@@ -1578,8 +1579,6 @@ var KanvazApp = (function() {
       showSearchBar:       showSearchBar,
       hideSearchBar:       hideSearchBar,
       closeAll:            closeAll,
-      showSettings:        showSettings,
-      closeSettings:       function() { KanvazUI_Extended.closeSettings(); },
       showAbout:           function() { KanvazUI_Extended.showAbout(); },
       showShortcuts:       showShortcuts,
       showTemplateGallery: function() { KanvazUI_Extended.showTemplateGallery(); }
@@ -1696,6 +1695,10 @@ var KanvazApp = (function() {
   return {
     toggleAlwaysOnTop: toggleAlwaysOnTop,
     syncAlwaysOnTop:   syncAlwaysOnTop,
+    /* Exposed for the side panel's "Quick drop" zone (boards.js) —
+       exact same file-drop handling path the main canvas drop target
+       already uses, just reached from a different DOM element. */
+    handleDroppedFiles: handleDroppedFiles,
     updateSaveStatus:  updateSaveStatus,
     updateCardCount:   updateCardCount,
     updateEmptyState:  updateEmptyState,
