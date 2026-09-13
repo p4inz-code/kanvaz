@@ -1416,6 +1416,15 @@ function registerIPC() {
      re-validated against the manifest's own list (not trusted directly
      as a filename) before it's ever joined into a path. */
   var TEMPLATES_DIR = path.join(__dirname, '..', 'assets', 'templates');
+  /* User-saved templates live under userData, never under TEMPLATES_DIR
+     — that folder ships inside the installed app package (read-only on
+     a typical per-machine install, and wiped/replaced on every update
+     regardless), the same reasoning every other user-generated file in
+     this app already follows (settings, recovery, profiles). Bundled
+     and user templates are merged at list time (each entry tagged
+     `source`) and looked up in whichever directory its source says. */
+  var USER_TEMPLATES_DIR = path.join(app.getPath('userData'), 'templates');
+  var USER_TEMPLATES_MANIFEST = path.join(USER_TEMPLATES_DIR, 'manifest.json');
 
   function readTemplateManifest() {
     return fs.promises.readFile(path.join(TEMPLATES_DIR, 'manifest.json'), 'utf8').then(function(raw) {
@@ -1425,28 +1434,104 @@ function registerIPC() {
       } catch (e) {
         throw new Error('templates manifest is not valid JSON');
       }
+    }).then(function(list) {
+      for (var i = 0; i < list.length; i++) list[i].source = 'bundled';
+      return list;
+    });
+  }
+
+  /* User-saved templates' own manifest — same shape as the bundled one
+     plus `source: 'user'`, missing entirely until the first Save.
+     Self-caught bug: this originally returned entries with no `source`
+     tag at all, so the renderer's `entry.source === 'user'` check
+     (which decides whether to show the "Yours" badge and a delete
+     button) was always false for a template the user had just saved —
+     caught live, not in review, by checking the actual DOM after a
+     save instead of trusting the list-rendered text alone. */
+  function readUserTemplateManifest() {
+    return fs.promises.readFile(USER_TEMPLATES_MANIFEST, 'utf8').then(function(raw) {
+      try {
+        var list = JSON.parse(raw);
+        return Array.isArray(list) ? list : [];
+      } catch (e) {
+        return [];
+      }
+    }).catch(function() {
+      return [];
+    }).then(function(list) {
+      for (var i = 0; i < list.length; i++) list[i].source = 'user';
+      return list;
+    });
+  }
+
+  function writeUserTemplateManifest(list) {
+    return fs.promises.mkdir(USER_TEMPLATES_DIR, { recursive: true }).then(function() {
+      return fs.promises.writeFile(USER_TEMPLATES_MANIFEST, JSON.stringify(list), 'utf8');
     });
   }
 
   ipcMain.handle('templates-list', function() {
-    return readTemplateManifest().then(function(list) {
-      return { ok: true, templates: list };
+    return Promise.all([readTemplateManifest(), readUserTemplateManifest()]).then(function(results) {
+      return { ok: true, templates: results[0].concat(results[1]) };
     }).catch(function(e) {
       return { ok: false, error: e.message };
     });
   });
 
   ipcMain.handle('template-load', function(event, id) {
-    return readTemplateManifest().then(function(list) {
-      var entry = list.filter(function(t) { return t.id === id; })[0];
+    return Promise.all([readTemplateManifest(), readUserTemplateManifest()]).then(function(results) {
+      var entry = results[0].concat(results[1]).filter(function(t) { return t.id === id; })[0];
       if (!entry) throw new Error('unknown template id');
-      return fs.promises.readFile(path.join(TEMPLATES_DIR, entry.file), 'utf8');
+      var dir = entry.source === 'user' ? USER_TEMPLATES_DIR : TEMPLATES_DIR;
+      return fs.promises.readFile(path.join(dir, entry.file), 'utf8');
     }).then(function(raw) {
       try {
         return { ok: true, cards: JSON.parse(raw) };
       } catch (e) {
         throw new Error('template file is not valid JSON');
       }
+    }).catch(function(e) {
+      return { ok: false, error: e.message };
+    });
+  });
+
+  /* Save the current board's cards as a new user template. `cards` is
+     whatever the renderer already builds for a board save (serialised
+     card objects) — stripped of nothing here; a template is just a
+     starter board, and a user saving their own board as one presumably
+     wants everything on it, media included, same as opening the file
+     normally would restore. */
+  ipcMain.handle('template-save', function(event, name, description, cards) {
+    try {
+      if (!name || !name.trim()) return { ok: false, error: 'name cannot be empty' };
+      if (!Array.isArray(cards)) return { ok: false, error: 'no cards to save' };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+    var id = 'user-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    var fileName = id + '.json';
+    return fs.promises.mkdir(USER_TEMPLATES_DIR, { recursive: true }).then(function() {
+      return fs.promises.writeFile(path.join(USER_TEMPLATES_DIR, fileName), JSON.stringify(cards), 'utf8');
+    }).then(function() {
+      return readUserTemplateManifest();
+    }).then(function(list) {
+      list.push({ id: id, name: name.trim(), description: (description || '').trim(), file: fileName });
+      return writeUserTemplateManifest(list).then(function() { return { ok: true, id: id }; });
+    }).catch(function(e) {
+      return { ok: false, error: e.message };
+    });
+  });
+
+  ipcMain.handle('template-delete', function(event, id) {
+    return readUserTemplateManifest().then(function(list) {
+      var idx = -1;
+      for (var i = 0; i < list.length; i++) { if (list[i].id === id) { idx = i; break; } }
+      if (idx === -1) return { ok: false, error: 'no user template with that id (built-in templates cannot be deleted)' };
+      var entry = list[idx];
+      list.splice(idx, 1);
+      return writeUserTemplateManifest(list).then(function() {
+        return fs.promises.unlink(path.join(USER_TEMPLATES_DIR, entry.file)).catch(function() {});
+      }).then(function() { return { ok: true }; });
     }).catch(function(e) {
       return { ok: false, error: e.message };
     });

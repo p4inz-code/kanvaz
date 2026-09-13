@@ -1,5 +1,80 @@
 [
-  { "id": "filmmaking",  "name": "Filmmaking",  "description": "Shot references, mood, and a starter color palette for a film/VFX board.", "file": "filmmaking.json" },
-  { "id": "game-art",    "name": "Game Art",     "description": "Concept art, style references, and a palette section for a game-art board.", "file": "game-art.json" },
-  { "id": "mood-board",  "name": "Mood Board",   "description": "A loose, freeform layout for general inspiration gathering.", "file": "mood-board.json" }
+  {
+    "id": "filmmaking",
+    "name": "Filmmaking",
+    "description": "Shot references, mood, and a starter color palette for a film/VFX board.",
+    "file": "filmmaking.json"
+  },
+  {
+    "id": "game-art",
+    "name": "Game Art",
+    "description": "Concept art, style references, and a palette section for a game-art board.",
+    "file": "game-art.json"
+  },
+  {
+    "id": "mood-board",
+    "name": "Mood Board",
+    "description": "A loose, freeform layout for general inspiration gathering.",
+    "file": "mood-board.json"
+  },
+  {
+    "id": "vfx-beginner",
+    "name": "VFX — Beginner",
+    "description": "Learning the basics: reference gathering, first comps, and a practice checklist for someone starting out in VFX.",
+    "file": "vfx-beginner.json"
+  },
+  {
+    "id": "vfx-intermediate",
+    "name": "VFX — Intermediate",
+    "description": "Shot-based workflow for someone comfortable with the basics and now working on real client or spec shots with a small pipeline.",
+    "file": "vfx-intermediate.json"
+  },
+  {
+    "id": "vfx-professional",
+    "name": "VFX — Professional Pipeline",
+    "description": "Studio-scale pipeline board: bidding, asset production stages, dailies review, and delivery — for a full crew working across departments.",
+    "file": "vfx-professional.json"
+  },
+  {
+    "id": "game-dev",
+    "name": "Game Dev — Concept to Production",
+    "description": "Concept art, style guide, level design references, and technical constraints for a game art/design pipeline.",
+    "file": "game-dev.json"
+  },
+  {
+    "id": "music-production",
+    "name": "Music Production",
+    "description": "Mood references, arrangement structure, and a mix/master checklist for composing and producing a track.",
+    "file": "music-production.json"
+  },
+  {
+    "id": "animation-pipeline",
+    "name": "Animation Pipeline (2D/3D)",
+    "description": "Storyboard through final render for a short animation — character/background design, animatic timing, and shot list.",
+    "file": "animation-pipeline.json"
+  },
+  {
+    "id": "photography-concept",
+    "name": "Photography / Concept Art Reference",
+    "description": "Mood, lighting, and composition references for planning a photo shoot or concept art piece.",
+    "file": "photography-concept.json"
+  },
+  {
+    "id": "architecture-product",
+    "name": "Architecture & Product Design",
+    "description": "Material references, form studies, and technical constraints for an architecture or industrial/product design project.",
+    "file": "architecture-product.json"
+  },
+  {
+    "id": "ui-ux-design",
+    "name": "UI/UX Design Reference",
+    "description": "User flows, competitive analysis, and a design-system reference board for a digital product.",
+    "file": "ui-ux-design.json"
+  },
+  {
+    "id": "branding-identity",
+    "name": "Branding & Identity",
+    "description": "Mood, competitor landscape, and logo/typography exploration for a brand identity project.",
+    "file": "branding-identity.json"
+  }
 ]

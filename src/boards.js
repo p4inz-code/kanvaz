@@ -294,10 +294,78 @@ var KanvazBoards = (function() {
     sub.textContent = 'Bundled with Kanvaz — no network call, ever.';
     container.appendChild(sub);
 
+    /* Save current board as a new user template. Renders its own tiny
+       inline name/description form in place of the button on click,
+       same "expand in place, no popup" pattern the redesign already
+       uses (see sidepanel.js's profile edit form). User templates are
+       machine-wide (userData/templates/, not per-profile) — a starter-
+       board layout someone builds is a reusable asset, not a per-
+       profile preference the way settings/recents are. */
+    var saveRow = document.createElement('div');
+    saveRow.style.cssText = 'padding:0 8px 12px;';
+    var saveBtn = document.createElement('button');
+    saveBtn.textContent = '+ Save current board as template';
+    saveBtn.style.cssText = 'width:100%;padding:7px;background:transparent;border:1px dashed var(--color-border-2);border-radius:6px;color:var(--color-text-2);font-family:var(--font-ui);font-size:12px;cursor:pointer;';
+    saveRow.appendChild(saveBtn);
+    container.appendChild(saveRow);
+
     var listEl = document.createElement('div');
     listEl.style.cssText = 'padding:0 8px;font-size:12px;color:var(--color-text-3);';
     listEl.textContent = 'Loading…';
     container.appendChild(listEl);
+
+    function reloadList() { renderTemplateGalleryInto(container); }
+
+    saveBtn.onclick = function() {
+      saveRow.innerHTML = '';
+      var nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.placeholder = 'Template name';
+      nameInput.style.cssText = 'width:100%;box-sizing:border-box;padding:6px 8px;margin-bottom:6px;background:var(--color-surface-2);border:1px solid var(--color-border-2);border-radius:5px;color:var(--color-text);font-family:var(--font-ui);font-size:12px;';
+      var descInput = document.createElement('input');
+      descInput.type = 'text';
+      descInput.placeholder = 'Description (optional)';
+      descInput.style.cssText = nameInput.style.cssText;
+      var btnRow = document.createElement('div');
+      btnRow.style.cssText = 'display:flex;gap:6px;';
+      var confirmBtn = document.createElement('button');
+      confirmBtn.textContent = 'Save';
+      confirmBtn.style.cssText = 'flex:1;padding:6px;background:var(--color-accent);border:none;border-radius:5px;color:#fff;font-family:var(--font-ui);font-size:12px;font-weight:600;cursor:pointer;';
+      var cancelBtn = document.createElement('button');
+      cancelBtn.textContent = 'Cancel';
+      cancelBtn.style.cssText = 'flex:1;padding:6px;background:var(--color-surface-2);border:1px solid var(--color-border-2);border-radius:5px;color:var(--color-text-2);font-family:var(--font-ui);font-size:12px;cursor:pointer;';
+      cancelBtn.onclick = reloadList;
+      confirmBtn.onclick = function() {
+        var name = nameInput.value.trim();
+        if (!name) { nameInput.focus(); return; }
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Saving…';
+        var cards = (typeof KanvazCards !== 'undefined') ? KanvazCards.serialise() : [];
+        if (!cards.length) {
+          KanvazUI.toast('Nothing on this board to save as a template', 'error');
+          reloadList();
+          return;
+        }
+        KanvazBridge.saveTemplate(name, descInput.value, cards).then(function(res) {
+          if (!res || !res.ok) {
+            KanvazUI.toast((res && res.error) || 'Could not save template', 'error');
+            reloadList();
+            return;
+          }
+          KanvazUI.toast('Saved "' + name + '" as a template');
+          reloadList();
+        }).catch(function(e) {
+          KanvazUI.toast('Could not save template: ' + e.message, 'error');
+          reloadList();
+        });
+      };
+      btnRow.appendChild(confirmBtn);
+      btnRow.appendChild(cancelBtn);
+      saveRow.appendChild(nameInput);
+      saveRow.appendChild(descInput);
+      saveRow.appendChild(btnRow);
+      nameInput.focus();
+    };
 
     if (typeof KanvazBridge === 'undefined' || !KanvazBridge.listTemplates) {
       listEl.textContent = 'Not available in this build.';
@@ -332,10 +400,22 @@ var KanvazBoards = (function() {
           var top = document.createElement('div');
           top.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;';
 
+          var nameWrap = document.createElement('div');
+          nameWrap.style.cssText = 'display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden;';
           var name = document.createElement('div');
-          name.style.cssText = 'font-size:12px;color:var(--color-text);font-weight:500;';
+          name.style.cssText = 'font-size:12px;color:var(--color-text);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
           name.textContent = entry.name;
-          top.appendChild(name);
+          nameWrap.appendChild(name);
+          if (entry.source === 'user') {
+            var badge = document.createElement('span');
+            badge.textContent = 'Yours';
+            badge.style.cssText = 'flex-shrink:0;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;padding:1px 6px;border-radius:999px;background:var(--color-accent-bg);color:var(--color-accent);';
+            nameWrap.appendChild(badge);
+          }
+          top.appendChild(nameWrap);
+
+          var actions = document.createElement('div');
+          actions.style.cssText = 'display:flex;gap:4px;flex-shrink:0;';
 
           var useBtn = document.createElement('button');
           useBtn.textContent = 'Use';
@@ -361,7 +441,30 @@ var KanvazBoards = (function() {
               useBtn.textContent = 'Use';
             });
           };
-          top.appendChild(useBtn);
+          actions.appendChild(useBtn);
+
+          /* Only user-saved templates can be deleted — built-in ones
+             ship with the app and have no delete concept (see main.js's
+             template-delete handler, which refuses any id not in the
+             user manifest). */
+          if (entry.source === 'user') {
+            var delBtn = document.createElement('button');
+            delBtn.textContent = '✕';
+            delBtn.title = 'Delete this template';
+            delBtn.style.cssText = 'background:none;border:1px solid var(--color-border-2);border-radius:4px;color:var(--color-text-3);padding:3px 7px;font-size:11px;cursor:pointer;flex-shrink:0;';
+            delBtn.onclick = function() {
+              KanvazBridge.deleteTemplate(entry.id).then(function(res) {
+                if (!res || !res.ok) {
+                  KanvazUI.toast((res && res.error) || 'Could not delete template', 'error');
+                  return;
+                }
+                reloadList();
+              });
+            };
+            actions.appendChild(delBtn);
+          }
+
+          top.appendChild(actions);
           row.appendChild(top);
 
           if (entry.description) {
