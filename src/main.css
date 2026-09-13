@@ -2545,6 +2545,17 @@ html, body {
   border-color: var(--color-red);
   background: var(--color-red-bg);
   color: var(--color-red);
+  /* Debuggability fix: error toasts now often carry an appended real
+     error-detail excerpt (see errors.js's handle()) on top of the
+     catalog message + action text — three sentences easily runs past
+     what fits on one line at the base .toast's `white-space: nowrap`,
+     which would just overflow off-screen instead of wrapping, making
+     the whole point of showing the detail moot. Error toasts alone get
+     a cap + wrap; success/warning toasts stay short one-liners as
+     before. */
+  white-space: normal;
+  max-width: 480px;
+  line-height: 1.4;
 }
 
 .toast.success {

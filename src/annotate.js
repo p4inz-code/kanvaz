@@ -1141,6 +1141,26 @@ var KanvazAnnotate = (function() {
     var cardEl = document.getElementById(toolbarCardId);
     if (!cardEl) return;
     var rect = cardEl.getBoundingClientRect();
+
+    /* Direct feedback: a card annotated at a large on-screen size (a
+       big card, or the canvas zoomed in) made the toolbar look "small
+       and unfair" next to it — the toolbar's own pixel size never
+       responded to canvas zoom at all, staying screen-space-fixed while
+       everything else on the board visually scaled with it. Scaling the
+       whole toolbar as one CSS transform (rather than resizing every
+       button/icon/swatch individually) tracks the canvas zoom directly.
+       Clamped to [0.75, 1.6] — small enough that a heavily zoomed-out
+       board doesn't shrink the toolbar into unclickable targets, large
+       enough that a heavily zoomed-in one doesn't blow it up past
+       comfortable reach. */
+    var zoom = (typeof KanvazCanvas !== 'undefined' && KanvazCanvas.getScale) ? KanvazCanvas.getScale() : 1;
+    var toolbarScale = Math.min(1.6, Math.max(0.75, zoom));
+    toolbarEl.style.transform = 'scale(' + toolbarScale + ')';
+    /* Anchor the SCALED box's bottom-left corner to the same point the
+       unscaled box would have used — growth/shrink then happens upward
+       (away from the card) rather than downward into it. */
+    toolbarEl.style.transformOrigin = 'bottom left';
+
     /* Audit fix: this used to subtract a fixed 44px (one row's worth),
        assuming the toolbar is always exactly one row tall — true when
        it shipped with 5 tools, no longer true since v7.3.0 grew it to
@@ -1150,7 +1170,16 @@ var KanvazAnnotate = (function() {
        bottom row overlapping the top of the card it's annotating.
        Measuring the toolbar's own live rendered height instead of
        guessing a constant keeps this correct regardless of how many
-       rows it currently wraps to. */
+       rows it currently wraps to. `offsetHeight` reports the PRE-
+       transform layout size (CSS transforms are paint-only, never
+       affect layout/offsetHeight/offsetWidth) — with transform-origin
+       set to the box's own bottom-left corner above, that corner sits
+       at the fixed screen point (left, top + offsetHeight) regardless
+       of scale, so this formula doesn't need to account for
+       toolbarScale at all: it only has to place that UNSCALED corner
+       at the gap-above-the-card point, and the scale transform grows
+       the box upward/away from the card from there, never back down
+       into it. */
     var toolbarHeight = toolbarEl.offsetHeight || 44;
     toolbarEl.style.left = rect.left + 'px';
     toolbarEl.style.top  = Math.max(4, rect.top - toolbarHeight - 8) + 'px';

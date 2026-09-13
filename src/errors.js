@@ -80,8 +80,23 @@ var KanvazErrors = (function() {
     var action = getAction(code);
 
     if (!silent) {
+      /* Debuggability fix: the toast used to show ONLY the generic
+         catalog text ("E999: An unexpected error occurred...") with the
+         actual failure detail going to console.error only — invisible
+         to a user who reports a bug via a screenshot of the toast, not
+         devtools. A user hitting a real, specific error (a bad .pur
+         file, a locked file, whatever) had no way to tell us anything
+         more useful than "it said E999." Now appends a short excerpt of
+         the real detail (JS error message, or the string itself) right
+         in the toast — still capped short so it doesn't turn into a
+         wall of stack trace text over the board. */
+      var toastMsg = code + ': ' + msg + ' ' + action;
+      var detailStr = (detail && detail.message) ? detail.message : (detail ? String(detail) : '');
+      if (detailStr && detailStr !== 'unknown') {
+        toastMsg += ' — ' + (detailStr.length > 160 ? detailStr.slice(0, 160) + '…' : detailStr);
+      }
       if (typeof KanvazUI !== 'undefined' && KanvazUI.toast) {
-        KanvazUI.toast(code + ': ' + msg + ' ' + action, 'error');
+        KanvazUI.toast(toastMsg, 'error');
       }
       console.error('[Kanvaz ' + code + '] ' + msg + ' → ' + action, detail || '');
     }
