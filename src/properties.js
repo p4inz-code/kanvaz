@@ -179,6 +179,7 @@ var KanvazProperties = (function() {
     body.style.cssText = BODY_CSS;
 
     renderTransformSection(body, card, activeId);
+    renderLayerSection(body, card, activeId);
     renderMediaSection(body, card, activeId);
 
     var customHeading = document.createElement('div');
@@ -270,6 +271,105 @@ var KanvazProperties = (function() {
     field('H', card.h, function(n) { KanvazCards.setTransform(cardId, { h: n }); });
 
     body.appendChild(grid);
+  }
+
+  /* ── Layer & Opacity — Photoshop/Illustrator-style tools ──
+     Opacity mirrors showOpacityPicker()'s own popover exactly (live
+     update on input, one history push when the user finishes dragging,
+     via 'change' rather than every 'input' tick) so behavior stays
+     identical whether opacity is changed from here or from the card's
+     own right-click menu. Bring to Front / Send to Back call the same
+     KanvazCards functions the context menu uses — bringToFront()
+     deliberately doesn't push its own history (it also fires on every
+     card selection, a hot path), matching existing behavior exactly
+     rather than introducing a new history-on-click convention here. */
+  function renderLayerSection(body, card, cardId) {
+    var title = document.createElement('div');
+    title.style.cssText = SECTION_TITLE_CSS;
+    title.textContent = 'Layer';
+    body.appendChild(title);
+
+    var opacityRow = document.createElement('div');
+    opacityRow.style.cssText = 'margin-bottom:10px;';
+    var opacityLabelRow = document.createElement('div');
+    opacityLabelRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;';
+    var opacityLabel = document.createElement('span');
+    opacityLabel.style.cssText = LABEL_CSS;
+    opacityLabel.textContent = 'Opacity';
+    var opacityValue = document.createElement('span');
+    opacityValue.style.cssText = 'font-family:var(--font-mono);font-size:11px;color:var(--color-text-2);';
+    var currentOpacity = card.opacity !== undefined ? card.opacity : 1.0;
+    opacityValue.textContent = Math.round(currentOpacity * 100) + '%';
+    opacityLabelRow.appendChild(opacityLabel);
+    opacityLabelRow.appendChild(opacityValue);
+    opacityRow.appendChild(opacityLabelRow);
+
+    var slider = document.createElement('input');
+    slider.type = 'range';
+    slider.min = 0.1;
+    slider.max = 1.0;
+    slider.step = 0.05;
+    slider.value = currentOpacity;
+    slider.style.cssText = 'width:100%;accent-color:var(--color-accent);';
+    slider.oninput = function() {
+      var val = parseFloat(slider.value);
+      card.opacity = val;
+      opacityValue.textContent = Math.round(val * 100) + '%';
+      var el = document.getElementById(cardId);
+      if (el) el.style.opacity = val;
+      if (typeof KanvazApp !== 'undefined') KanvazApp.markDirty();
+    };
+    slider.onchange = function() {
+      if (typeof KanvazHistory !== 'undefined') KanvazHistory.push();
+    };
+    opacityRow.appendChild(slider);
+    body.appendChild(opacityRow);
+
+    var layerBtnRow = document.createElement('div');
+    layerBtnRow.style.cssText = 'display:flex;gap:6px;margin-bottom:16px;';
+    var frontBtn = document.createElement('button');
+    frontBtn.textContent = 'Bring to Front';
+    frontBtn.style.cssText = 'flex:1;padding:6px;background:var(--color-surface-2);border:1px solid var(--color-border-2);border-radius:5px;color:var(--color-text-2);font-family:var(--font-ui);font-size:11px;cursor:pointer;';
+    frontBtn.onclick = function() { if (typeof KanvazCards !== 'undefined') KanvazCards.bringToFront(cardId); };
+    var backBtn = document.createElement('button');
+    backBtn.textContent = 'Send to Back';
+    backBtn.style.cssText = frontBtn.style.cssText;
+    backBtn.onclick = function() { if (typeof KanvazCards !== 'undefined') KanvazCards.sendToBack(cardId); };
+    layerBtnRow.appendChild(frontBtn);
+    layerBtnRow.appendChild(backBtn);
+    body.appendChild(layerBtnRow);
+
+    /* Align — only shown when the CURRENT selection is a real multi-
+       select (2+ cards), matching Illustrator's own Align panel
+       behavior of being inert/hidden for a single object. Acts on the
+       whole selection, not just this one card. */
+    var selectedIds = (typeof KanvazCards !== 'undefined' && KanvazCards.getSelectedIds) ? KanvazCards.getSelectedIds() : [];
+    if (selectedIds.length > 1) {
+      var alignTitle = document.createElement('div');
+      alignTitle.style.cssText = SECTION_TITLE_CSS;
+      alignTitle.textContent = 'Align (' + selectedIds.length + ' selected)';
+      body.appendChild(alignTitle);
+
+      var alignGrid = document.createElement('div');
+      alignGrid.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:16px;';
+
+      var ALIGN_MODES = [
+        ['left', 'Left'], ['center-h', 'Center'], ['right', 'Right'],
+        ['top', 'Top'], ['middle-v', 'Middle'], ['bottom', 'Bottom']
+      ];
+      for (var ai = 0; ai < ALIGN_MODES.length; ai++) {
+        (function(mode, label) {
+          var btn = document.createElement('button');
+          btn.textContent = label;
+          btn.style.cssText = 'padding:6px 2px;background:var(--color-surface-2);border:1px solid var(--color-border-2);border-radius:5px;color:var(--color-text-2);font-family:var(--font-ui);font-size:10px;cursor:pointer;';
+          btn.onclick = function() {
+            if (typeof KanvazCards !== 'undefined') KanvazCards.alignCards(KanvazCards.getSelectedIds(), mode);
+          };
+          alignGrid.appendChild(btn);
+        })(ALIGN_MODES[ai][0], ALIGN_MODES[ai][1]);
+      }
+      body.appendChild(alignGrid);
+    }
   }
 
   /* ── Media info (read-only resolution/format) + Annotations ──

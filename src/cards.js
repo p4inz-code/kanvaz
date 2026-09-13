@@ -4862,6 +4862,62 @@ var KanvazCards = (function() {
     }, 300);
   }
 
+  /* ── Align (multi-select) ──
+     Photoshop/Illustrator-style: align every selected card's edge or
+     center to the shared bounding box of the whole selection. Pinned
+     cards are skipped (same "don't move a pinned card" rule nudge()
+     already enforces) but still count toward the bounding box, so
+     aligning around a pinned anchor card works as expected. One
+     history push for the whole operation, not per-card — matches
+     deleteMultiple()'s own convention for bulk operations. */
+  function alignCards(ids, mode) {
+    if (!ids || ids.length < 2) return;
+    var relevant = [];
+    for (var i = 0; i < ids.length; i++) {
+      var c = cards[ids[i]];
+      if (c) relevant.push(c);
+    }
+    if (relevant.length < 2) return;
+
+    var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (var j = 0; j < relevant.length; j++) {
+      var r = relevant[j];
+      if (r.x < minX) minX = r.x;
+      if (r.x + r.w > maxX) maxX = r.x + r.w;
+      if (r.y < minY) minY = r.y;
+      if (r.y + r.h > maxY) maxY = r.y + r.h;
+    }
+
+    var changed = false;
+    for (var k = 0; k < relevant.length; k++) {
+      var card = relevant[k];
+      if (card.pinned) continue;
+      var newX = card.x, newY = card.y;
+      if (mode === 'left') newX = minX;
+      else if (mode === 'right') newX = maxX - card.w;
+      else if (mode === 'center-h') newX = minX + (maxX - minX - card.w) / 2;
+      else if (mode === 'top') newY = minY;
+      else if (mode === 'bottom') newY = maxY - card.h;
+      else if (mode === 'middle-v') newY = minY + (maxY - minY - card.h) / 2;
+
+      if (newX !== card.x || newY !== card.y) {
+        card.x = newX;
+        card.y = newY;
+        var el = document.getElementById(card.id);
+        if (el) {
+          el.style.left = newX + 'px';
+          el.style.top = newY + 'px';
+        }
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      KanvazApp.markDirty();
+      KanvazHistory.push();
+    }
+  }
+
   /* ── Send to back ── */
 
   function sendToBack(id) {
@@ -5216,6 +5272,7 @@ var KanvazCards = (function() {
     flipCard:          flipCard,
     resetSize:         resetSize,
     setTransform:      setTransform,
+    alignCards:        alignCards,
     showOpacityPicker: showOpacityPicker,
     toggleObjectFit:   toggleObjectFit,
     showSpeedPicker:   showSpeedPicker,
