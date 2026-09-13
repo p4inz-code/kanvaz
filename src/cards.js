@@ -995,7 +995,18 @@ var KanvazCards = (function() {
   function createFileRefCardAtPath(x, y, p) {
     if (!p) return null;
     var id = nextId();
-    var size = sizeFor('file', 220, 90);
+    /* Direct feedback: a file-reference card pointing at something with
+       a real inline preview (PDF, or now an image) needs real room to
+       show it — the old flat 220x90 "compact icon + label" default
+       looked fine for a plain .zip/.docx reference but absurd for a
+       preview-capable one. Tracked as its own remembered-size bucket
+       ('file-preview') separate from plain file refs ('file') so
+       resizing one category never drags the other's default around
+       with it — you don't want a big image preview's remembered size
+       forcing a plain-icon .zip card to also default huge, or vice
+       versa. */
+    var isPreviewable = isPdfPath(p) || isImagePath(p);
+    var size = isPreviewable ? sizeFor('file-preview', 340, 260) : sizeFor('file', 220, 90);
     var card = {
       id:       id,
       type:     'file',
@@ -2420,6 +2431,17 @@ var KanvazCards = (function() {
     return /\.pdf$/i.test((p || '').trim());
   }
 
+  /* Direct feedback: "any image reference card should show the image
+     itself" — a file-ref card pointing at an image showed only the
+     generic file icon, same as a .zip or .docx would. Same extension
+     list main.js's 'media-load' IPC handler already allows for a real
+     (embedded) image card — reusing it here keeps "which files count as
+     an image" defined in exactly one place in spirit, even though this
+     path calls loadMedia() fresh per render rather than embedding. */
+  function isImagePath(p) {
+    return /\.(jpe?g|png|gif|bmp|webp)$/i.test((p || '').trim());
+  }
+
   /* Electron's bundled Chromium lags a couple of years behind the
      absolute newest JS engine features by design (this project doesn't
      chase every Electron point release) — pdfjs-dist's own "legacy"
@@ -2606,6 +2628,46 @@ var KanvazCards = (function() {
     });
   }
 
+  /* Real inline preview for a file-ref card pointing at an image —
+     mirrors buildPdfPreview's own disclosed limitation exactly: reads
+     the file fresh via KanvazBridge.loadMedia() on every render and
+     never persists the result onto card.dataUrl. A file reference
+     stays a reference, not an embed — if the file moves, the preview
+     breaks until re-pointed via Change, same as PDF. No disposal
+     function needed here (unlike PDF's pdf.js document handle) since
+     an <img> with a data: URL is just a DOM node + a string, garbage
+     collected normally once the card element is removed. */
+  function buildFileImagePreview(el, card) {
+    var wrap = document.createElement('div');
+    wrap.className = 'file-image-preview';
+
+    var statusEl = document.createElement('div');
+    statusEl.className = 'pdf-status';
+    statusEl.textContent = 'Loading…';
+    wrap.appendChild(statusEl);
+
+    var img = document.createElement('img');
+    img.style.display = 'none';
+    wrap.appendChild(img);
+
+    el.appendChild(wrap);
+
+    if (typeof KanvazBridge === 'undefined' || !KanvazBridge.loadMedia) return;
+    KanvazBridge.loadMedia(card.path).then(function(res) {
+      if (!document.body.contains(el)) return; /* card deleted while loading */
+      if (!res || !res.ok || !res.dataUrl) {
+        statusEl.textContent = 'Could not load image' + (res && res.error ? ': ' + res.error : '');
+        return;
+      }
+      img.src = res.dataUrl;
+      img.onload = function() { statusEl.style.display = 'none'; img.style.display = ''; };
+      img.onerror = function() { statusEl.textContent = 'Could not load image'; };
+    }).catch(function(e) {
+      if (!document.body.contains(el)) return;
+      statusEl.textContent = 'Could not load image: ' + e.message;
+    });
+  }
+
   function buildFileRefCard(el, card) {
     var accent = document.createElement('div');
     accent.className = 'url-accent-bar file-type-icon';
@@ -2635,8 +2697,11 @@ var KanvazCards = (function() {
        label row pinned at the bottom" — scoped to this one card so
        every other file-ref card's compact look is untouched. */
     if (isPdfPath(card.path)) {
-      el.classList.add('has-pdf-preview');
+      el.classList.add('has-file-preview');
       buildPdfPreview(el, card);
+    } else if (isImagePath(card.path)) {
+      el.classList.add('has-file-preview');
+      buildFileImagePreview(el, card);
     }
 
     var body = document.createElement('div');
@@ -2684,25 +2749,33 @@ var KanvazCards = (function() {
         var barName = el.querySelector('.card-bar-title');
         if (barName) barName.textContent = card.name;
 
-        /* v7.x — re-point may cross the PDF/non-PDF line: add or remove
-           the in-card preview to match, rather than leaving a stale
-           preview (or a missing one) until the next full reload.
+        /* v7.x — re-point may cross the PDF/image/plain-file lines: add,
+           remove, or rebuild the in-card preview to match, rather than
+           leaving a stale preview (or a missing one) until the next
+           full reload.
            Audit fix: re-pointing from one PDF to a DIFFERENT PDF used to
            hit neither branch below (isPdfPath was true both before and
            after, and a preview already existed) — the OLD file's already-
            rendered preview just sat there unchanged, showing the wrong
            document's pages. Now any re-point that lands on a PDF rebuilds
            the preview fresh, and the old pdf.js document (if any) is
-           always disposed first regardless of which branch is taken. */
-        var existingPreview = el.querySelector('.pdf-preview');
+           always disposed first regardless of which branch is taken.
+           Same rebuild-fresh treatment now applies re-pointing between
+           two different images (a stale <img src> would otherwise just
+           sit there showing the old file). */
+        var existingPreview = el.querySelector('.pdf-preview, .file-image-preview');
         disposePdfPreview(card.id);
         if (isPdfPath(card.path)) {
           delete card.pdfPage; delete card.pdfZoom;
           if (existingPreview) existingPreview.remove();
-          el.classList.add('has-pdf-preview');
+          el.classList.add('has-file-preview');
           buildPdfPreview(el, card);
+        } else if (isImagePath(card.path)) {
+          if (existingPreview) existingPreview.remove();
+          el.classList.add('has-file-preview');
+          buildFileImagePreview(el, card);
         } else if (existingPreview) {
-          el.classList.remove('has-pdf-preview');
+          el.classList.remove('has-file-preview');
           existingPreview.remove();
         }
 

@@ -1652,17 +1652,18 @@ html, body {
   flex-shrink: 0;
 }
 
-/* v7.x — PDF preview (file-ref card pointing at a .pdf). .has-pdf-
-   preview overrides .card-file's default "center a compact icon+label"
-   layout so the preview actually fills the resizable card, with the
-   label/Open/Change row pinned at the bottom instead of vertically
-   centered — every other file-ref card is untouched. */
-.card-file.has-pdf-preview {
+/* v7.x — real in-card preview for a file-ref card pointing at a .pdf
+   OR an image. .has-file-preview overrides .card-file's default
+   "center a compact icon+label" layout so the preview actually fills
+   the resizable card, with the label/Open/Change row pinned at the
+   bottom instead of vertically centered — every other file-ref card
+   is untouched. */
+.card-file.has-file-preview {
   justify-content: flex-start;
   padding-top: 26px;
 }
 
-.card-file.has-pdf-preview .url-body {
+.card-file.has-file-preview .url-body {
   margin-top: 4px;
   padding: 0 10px 6px;
   flex-shrink: 0;
@@ -1674,6 +1675,28 @@ html, body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+/* Image file-ref preview — simpler than PDF's (no page/zoom state, no
+   scroll area), just the actual picture filling the card with
+   letterboxing rather than cropping. .pdf-status is reused verbatim
+   for the loading/error text (identical treatment, no reason for a
+   second copy of the same four rules). */
+.file-image-preview {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  background: var(--color-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.file-image-preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
 }
 
 .pdf-scroll-area {
