@@ -51,6 +51,16 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
   readRecovery:    function() { return ipcRenderer.invoke('recovery-read'); },
   clearRecovery:   function() { return ipcRenderer.invoke('recovery-clear'); },
 
+  /* Profiles (offline, no login — docs/PROFILES_SYSTEM_PLAN.md) */
+  listProfiles:    function() { return ipcRenderer.invoke('profiles-list'); },
+  getActiveProfile: function() { return ipcRenderer.invoke('profiles-get-active'); },
+  createProfile:   function(name, opts) { return ipcRenderer.invoke('profiles-create', name, opts); },
+  switchProfile:   function(id) { return ipcRenderer.invoke('profiles-switch', id); },
+  renameProfile:   function(id, name) { return ipcRenderer.invoke('profiles-rename', id, name); },
+  updateProfile:   function(id, fields) { return ipcRenderer.invoke('profiles-update', id, fields); },
+  setProfileAvatar: function(id, dataUrl) { return ipcRenderer.invoke('profiles-set-avatar', id, dataUrl); },
+  deleteProfile:   function(id) { return ipcRenderer.invoke('profiles-delete', id); },
+
   /* Shell */
   openExternal:    function(url) { ipcRenderer.send('shell-open-external', url); },
   resolveDroppedPaths: function(paths) { return ipcRenderer.invoke('resolve-dropped-paths', paths); },

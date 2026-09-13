@@ -493,12 +493,17 @@ var KanvazUI_Extended = (function() {
      instead of building its own floating popover. Reorganized from 8
      flat section fragments (two of which were single-setting orphans:
      "Window" had only alwaysOnTop, "Smart Search" had only its enable
-     toggle) into docs/SETTINGS_UX_PLAN.md's structure: General / Canvas
-     & Input / Files & Search, plus Plugins (kept top-level — regular
-     users install plugins, it's not a developer feature) and a
-     collapsible Advanced section (Developer tools + Reset), closed by
-     default so a casual user never sees FPS overlays and reset buttons
-     ahead of anything they'd actually look for. */
+     toggle) into docs/SETTINGS_UX_PLAN.md's structure: Appearance /
+     General / Canvas & Input / Files & Search, plus Plugins (kept
+     top-level — regular users install plugins, it's not a developer
+     feature) and a collapsible Advanced section, closed by default so a
+     casual user never sees FPS overlays and reset buttons ahead of
+     anything they'd actually look for. Advanced itself is further split
+     into Diagnostics / Plugin Dev / Reset sub-headers rather than one
+     flat list — "Load unpacked plugin…" is a plugin-development
+     workflow, unrelated to the FPS overlay or test-card generator next
+     to it, and a flat dump of unrelated dev tools is exactly the "feels
+     mixed up" feedback this whole reorganization exists to fix. */
   function renderSettingsInto(container) {
     container.innerHTML = '';
     currentPluginsListEl = null;
@@ -516,13 +521,15 @@ var KanvazUI_Extended = (function() {
     }
 
     var rows = [
-      { section: 'General' },
+      { section: 'Appearance' },
       { key: 'theme',           label: 'Theme',                 type: 'select', options: themeOptions },
       { key: 'showMinimap',     label: 'Show minimap',          type: 'toggle' },
       { key: 'dotGridVisible',  label: 'Grid lines',            type: 'toggle' },
       { key: 'cardShadows',     label: 'Card shadows',          type: 'toggle' },
       { key: 'animationsOn',    label: 'Animations',            type: 'toggle' },
+      { section: 'General' },
       { key: 'openOnStartup',   label: 'Show recent on startup',type: 'toggle' },
+      { key: 'confirmDelete',   label: 'Confirm before delete', type: 'toggle' },
       { section: 'Canvas & Input' },
       { key: 'leftDragPan',     label: 'Left-drag empty canvas to pan', type: 'toggle' },
       { key: 'autoHideChrome',  label: 'Auto-hide toolbar (hover top edge to reveal)', type: 'toggle' },
@@ -531,13 +538,21 @@ var KanvazUI_Extended = (function() {
       { key: 'gridSnapIncrement', label: 'Snap increment', type: 'select', options: [['minor','Minor (24px)'],['major','Major (120px)']] },
       { key: 'alwaysOnTop',     label: 'Always on top (default: on)', type: 'toggle' },
       { section: 'Files & Search' },
-      { key: 'confirmDelete',   label: 'Confirm before delete', type: 'toggle' },
       { key: 'autosaveInterval',label: 'Autosave (seconds)',    type: 'number', min: 10, max: 300 },
       { key: 'defaultCardW',    label: 'Default card width (px)',type: 'number', min: 80, max: 1200 },
       { key: 'smartSearchEnabled', label: 'Smart Search (on-device NLP, off by default)', type: 'toggle' }
     ];
 
+    /* Split into sub-groups (Diagnostics / Plugin Dev / Reset) rather
+       than one flat list — "Load unpacked plugin…" is a plugin-
+       development workflow, unrelated to the FPS overlay/test-card/
+       reset tools next to it, and lumping them together is exactly the
+       "mixed up, not categorized" feedback this whole Settings
+       reorganization exists to fix (docs/SETTINGS_UX_PLAN.md). buildRow()
+       already renders `{ section: ... }` as a sub-header wherever it
+       appears, so this needs no new rendering logic. */
     var advancedRows = [
+      { section: 'Diagnostics' },
       { key: 'devShowFPS',      label: 'FPS / render-time overlay', type: 'toggle' },
       { key: 'devShowIds',      label: 'Show card/connection IDs',  type: 'toggle' },
       { label: 'Run diagnostics now', type: 'button', buttonLabel: 'Run',
@@ -561,6 +576,7 @@ var KanvazUI_Extended = (function() {
         } },
       { label: 'Export debug info', type: 'button', buttonLabel: 'Copy',
         action: function() { exportDebugInfo(); } },
+      { section: 'Plugin Dev' },
       { label: 'Load unpacked plugin…', type: 'button', buttonLabel: 'Load',
         action: function() {
           if (typeof KanvazPluginLoader === 'undefined' || !KanvazPluginLoader.loadUnpacked) {
@@ -577,6 +593,7 @@ var KanvazUI_Extended = (function() {
             }
           });
         } },
+      { section: 'Reset' },
       { label: 'Reset Kanvaz (settings & cache only)', type: 'button', buttonLabel: 'Reset',
         action: function() { confirmResetAppData(); } }
     ];
@@ -586,7 +603,7 @@ var KanvazUI_Extended = (function() {
         /* Section header */
         if (row.section) {
           var hdr = document.createElement('div');
-          hdr.style.cssText = 'font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;color:var(--color-text-3);margin:14px 0 4px;';
+          hdr.style.cssText = 'font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--color-text);margin:16px 0 6px;padding-bottom:5px;border-bottom:1px solid var(--color-border);';
           hdr.textContent = row.section;
           target.appendChild(hdr);
           return;
@@ -669,7 +686,7 @@ var KanvazUI_Extended = (function() {
        each row needs bespoke controls (enable toggle vs. a consent
        button, Remove). */
     var pluginsHdr = document.createElement('div');
-    pluginsHdr.style.cssText = 'font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;color:var(--color-text-3);margin:14px 0 4px;';
+    pluginsHdr.style.cssText = 'font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--color-text);margin:16px 0 6px;padding-bottom:5px;border-bottom:1px solid var(--color-border);';
     pluginsHdr.textContent = 'Plugins';
     panel.appendChild(pluginsHdr);
 
@@ -719,7 +736,7 @@ var KanvazUI_Extended = (function() {
       for (var pi = 0; pi < panels.length; pi++) {
         (function(panelEntry) {
           var hdr = document.createElement('div');
-          hdr.style.cssText = 'font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;color:var(--color-text-3);margin:14px 0 4px;';
+          hdr.style.cssText = 'font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--color-text);margin:16px 0 6px;padding-bottom:5px;border-bottom:1px solid var(--color-border);';
           hdr.textContent = panelEntry.def.label;
           panel.appendChild(hdr);
 
@@ -736,7 +753,7 @@ var KanvazUI_Extended = (function() {
        reveals them for anyone who wants them. About/Shortcuts moved to
        the corner account menu (see sidepanel.js), no longer live here. */
     var advToggle = document.createElement('button');
-    advToggle.style.cssText = 'display:flex;align-items:center;gap:6px;width:100%;background:none;border:none;padding:10px 0 4px;cursor:pointer;color:var(--color-text-3);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;';
+    advToggle.style.cssText = 'display:flex;align-items:center;gap:6px;width:100%;background:none;border:none;border-bottom:1px solid var(--color-border);padding:12px 0 6px;margin-top:4px;cursor:pointer;color:var(--color-text);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;';
     var advChevron = document.createElement('span');
     advChevron.textContent = '▸';
     advChevron.style.cssText = 'display:inline-block;transition:transform 0.12s;font-size:9px;';

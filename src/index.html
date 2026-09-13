@@ -138,8 +138,10 @@
     <!-- v7.x redesign — replaces the old Settings|About|Shortcuts button
          cluster with one corner icon (a plain three-dot glyph, not a
          literal avatar — Kanvaz has no accounts/login to imply). Opens
-         a small menu: About, Shortcuts, and (once Phase 2 lands) Profile
-         switching. Settings itself moved into the new left side panel. -->
+         a small menu: the active offline profile's name, Manage
+         Profiles (switch/create/rename/delete — docs/
+         PROFILES_SYSTEM_PLAN.md), About, and Shortcuts. Settings itself
+         moved into the new left side panel. -->
     <button class="toolbar-btn" id="btn-account" title="About, Shortcuts, Profile">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/><circle cx="5" cy="12" r="1.5"/></svg>
     </button>
@@ -148,6 +150,9 @@
          in this app (see app.js's showReferenceModePopover-era pattern,
          now used here). Populated/shown by sidepanel.js. -->
     <div id="account-menu" class="account-menu" hidden>
+      <div class="account-menu-profile-label" id="account-menu-profile-label">Profile</div>
+      <button class="account-menu-item" id="account-menu-profiles">Manage Profiles&hellip;</button>
+      <div class="account-menu-sep"></div>
       <button class="account-menu-item" id="account-menu-about">About Kanvaz</button>
       <button class="account-menu-item" id="account-menu-shortcuts">Shortcuts</button>
     </div>

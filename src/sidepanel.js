@@ -196,6 +196,350 @@ var KanvazSidePanel = (function() {
         if (typeof KanvazUI_Extended !== 'undefined') KanvazUI_Extended.showShortcuts();
       });
     }
+
+    /* Phase 2 — offline profiles (docs/PROFILES_SYSTEM_PLAN.md). Label
+       refreshes every time the menu opens rather than once at init(),
+       since the active profile can change without a page reload (a
+       rename doesn't relaunch, only a switch does). */
+    var profileLabel = document.getElementById('account-menu-profile-label');
+    if (profileLabel && typeof KanvazBridge !== 'undefined' && KanvazBridge.getActiveProfile) {
+      /* Reassigning the openMenu binding here is enough — the click
+         handler above closes over the variable, not its value at
+         registration time, so it always calls whichever function
+         openMenu currently refers to. */
+      var origOpenMenu = openMenu;
+      openMenu = function() {
+        origOpenMenu();
+        KanvazBridge.getActiveProfile().then(function(p) {
+          profileLabel.textContent = p && p.name ? p.name : 'Profile';
+        }).catch(function() { /* leave the last-known label showing */ });
+      };
+    }
+
+    var profilesItem = document.getElementById('account-menu-profiles');
+    if (profilesItem) {
+      profilesItem.addEventListener('click', function() {
+        closeMenu();
+        showManageProfilesDialog();
+      });
+    }
+  }
+
+  /* ── Manage Profiles dialog ──
+     Plain centered overlay, same visual convention as boards.js's
+     showStartupScreen() (fixed inset, blurred backdrop, one card).
+     Rebuilds its own list on every mutation (create/rename/delete)
+     instead of trying to patch individual rows — this dialog is only
+     ever open for a few seconds at a time, so simplicity wins over
+     incremental DOM diffing here. */
+  function showManageProfilesDialog() {
+    if (typeof KanvazBridge === 'undefined' || !KanvazBridge.listProfiles) return;
+
+    var existing = document.getElementById('profiles-dialog');
+    if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+
+    var overlay = document.createElement('div');
+    overlay.id = 'profiles-dialog';
+    overlay.className = 'profiles-dialog-overlay';
+
+    var panel = document.createElement('div');
+    panel.className = 'profiles-dialog-panel';
+
+    var title = document.createElement('div');
+    title.className = 'profiles-dialog-title';
+    title.textContent = 'Manage Profiles';
+    panel.appendChild(title);
+
+    var note = document.createElement('div');
+    note.className = 'profiles-dialog-note';
+    note.textContent = 'Offline, on this device only — no login, not a security boundary between people sharing this computer.';
+    panel.appendChild(note);
+
+    var list = document.createElement('div');
+    list.className = 'profiles-dialog-list';
+    panel.appendChild(list);
+
+    function rebuild() {
+      Promise.all([KanvazBridge.listProfiles(), KanvazBridge.getActiveProfile()]).then(function(r) {
+        renderList(r[0] || [], r[1] || null);
+      });
+    }
+
+    function switchTo(id) {
+      if (typeof KanvazBoards !== 'undefined' && KanvazBoards.confirmDiscardIfDirty) {
+        KanvazBoards.confirmDiscardIfDirty(function() { doSwitch(id); });
+      } else {
+        doSwitch(id);
+      }
+    }
+
+    function doSwitch(id) {
+      KanvazBridge.switchProfile(id).then(function(res) {
+        if (res && res.ok) {
+          KanvazBridge.relaunchApp();
+        } else if (typeof KanvazUI !== 'undefined') {
+          KanvazUI.toast((res && res.error) || 'Could not switch profile', 'error');
+        }
+      });
+    }
+
+    /* Downscales a picked image to a small square avatar entirely in
+       the renderer (an <img> + <canvas>) before it ever reaches the IPC
+       call — keeps manifest.json's inline avatarDataUrl small regardless
+       of how large the source photo was, with no new main-process image
+       processing or dependency. */
+    function pickAndSetAvatar(profileId, onDone) {
+      KanvazBridge.openMediaDialog().then(function(filePath) {
+        if (!filePath) { onDone(); return; }
+        KanvazBridge.loadMedia(filePath).then(function(res) {
+          if (!res || !res.ok || !res.dataUrl || res.dataUrl.indexOf('image/') === -1) {
+            if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Could not load that image', 'error');
+            onDone();
+            return;
+          }
+          var img = new Image();
+          img.onload = function() {
+            var SIZE = 96;
+            var canvas = document.createElement('canvas');
+            canvas.width = SIZE;
+            canvas.height = SIZE;
+            var ctx = canvas.getContext('2d');
+            var side = Math.min(img.width, img.height);
+            var sx = (img.width - side) / 2;
+            var sy = (img.height - side) / 2;
+            ctx.drawImage(img, sx, sy, side, side, 0, 0, SIZE, SIZE);
+            var small = canvas.toDataURL('image/png');
+            KanvazBridge.setProfileAvatar(profileId, small).then(function() { onDone(); });
+          };
+          img.onerror = function() {
+            if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Could not load that image', 'error');
+            onDone();
+          };
+          img.src = res.dataUrl;
+        });
+      });
+    }
+
+    function buildAvatarEl(p) {
+      var av = document.createElement('div');
+      av.className = 'profiles-dialog-avatar';
+      if (p.avatarDataUrl) {
+        var img = document.createElement('img');
+        img.src = p.avatarDataUrl;
+        av.appendChild(img);
+      } else {
+        av.textContent = (p.name || '?').trim().charAt(0).toUpperCase();
+      }
+      return av;
+    }
+
+    function renderList(profiles, active) {
+      list.innerHTML = '';
+      for (var i = 0; i < profiles.length; i++) {
+        (function(p) {
+          var isActive = active && active.id === p.id;
+          var row = document.createElement('div');
+          row.className = 'profiles-dialog-row' + (isActive ? ' active' : '');
+
+          var main = document.createElement('div');
+          main.className = 'profiles-dialog-row-main';
+          main.appendChild(buildAvatarEl(p));
+
+          var textCol = document.createElement('div');
+          textCol.className = 'profiles-dialog-text-col';
+          var nameEl = document.createElement('div');
+          nameEl.className = 'profiles-dialog-name';
+          nameEl.textContent = p.name + (isActive ? ' (current)' : '');
+          if (p.guest) {
+            var badge = document.createElement('span');
+            badge.className = 'profiles-dialog-badge';
+            badge.textContent = 'Guest';
+            nameEl.appendChild(badge);
+          }
+          textCol.appendChild(nameEl);
+          if (p.description) {
+            var descEl = document.createElement('div');
+            descEl.className = 'profiles-dialog-desc';
+            descEl.textContent = p.description;
+            textCol.appendChild(descEl);
+          }
+          main.appendChild(textCol);
+          row.appendChild(main);
+
+          var actions = document.createElement('div');
+          actions.className = 'profiles-dialog-actions';
+
+          if (!isActive) {
+            var switchBtn = document.createElement('button');
+            switchBtn.className = 'profiles-dialog-btn';
+            switchBtn.textContent = 'Switch';
+            switchBtn.onclick = function() { switchTo(p.id); };
+            actions.appendChild(switchBtn);
+          }
+
+          var editBtn = document.createElement('button');
+          editBtn.className = 'profiles-dialog-btn';
+          editBtn.textContent = 'Edit';
+          editBtn.onclick = function() { renderEditForm(p); };
+          actions.appendChild(editBtn);
+
+          if (!isActive && profiles.length > 1) {
+            var deleteBtn = document.createElement('button');
+            deleteBtn.className = 'profiles-dialog-btn danger';
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.onclick = function() {
+              if (typeof KanvazUI !== 'undefined' && KanvazUI.showDialog) {
+                KanvazUI.showDialog(
+                  'Delete profile',
+                  'Delete "' + p.name + '"? Its settings, recent-boards list, and recovery cache are removed — this does not touch any .kanvaz board file.',
+                  [
+                    { label: 'Delete', cls: 'danger', action: function() {
+                      KanvazBridge.deleteProfile(p.id).then(function(res) {
+                        if (!res || !res.ok) {
+                          KanvazUI.toast((res && res.error) || 'Could not delete', 'error');
+                          return;
+                        }
+                        rebuild();
+                      });
+                    } },
+                    { label: 'Cancel', cls: '', action: function() {} }
+                  ]
+                );
+              }
+            };
+            actions.appendChild(deleteBtn);
+          }
+
+          row.appendChild(actions);
+          list.appendChild(row);
+
+          /* Inline edit form — replaces this row's action buttons with
+             name/description fields + a photo picker, swapped back to
+             the plain row on Save/Cancel via rebuild(). Kept as a
+             sibling row rather than a separate dialog so it stays
+             inside the same overlay/scroll context. */
+          function renderEditForm() {
+            var formRow = document.createElement('div');
+            formRow.className = 'profiles-dialog-row profiles-dialog-edit-row';
+
+            var nameInput = document.createElement('input');
+            nameInput.type = 'text';
+            nameInput.className = 'profiles-dialog-input';
+            nameInput.value = p.name;
+            nameInput.placeholder = 'Name';
+
+            var descInput = document.createElement('input');
+            descInput.type = 'text';
+            descInput.className = 'profiles-dialog-input';
+            descInput.value = p.description || '';
+            descInput.placeholder = 'Description (optional)';
+
+            var photoBtn = document.createElement('button');
+            photoBtn.className = 'profiles-dialog-btn';
+            photoBtn.textContent = 'Change Photo…';
+            photoBtn.onclick = function() {
+              photoBtn.disabled = true;
+              pickAndSetAvatar(p.id, function() {
+                photoBtn.disabled = false;
+                rebuild();
+              });
+            };
+
+            var saveBtn = document.createElement('button');
+            saveBtn.className = 'profiles-dialog-btn primary';
+            saveBtn.textContent = 'Save';
+            saveBtn.onclick = function() {
+              KanvazBridge.updateProfile(p.id, { name: nameInput.value, description: descInput.value }).then(function(res) {
+                if (!res || !res.ok) {
+                  if (typeof KanvazUI !== 'undefined') KanvazUI.toast((res && res.error) || 'Could not save', 'error');
+                  return;
+                }
+                rebuild();
+              });
+            };
+
+            var cancelBtn = document.createElement('button');
+            cancelBtn.className = 'profiles-dialog-btn';
+            cancelBtn.textContent = 'Cancel';
+            cancelBtn.onclick = function() { rebuild(); };
+
+            formRow.appendChild(nameInput);
+            formRow.appendChild(descInput);
+            var formActions = document.createElement('div');
+            formActions.className = 'profiles-dialog-actions';
+            formActions.appendChild(photoBtn);
+            formActions.appendChild(saveBtn);
+            formActions.appendChild(cancelBtn);
+            formRow.appendChild(formActions);
+
+            row.parentNode.replaceChild(formRow, row);
+          }
+        })(profiles[i]);
+      }
+    }
+
+    var createRow = document.createElement('div');
+    createRow.className = 'profiles-dialog-create';
+    var createInput = document.createElement('input');
+    createInput.type = 'text';
+    createInput.placeholder = 'New profile name';
+    createInput.className = 'profiles-dialog-input';
+    var createBtn = document.createElement('button');
+    createBtn.className = 'profiles-dialog-btn primary';
+    createBtn.textContent = '+ New Profile';
+    createBtn.onclick = function() {
+      var name = createInput.value.trim();
+      if (!name) return;
+      KanvazBridge.createProfile(name).then(function() {
+        createInput.value = '';
+        rebuild();
+      });
+    };
+    createInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') createBtn.click();
+      e.stopPropagation();
+    });
+    createRow.appendChild(createInput);
+    createRow.appendChild(createBtn);
+    panel.appendChild(createRow);
+
+    /* Quick "Add Guest Profile" — a profile named "Guest" (de-duplicated
+       if one already exists) tagged guest:true purely for the badge
+       shown above; it persists like any other profile (see the
+       createProfileEntry comment on why this isn't an ephemeral/
+       auto-wipe mode). Skips the name-typing step for the common
+       "someone else wants to use Kanvaz for five minutes" case. */
+    var guestBtn = document.createElement('button');
+    guestBtn.className = 'profiles-dialog-btn';
+    guestBtn.style.cssText = 'width:100%;margin-bottom:12px;';
+    guestBtn.textContent = '+ Add Guest Profile';
+    guestBtn.onclick = function() {
+      KanvazBridge.listProfiles().then(function(profiles) {
+        var n = 1;
+        var base = 'Guest';
+        var taken = {};
+        var pl = profiles || [];
+        for (var j = 0; j < pl.length; j++) { taken[pl[j].name] = true; }
+        var name = base;
+        while (taken[name]) { n++; name = base + ' ' + n; }
+        KanvazBridge.createProfile(name, { guest: true }).then(function() { rebuild(); });
+      });
+    };
+    panel.insertBefore(guestBtn, createRow);
+
+    var closeBtn = document.createElement('button');
+    closeBtn.className = 'profiles-dialog-close';
+    closeBtn.textContent = 'Close';
+    closeBtn.onclick = function() { overlay.parentNode.removeChild(overlay); };
+    panel.appendChild(closeBtn);
+
+    overlay.appendChild(panel);
+    overlay.addEventListener('mousedown', function(e) {
+      if (e.target === overlay) overlay.parentNode.removeChild(overlay);
+    });
+    document.body.appendChild(overlay);
+
+    rebuild();
   }
 
   /* ── Init ── */

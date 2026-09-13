@@ -1249,7 +1249,13 @@ var KanvazBoards = (function() {
     setSharedCardContent:    setSharedCardContent,
     deleteSharedCardContent: deleteSharedCardContent,
     addSharedInstanceToBoard: addSharedInstanceToBoard,
-    renderBoardsList: renderBoardsList
+    renderBoardsList: renderBoardsList,
+    /* Exported for sidepanel.js's profile switcher (Phase 2) — switching
+       profiles is "ending this user session" per docs/
+       PROFILES_SYSTEM_PLAN.md, so it needs the exact same Save/Don't
+       Save/Cancel gate the open-a-different-board path already uses,
+       not a second copy of the same three-button dialog. */
+    confirmDiscardIfDirty: confirmDiscardIfDirty
   };
 
 })();
