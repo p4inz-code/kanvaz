@@ -2,6 +2,31 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [7.9.0] — Redesign v1 Phase 3: card visual polish
+
+Card visuals were directly flagged as "outdated" against a design
+reference the user provided. This is Phase 3 of the redesign v1 sprint
+(`docs/REDESIGN_V1_SPRINT.md`), implemented against that reference
+screenshot as the literal spec.
+
+### Changed
+- **Every card's name/metadata footer is now always visible**, not a
+  hover-only overlay — a card's name and one line of at-a-glance
+  metadata (resolution for images/GIFs, duration for video/audio,
+  character count for notes) plus a single, consistently-styled type
+  pill on the right. Replaces the old single row of small, per-type-
+  colored badges (amber for video, red for audio, etc.) crammed next to
+  a monospace filename that only appeared on hover.
+- **Cards get a larger corner radius** (a new `--radius-card` token,
+  independent of `--radius-md` used everywhere else in the app) and a
+  real hover elevation (a gentle lift + shadow), replacing a flatter,
+  smaller-radius look.
+- GIF cards now show their actual resolution in the metadata line
+  (`naturalWidth`/`naturalHeight` off the `<img>` element, same as a
+  static image) rather than a bare "GIF" badge with no detail — no
+  loop-duration data exists anywhere in this codebase to show
+  truthfully instead.
+
 ## [7.8.0] — Kanvaz Redesign v1: unified side panel + offline Profiles
 
 The "Kanvaz redesign v1" sprint (planned in `docs/REDESIGN_V1_SPRINT.md`),

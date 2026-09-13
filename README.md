@@ -37,7 +37,11 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## Latest release
 
-**v7.8.0** — "Kanvaz Redesign v1": a unified left side panel (Boards / Properties / Settings, replacing the old tab strip and Settings popover) and a fully offline, no-login multi-profile system — switch, create, or add a Guest profile, each with its own settings, recent boards, and recovery data. The Properties panel also gained Photoshop/Illustrator-style Transform (X/Y/W/H) and Media (resolution, annotation count) sections. See [CHANGELOG.md](CHANGELOG.md) for the complete version history — every release back to v3.5, with the reasoning behind each one.
+**v7.9.0** — Redesign v1's card visual polish: every card now shows an always-visible name + at-a-glance metadata footer (resolution, duration, character count) and one consistent type pill, instead of a hover-only row of small badges. Bigger corner radius, a real hover-lift, cleaner typography. Builds on v7.8.0's "Kanvaz Redesign v1" — a unified left side panel (Boards / Properties / Settings) and a fully offline, no-login multi-profile system with Guest profiles. See [CHANGELOG.md](CHANGELOG.md) for the complete version history — every release back to v3.5, with the reasoning behind each one.
+
+<p align="center">
+  <img src="assets/screenshot-cards-v7.9.0.png" alt="Kanvaz card design — note, URL, and color cards showing the new always-visible name/metadata footer" width="720">
+</p>
 
 ---
 
@@ -116,7 +120,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 7.8.0.exe` and `dist/Kanvaz 7.8.0.exe`
+Output: `dist/Kanvaz Setup 7.9.0.exe` and `dist/Kanvaz 7.9.0.exe`
 
 **macOS:**
 ```bash

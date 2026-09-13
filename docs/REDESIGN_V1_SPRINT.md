@@ -1,12 +1,13 @@
 # Kanvaz Redesign v1 — Sprint Plan
 
-**Merged into `main` as v7.8.0.** Tracked on the `redesign-v1` branch
-while in progress (kept, not deleted, as the historical record of this
-sprint). Phase 3 (card visual polish, blocked on a Figma design pass)
-and the deliberately-deferred parts of Phase 2 (per-profile plugin
-storage, Export/Import profile, a Start Screen profile picker) remain
-open — track those as their own follow-up work, not part of this
-document's remaining scope.
+**Merged into `main` as v7.8.0; Phase 3 shipped as v7.9.0.** Tracked on
+the `redesign-v1` branch while in progress (kept, not deleted, as the
+historical record of this sprint). No Figma file ended up coming — the
+user's own reference screenshot (shared directly in chat) was used as
+the literal design spec for Phase 3 instead. The deliberately-deferred
+parts of Phase 2 (per-profile plugin storage, Export/Import profile, a
+Start Screen profile picker) remain open — track those as their own
+follow-up work, not part of this document's remaining scope.
 
 Full detail for each phase lives in its own plan doc — this is the
 sequencing and the definition of done.
@@ -140,13 +141,21 @@ switching profiles round-trips correctly including the unsaved-changes
 save gate; Export → Import on a second local profile folder produces an
 identical profile. Live-verified via CDP, not just unit-level.
 
-## Phase 3 — Card visual polish
+## Phase 3 — Card visual polish — **DONE, shipped as v7.9.0**
 
-Not a plan doc — this phase consumes whatever comes out of your own
-Figma pass (per `docs/SIDE_PANEL_PLAN.md`'s "Card visual modernization"
-section: layered shadows, border treatment, hover elevation, card-bar
-hierarchy). Implementation-only phase once you hand off specifics;
-lands incrementally, doesn't block Phase 1/2 from shipping first.
+No Figma file arrived — implemented directly against the user's own
+reference screenshot as the literal spec instead. Always-visible name +
+metadata footer (resolution/duration/char-count) with one consistent
+type pill per card, replacing the old hover-only row of small per-type-
+colored badges; a new `--radius-card` token for a bigger corner radius
+independent of the rest of the app's `--radius-md`; a real hover-lift
+elevation. Full detail in CHANGELOG.md's 7.9.0 entry.
+
+Explicitly NOT covered by this phase (raised as separate feedback,
+tracked as its own follow-up rather than folded in here): file-
+reference cards showing the actual image/PDF preview inline instead of
+a generic file icon, and the annotation toolbar not scaling with a
+resized card.
 
 **Definition of done:** whatever your Figma spec defines, implemented
 and matched — this phase's "done" is defined by your design handoff,

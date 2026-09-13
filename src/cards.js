@@ -1372,7 +1372,7 @@ var KanvazCards = (function() {
           var relinkBtn = el.querySelector('.card-relink-btn');
           if (relinkBtn) relinkBtn.parentNode.removeChild(relinkBtn);
           rebuildCardMedia(el, card);
-          var nameEl = el.querySelector('.card-filename');
+          var nameEl = el.querySelector('.card-bar-title');
           if (nameEl) nameEl.textContent = card.name;
         }
         KanvazApp.markDirty();
@@ -1428,8 +1428,8 @@ var KanvazCards = (function() {
 
     img.onload = function() {
       removeSkeleton(el);
-      var dims = el.querySelector('.card-dims');
-      if (dims) dims.textContent = img.naturalWidth + '×' + img.naturalHeight;
+      var meta = el.querySelector('.card-bar-meta');
+      if (meta) meta.textContent = 'Image · ' + img.naturalWidth + ' × ' + img.naturalHeight;
     };
     img.onerror = function() {
       removeSkeleton(el);
@@ -1470,7 +1470,16 @@ var KanvazCards = (function() {
     img._origSrc = card.dataUrl;
     img._paused = false;
 
-    img.onload = function() { removeSkeleton(el); };
+    img.onload = function() {
+      removeSkeleton(el);
+      /* GIFs don't have any loop-duration data available anywhere in
+         this codebase to show truthfully — a <img>'s naturalWidth/
+         Height IS available for a GIF exactly like a static image, so
+         that's what's shown here rather than fabricating a duration
+         field with no real data behind it. */
+      var meta = el.querySelector('.card-bar-meta');
+      if (meta) meta.textContent = 'GIF · ' + img.naturalWidth + ' × ' + img.naturalHeight;
+    };
     img.onerror = function() {
       removeSkeleton(el);
       img.style.display = 'none';
@@ -1565,8 +1574,8 @@ var KanvazCards = (function() {
     };
 
     vid.onloadedmetadata = function() {
-      var durBadge = el.querySelector('.card-duration');
-      if (durBadge && vid.duration) durBadge.textContent = KanvazMedia.formatTime(vid.duration);
+      var meta = el.querySelector('.card-bar-meta');
+      if (meta && vid.duration) meta.textContent = 'Video · ' + KanvazMedia.formatTime(vid.duration);
     };
 
     vid.src = card.dataUrl;
@@ -1808,8 +1817,8 @@ var KanvazCards = (function() {
     aud.addEventListener('pause', function() { el.classList.remove('audio-playing'); });
 
     aud.addEventListener('loadedmetadata', function() {
-      var badge = el.querySelector('.badge-audio');
-      if (badge && aud.duration) badge.textContent = 'AUDIO · ' + KanvazMedia.formatTime(aud.duration);
+      var meta = el.querySelector('.card-bar-meta');
+      if (meta && aud.duration) meta.textContent = 'Audio · ' + KanvazMedia.formatTime(aud.duration);
     });
 
     /* Scrub bar — always visible (no preview frame to hover-reveal it) */
@@ -1972,12 +1981,12 @@ var KanvazCards = (function() {
       KanvazApp.markDirty();
 
       var count = ta.value.length;
-      var countEl = el.querySelector('.card-char-count');
+      var countEl = el.querySelector('.card-bar-meta');
       if (countEl) countEl.textContent = count + (count === 1 ? ' char' : ' chars');
 
       /* Live preview of the note text as the card bar "filename",
          falling back to the card's actual name once emptied again. */
-      var nameEl = el.querySelector('.card-filename');
+      var nameEl = el.querySelector('.card-bar-title');
       if (nameEl) {
         var preview2 = ta.value.trim();
         nameEl.textContent = preview2
@@ -2070,10 +2079,10 @@ var KanvazCards = (function() {
       hex = newColor;
       swatch.style.background = newColor;
       label.textContent = formatColorString(hex, format);
-      var barName = el.querySelector('.card-filename');
+      var barName = el.querySelector('.card-bar-title');
       if (barName) barName.textContent = newColor;
-      var barBadge = el.querySelector('.card-badge');
-      if (barBadge) barBadge.style.background = newColor;
+      var barSwatch = el.querySelector('.card-bar-color-swatch');
+      if (barSwatch) barSwatch.style.background = newColor;
     }
 
     function commitColorChange(newColor) {
@@ -2284,7 +2293,7 @@ var KanvazCards = (function() {
     renderPreview();
 
     function updateBarName() {
-      var barName = el.querySelector('.card-filename');
+      var barName = el.querySelector('.card-bar-title');
       if (!barName) return;
       var v = (card.url || '').trim();
       barName.textContent = v
@@ -2672,7 +2681,7 @@ var KanvazCards = (function() {
         label.textContent = card.name;
         label.title = card.path;
         updateIcon();
-        var barName = el.querySelector('.card-filename');
+        var barName = el.querySelector('.card-bar-title');
         if (barName) barName.textContent = card.name;
 
         /* v7.x — re-point may cross the PDF/non-PDF line: add or remove
@@ -3333,65 +3342,88 @@ var KanvazCards = (function() {
     });
   }
 
-  /* ── Card bar (filename + badge) ── */
+  /* ── Card bar (name + metadata + type pill) ──
+     Redesign v1 Phase 3 (card visual polish) — rebuilt as an always-
+     visible two-line footer (name, then at-a-glance metadata) plus one
+     consistently-styled type pill, matching the design reference. Used
+     to be a single hover-only row of small, per-type-colored badges
+     crammed next to a monospace filename. */
+
+  var CARD_TYPE_LABELS = {
+    image: 'Image', gif: 'GIF', video: 'Video', audio: 'Audio',
+    note: 'Note', text: 'Text', color: 'Color', url: 'URL',
+    file: 'File', model3d: '3D'
+  };
+
+  function getCardTypeLabel(card) {
+    return CARD_TYPE_LABELS[card.type] || (card.type || '').toUpperCase();
+  }
+
+  /* Metadata line under the name. Image/video leave it blank here and
+     fill it in asynchronously once their real data is known (see
+     buildImageCard's onload / buildVideoCard's onloadedmetadata,
+     targeting .card-bar-meta directly) — mirrors the old dims/duration
+     badges' own timing, just writing into one shared element now
+     instead of a dedicated badge each. */
+  function getCardMetaText(card) {
+    if (card.type === 'note') {
+      var len = (card.text || '').length;
+      return len + (len === 1 ? ' char' : ' chars');
+    }
+    /* Color's title IS the hex value (see commitColorChange — card.name
+       is set to the hex string itself), and the swatch dot next to the
+       title already shows it visually too — repeating it a third time
+       on the meta line would be pure redundancy, not information. */
+    if (card.type === 'color') return '';
+    if (card.type === 'url') return card.url || '';
+    if (card.type === 'file') {
+      if (!card.path) return '';
+      var parts = card.path.split(/[\\/]/);
+      return parts[parts.length - 1];
+    }
+    if (card.type === 'model3d') return card.modelFormat ? card.modelFormat.toUpperCase() : '';
+    return '';
+  }
 
   function buildCardBar(el, card) {
     var bar = document.createElement('div');
     bar.className = 'card-bar';
 
+    var info = document.createElement('div');
+    info.className = 'card-bar-info';
+
+    var titleRow = document.createElement('div');
+    titleRow.className = 'card-bar-title-row';
+
     if (card.sharedId) {
-      var sharedBadge = document.createElement('span');
-      sharedBadge.className = 'card-badge badge-shared';
-      sharedBadge.title = 'Shared across boards — editing it here updates every board it appears on';
-      sharedBadge.textContent = '⛓';
-      bar.appendChild(sharedBadge);
+      var sharedIcon = document.createElement('span');
+      sharedIcon.className = 'card-bar-shared-icon';
+      sharedIcon.title = 'Shared across boards — editing it here updates every board it appears on';
+      sharedIcon.textContent = '⛓';
+      titleRow.appendChild(sharedIcon);
     }
 
-    bar.appendChild(buildNameSpan(card, el));
-
-    if (card.type === 'image') {
-      /* Populated once the image loads (see buildImageCard's onload) —
-         naturalWidth/Height aren't known until then. */
-      var dimsBadge = document.createElement('span');
-      dimsBadge.className = 'card-badge card-dims';
-      bar.appendChild(dimsBadge);
-    } else if (card.type === 'gif') {
-      var badge = document.createElement('span');
-      badge.className = 'card-badge badge-gif';
-      badge.textContent = 'GIF';
-      bar.appendChild(badge);
-    } else if (card.type === 'video') {
-      var vbadge = document.createElement('span');
-      vbadge.className = 'card-badge badge-vid';
-      vbadge.textContent = 'VID';
-      bar.appendChild(vbadge);
-      /* Populated once metadata loads (see buildVideoCard's
-         onloadedmetadata) — duration isn't known before then. */
-      var vdur = document.createElement('span');
-      vdur.className = 'card-badge card-duration';
-      bar.appendChild(vdur);
-    } else if (card.type === 'audio') {
-      var abadge = document.createElement('span');
-      abadge.className = 'card-badge badge-audio';
-      abadge.textContent = 'AUDIO';
-      bar.appendChild(abadge);
-    } else if (card.type === 'note') {
-      var nbadge = document.createElement('span');
-      nbadge.className = 'card-badge badge-note';
-      nbadge.textContent = 'NOTE';
-      bar.appendChild(nbadge);
-
-      var charCount = document.createElement('span');
-      charCount.className = 'card-badge card-char-count';
-      var len = (card.text || '').length;
-      charCount.textContent = len + (len === 1 ? ' char' : ' chars');
-      bar.appendChild(charCount);
-    } else if (card.type === 'color') {
-      var cbadge = document.createElement('span');
-      cbadge.className = 'card-badge';
-      cbadge.style.cssText = 'background:' + (card.color || '#9D7FFF') + ';width:12px;height:12px;border-radius:50%;border:1.5px solid var(--color-border-2);padding:0;';
-      bar.appendChild(cbadge);
+    if (card.type === 'color') {
+      var swatch = document.createElement('span');
+      swatch.className = 'card-bar-color-swatch';
+      swatch.style.background = card.color || '#9D7FFF';
+      titleRow.appendChild(swatch);
     }
+
+    titleRow.appendChild(buildNameSpan(card, el));
+    info.appendChild(titleRow);
+
+    var meta = document.createElement('div');
+    meta.className = 'card-bar-meta';
+    meta.textContent = getCardMetaText(card);
+    info.appendChild(meta);
+
+    bar.appendChild(info);
+
+    var pill = document.createElement('span');
+    pill.className = 'card-type-pill';
+    pill.textContent = getCardTypeLabel(card);
+    bar.appendChild(pill);
 
     el.appendChild(bar);
     buildTagBar(el, card);
@@ -3405,7 +3437,7 @@ var KanvazCards = (function() {
      the first time either one changed. */
   function buildNameSpan(card, el) {
     var name = document.createElement('span');
-    name.className = 'card-filename ellipsis';
+    name.className = 'card-bar-title ellipsis';
     if (card.type === 'note') {
       /* Preview the note's own text instead of the generic "Note" name,
          once there's something to show — kept in sync live by the
@@ -3433,13 +3465,13 @@ var KanvazCards = (function() {
     var card = cards[id];
     var el = document.getElementById(id);
     if (!card || !el) return;
-    var nameEl = el.querySelector('.card-filename');
+    var nameEl = el.querySelector('.card-bar-title');
     if (!nameEl) return;
     var nameParent = nameEl.parentNode;
 
     var input = document.createElement('input');
     input.type = 'text';
-    input.className = 'card-filename-input';
+    input.className = 'card-bar-title-input';
     input.value = card.name || '';
 
     nameParent.replaceChild(input, nameEl);
@@ -4346,16 +4378,16 @@ var KanvazCards = (function() {
   function syncSharedBadge(card) {
     var el = document.getElementById(card.id);
     if (!el) return;
-    var bar = el.querySelector('.card-bar');
-    if (!bar) return;
-    var existing = bar.querySelector('.badge-shared');
+    var titleRow = el.querySelector('.card-bar-title-row');
+    if (!titleRow) return;
+    var existing = titleRow.querySelector('.card-bar-shared-icon');
     if (card.sharedId) {
       if (!existing) {
         var b = document.createElement('span');
-        b.className = 'card-badge badge-shared';
+        b.className = 'card-bar-shared-icon';
         b.title = 'Shared across boards — editing it here updates every board it appears on';
         b.textContent = '⛓';
-        bar.insertBefore(b, bar.firstChild);
+        titleRow.insertBefore(b, titleRow.firstChild);
       }
     } else if (existing) {
       existing.parentNode.removeChild(existing);
