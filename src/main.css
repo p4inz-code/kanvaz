@@ -1632,6 +1632,32 @@ html, body {
   color: var(--color-accent) !important;
 }
 
+/* v7.x — real per-card volume level slider, next to the mute button.
+   Deliberately compact and fixed-width (not flex:1 like .scrub-bar) —
+   it's a secondary control, not the primary seek interaction. */
+.video-scrub .media-volume-slider,
+.audio-scrub .media-volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: clamp(28px, 12cqw, 52px);
+  height: 3px;
+  border-radius: 2px;
+  background: var(--color-border-2);
+  cursor: pointer;
+  flex-shrink: 0;
+  accent-color: var(--color-accent);
+}
+
+.video-scrub .media-volume-slider::-webkit-slider-thumb,
+.audio-scrub .media-volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  cursor: pointer;
+}
+
 .card:hover .video-scrub {
   opacity: 1;
 }

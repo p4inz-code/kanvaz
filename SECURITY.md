@@ -4,10 +4,10 @@
 
 | Version | Supported |
 |---------|-----------|
-| 6.6.x   | Yes       |
-| < 6.6   | No        |
+| 7.0.x   | Yes       |
+| < 7.0   | No        |
 
-(6.6.1 and 6.6.2 are same-minor bug-fix releases, not new supported lines.)
+Development continues past v6.6.2 as an ongoing side project — see `docs/ROADMAP.md`'s "The v7.x line" section.
 
 Only the latest release receives security updates. Kanvaz is a solo-maintained
 open-source project — backporting fixes to older versions is not feasible.

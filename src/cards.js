@@ -355,7 +355,14 @@ var KanvazCards = (function() {
     var startCX = card.x;
     var startCY = card.y;
     var scale   = KanvazCanvas.getScale();
-    var aspectLock  = !e.shiftKey;
+    /* v7.x — Shift now LOCKS proportions instead of freeing them, matching
+       every other design tool (Figma, Photoshop, Illustrator all resize
+       freely by default and use Shift to constrain aspect ratio). This is
+       a deliberate, disclosed behavior flip from the previous default
+       (aspect-locked without Shift, free while holding it) — the old
+       default was backwards from user expectation coming from any other
+       design tool, flagged directly by user feedback. */
+    var aspectLock  = e.shiftKey;
     var aspectRatio = startW / startH;
 
     /* Audit fix: handle visibility used to be pure CSS :hover, so
@@ -381,11 +388,20 @@ var KanvazCards = (function() {
       if (dir === 'tr' || dir === 'tc' || dir === 'tl') newH = startH - dy;
 
       var isCorner = (dir === 'br' || dir === 'tr' || dir === 'bl' || dir === 'tl');
-      if (aspectLock && card.type !== 'note' && card.type !== 'audio' && card.type !== 'url' && card.type !== 'file' && card.type !== 'text' && isCorner) {
-        newH = newW / aspectRatio;
-      }
+      /* Bug fix (v7.x, found while re-verifying resize after the Shift-
+         semantics flip): these two conditions used to be checked
+         separately, with the type exclusion (note/audio/url/file/text
+         never aspect-lock, since they have no meaningful "natural"
+         ratio) only applied to the FIRST block. The second block re-
+         derived newH from newW under the bare `aspectLock && isCorner`
+         condition with no type check at all — so a note/text/etc. card
+         got its corner-drag aspect-locked anyway regardless of the
+         exclusion the first block existed to enforce. Computed once
+         here so both branches below agree on whether this card/corner
+         combination actually locks. */
+      var lockThisResize = aspectLock && isCorner && card.type !== 'note' && card.type !== 'audio' && card.type !== 'url' && card.type !== 'file' && card.type !== 'text';
 
-      if (aspectLock && isCorner) {
+      if (lockThisResize) {
         /* Snap width only, then re-derive height from the snapped width
            — snapping both dimensions independently would distort the
            locked aspect ratio (e.g. a 4:3 image ending up 1:1-ish). */
@@ -450,14 +466,25 @@ var KanvazCards = (function() {
 
   /* ── Video controls (delegated) ── */
 
-  var PLAY_ICON  = '<svg viewBox="0 0 10 10" fill="currentColor"><polygon points="1,1 9,5 1,9"/></svg>';
-  var PAUSE_ICON = '<svg viewBox="0 0 10 10" fill="currentColor"><rect x="1" y="1" width="3" height="8"/><rect x="6" y="1" width="3" height="8"/></svg>';
+  /* v7.x — redrawn to match the 16x16 stroke-icon grid the rest of the
+     media controls (MUTE_ICON/LOOP_ICON/COPY_ICON below) already use.
+     The previous PLAY/PAUSE/frame-step/onion-skin icons sat on a mix of
+     10x10 and 14x14 viewBoxes with no shared margin convention, so they
+     rendered at visibly different apparent sizes/weights next to icons
+     from the same toolbar — the exact "needs really better controls"
+     inconsistency flagged in user feedback. Play/pause stay solid fills
+     (the universal media-player convention, unlike the stroke-outline
+     style everything else here uses) but now share the same 16x16 grid
+     and optical sizing as their neighbors. */
+  var PLAY_ICON  = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M4.5 2.8a1 1 0 0 1 1.53-.85l7.2 4.53a1.6 1.6 0 0 1 0 2.7l-7.2 4.53A1 1 0 0 1 4.5 12.7V2.8z"/></svg>';
+  var PAUSE_ICON = '<svg viewBox="0 0 16 16" fill="currentColor"><rect x="3.8" y="2.5" width="3.2" height="11" rx="1"/><rect x="9" y="2.5" width="3.2" height="11" rx="1"/></svg>';
   var MUTE_ICON  = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5.5h2l3-3v11l-3-3H3a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1z"/><line x1="12" y1="5" x2="12" y2="11" stroke-linecap="round"/><line x1="14.5" y1="3.5" x2="14.5" y2="12.5" stroke-linecap="round"/></svg>';
   var MUTED_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5.5h2l3-3v11l-3-3H3a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1z"/><line x1="11" y1="5.5" x2="15" y2="10.5" stroke-linecap="round"/><line x1="15" y1="5.5" x2="11" y2="10.5" stroke-linecap="round"/></svg>';
-  /* v6.x — ArtDeck-inspired frame analysis tools */
-  var FRAME_BACK_ICON    = '<svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M6.5 1.5L2 5l4.5 3.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="1" y1="1" x2="1" y2="9" stroke-linecap="round"/></svg>';
-  var FRAME_FORWARD_ICON = '<svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3.5 1.5L8 5l-4.5 3.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="9" y1="1" x2="9" y2="9" stroke-linecap="round"/></svg>';
-  var ONION_SKIN_ICON     = '<svg viewBox="0 0 14 14" fill="none"><circle cx="5.5" cy="7" r="4" fill="currentColor" opacity="0.35"/><circle cx="8.5" cy="7" r="4" stroke="currentColor" stroke-width="1.3"/></svg>';
+  /* v6.x — ArtDeck-inspired frame analysis tools, redrawn v7.x for the
+     same 16x16 grid unification as above. */
+  var FRAME_BACK_ICON    = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M9.5 3.5L4.5 8l5 4.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="2.8" y1="2.8" x2="2.8" y2="13.2" stroke-linecap="round"/></svg>';
+  var FRAME_FORWARD_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6.5 3.5L11.5 8l-5 4.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="13.2" y1="2.8" x2="13.2" y2="13.2" stroke-linecap="round"/></svg>';
+  var ONION_SKIN_ICON     = '<svg viewBox="0 0 16 16" fill="none"><circle cx="6.2" cy="8" r="4.3" fill="currentColor" opacity="0.35"/><circle cx="9.8" cy="8" r="4.3" stroke="currentColor" stroke-width="1.4"/></svg>';
   var LOOP_ICON  = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8a6 6 0 0 1 10.5-4"/><path d="M14 8a6 6 0 0 1-10.5 4"/><path d="M12 1.2v3.5H8.5"/><path d="M4 14.8v-3.5H7.5"/></svg>';
   var COPY_ICON  = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8.5" height="8.5" rx="1.5"/><path d="M10.5 5.5V3.5A1.5 1.5 0 0 0 9 2H3.5A1.5 1.5 0 0 0 2 3.5V9a1.5 1.5 0 0 0 1.5 1.5h2"/></svg>';
 
@@ -532,6 +559,54 @@ var KanvazCards = (function() {
       card.muted = vid.muted;
       KanvazApp.markDirty();
     }
+  }
+
+  /* ── Volume slider (v7.x) ──
+     A real per-card volume LEVEL, not just the binary mute toggle that
+     existed before — feedback specifically asked for "better controls,"
+     and a mute-only toggle with no way to set how loud something plays
+     is a real gap next to any other media player. Not delegated through
+     world's central mousedown handler the way the buttons above are —
+     a native <input type="range"> needs its own direct 'input' listener
+     to track a drag, and its own mousedown stopPropagation so dragging
+     the thumb doesn't start moving the card underneath it (the same
+     concern buildResizeHandles' handles already had to solve). */
+  function buildVolumeSlider(mediaEl, card) {
+    var slider = document.createElement('input');
+    slider.type = 'range';
+    slider.className = 'media-volume-slider';
+    slider.min = 0;
+    slider.max = 1;
+    slider.step = 0.05;
+    var initialVolume = (card.volume !== undefined && card.volume !== null) ? card.volume : 1;
+    slider.value = initialVolume;
+    mediaEl.volume = initialVolume;
+    slider.title = 'Volume';
+    slider.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+    slider.addEventListener('click', function(e) { e.stopPropagation(); });
+    slider.addEventListener('input', function() {
+      var v = parseFloat(slider.value);
+      mediaEl.volume = v;
+      card.volume = v;
+      /* Dragging the slider above 0 while muted is a clearer "I want
+         sound now" signal than making the user find the mute button
+         too — matches how every native OS/browser volume slider
+         already behaves. DOM lookup deliberately scoped inside this
+         branch — 'input' fires on every tick of a drag, and the common
+         case (already unmuted) has no reason to touch the DOM at all. */
+      if (v > 0 && mediaEl.muted) {
+        mediaEl.muted = false;
+        card.muted = false;
+        var cardEl = document.getElementById(card.id);
+        var muteBtn = cardEl ? cardEl.querySelector('.media-mute-btn') : null;
+        if (muteBtn) {
+          muteBtn.innerHTML = MUTE_ICON;
+          muteBtn.style.color = 'var(--color-accent)';
+        }
+      }
+      KanvazApp.markDirty();
+    });
+    return slider;
   }
 
   function toggleAudioLoop(cardEl) {
@@ -1549,6 +1624,8 @@ var KanvazCards = (function() {
     });
     onionBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
 
+    var volumeSlider = buildVolumeSlider(vid, card);
+
     scrub.appendChild(playBtn);
     scrub.appendChild(frameBackBtn);
     scrub.appendChild(frameForwardBtn);
@@ -1556,6 +1633,7 @@ var KanvazCards = (function() {
     scrub.appendChild(track);
     scrub.appendChild(timeEl);
     scrub.appendChild(muteBtn);
+    scrub.appendChild(volumeSlider);
     el.appendChild(scrub);
 
     /* Update scrub on timeupdate — intrinsic to this video element,
@@ -1726,10 +1804,13 @@ var KanvazCards = (function() {
     loopBtn.innerHTML = LOOP_ICON;
     loopBtn.title = 'Loop';
 
+    var volumeSlider = buildVolumeSlider(aud, card);
+
     scrub.appendChild(playBtn);
     scrub.appendChild(track);
     scrub.appendChild(timeEl);
     scrub.appendChild(muteBtn);
+    scrub.appendChild(volumeSlider);
     scrub.appendChild(loopBtn);
     el.appendChild(scrub);
 
@@ -3454,6 +3535,8 @@ var KanvazCards = (function() {
       audioLoop:    c.audioLoop    || false,
       colorFormat:  c.colorFormat  || null,
       muted:        c.muted        !== undefined ? c.muted : null,
+      /* v7.x — real per-card volume level (0–1), not just binary mute. */
+      volume:       c.volume       !== undefined ? c.volume : null,
       /* v6.4.0 */
       sharedId:     c.sharedId     || null
     };
@@ -3590,6 +3673,7 @@ var KanvazCards = (function() {
         if (!c.audioLoop)    c.audioLoop    = false;
         if (!c.colorFormat)  c.colorFormat  = null;
         if (c.muted === undefined) c.muted  = null;
+        if (c.volume === undefined) c.volume = null;
         if (c.sharedId === undefined) c.sharedId = null;
 
         cards[c.id] = c;

@@ -2,6 +2,21 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [7.0.0] — resize semantics, media control polish, first release of the v7.x line
+
+The v6.x arc closed out clean at v6.6.2. This is the first release of what comes next: Kanvaz keeps getting developed, now as an ongoing side project driven by real feedback rather than a fixed "final arc" — see `docs/ROADMAP.md`'s "The v7.x line" section for the standing plan.
+
+### Fixed
+- **Resize modifier-key semantics were backwards.** Every other design tool (Figma, Photoshop, Illustrator) resizes freely by default and uses Shift to lock proportions. Kanvaz did the opposite — aspect-locked by default, Shift freed it to distort. Flipped to match convention: **free resize by default, Shift locks proportions.** A deliberate, disclosed behavior change, same discipline as v6.3.0's `alwaysOnTop` default flip.
+- **A real related bug, found while fixing the above.** The aspect-lock exclusion for card types with no meaningful "natural" ratio (note/audio/url/file/text) was only checked in one of two code paths in `startResize()` — the second path re-derived height from width unconditionally whenever aspect-lock was active, regardless of card type. A note or text card could still get its corner-drag aspect-locked despite the exclusion existing specifically to prevent that. Fixed by computing the lock decision once (`lockThisResize`) and using it in both paths. Verified live: shift-resizing a color card now locks its ratio exactly; shift-resizing a note card stays free, as intended.
+
+### Added
+- **Video/audio control icons, redrawn.** `PLAY_ICON`/`PAUSE_ICON`/the frame-step and onion-skin icons sat on a mix of 10x10 and 14x14 viewBoxes with no shared margin convention, rendering at visibly different apparent sizes next to `MUTE_ICON`/`LOOP_ICON`'s 16x16 grid in the same toolbar. All redrawn onto that same 16x16 grid — play/pause stay solid fills (the universal media-player convention), everything else keeps the app's stroke-outline style.
+- **Real per-card volume control**, not just mute on/off. A compact slider next to the mute button on video and audio cards, persisted as a new `volume` field (0–1) in the save format — fully additive, old files load with the default (1.0). Raising the slider above 0 while muted auto-unmutes, matching how every OS/browser volume control already behaves. Not delegated through the card engine's central click handler (unlike the play/mute/loop buttons) — a native `<input type="range">` needs its own direct `input` listener to track a drag.
+
+### Verified
+Live, via the same Chrome DevTools Protocol technique introduced fixing v6.6.1/v6.6.2 — not a static read-through. Confirmed: free resize distorts a color card's aspect ratio, Shift-resize locks it to exactly the original ratio, a note card stays free even with Shift held, the volume slider updates both the live media element and the persisted card field, and raising volume while muted correctly auto-unmutes. Zero uncaught exceptions across all of it.
+
 ## [6.6.2] — the escape hatch out of click-through was also broken
 
 Immediately after v6.6.1 shipped (fixing Reference Mode's button/shortcut/palette entry points), a live follow-up test of the actual Escape-key exit path found a second, more serious bug in the same feature — reported by a user as "after turning on, [it] becomes unclickable" and "I can't even close Kanvaz."
