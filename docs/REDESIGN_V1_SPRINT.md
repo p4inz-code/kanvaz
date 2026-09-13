@@ -43,9 +43,34 @@ unreachable), live-verified via CDP that switching boards/opening
 Settings/opening Properties all work through the new panel with zero
 console errors.
 
-## Phase 2 — Start Screen + Profiles system
+## Phase 2 — Start Screen + Profiles system — **Start Screen part DONE, on `redesign-v1`; Profiles system not started**
 
 Plan: `docs/PROFILES_SYSTEM_PLAN.md` (fully resolved, no open questions).
+
+Turns out Kanvaz already had a "Start Screen" of sorts — `boards.js`'s
+`showStartupScreen()` (recent boards + New board, gated on the
+`openOnStartup` setting) — it just didn't know to stay out of the way on
+a direct file-open launch, so a double-click on a `.kanvaz` file could
+show it flashing underneath the board that's about to load. Fixed by
+having `main.js` compute `hasStartupFile` before `createWindow()` and
+pass it in via `webPreferences.additionalArguments`, read synchronously
+in `preload.js` (`KanvazBridge.hasStartupFile()`) and checked at the top
+of `showStartupScreen()` before any settings/recent IPC round-trip — no
+flash, no wasted IPC. `boards.js`'s `openFilePath()` also now calls
+`closeStartup()` defensively on every call site (covers the
+second-instance handoff: double-clicking another file while Kanvaz is
+already open and showing the Start Screen). Live-verified via CDP both
+ways: a plain launch with a seeded `recent.json` shows the screen with
+`hasStartupFile:false`; launching with a file argument shows
+`hasStartupFile:true` and the screen never renders, board opens
+directly.
+
+Remaining for this phase: the full offline Profiles system per
+`docs/PROFILES_SYSTEM_PLAN.md` — sequenced as its own slice rather than
+alongside the Start Screen fix above, since it touches real user data
+(settings.json/recent.json/recovery/plugin-storage relocation +
+migration) and deserves review on its own, not bundled into a smaller,
+lower-risk fix.
 
 - Start Screen on plain launch (recent boards, New board, branding),
   skipped when opening a `.kanvaz` file directly.

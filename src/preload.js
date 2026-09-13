@@ -3,7 +3,17 @@
 var contextBridge = require('electron').contextBridge;
 var ipcRenderer = require('electron').ipcRenderer;
 
+/* Redesign v1 Phase 2: main.js passes this at window-creation time (see
+   createWindow's additionalArguments) so the renderer can decide,
+   synchronously at boot, whether this launch is going straight to a
+   specific .kanvaz file — a plain boolean snapshot, not a live IPC call,
+   since it's fixed for the lifetime of this window. */
+var hasStartupFileArg = process.argv.indexOf('--kanvaz-has-startup-file=1') !== -1;
+
 contextBridge.exposeInMainWorld('KanvazBridge', {
+
+  /* Launch info */
+  hasStartupFile:  function() { return hasStartupFileArg; },
 
   /* Window controls */
   minimize:        function() { ipcRenderer.send('window-minimize'); },

@@ -404,12 +404,16 @@ if (!gotLock) {
 
   app.whenReady().then(function() {
     ensureDirectories();
-    createWindow();
-    registerIPC();
 
     /* BUG 5: fresh launch with a .kanvaz file on the command line
-       (double-click a file, or "Open with Kanvaz"). */
+       (double-click a file, or "Open with Kanvaz"). Computed BEFORE
+       createWindow() so it can be handed to the renderer at window
+       creation time (see createWindow's additionalArguments) instead
+       of only after 'did-finish-load'. */
     var startupFile = pendingFileOpen || findKanvazArg(process.argv);
+    createWindow(!!startupFile);
+    registerIPC();
+
     if (startupFile && mainWindow) {
       mainWindow.webContents.once('did-finish-load', function() {
         mainWindow.webContents.send('open-file-from-argv', startupFile);
@@ -441,7 +445,7 @@ if (!gotLock) {
   });
 
   app.on('activate', function() {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) createWindow(false);
   });
 
   /* BUG 4: a second launch (e.g. double-clicking another .kanvaz file
@@ -471,7 +475,7 @@ if (!gotLock) {
 
 /* ── Window ── */
 
-function createWindow() {
+function createWindow(hasStartupFile) {
   /* Reset per new window. allowClose is only ever flipped to true right
      before a deliberate close (see 'force-close' below); without this
      reset, macOS can hit a stale `true` here — window-all-closed doesn't
@@ -480,6 +484,13 @@ function createWindow() {
      changes check on its own first close attempt. */
   allowClose = false;
 
+  /* Redesign v1 Phase 2: the renderer's Start Screen must not appear at
+     all when this launch is going straight to a specific .kanvaz file
+     (double-click a file, "Open with Kanvaz") — passed as a launch-time
+     flag rather than an IPC round-trip so the renderer can skip it
+     synchronously at boot, before Boards.init() ever calls
+     showStartupScreen(), avoiding a startup-screen flash underneath the
+     board that's about to load. */
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -494,7 +505,8 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
-      webSecurity: true
+      webSecurity: true,
+      additionalArguments: ['--kanvaz-has-startup-file=' + (hasStartupFile ? '1' : '0')]
     },
     icon: path.join(__dirname, '..', 'assets', 'icons', 'icon.png'),
     title: 'Kanvaz'

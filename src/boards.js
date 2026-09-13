@@ -826,6 +826,13 @@ var KanvazBoards = (function() {
      boards list. Gated behind confirmDiscardIfDirty() (audit fix) so
      none of those paths can silently blow away unsaved work. */
   function openFilePath(p) {
+    /* Defensive: covers the second-instance handoff too — someone
+       double-clicks another .kanvaz file while Kanvaz is already
+       running and showing the Start Screen. closeStartup() is a no-op
+       if the screen isn't showing, so this is safe from every call
+       site, not just the recent-item click that used to call it
+       explicitly. */
+    closeStartup();
     confirmDiscardIfDirty(function() {
       KanvazBridge.readFile(p).then(function(result) {
         if (!result.ok) {
@@ -1030,6 +1037,16 @@ var KanvazBoards = (function() {
   /* ── Startup screen ── */
 
   function showStartupScreen() {
+    /* Redesign v1 Phase 2: skipped entirely (no IPC round-trip, no
+       flash) when this launch is going straight to a specific .kanvaz
+       file — double-click a file, "Open with Kanvaz", or a second-
+       instance handoff. hasStartupFile() is a synchronous snapshot set
+       at window creation (see preload.js), so this check is safe to
+       make before any settings/recent IPC has resolved. */
+    if (typeof KanvazBridge !== 'undefined' && KanvazBridge.hasStartupFile && KanvazBridge.hasStartupFile()) {
+      return;
+    }
+
     /* Respect openOnStartup setting — check is INSIDE the async callback
        rather than at the top, because loadSettings() runs asynchronously
        via IPC and may not have completed yet when showStartupScreen() is
