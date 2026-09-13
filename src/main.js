@@ -854,6 +854,38 @@ function registerIPC() {
     });
   });
 
+  /* v7.x — reads a PDF's raw bytes for the file-reference card's live
+     in-card preview (scroll/zoom via pdfjs-dist, vendored in
+     src/vendor/pdfjs/ — see PLUGIN... no, this isn't a plugin, see
+     THIRD_PARTY_NOTICES.md for the Apache-2.0 attribution). Deliberately
+     NOT the same path media-load() above uses: that one returns a data
+     URL meant to be EMBEDDED into the card and the save file forever —
+     a file-reference card's whole point is pointing at a file WITHOUT
+     embedding it, so this re-reads from disk on demand every time a PDF
+     card needs to render, never persists what it read, and returns raw
+     base64 (no data: URL wrapper — pdf.js wants raw bytes, not a data
+     URI) so there's no chance of it accidentally ending up in a save
+     file via a copy-paste of media-load's own return shape. Same size
+     cap as media-load for the same reason: a full-file synchronous(ish)
+     read into a string across a Node<->Chromium IPC boundary needs a
+     hard limit to stay safe. */
+  ipcMain.handle('pdf-read-bytes', function(event, filePath) {
+    return fs.promises.stat(filePath).then(function(stats) {
+      var sizeMB = stats.size / (1024 * 1024);
+      if (sizeMB > MAX_FILE_SIZE_MB) {
+        return { ok: false, error: 'FILE_TOO_LARGE', sizeMB: sizeMB };
+      }
+      if (path.extname(filePath).toLowerCase() !== '.pdf') {
+        return { ok: false, error: 'not a .pdf file' };
+      }
+      return fs.promises.readFile(filePath).then(function(data) {
+        return { ok: true, base64: data.toString('base64'), sizeMB: sizeMB };
+      });
+    }).catch(function(e) {
+      return { ok: false, error: e.message };
+    });
+  });
+
   /* ── IPC: Recent files ── */
 
   ipcMain.handle('recent-get', function() {

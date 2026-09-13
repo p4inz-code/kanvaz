@@ -37,7 +37,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## Latest release
 
-**v7.1.0** — MCP Bridge, made flagship-level: 4 new tools (Reference Mode click-through/opacity control, shared-cards-across-boards), a stale settings field removed and two current ones added, and a real bug fixed — `updateCard`'s schema was silently missing the `properties` field its own docs already promised. Also fixed: the in-app "Browse Official Plugins" catalog had been pointing every official plugin at its original 4.4.0-era zip for releases, even though every tagged release since has quietly built a fresh one. See [CHANGELOG.md](CHANGELOG.md) for the complete version history — every release back to v3.5, with the reasoning behind each one.
+**v7.2.0** — Real PDF preview: a file-reference card pointing at a `.pdf` now scrolls and zooms right inside the resizable card, powered by a vendored, ~1.7MB slice of Mozilla's pdf.js (not the full ~35MB npm package). Found and fixed a real compatibility gap along the way — pdf.js assumes JS features Electron's bundled Chromium doesn't have yet, in both the main thread and its own worker thread separately — with a small, targeted polyfill rather than chasing an older library version. See [CHANGELOG.md](CHANGELOG.md) for the complete version history — every release back to v3.5, with the reasoning behind each one.
 
 ---
 
@@ -61,7 +61,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 **Canvas & organization**
 - Infinite pan/zoom canvas (8%–500%), multiple boards per file
 - Image, GIF, video, and audio cards with full playback controls + a real volume slider
-- Note, text, color, URL, and file-reference card types
+- Note, text, color, URL, and file-reference card types — a file-reference pointing at a `.pdf` gets a real scroll/zoom preview inside the resizable card
 - Shared cards across boards — same content, no duplication, edit anywhere
 - Tag editing, live search/filter (`/`), and Smart Folders (saved searches that re-run themselves)
 - Color search — click a swatch, find every card that matches
@@ -118,7 +118,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 7.1.0.exe` and `dist/Kanvaz 7.1.0.exe`
+Output: `dist/Kanvaz Setup 7.2.0.exe` and `dist/Kanvaz 7.2.0.exe`
 
 **macOS:**
 ```bash
@@ -183,7 +183,7 @@ Files saved by 4.0.1 and earlier (plain JSON, base64 media) still open exactly a
 
 - Properties panel is basic key-value editing only (text values) — no dropdown/date/number field types yet.
 - MKV and AVI video files may not play (Chromium codec limitation) — MP4 (H.264) and WebM recommended. Kanvaz tells you plainly when this is why a video card failed, instead of a generic "missing media" message.
-- PDF reference cards aren't implemented yet — there's no `pdf` card type today. A real PDF card with scroll/zoom preview is planned (see Roadmap below), not something partially built.
+- PDF preview only covers viewing (scroll/zoom/page nav) — there's no text selection, search-within-PDF, or annotation on top of a PDF page yet.
 - Cross-board connections between two independent cards aren't possible from the UI (only one board's cards load at a time, so the "Connect to" picker only offers cards on the board you're on) — but as of 6.4.0, sharing the *same* card across boards is possible and covers most of what people actually want this for.
 - Autosave writes to a recovery file only — "Unsaved changes" in the status bar clears only on explicit Save (Ctrl+S). The recovery file is cleared on every clean close, so the "Recover unsaved board?" prompt only appears after an actual crash.
 - The base installer bundles zero plugins by design (see [SECURITY.md](SECURITY.md)'s Plugin System section) — Theme Creator, MCP Bridge, and Template Maker & Manager all install separately, the same way any third-party plugin does.
@@ -196,7 +196,6 @@ Files saved by 4.0.1 and earlier (plain JSON, base64 media) still open exactly a
 Kanvaz keeps getting developed as an ongoing side project — no fixed deadline, driven by real feedback. The living plan lives in [docs/ROADMAP.md](docs/ROADMAP.md); the current batch in progress:
 
 - 3D model preview (`.glb`/`.gltf`, `.obj`) via Three.js
-- Real PDF reference cards with actual scroll/zoom preview inside the card
 - A bigger annotation upgrade — ellipse/line/text/highlighter tools, custom color picker, per-stroke opacity, select/move/delete individual strokes
 - Font and HDRI/EXR preview support
 - General UI polish, ongoing

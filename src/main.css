@@ -1277,6 +1277,112 @@ html, body {
   flex-shrink: 0;
 }
 
+/* v7.x — PDF preview (file-ref card pointing at a .pdf). .has-pdf-
+   preview overrides .card-file's default "center a compact icon+label"
+   layout so the preview actually fills the resizable card, with the
+   label/Open/Change row pinned at the bottom instead of vertically
+   centered — every other file-ref card is untouched. */
+.card-file.has-pdf-preview {
+  justify-content: flex-start;
+  padding-top: 26px;
+}
+
+.card-file.has-pdf-preview .url-body {
+  margin-top: 4px;
+  padding: 0 10px 6px;
+  flex-shrink: 0;
+}
+
+.pdf-preview {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.pdf-scroll-area {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--color-bg);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  position: relative;
+}
+
+.pdf-scroll-area canvas {
+  display: block;
+  box-shadow: 0 2px 12px var(--color-shadow);
+  margin: 10px;
+}
+
+.pdf-status {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 11px;
+  color: var(--color-text-3);
+  text-align: center;
+  padding: 0 10px;
+  max-width: 90%;
+}
+
+.pdf-toolbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 6px;
+  background: var(--color-chrome);
+  border-top: 1px solid var(--color-border);
+}
+
+.pdf-toolbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: var(--color-text-2);
+  cursor: pointer;
+}
+
+.pdf-toolbar-btn:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+.pdf-toolbar-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.pdf-toolbar-btn:disabled:hover {
+  background: none;
+  color: var(--color-text-2);
+}
+
+.pdf-toolbar-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+.pdf-page-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-text-3);
+  min-width: 40px;
+  text-align: center;
+}
+
 .url-open-btn:hover {
   color: var(--color-accent);
 }

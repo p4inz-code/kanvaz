@@ -2,6 +2,18 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [7.2.0] — real PDF preview on file-reference cards
+
+### Added
+- A file-reference card pointing at a `.pdf` now shows a real scroll/zoom/page-nav preview inside the resizable card, instead of just an icon+filename. Powered by pdf.js, vendored as two runtime files in `src/vendor/pdfjs/` (~1.7MB) rather than the full ~35MB npm package (locale data, CJK cmaps, and a demo viewer this app never uses). Never embeds the PDF's bytes into the save file — re-reads from disk on render, same disclosed "breaks if the file moves" limitation every other file-reference card already has. Current page/zoom persist per-card (`pdfPage`/`pdfZoom`).
+- New main-process IPC (`pdf-read-bytes`) reads a PDF's raw bytes for preview only — deliberately separate from `media-load`'s embed-forever path.
+
+### Fixed
+- pdf.js assumes JS runtime features (`Promise.withResolvers`, the `Iterator` global helpers) newer than what Electron's bundled Chromium ships — hit this twice, once on the main thread and once inside pdf.js's own Worker (which has an entirely separate global scope a main-thread polyfill can't reach). Fixed both with a small, targeted `Promise.withResolvers` polyfill (main thread) and a thin worker wrapper that applies the same patch inside the worker's own scope before loading the real worker script — rather than chasing an older pdfjs-dist version hoping to dodge the gap.
+
+### Verified
+Live via the same Chrome DevTools Protocol technique this whole line has used since v6.6.1 — created a real file-reference card pointing at a real (generated) PDF, confirmed the canvas renders at the correct size, page navigation and zoom both work and persist correctly through `serialise()`, and zero uncaught exceptions on the full load/zoom cycle.
+
 ## [7.1.0] — MCP Bridge, made flagship-level
 
 A dedicated polish pass on the MCP Bridge official plugin — real bugs fixed, real new capability added, not just a version bump.

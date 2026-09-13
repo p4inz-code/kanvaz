@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
   saveFileDialog:  function(name) { return ipcRenderer.invoke('dialog-save-file', name); },
   openMediaDialog: function() { return ipcRenderer.invoke('dialog-open-media'); },
   openRefFileDialog: function(ext) { return ipcRenderer.invoke('dialog-open-ref-file', ext); },
+  readPdfBytes: function(filePath) { return ipcRenderer.invoke('pdf-read-bytes', filePath); },
 
   /* File I/O */
   readFile:        function(p) { return ipcRenderer.invoke('file-read', p); },

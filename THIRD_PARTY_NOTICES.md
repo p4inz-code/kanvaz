@@ -17,6 +17,11 @@ own MIT License:
 
 - [electron-updater](https://www.npmjs.com/package/electron-updater) — powers the optional, click-to-check auto-updater.
 - [JSZip](https://www.npmjs.com/package/jszip) — reads and writes the `.kanvaz` container format (since 4.1.0).
+- [wink-nlp](https://www.npmjs.com/package/wink-nlp), [wink-eng-lite-web-model](https://www.npmjs.com/package/wink-eng-lite-web-model), and [wink-distance](https://www.npmjs.com/package/wink-distance) — power Smart Search's on-device lemmatized/fuzzy matching (since 6.3.0, off by default).
+
+And the following, under its own license:
+
+- [pdf.js](https://mozilla.github.io/pdf.js/) (`pdfjs-dist`) — Apache License 2.0, © Mozilla. Powers the scroll/zoom PDF preview on file-reference cards pointing at a `.pdf` (since 7.x). Vendored directly as two runtime files in `src/vendor/pdfjs/` (its own `LICENSE` file is included alongside them) rather than pulled in as a full npm dependency — the published package is ~35MB of locale data, CJK character maps, and a demo viewer this app never uses; only the actual rendering engine and its worker (~1.7MB total) are needed and shipped.
 
 Kanvaz's own source code (everything in `src/`, `docs/`, and this
 repository) is © Atharva Patil / Northbyte Studios, licensed under the

@@ -2346,6 +2346,193 @@ var KanvazCards = (function() {
     return ext.length <= 4 ? ext.toUpperCase() : null;
   }
 
+  /* v7.x — real scroll/zoom PDF preview, right inside the resizable
+     file-reference card. Uses pdfjs-dist (Apache-2.0, Mozilla), vendored
+     as two plain files in src/vendor/pdfjs/ rather than pulled in as an
+     npm dependency electron-builder would bundle whole (the full
+     package is ~35MB of locale/cmap/demo-viewer files this app never
+     uses; the actual renderer needs just the two runtime files, ~1.7MB
+     total — see THIRD_PARTY_NOTICES.md for the attribution).
+
+     Deliberately does NOT go through media-load's IPC path (that one
+     returns a data: URL meant to be EMBEDDED into the card forever) —
+     a file-reference card's whole point is pointing at a file without
+     embedding it, so this re-reads the PDF's bytes from disk fresh on
+     every render via its own pdf-read-bytes IPC call and never persists
+     what it read. Same disclosed limitation as every other file-ref
+     card: if the file moves, the preview breaks until re-pointed. */
+  function isPdfPath(p) {
+    return /\.pdf$/i.test((p || '').trim());
+  }
+
+  /* Electron's bundled Chromium lags a couple of years behind the
+     absolute newest JS engine features by design (this project doesn't
+     chase every Electron point release) — pdfjs-dist's own "legacy"
+     build already backs off some of the newest syntax, but still
+     assumes `Promise.withResolvers` (Chrome 119+) exists. Rather than
+     chase an ever-older pdfjs-dist version hoping to find one with zero
+     assumptions beyond this runtime's actual baseline, polyfill the one
+     specific gap directly — a five-line, spec-accurate implementation,
+     not a shim pretending to be something bigger. */
+  if (typeof Promise.withResolvers !== 'function') {
+    Promise.withResolvers = function() {
+      var resolve, reject;
+      var promise = new Promise(function(res, rej) { resolve = res; reject = rej; });
+      return { promise: promise, resolve: resolve, reject: reject };
+    };
+  }
+
+  var pdfjsLoadPromise = null;
+  function loadPdfJs() {
+    if (!pdfjsLoadPromise) {
+      pdfjsLoadPromise = import('./vendor/pdfjs/pdf.min.mjs').then(function(lib) {
+        /* Points at a thin wrapper, not pdf.worker.min.mjs directly —
+           the Promise.withResolvers polyfill above only patches THIS
+           (main) thread's global scope; a Worker gets its own separate
+           globals and needs the exact same patch applied inside it. */
+        lib.GlobalWorkerOptions.workerSrc = './vendor/pdfjs/pdf.worker.wrapper.mjs';
+        return lib;
+      });
+    }
+    return pdfjsLoadPromise;
+  }
+
+  function base64ToUint8Array(base64) {
+    var binary = atob(base64);
+    var bytes = new Uint8Array(binary.length);
+    for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  }
+
+  function buildPdfPreview(el, card) {
+    var wrap = document.createElement('div');
+    wrap.className = 'pdf-preview';
+
+    var scrollArea = document.createElement('div');
+    scrollArea.className = 'pdf-scroll-area';
+    /* Scrolling/zooming INSIDE the preview must not also pan/zoom the
+       whole board underneath it — the world canvas listens for wheel
+       globally, same reason note-card textareas already have to guard
+       their own scroll interactions. */
+    scrollArea.addEventListener('wheel', function(e) { e.stopPropagation(); });
+    scrollArea.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+
+    var canvas = document.createElement('canvas');
+    scrollArea.appendChild(canvas);
+    wrap.appendChild(scrollArea);
+
+    var statusEl = document.createElement('div');
+    statusEl.className = 'pdf-status';
+    statusEl.textContent = 'Loading PDF…';
+    scrollArea.appendChild(statusEl);
+
+    var toolbar = document.createElement('div');
+    toolbar.className = 'pdf-toolbar';
+
+    function toolBtn(svg, title) {
+      var b = document.createElement('button');
+      b.className = 'pdf-toolbar-btn';
+      b.innerHTML = svg;
+      b.title = title;
+      b.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+      return b;
+    }
+
+    var prevBtn = toolBtn(FRAME_BACK_ICON, 'Previous page');
+    var pageLabel = document.createElement('span');
+    pageLabel.className = 'pdf-page-label';
+    pageLabel.textContent = '–';
+    var nextBtn = toolBtn(FRAME_FORWARD_ICON, 'Next page');
+    var zoomOutBtn = toolBtn('<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="7" cy="7" r="5"/><line x1="4.5" y1="7" x2="9.5" y2="7" stroke-linecap="round"/><line x1="11" y1="11" x2="14" y2="14" stroke-linecap="round"/></svg>', 'Zoom out');
+    var zoomInBtn = toolBtn('<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="7" cy="7" r="5"/><line x1="4.5" y1="7" x2="9.5" y2="7" stroke-linecap="round"/><line x1="7" y1="4.5" x2="7" y2="9.5" stroke-linecap="round"/><line x1="11" y1="11" x2="14" y2="14" stroke-linecap="round"/></svg>', 'Zoom in');
+
+    toolbar.appendChild(prevBtn);
+    toolbar.appendChild(pageLabel);
+    toolbar.appendChild(nextBtn);
+    toolbar.appendChild(zoomOutBtn);
+    toolbar.appendChild(zoomInBtn);
+    wrap.appendChild(toolbar);
+
+    el.appendChild(wrap);
+
+    var state = {
+      doc: null,
+      page: (card.pdfPage && card.pdfPage >= 1) ? card.pdfPage : 1,
+      zoom: card.pdfZoom || 1,
+      numPages: 0
+    };
+
+    function renderPage() {
+      if (!state.doc) return;
+      state.doc.getPage(state.page).then(function(page) {
+        var viewport = page.getViewport({ scale: state.zoom });
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        var ctx = canvas.getContext('2d');
+        page.render({ canvasContext: ctx, viewport: viewport });
+        pageLabel.textContent = state.page + ' / ' + state.numPages;
+        prevBtn.disabled = state.page <= 1;
+        nextBtn.disabled = state.page >= state.numPages;
+      }).catch(function(e) {
+        statusEl.textContent = 'Could not render page: ' + e.message;
+        statusEl.style.display = '';
+      });
+    }
+
+    prevBtn.onclick = function() {
+      if (state.page <= 1) return;
+      state.page--;
+      card.pdfPage = state.page;
+      KanvazApp.markDirty();
+      renderPage();
+    };
+    nextBtn.onclick = function() {
+      if (state.page >= state.numPages) return;
+      state.page++;
+      card.pdfPage = state.page;
+      KanvazApp.markDirty();
+      renderPage();
+    };
+    zoomInBtn.onclick = function() {
+      state.zoom = Math.min(4, state.zoom + 0.25);
+      card.pdfZoom = state.zoom;
+      KanvazApp.markDirty();
+      renderPage();
+    };
+    zoomOutBtn.onclick = function() {
+      state.zoom = Math.max(0.25, state.zoom - 0.25);
+      card.pdfZoom = state.zoom;
+      KanvazApp.markDirty();
+      renderPage();
+    };
+
+    if (!card.path) {
+      statusEl.textContent = 'No file path set for this card.';
+      return;
+    }
+
+    KanvazBridge.readPdfBytes(card.path).then(function(res) {
+      if (!res || !res.ok) {
+        statusEl.textContent = 'Could not read PDF: ' + ((res && res.error) || 'unknown error');
+        return Promise.reject(new Error('read failed'));
+      }
+      var bytes = base64ToUint8Array(res.base64);
+      return loadPdfJs().then(function(lib) {
+        return lib.getDocument({ data: bytes }).promise;
+      });
+    }).then(function(doc) {
+      state.doc = doc;
+      state.numPages = doc.numPages;
+      if (state.page > state.numPages) state.page = 1;
+      statusEl.style.display = 'none';
+      renderPage();
+    }).catch(function(e) {
+      if (statusEl.style.display !== 'none') {
+        statusEl.textContent = statusEl.textContent.indexOf('Could not') === 0 ? statusEl.textContent : ('Could not load PDF: ' + e.message);
+      }
+    });
+  }
+
   function buildFileRefCard(el, card) {
     var accent = document.createElement('div');
     accent.className = 'url-accent-bar file-type-icon';
@@ -2362,8 +2549,22 @@ var KanvazCards = (function() {
         accent.appendChild(tag);
       }
     }
+
     updateIcon();
     el.appendChild(accent);
+
+    /* v7.x — a .pdf gets a real in-card scroll/zoom preview between the
+       accent bar and the label/button row below, which stays unchanged
+       for every file type including PDF (Open/Change both still make
+       sense for a PDF reference exactly like any other file). The
+       modifier class switches .card-file's default "center a compact
+       icon+label" layout to "fill the resizable card with the preview,
+       label row pinned at the bottom" — scoped to this one card so
+       every other file-ref card's compact look is untouched. */
+    if (isPdfPath(card.path)) {
+      el.classList.add('has-pdf-preview');
+      buildPdfPreview(el, card);
+    }
 
     var body = document.createElement('div');
     body.className = 'url-body';
@@ -2409,6 +2610,20 @@ var KanvazCards = (function() {
         updateIcon();
         var barName = el.querySelector('.card-filename');
         if (barName) barName.textContent = card.name;
+
+        /* v7.x — re-point may cross the PDF/non-PDF line: add or remove
+           the in-card preview to match, rather than leaving a stale
+           preview (or a missing one) until the next full reload. */
+        var existingPreview = el.querySelector('.pdf-preview');
+        if (isPdfPath(card.path) && !existingPreview) {
+          delete card.pdfPage; delete card.pdfZoom;
+          el.classList.add('has-pdf-preview');
+          buildPdfPreview(el, card);
+        } else if (!isPdfPath(card.path) && existingPreview) {
+          el.classList.remove('has-pdf-preview');
+          existingPreview.remove();
+        }
+
         KanvazApp.markDirty();
         KanvazHistory.push();
         emitCardEvent('cardUpdate', card);
@@ -3537,6 +3752,11 @@ var KanvazCards = (function() {
       muted:        c.muted        !== undefined ? c.muted : null,
       /* v7.x — real per-card volume level (0–1), not just binary mute. */
       volume:       c.volume       !== undefined ? c.volume : null,
+      /* v7.x — PDF preview's current page/zoom (file-ref cards pointing
+         at a .pdf), same "missing → sensible default" fallback pattern
+         as the rest of this per-card-display-preference block. */
+      pdfPage:      c.pdfPage      || null,
+      pdfZoom:      c.pdfZoom      || null,
       /* v6.4.0 */
       sharedId:     c.sharedId     || null
     };
@@ -3674,6 +3894,8 @@ var KanvazCards = (function() {
         if (!c.colorFormat)  c.colorFormat  = null;
         if (c.muted === undefined) c.muted  = null;
         if (c.volume === undefined) c.volume = null;
+        if (!c.pdfPage) c.pdfPage = null;
+        if (!c.pdfZoom) c.pdfZoom = null;
         if (c.sharedId === undefined) c.sharedId = null;
 
         cards[c.id] = c;
