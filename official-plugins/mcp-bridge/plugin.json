@@ -1,7 +1,7 @@
 {
   "id": "studio.northbyte.mcp-bridge",
   "name": "MCP Bridge",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "kanvazApiVersion": 1,
   "entry": "main.js",
   "permissions": ["server"],

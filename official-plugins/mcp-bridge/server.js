@@ -105,7 +105,7 @@ function tool(method) {
   };
 }
 
-const server = new McpServer({ name: 'kanvaz-mcp-bridge', version: '1.0.0' });
+const server = new McpServer({ name: 'kanvaz-mcp-bridge', version: '1.1.0' });
 
 server.registerTool('getActiveBoard', {
   title: 'Get active board',
@@ -160,7 +160,7 @@ server.registerTool('createCard', {
    safety net against the two silently drifting apart. */
 server.registerTool('updateCard', {
   title: 'Update card',
-  description: 'Applies a partial update to an existing card (name, text, url, color, tags, position, size, pinned).',
+  description: 'Applies a partial update to an existing card (name, text, url, color, tags, custom properties, position, size, pinned).',
   inputSchema: {
     id: z.string(),
     patch: z.object({
@@ -169,6 +169,7 @@ server.registerTool('updateCard', {
       url: z.string().optional(),
       color: z.string().optional(),
       tags: z.array(z.string()).optional(),
+      properties: z.record(z.string(), z.string()).optional().describe('Custom key-value metadata, same as the Properties panel (E)'),
       x: z.number().optional(),
       y: z.number().optional(),
       w: z.number().optional(),
@@ -248,6 +249,20 @@ server.registerTool('sendCardToBack', {
   inputSchema: { id: z.string() }
 }, tool('sendCardToBack'));
 
+/* ── Shared cards across boards (v7.x) ── */
+
+server.registerTool('shareCardToBoard', {
+  title: 'Share card to board',
+  description: 'Shares a card to a DIFFERENT board (Are.na-style — same content, no duplication; editing it on either board updates both). Use listBoards to find a targetBoardId. Refused if targetBoardId is the currently active board.',
+  inputSchema: { id: z.string(), targetBoardId: z.string() }
+}, tool('shareCardToBoard'));
+
+server.registerTool('unlinkSharedCard', {
+  title: 'Unlink shared card',
+  description: 'Forks a shared card instance back into its own independent copy — future edits to it stop affecting other boards it was shared with.',
+  inputSchema: { id: z.string() }
+}, tool('unlinkSharedCard'));
+
 /* ── Board management (4.5.0) ──
    deleteBoard is NOT undo-reversible (undo history is per-board and is
    cleared on every board switch/load) — the two-step confirm pattern
@@ -300,6 +315,20 @@ server.registerTool('zoomReset', { title: 'Reset zoom', description: 'Resets can
 server.registerTool('zoomFit', { title: 'Zoom to fit', description: 'Zooms/pans the canvas so every card is visible.' }, tool('zoomFit'));
 server.registerTool('toggleMapView', { title: 'Toggle map view', description: 'Switches between Board view and Map view.' }, tool('toggleMapView'));
 
+/* ── Reference Mode (v7.x) — PureRef-style click-through + opacity ── */
+
+server.registerTool('setClickThrough', {
+  title: 'Set click-through',
+  description: 'Turns Reference Mode click-through on or off (mouse clicks pass through the Kanvaz window to whatever is underneath it). Idempotent — safe to call with the state you want regardless of the current state.',
+  inputSchema: { enabled: z.boolean() }
+}, tool('setClickThrough'));
+
+server.registerTool('setWindowOpacity', {
+  title: 'Set window opacity',
+  description: 'Sets the Kanvaz window opacity (0.2–1.0 — floored at 0.2 so the window can never become invisible and unclickable at once). Persists across restarts.',
+  inputSchema: { value: z.number().min(0.2).max(1) }
+}, tool('setWindowOpacity'));
+
 /* ── Settings (4.5.0) — everything except plugin management ──
    This field list is a hand-kept duplicate of src/ui.js's own
    SETTINGS_DEFAULTS object (same reasoning as updateCard's patch
@@ -327,13 +356,22 @@ server.registerTool('updateSettings', {
       confirmDelete: z.boolean().optional(),
       defaultCardW: z.number().optional(),
       animationsOn: z.boolean().optional(),
+      /* v6.3.0+ — always-on-top now defaults to true; windowOpacity is
+         Reference Mode's opacity level (0.2-1.0), a real persisted
+         setting distinct from the one-off setWindowOpacity tool above
+         (that tool applies it live; this field is what a settings
+         restore/backup round-trips). */
       alwaysOnTop: z.boolean().optional(),
+      windowOpacity: z.number().min(0.2).max(1).optional(),
+      /* v6.3.0 — on-device lemmatized/fuzzy search (wink-nlp, ~4MB
+         model, fully offline). Off by default — flipping this on loads
+         that model into memory; flipping it off unloads it immediately. */
+      smartSearchEnabled: z.boolean().optional(),
       doubleClickCreatesNote: z.boolean().optional(),
       leftDragPan: z.boolean().optional(),
       autoHideChrome: z.boolean().optional(),
       gridSnapEnabled: z.boolean().optional(),
       gridSnapIncrement: z.enum(['minor', 'major']).optional(),
-      topModeAutoOnTop: z.boolean().optional(),
       devShowFPS: z.boolean().optional(),
       devShowIds: z.boolean().optional()
     })

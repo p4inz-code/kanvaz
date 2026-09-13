@@ -37,7 +37,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## Latest release
 
-**v7.0.0** — Resize now matches Figma/Photoshop/Illustrator: free resize by default, **Shift locks proportions** (a genuine bug fix — it was backwards before). Video/audio controls got a real per-card **volume slider** (not just mute), plus a full icon redraw for visual consistency. See [CHANGELOG.md](CHANGELOG.md) for the complete version history — every release back to v3.5, with the reasoning behind each one.
+**v7.1.0** — MCP Bridge, made flagship-level: 4 new tools (Reference Mode click-through/opacity control, shared-cards-across-boards), a stale settings field removed and two current ones added, and a real bug fixed — `updateCard`'s schema was silently missing the `properties` field its own docs already promised. Also fixed: the in-app "Browse Official Plugins" catalog had been pointing every official plugin at its original 4.4.0-era zip for releases, even though every tagged release since has quietly built a fresh one. See [CHANGELOG.md](CHANGELOG.md) for the complete version history — every release back to v3.5, with the reasoning behind each one.
 
 ---
 
@@ -118,7 +118,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 7.0.0.exe` and `dist/Kanvaz 7.0.0.exe`
+Output: `dist/Kanvaz Setup 7.1.0.exe` and `dist/Kanvaz 7.1.0.exe`
 
 **macOS:**
 ```bash

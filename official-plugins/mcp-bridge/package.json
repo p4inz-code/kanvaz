@@ -1,6 +1,6 @@
 {
   "name": "kanvaz-mcp-bridge",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Standalone MCP stdio server for Kanvaz's MCP Bridge plugin — spawned by your MCP client (Claude Desktop, Claude Code, etc.), not by Kanvaz itself.",
   "type": "module",
   "private": true,

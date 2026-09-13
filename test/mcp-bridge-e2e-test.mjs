@@ -77,6 +77,12 @@ const fakeServer = net.createServer((socket) => {
       result = { theme: 'dark', autosaveInterval: 30 };
     } else if (req.method === 'undo') {
       result = { ok: true };
+    } else if (req.method === 'setClickThrough') {
+      result = { ok: true, clickThroughOn: !!req.params.enabled };
+    } else if (req.method === 'shareCardToBoard') {
+      result = req.params.targetBoardId === 'board-1'
+        ? { ok: false, error: 'that board is already open' }
+        : { ok: true };
     } else {
       error = 'fake server: unhandled method ' + req.method;
     }
@@ -106,7 +112,7 @@ await client.connect(transport);
 
 const toolsResult = await client.listTools();
 const toolNames = toolsResult.tools.map((t) => t.name).sort();
-check('all 30 tools registered (11 original + 19 from the 4.5.0 whole-app expansion)', toolNames.length === 30);
+check('all 34 tools registered (30 through 4.5.0 + 4 from the v7.x expansion)', toolNames.length === 34);
 check('getActiveBoard present', toolNames.includes('getActiveBoard'));
 check('createCard present', toolNames.includes('createCard'));
 check('connectCards present', toolNames.includes('connectCards'));
@@ -114,6 +120,10 @@ check('deleteBoard present (board management)', toolNames.includes('deleteBoard'
 check('undo present (history)', toolNames.includes('undo'));
 check('zoomFit present (view control)', toolNames.includes('zoomFit'));
 check('updateSettings present (settings, minus plugin management)', toolNames.includes('updateSettings'));
+check('shareCardToBoard present (v7.x shared cards)', toolNames.includes('shareCardToBoard'));
+check('unlinkSharedCard present (v7.x shared cards)', toolNames.includes('unlinkSharedCard'));
+check('setClickThrough present (v7.x Reference Mode)', toolNames.includes('setClickThrough'));
+check('setWindowOpacity present (v7.x Reference Mode)', toolNames.includes('setWindowOpacity'));
 check('no plugin-management tool exists (install/enable/disable a plugin stays UI-only)', !toolNames.some((n) => /plugin/i.test(n)));
 
 const r1 = await client.callTool({ name: 'getActiveBoard', arguments: {} });
@@ -151,6 +161,14 @@ check('getSettings round-trips real data', JSON.parse(r9.content[0].text).theme 
 
 const r10 = await client.callTool({ name: 'undo', arguments: {} });
 check('undo round-trips ok:true', JSON.parse(r10.content[0].text).ok === true);
+
+const r11 = await client.callTool({ name: 'setClickThrough', arguments: { enabled: true } });
+const r11data = JSON.parse(r11.content[0].text);
+check('setClickThrough round-trips real data (v7.x)', r11data.ok === true && r11data.clickThroughOn === true);
+
+const r12 = await client.callTool({ name: 'shareCardToBoard', arguments: { id: 'card-1', targetBoardId: 'board-1' } });
+const r12data = JSON.parse(r12.content[0].text);
+check('shareCardToBoard surfaces a real refusal, not a crash (v7.x)', r12data.ok === false && /already open/.test(r12data.error));
 
 await client.close();
 fakeServer.close();

@@ -2,6 +2,24 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [7.1.0] — MCP Bridge, made flagship-level
+
+A dedicated polish pass on the MCP Bridge official plugin — real bugs fixed, real new capability added, not just a version bump.
+
+### Fixed
+- **`updateCard`'s schema was silently missing `properties`.** The plugin's own README already documented "properties" as a supported field (bolded, no less), but `server.js`'s zod schema for `updateCard`'s patch object never actually included it — an AI client trying to set custom Properties-panel metadata through this tool got silently stripped fields instead of an error, since zod drops unrecognized object keys by default rather than rejecting them. Added `properties: z.record(z.string(), z.string())` to match `src/cards.js`'s own `UPDATABLE_FIELDS`.
+- **`updateSettings`'s schema still offered `topModeAutoOnTop`**, a setting removed from Kanvaz itself back in v6.0.0 when Top Mode was deleted entirely. Calling it did nothing (the settings-load reconciliation loop only copies known keys), silently. Removed, and added `windowOpacity`/`smartSearchEnabled` — two real, current settings that simply never got added to this schema when they shipped.
+- **The in-app "Browse Official Plugins" catalog (`official-plugins/catalog.json`) had been serving stale plugin zips since v4.4.0.** CI's `Package official plugins` step rebuilds a fresh zip for every official plugin at every single tagged release — confirmed via `gh release view v7.0.0` showing `kanvaz-mcp-bridge-7.0.0.zip`, `kanvaz-theme-creator-7.0.0.zip`, etc. already sitting on that release. But the catalog's `downloadUrl` fields were never updated to point at them — Theme Creator and MCP Bridge had been pointing at their original v4.4.0-era assets this entire time, meaning anyone installing via "Browse Official Plugins" got a years-outdated build regardless of how many fixes shipped since. Updated to point at the current release; this needs updating at every future release where one of these plugins actually changes — flagged as a real, disclosed process gap (see `docs/HANDOFF.md`), not something CI enforces automatically yet.
+
+### Added
+- **Reference Mode control**: `setClickThrough(enabled)` and `setWindowOpacity(value)` — an AI client can now turn click-through on/off and adjust window opacity directly. `setClickThrough` is idempotent (pass the state you want; it only toggles if that's not already the current state) via a new `KanvazApp.isClickThroughOn()` getter, deliberately friendlier for a tool call than KanvazApp's own raw toggle.
+- **Shared cards across boards**: `shareCardToBoard(id, targetBoardId)` and `unlinkSharedCard(id)` — thin pass-throughs to the `KanvazPluginAPI` wrappers added in v6.5.0 specifically so a plugin like this one could reach them.
+- 34 tools total now (up from 30), verified end-to-end in `test/mcp-bridge-e2e-test.mjs` — a real MCP client driving the real, unmodified `server.js`, not a mock of the protocol layer. Two of the four new tools get real round-trip assertions against a fake Kanvaz-side listener (`setClickThrough`, `shareCardToBoard`'s refusal path); the other two (`setWindowOpacity`, `unlinkSharedCard`) are covered by the tool-registration/schema checks.
+- Plugin version bumped to 1.1.0 (`plugin.json`/`package.json`/the MCP server's own `McpServer({version})`).
+
+### Fixed while writing this entry
+Caught mid-edit, before it ever reached a commit: an inserted doc-comment paragraph in `main.js` accidentally closed the enclosing block comment early (a stray `*/`), which would have left the next few lines of real documentation sitting as bare, unparseable text at module scope. Caught by `node --check` before shipping.
+
 ## [7.0.0] — resize semantics, media control polish, first release of the v7.x line
 
 The v6.x arc closed out clean at v6.6.2. This is the first release of what comes next: Kanvaz keeps getting developed, now as an ongoing side project driven by real feedback rather than a fixed "final arc" — see `docs/ROADMAP.md`'s "The v7.x line" section for the standing plan.

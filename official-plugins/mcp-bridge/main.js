@@ -22,6 +22,18 @@
    there was never a path from this plugin's tool calls to that file in
    the first place.
 
+   v7.x adds Reference Mode control (setClickThrough/setWindowOpacity —
+   reached via the bare KanvazApp global, since that feature predates
+   this plugin's own surface and was never routed through KanvazPluginAPI)
+   and shared-cards-across-boards (shareCardToBoard/unlinkSharedCard, thin
+   pass-throughs to the KanvazPluginAPI wrappers added specifically for
+   this). updateSettings' schema (server.js) was also corrected —
+   `topModeAutoOnTop` was removed from Kanvaz itself in v6.0.0 (Top Mode
+   no longer exists) but the schema here still offered it as a no-op
+   field until now; `windowOpacity`/`smartSearchEnabled` were added since
+   they're real, current settings that were simply never added when they
+   shipped.
+
    Requests a single permission: "server" (run a local listener). See
    README.md in this folder for the Claude Desktop / Claude Code setup
    steps and the standalone server.js this plugin ships alongside — that
@@ -230,6 +242,50 @@
     });
   }
 
+  /* ── Reference Mode (v7.x) ──
+     toggleClickThrough()/isClickThroughOn() live on the bare KanvazApp
+     global, not KanvazPluginAPI (Reference Mode predates this plugin's
+     own MCP surface and was never routed through it) — reached directly
+     here the same way createCard()/connectCards() above already reach
+     KanvazCards/KanvazConnections directly. setClickThrough exposes an
+     explicit desired STATE rather than KanvazApp's own raw toggle — an
+     AI client asking "turn click-through on" shouldn't have to first
+     ask what state it's already in just to know whether to call toggle. */
+  function setClickThrough(enabled) {
+    if (typeof KanvazApp === 'undefined' || !KanvazApp.toggleClickThrough || !KanvazApp.isClickThroughOn) {
+      throw new Error('Reference Mode is unavailable in this build of Kanvaz');
+    }
+    var want = !!enabled;
+    if (KanvazApp.isClickThroughOn() !== want) KanvazApp.toggleClickThrough();
+    return { ok: true, clickThroughOn: KanvazApp.isClickThroughOn() };
+  }
+
+  function setWindowOpacity(value) {
+    if (typeof KanvazApp === 'undefined' || !KanvazApp.setWindowOpacity) {
+      throw new Error('Reference Mode is unavailable in this build of Kanvaz');
+    }
+    if (typeof value !== 'number') throw new Error('setWindowOpacity requires a numeric value between 0.2 and 1');
+    KanvazApp.setWindowOpacity(value);
+    return { ok: true };
+  }
+
+  /* ── Shared cards across boards (v6.4.0/v6.5.0) ──
+     Thin pass-throughs to KanvazPluginAPI's own wrappers (added
+     specifically so plugins like this one could reach them) — no
+     sanitizeCard() needed, these already return the same {ok, ...}
+     shape shareCardToBoard()/unlinkSharedCard() define in cards.js. */
+  function shareCardToBoard(id, targetBoardId) {
+    if (!MCP_API.shareCardToBoard) throw new Error('shared cards are unavailable in this build of Kanvaz');
+    if (!targetBoardId) throw new Error('shareCardToBoard requires targetBoardId — call listBoards first to find one');
+    return MCP_API.shareCardToBoard(id, targetBoardId);
+  }
+
+  function unlinkSharedCard(id) {
+    if (!MCP_API.unlinkSharedCard) throw new Error('shared cards are unavailable in this build of Kanvaz');
+    MCP_API.unlinkSharedCard(id);
+    return { ok: true };
+  }
+
   function handleInvoke(method, args) {
     args = args || {};
     switch (method) {
@@ -251,6 +307,10 @@
       case 'bringCardToFront':  MCP_API.bringCardToFront(args.id); return { ok: true };
       case 'sendCardToBack':    MCP_API.sendCardToBack(args.id); return { ok: true };
 
+      /* Shared cards across boards (v7.x) */
+      case 'shareCardToBoard':  return shareCardToBoard(args.id, args.targetBoardId);
+      case 'unlinkSharedCard':  return unlinkSharedCard(args.id);
+
       /* Board management (4.5.0) */
       case 'createBoard':  return MCP_API.createBoard(args.name);
       case 'listBoards':   return MCP_API.listBoards();
@@ -267,6 +327,10 @@
       case 'zoomReset':      MCP_API.zoomReset(); return { ok: true };
       case 'zoomFit':        MCP_API.zoomFit(); return { ok: true };
       case 'toggleMapView':  MCP_API.toggleMapView(); return { ok: true };
+
+      /* Reference Mode (v7.x) */
+      case 'setClickThrough':  return setClickThrough(args.enabled);
+      case 'setWindowOpacity': return setWindowOpacity(args.value);
 
       /* Settings (4.5.0) — everything except plugin management */
       case 'getSettings':     return MCP_API.getSettings();

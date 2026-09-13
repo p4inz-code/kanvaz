@@ -6,16 +6,16 @@
     "version": "1.0.0",
     "author": "Northbyte Studios",
     "permissions": [],
-    "downloadUrl": "https://github.com/p4inz-code/kanvaz/releases/download/v4.4.0/kanvaz-theme-creator-4.4.0.zip"
+    "downloadUrl": "https://github.com/p4inz-code/kanvaz/releases/download/v7.0.0/kanvaz-theme-creator-7.0.0.zip"
   },
   {
     "id": "studio.northbyte.mcp-bridge",
     "name": "MCP Bridge",
     "description": "Lets Claude Desktop, Claude Code, or any other MCP-compatible AI tool read and edit your active board over a local-only connection. Off by default — every change lands in undo history like a manual edit.",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "author": "Northbyte Studios",
     "permissions": ["server"],
-    "downloadUrl": "https://github.com/p4inz-code/kanvaz/releases/download/v4.4.0/kanvaz-mcp-bridge-4.4.0.zip"
+    "downloadUrl": "https://github.com/p4inz-code/kanvaz/releases/download/v7.1.0/kanvaz-mcp-bridge-7.1.0.zip"
   },
   {
     "id": "studio.northbyte.template-maker",
@@ -24,6 +24,6 @@
     "version": "1.0.0",
     "author": "Northbyte Studios",
     "permissions": [],
-    "downloadUrl": "https://github.com/p4inz-code/kanvaz/releases/download/v6.5.0/kanvaz-template-maker-6.5.0.zip"
+    "downloadUrl": "https://github.com/p4inz-code/kanvaz/releases/download/v7.0.0/kanvaz-template-maker-7.0.0.zip"
   }
 ]
