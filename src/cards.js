@@ -22,6 +22,19 @@ var KanvazCards = (function() {
                                   shift-click multi-select in this app yet. */
   var world = null;
   var zCounter = 1;
+  /* Direct feedback: "Send to Back doesn't work." Real bug, not a
+     misreport — sendToBack() used to hard-set card.z = 0 for every
+     card, so sending a SECOND card to back never actually put it
+     behind a first card already at 0: CSS breaks z-index ties by DOM/
+     paint order (later-appended element wins), not by which action
+     happened more recently, so the second card stayed visually on top
+     of the first despite both having "sent it to back." bringToFront()
+     never had this problem since it always assigns a strictly higher
+     ++zCounter than anything before it; backCounter is the same idea
+     mirrored downward, so each additional Send to Back is guaranteed
+     to land strictly behind every card already there, including ones
+     sent to back earlier. */
+  var backCounter = 0;
 
   var CARD_MIN_W = 80;
   var CARD_MIN_H = 80;
@@ -4923,9 +4936,9 @@ var KanvazCards = (function() {
   function sendToBack(id) {
     var card = cards[id];
     if (!card) return;
-    card.z = 0;
+    card.z = --backCounter;
     var el = document.getElementById(id);
-    if (el) el.style.zIndex = 0;
+    if (el) el.style.zIndex = card.z;
     KanvazApp.markDirty();
     KanvazHistory.push();
     emitCardEvent('cardUpdate', card);
