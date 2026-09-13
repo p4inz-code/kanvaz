@@ -1,15 +1,34 @@
 # Kanvaz Redesign v1 — Sprint Plan
 
-Tracks the `redesign-v1` branch (kept separate from `main` so the shipped
-7.x line stays stable/testable throughout). Tag as "Kanvaz redesign v1"
-internally; reconcile with the semver line at merge time.
+**Merged into `main` as v7.8.0.** Tracked on the `redesign-v1` branch
+while in progress (kept, not deleted, as the historical record of this
+sprint). Phase 3 (card visual polish, blocked on a Figma design pass)
+and the deliberately-deferred parts of Phase 2 (per-profile plugin
+storage, Export/Import profile, a Start Screen profile picker) remain
+open — track those as their own follow-up work, not part of this
+document's remaining scope.
 
 Full detail for each phase lives in its own plan doc — this is the
 sequencing and the definition of done.
 
-## Phase 1 — Side panel
+## Phase 1 — Side panel — **DONE, merged to `main` in v7.8.0**
 
 Plan: `docs/SIDE_PANEL_PLAN.md` (fully resolved, no open questions).
+
+Implemented in new `src/sidepanel.js` (orchestrator) plus changes to
+`boards.js` (`renderTabs` → `renderBoardsList`, targets a container
+instead of the removed `#board-tabs`), `properties.js` (`open`/`close`/
+new `renderInto` delegate to `KanvazSidePanel` instead of building a
+floating panel), `ui.js` (`showSettings`/`closeSettings` replaced with
+`renderSettingsInto`/`closeSettingsSection`, reorganized into General /
+Canvas & Input / Files & Search / Plugins / Advanced-collapsible),
+`index.html`/`main.css` (new DOM + styles), and call-site updates in
+`app.js`/`commands.js`/`shortcuts.js`. One real bug caught in self-
+review before commit: `properties.js`'s per-section keydown listener
+was attached to the persistent panel container on every render with no
+guard, stacking indefinitely across section switches — fixed with a
+one-time-attachment marker, verified live that 10 rapid section
+switches still leave exactly one listener bound.
 
 - Left-docked panel, icon rail always visible, content pane toggles
   with `S`.
@@ -28,9 +47,82 @@ unreachable), live-verified via CDP that switching boards/opening
 Settings/opening Properties all work through the new panel with zero
 console errors.
 
-## Phase 2 — Start Screen + Profiles system
+## Phase 2 — Start Screen + Profiles system — **DONE (both parts), merged to `main` in v7.8.0**
 
 Plan: `docs/PROFILES_SYSTEM_PLAN.md` (fully resolved, no open questions).
+
+Turns out Kanvaz already had a "Start Screen" of sorts — `boards.js`'s
+`showStartupScreen()` (recent boards + New board, gated on the
+`openOnStartup` setting) — it just didn't know to stay out of the way on
+a direct file-open launch, so a double-click on a `.kanvaz` file could
+show it flashing underneath the board that's about to load. Fixed by
+having `main.js` compute `hasStartupFile` before `createWindow()` and
+pass it in via `webPreferences.additionalArguments`, read synchronously
+in `preload.js` (`KanvazBridge.hasStartupFile()`) and checked at the top
+of `showStartupScreen()` before any settings/recent IPC round-trip — no
+flash, no wasted IPC. `boards.js`'s `openFilePath()` also now calls
+`closeStartup()` defensively on every call site (covers the
+second-instance handoff: double-clicking another file while Kanvaz is
+already open and showing the Start Screen). Live-verified via CDP both
+ways: a plain launch with a seeded `recent.json` shows the screen with
+`hasStartupFile:false`; launching with a file argument shows
+`hasStartupFile:true` and the screen never renders, board opens
+directly.
+
+**Update — the Profiles system landed too, as its own slice.** New
+`src/profiles.js` (main process) owns the storage/migration engine:
+`userData/profiles/<id>/` per profile, a `manifest.json` + an
+`active-profile.json` pointer, idempotent `ensureMigrated()` that moves
+an existing install's root-level `settings.json`/`recent.json`/`recovery/`
+into a newly-created default profile (named from the OS username) the
+first time it ever runs, and self-healing if the active pointer or
+manifest ever gets out of sync. `main.js`'s settings/recent/recovery IPC
+handlers all now resolve their path through
+`kanvazProfiles.getActiveProfileDir()` instead of `userData` directly —
+functions, not cached constants, so a profile switch takes effect
+immediately with no extra plumbing. New `profiles-*` IPC (list/create/
+switch/rename/update/set-avatar/delete), exposed via preload.js.
+Switching profiles relaunches the whole app (same "ending this user
+session" decision as the plan) via the existing `app-relaunch` IPC,
+after the same Save/Don't-Save/Cancel gate `openFilePath()` already uses
+for unsaved changes (`KanvazBoards.confirmDiscardIfDirty`, now exported).
+
+UI: the corner account menu's "Manage Profiles…" opens a dialog listing
+every profile with an avatar circle (initial-letter fallback), name,
+optional description, Switch/Edit/Delete per row (Delete guarded:
+can't delete the active profile or the only remaining one), a "+ New
+Profile" row, and a "+ Add Guest Profile" quick-create (a profile named
+"Guest" with a `guest:true` badge — persists like any other profile,
+NOT an ephemeral/auto-wipe sandbox; see the scope note in profiles.js).
+Edit expands inline into name + description fields and a "Change
+Photo…" button (picks an image, downscales it to a 96px square in the
+renderer via canvas, stores it as a small inline `avatarDataUrl` in
+manifest.json — avoids new file-serving IPC or loosening the img-src
+CSP for what's already a client-side, non-networked feature).
+
+Live-verified via CDP with isolated `--user-data-dir` profiles:
+migration of real legacy settings/recent/recovery content byte-for-byte
+into a new profile; a fresh install with zero legacy data auto-creating
+one default profile; create/switch/edit/guest-create/delete-guard all
+round-tripping correctly; a switch's relaunch landing on the new
+profile's own isolated (empty) recent-boards list while the original
+profile's data stayed untouched on disk.
+
+Deliberately deferred (see profiles.js's own scope-note comment,
+not oversights): per-profile plugin enable-state/storage (plugin-
+loader.js's storage layout is shared, higher-blast-radius surface,
+sequenced as its own follow-up); the dedicated first-run "Set up your
+profile" wizard screen from the plan (a fresh install auto-names from
+the OS username instead, renameable any time); Export/Import profile as
+a portable file; and the multi-profile Start Screen picker (today's
+Start Screen doesn't yet surface a profile switcher itself — only the
+account-menu dialog does).
+
+Also, per direct feedback mid-sprint: Settings' categories were
+adjusted — a dedicated "Appearance" section split out from "General"
+(theme, minimap, grid, card shadows, animations), and the collapsible
+Advanced section split into Diagnostics / Plugin Dev / Reset
+sub-headers instead of one flat list of unrelated dev tools.
 
 - Start Screen on plain launch (recent boards, New board, branding),
   skipped when opening a `.kanvaz` file directly.

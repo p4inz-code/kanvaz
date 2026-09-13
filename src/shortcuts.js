@@ -178,9 +178,13 @@ var KanvazShortcuts = (function() {
     /* Help — works in both views */
     if (e.key === '?') { KanvazUI.showShortcuts(); return; }
 
-    /* Settings — toggle open/close */
+    /* v7.x redesign — S toggles the whole left side panel (Boards/
+       Properties/Settings), not just a floating Settings popover
+       anymore. Opens to the Settings section specifically the first
+       time (matches the historical S-key meaning); after that it
+       remembers whichever section was last active. */
     if (e.key === 's' || e.key === 'S') {
-      if (typeof KanvazUI_Extended !== 'undefined') KanvazUI_Extended.showSettings();
+      if (typeof KanvazSidePanel !== 'undefined') KanvazSidePanel.toggle('settings');
       return;
     }
 

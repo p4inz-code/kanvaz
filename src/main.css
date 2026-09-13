@@ -148,6 +148,331 @@ html, body {
   flex-shrink: 0;
 }
 
+/* ── Side panel (v7.x redesign) ──
+   Replaces the old top board-tab strip + floating Settings popover.
+   #main-area is a row flex: [side-panel, canvas-container]. The icon
+   rail is always visible; only #side-panel-content toggles with S —
+   see docs/SIDE_PANEL_PLAN.md for the reasoning (permanent wayfinding
+   beats a shortcut you have to remember exists). */
+#main-area {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+#side-panel {
+  display: flex;
+  flex-shrink: 0;
+  height: 100%;
+}
+
+#side-panel-rail {
+  width: 44px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 0;
+  gap: 4px;
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+}
+
+.rail-btn {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: var(--color-text-3);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+  flex-shrink: 0;
+}
+
+.rail-btn:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text-2);
+}
+
+.rail-btn.active {
+  background: var(--color-accent-bg);
+  color: var(--color-accent);
+}
+
+#side-panel-content {
+  width: 260px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border-2);
+  transition: width 0.15s ease;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+/* Collapsed = zero width, not display:none — a CSS class (not the
+   `hidden` attribute) so the width transition above actually animates
+   instead of snapping instantly. */
+#side-panel-content.collapsed {
+  width: 0;
+  border-right: none;
+}
+
+.side-panel-section-header {
+  padding: 14px 16px 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* ── Account corner menu ── */
+.account-menu {
+  position: fixed;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-2);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px var(--color-shadow);
+  padding: 4px;
+  z-index: 20001;
+  min-width: 160px;
+}
+
+.account-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  background: none;
+  border: none;
+  border-radius: 5px;
+  color: var(--color-text-2);
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.account-menu-item:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+/* Phase 2 — offline profile switching (docs/PROFILES_SYSTEM_PLAN.md) */
+.account-menu-profile-label {
+  padding: 6px 10px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.account-menu-sep {
+  height: 1px;
+  background: var(--color-border);
+  margin: 4px 6px;
+}
+
+/* ── Manage Profiles dialog (Phase 2) ── */
+.profiles-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(14, 14, 16, 0.6);
+  z-index: 99997;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profiles-dialog-panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-2);
+  border-radius: 12px;
+  padding: 20px;
+  width: 380px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 24px 64px var(--color-shadow);
+}
+
+.profiles-dialog-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 6px;
+}
+
+.profiles-dialog-note {
+  font-size: 11px;
+  color: var(--color-text-3);
+  line-height: 1.4;
+  margin-bottom: 14px;
+}
+
+.profiles-dialog-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.profiles-dialog-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--color-surface-2);
+}
+
+.profiles-dialog-row.active {
+  outline: 1px solid var(--color-accent);
+}
+
+.profiles-dialog-row-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.profiles-dialog-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-surface-3);
+  color: var(--color-text-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.profiles-dialog-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profiles-dialog-text-col {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.profiles-dialog-name {
+  font-size: 13px;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profiles-dialog-desc {
+  font-size: 11px;
+  color: var(--color-text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profiles-dialog-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--color-accent-bg);
+  color: var(--color-accent);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  vertical-align: middle;
+}
+
+.profiles-dialog-edit-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.profiles-dialog-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.profiles-dialog-btn {
+  padding: 4px 8px;
+  background: none;
+  border: 1px solid var(--color-border-2);
+  border-radius: 5px;
+  color: var(--color-text-2);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.profiles-dialog-btn:hover {
+  background: var(--color-surface-3);
+  color: var(--color-text);
+}
+
+.profiles-dialog-btn.danger {
+  color: var(--color-danger, #e5484d);
+  border-color: var(--color-danger, #e5484d);
+}
+
+.profiles-dialog-btn.primary {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.profiles-dialog-create {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.profiles-dialog-input {
+  flex: 1;
+  padding: 7px 9px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-2);
+  border-radius: 5px;
+  color: var(--color-text);
+  font-family: var(--font-ui);
+  font-size: 12px;
+}
+
+.profiles-dialog-close {
+  width: 100%;
+  padding: 8px;
+  background: none;
+  border: 1px solid var(--color-border-2);
+  border-radius: 6px;
+  color: var(--color-text-2);
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.profiles-dialog-close:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
 /* ── Auto-hide toolbar chrome-reveal ──
    Class names kept as .moodlock-* internally — a leftover of when this
    mechanic was shared with the now-removed Top Mode (v6.0.0, see

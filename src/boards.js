@@ -7,7 +7,7 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '7.7.0';
+  var VERSION       = '7.8.0';
 
   /* ── Shared cards (v6.4.0) — "same card, no duplicate, edit once
      updates everywhere" (Are.na-style), across boards in ONE .kanvaz
@@ -79,7 +79,7 @@ var KanvazBoards = (function() {
     if (idx === activeIdx) return { ok: false, error: 'that board is already open' };
     if (!boards[idx].cards) boards[idx].cards = [];
     boards[idx].cards.push(stub);
-    renderTabs();
+    renderBoardsList();
     return { ok: true };
   }
 
@@ -105,9 +105,6 @@ var KanvazBoards = (function() {
   /* ── Init ── */
 
   function init() {
-    var tabBar = document.getElementById('board-tabs');
-    if (!tabBar) createTabBar();
-
     newBoard(true);
     /* Note: startAutosave() is called from KanvazUI_Extended.applySettings()
        after settings have loaded — calling it here would use the wrong
@@ -115,59 +112,51 @@ var KanvazBoards = (function() {
     showStartupScreen();
   }
 
-  /* ── Tab bar DOM ── */
+  /* v7.x redesign — renders into the left side panel's Boards section
+     (a vertical list) instead of the old horizontal top tab strip,
+     which is removed entirely. `container` is only passed the first
+     time (when sidepanel.js switches to this section); every other
+     call site below (switchBoard, newBoard, deleteBoard, etc.) just
+     calls renderBoardsList() with no args to refresh wherever it was
+     last rendered — same remembered-container pattern ui.js's Settings
+     section uses. */
+  var lastBoardsContainer = null;
 
-  function createTabBar() {
-    var tabBar = document.getElementById('board-tabs');
-    if (!tabBar) return;
-    tabBar.style.cssText = [
-      'display:flex',
-      'align-items:center',
-      'height:32px',
-      'background:var(--color-chrome)',
-      'border-bottom:1px solid var(--color-border)',
-      'padding:0 8px',
-      'gap:2px',
-      'overflow-x:auto',
-      'flex-shrink:0'
-    ].join(';');
-  }
+  function renderBoardsList(container) {
+    container = container || lastBoardsContainer;
+    if (!container) return;
+    lastBoardsContainer = container;
+    container.innerHTML = '';
 
-  function renderTabs() {
-    var tabBar = document.getElementById('board-tabs');
-    if (!tabBar) return;
-    tabBar.innerHTML = '';
+    var list = document.createElement('div');
+    list.style.cssText = 'padding:8px;';
 
     for (var i = 0; i < boards.length; i++) {
       (function(idx) {
-        var tab = document.createElement('div');
         var isActive = (idx === activeIdx);
-        tab.style.cssText = [
+        var row = document.createElement('div');
+        row.style.cssText = [
           'display:flex',
           'align-items:center',
-          'gap:6px',
-          'padding:4px 10px',
+          'gap:8px',
+          'padding:8px 10px',
+          'margin-bottom:2px',
           'cursor:pointer',
-          'font-size:12px',
-          'white-space:nowrap',
-          'max-width:160px',
-          'background:' + (isActive ? 'var(--color-surface)' : 'transparent'),
-          'color:' + (isActive ? 'var(--color-text)' : 'var(--color-text-3)'),
-          isActive
-            ? 'border-radius:4px 4px 0 0;border:1px solid var(--color-border);border-bottom:2px solid var(--color-accent)'
-            : 'border-radius:4px;border:1px solid transparent;border-bottom:2px solid transparent',
+          'border-radius:6px',
+          'background:' + (isActive ? 'var(--color-accent-bg)' : 'transparent'),
+          'color:' + (isActive ? 'var(--color-accent)' : 'var(--color-text-2)'),
           'transition:background 0.1s, color 0.1s'
         ].join(';');
 
         if (!isActive) {
-          tab.onmouseenter = function() { tab.style.background = 'var(--color-surface-2)'; tab.style.color = 'var(--color-text-2)'; };
-          tab.onmouseleave = function() { tab.style.background = 'transparent'; tab.style.color = 'var(--color-text-3)'; };
+          row.onmouseenter = function() { row.style.background = 'var(--color-surface-2)'; };
+          row.onmouseleave = function() { row.style.background = 'transparent'; };
         }
 
         var nameSpan = document.createElement('span');
         nameSpan.textContent = boards[idx].name;
-        nameSpan.style.cssText = 'overflow:hidden;text-overflow:ellipsis;flex:1;';
-        tab.appendChild(nameSpan);
+        nameSpan.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;font-size:13px;';
+        row.appendChild(nameSpan);
 
         /* Card count badge */
         var cardCount = 0;
@@ -181,62 +170,220 @@ var KanvazBoards = (function() {
           var countBadge = document.createElement('span');
           countBadge.textContent = cardCount;
           countBadge.style.cssText = 'font-size:9px;color:var(--color-text-3);background:var(--color-surface-2);padding:1px 5px;border-radius:8px;flex-shrink:0;font-weight:500;';
-          tab.appendChild(countBadge);
+          row.appendChild(countBadge);
         }
 
-        /* Close button — only show if more than 1 board */
+        /* Close/delete button — only show if more than 1 board */
         if (boards.length > 1) {
           var closeBtn = document.createElement('button');
           closeBtn.innerHTML = '&times;';
-          closeBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-text-3);font-size:14px;padding:0;line-height:1;';
+          closeBtn.title = 'Delete board';
+          closeBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-text-3);font-size:14px;padding:0;line-height:1;flex-shrink:0;';
           closeBtn.onclick = function(e) {
             e.stopPropagation();
             deleteBoard(idx);
           };
-          tab.appendChild(closeBtn);
+          row.appendChild(closeBtn);
         }
 
-        tab.onclick = function() { switchBoard(idx); };
+        row.onclick = function() { switchBoard(idx); };
 
         /* Double-click to rename */
-        tab.ondblclick = function(e) {
+        row.ondblclick = function(e) {
           e.stopPropagation();
           renameBoard(idx, nameSpan);
         };
 
-        tabBar.appendChild(tab);
+        list.appendChild(row);
       })(i);
     }
+    container.appendChild(list);
 
-    /* Add board button */
+    /* New board / Start from Template */
+    var actionsRow = document.createElement('div');
+    actionsRow.style.cssText = 'display:flex;gap:6px;padding:0 8px 8px;';
+
     var addBtn = document.createElement('button');
-    addBtn.textContent = '+';
-    addBtn.title = 'New board';
-    addBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-text-3);font-size:18px;padding:0 6px;line-height:1;';
-    addBtn.onmouseenter = function() { addBtn.style.color = 'var(--color-text)'; };
-    addBtn.onmouseleave = function() { addBtn.style.color = 'var(--color-text-3)'; };
+    addBtn.textContent = '+ New board';
+    addBtn.style.cssText = 'flex:1;padding:7px;background:var(--color-accent-bg);border:1px solid var(--color-accent);border-radius:6px;color:var(--color-accent);font-family:var(--font-ui);font-size:12px;cursor:pointer;transition:background 0.1s;';
+    addBtn.onmouseenter = function() { addBtn.style.background = 'rgba(157,127,255,0.15)'; };
+    addBtn.onmouseleave = function() { addBtn.style.background = 'var(--color-accent-bg)'; };
     addBtn.onclick = function() { newBoard(false); };
-    tabBar.appendChild(addBtn);
+    actionsRow.appendChild(addBtn);
 
     /* v5.1.0 — "Start from Template" sits right next to "New board"
        since it's the same decision point (what should this new board
        start as), not buried in Settings the way plugin browsing is. */
     var templateBtn = document.createElement('button');
-    templateBtn.textContent = '⌗';
+    templateBtn.textContent = 'Template';
     templateBtn.title = 'Start from Template';
-    templateBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-text-3);font-size:14px;padding:0 6px;line-height:1;';
-    templateBtn.onmouseenter = function() { templateBtn.style.color = 'var(--color-text)'; };
-    templateBtn.onmouseleave = function() { templateBtn.style.color = 'var(--color-text-3)'; };
-    templateBtn.onclick = function() {
-      if (typeof KanvazUI !== 'undefined' && KanvazUI.showTemplateGallery) KanvazUI.showTemplateGallery();
+    templateBtn.style.cssText = 'padding:7px 10px;background:transparent;border:1px solid var(--color-border);border-radius:6px;color:var(--color-text-2);font-family:var(--font-ui);font-size:12px;cursor:pointer;transition:background 0.1s;';
+    templateBtn.onmouseenter = function() { templateBtn.style.background = 'var(--color-surface-2)'; };
+    templateBtn.onmouseleave = function() { templateBtn.style.background = 'transparent'; };
+    templateBtn.onclick = function() { renderTemplateGalleryInto(container); };
+    actionsRow.appendChild(templateBtn);
+    container.appendChild(actionsRow);
+
+    /* Quick drop — drop a file directly onto this zone to add it to the
+       currently active board, without needing the canvas visible at
+       all (useful once the panel covers enough of the screen, or on a
+       smaller window). Reuses the exact same drop-handling path the
+       main canvas drop target already goes through (KanvazApp.
+       handleDroppedFiles) — a default position near the current
+       viewport center, same reasoning ui.js's "Generate test cards"
+       button already uses for where to place things when there's no
+       real drop coordinate to anchor to. */
+    var quickDrop = document.createElement('div');
+    quickDrop.style.cssText = 'margin:4px 8px 8px;padding:16px 8px;border:1.5px dashed var(--color-border-2);border-radius:8px;text-align:center;color:var(--color-text-3);font-size:11px;line-height:1.5;transition:border-color 0.1s, background 0.1s;';
+    quickDrop.textContent = 'Quick drop — paste an image or drag media anywhere onto the board.';
+    quickDrop.ondragover = function(e) {
+      e.preventDefault();
+      quickDrop.style.borderColor = 'var(--color-accent)';
+      quickDrop.style.background = 'var(--color-accent-bg)';
     };
-    tabBar.appendChild(templateBtn);
+    quickDrop.ondragleave = function() {
+      quickDrop.style.borderColor = 'var(--color-border-2)';
+      quickDrop.style.background = 'transparent';
+    };
+    quickDrop.ondrop = function(e) {
+      e.preventDefault();
+      quickDrop.style.borderColor = 'var(--color-border-2)';
+      quickDrop.style.background = 'transparent';
+      if (typeof KanvazApp === 'undefined' || !KanvazApp.handleDroppedFiles) return;
+      var files = e.dataTransfer ? e.dataTransfer.files : null;
+      if (!files || !files.length) return;
+      var vp = (typeof KanvazCanvas !== 'undefined') ? KanvazCanvas.getViewport() : null;
+      var worldPos = vp
+        ? { x: (-vp.tx / vp.scale) + 200, y: (-vp.ty / vp.scale) + 200 }
+        : { x: 200, y: 200 };
+      KanvazApp.handleDroppedFiles(files, worldPos);
+    };
+    container.appendChild(quickDrop);
+  }
+
+  /* ── Start from Template (moved inline, v7.x redesign) ──
+     Used to be ui.js's showTemplateGallery() — a fixed centered modal
+     popup. Direct feedback: this space (the Boards section of the side
+     panel) already exists for exactly this decision (what should a new
+     board start as), so the gallery now renders IN PLACE of the boards
+     list here instead of opening a popup on top of everything, with a
+     "← Boards" button to go back. Same KanvazBridge.listTemplates()/
+     loadTemplate() calls the old popup used — only the container and
+     the back-navigation are new. */
+  function renderTemplateGalleryInto(container) {
+    container.innerHTML = '';
+    lastBoardsContainer = container;
+
+    var header = document.createElement('div');
+    header.style.cssText = 'display:flex;align-items:center;gap:8px;padding:10px 8px 4px;';
+
+    var backBtn = document.createElement('button');
+    backBtn.textContent = '← Boards';
+    backBtn.style.cssText = 'background:none;border:none;color:var(--color-text-2);font-family:var(--font-ui);font-size:12px;cursor:pointer;padding:2px 0;';
+    backBtn.onclick = function() { renderBoardsList(container); };
+    header.appendChild(backBtn);
+    container.appendChild(header);
+
+    var title = document.createElement('div');
+    title.style.cssText = 'font-size:14px;font-weight:600;color:var(--color-text);padding:4px 8px 2px;';
+    title.textContent = 'Start from Template';
+    container.appendChild(title);
+
+    var sub = document.createElement('div');
+    sub.style.cssText = 'font-size:11px;color:var(--color-text-3);padding:0 8px 12px;';
+    sub.textContent = 'Bundled with Kanvaz — no network call, ever.';
+    container.appendChild(sub);
+
+    var listEl = document.createElement('div');
+    listEl.style.cssText = 'padding:0 8px;font-size:12px;color:var(--color-text-3);';
+    listEl.textContent = 'Loading…';
+    container.appendChild(listEl);
+
+    if (typeof KanvazBridge === 'undefined' || !KanvazBridge.listTemplates) {
+      listEl.textContent = 'Not available in this build.';
+      return;
+    }
+
+    KanvazBridge.listTemplates().then(function(result) {
+      /* Stale-response guard: the user may have clicked "← Boards"
+         (or switched to a different section entirely) before this
+         promise resolved — container would then belong to whatever
+         renders there now. lastBoardsContainer only ever points at the
+         MOST RECENT render target, so this check is enough to detect
+         "am I still the thing showing" without a separate token/flag. */
+      if (lastBoardsContainer !== container || !container.isConnected) return;
+
+      if (!result || !result.ok) {
+        listEl.textContent = 'Could not load templates' + (result && result.error ? ': ' + result.error : '.');
+        return;
+      }
+      var templates = result.templates || [];
+      listEl.textContent = '';
+      if (!templates.length) {
+        listEl.textContent = 'No templates bundled with this build.';
+        return;
+      }
+
+      for (var i = 0; i < templates.length; i++) {
+        (function(entry) {
+          var row = document.createElement('div');
+          row.style.cssText = 'padding:10px 0;border-bottom:1px solid var(--color-border);';
+
+          var top = document.createElement('div');
+          top.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;';
+
+          var name = document.createElement('div');
+          name.style.cssText = 'font-size:12px;color:var(--color-text);font-weight:500;';
+          name.textContent = entry.name;
+          top.appendChild(name);
+
+          var useBtn = document.createElement('button');
+          useBtn.textContent = 'Use';
+          useBtn.style.cssText = 'background:var(--color-accent-bg);border:1px solid var(--color-accent);border-radius:4px;color:var(--color-accent);padding:3px 10px;font-size:11px;font-family:var(--font-ui);cursor:pointer;flex-shrink:0;';
+          useBtn.onclick = function() {
+            useBtn.disabled = true;
+            useBtn.textContent = 'Loading…';
+            KanvazBridge.loadTemplate(entry.id).then(function(res) {
+              if (!res || !res.ok) {
+                KanvazUI.toast((res && res.error) || 'Could not load template', 'error');
+                useBtn.disabled = false;
+                useBtn.textContent = 'Use';
+                return;
+              }
+              newBoard(true, entry.name, res.cards);
+              KanvazApp.markDirty();
+              KanvazHistory.push();
+              renderBoardsList(container);
+              KanvazUI.toast('Started board from "' + entry.name + '"');
+            }).catch(function(e) {
+              KanvazUI.toast('Could not load template: ' + e.message, 'error');
+              useBtn.disabled = false;
+              useBtn.textContent = 'Use';
+            });
+          };
+          top.appendChild(useBtn);
+          row.appendChild(top);
+
+          if (entry.description) {
+            var desc = document.createElement('div');
+            desc.style.cssText = 'font-size:11px;color:var(--color-text-3);margin-top:3px;line-height:1.4;';
+            desc.textContent = entry.description;
+            row.appendChild(desc);
+          }
+
+          listEl.appendChild(row);
+        })(templates[i]);
+      }
+    }).catch(function(e) {
+      if (lastBoardsContainer !== container || !container.isConnected) return;
+      listEl.textContent = 'Could not load templates: ' + e.message;
+    });
   }
 
   /* ── New board ── */
 
   /* Bug-bounty fix (v5.3.0): initialCards (optional) lets a caller — so
-     far only ui.js's showTemplateGallery() — populate the fresh board
+     far only boards.js's renderTemplateGalleryInto() — populate the fresh board
      BEFORE 'boardLoad' fires, instead of calling KanvazCards.deserialise()
      itself afterward. That second pattern used to be what the Template
      Gallery did, and it meant any plugin listening for 'boardLoad' (to
@@ -273,7 +420,7 @@ var KanvazBoards = (function() {
     KanvazHistory.clear();
     emitBoardEvent('boardLoad');
 
-    renderTabs();
+    renderBoardsList();
     updateTitle();
 
     /* Audit fix: a new tab is a real content change to the file (it
@@ -301,7 +448,7 @@ var KanvazBoards = (function() {
     if (typeof KanvazUI !== 'undefined' && KanvazUI.hideSearchBar) KanvazUI.hideSearchBar();
 
     loadBoardState(boards[idx]);
-    renderTabs();
+    renderBoardsList();
     updateTitle();
   }
 
@@ -364,7 +511,7 @@ var KanvazBoards = (function() {
       var val = input.value.trim() || boards[idx].name;
       var changed = (val !== boards[idx].name);
       boards[idx].name = val;
-      renderTabs();
+      renderBoardsList();
       /* Audit fix: renaming a tab is a real, savable content change and
          was never marked dirty — a rename right before closing the app
          would take the !boardDirty fast-close path (no save prompt) and
@@ -376,14 +523,14 @@ var KanvazBoards = (function() {
     input.onkeydown = function(e) {
       if (e.key === 'Enter') { e.preventDefault(); commit(); }
       if (e.key === 'Escape') {
-        /* renderTabs() rebuilds the tab bar (innerHTML = ''), which
+        /* renderBoardsList() rebuilds the list (innerHTML = ''), which
            removes this still-focused input from the DOM — that fires a
            native 'blur' on it first, which was wired to commit() above.
            Left alone, Escape would "cancel" by committing whatever was
            typed, same as Enter. Unhook the blur handler first so the
            teardown is silent. */
         input.onblur = null;
-        renderTabs();
+        renderBoardsList();
       }
     };
   }
@@ -469,7 +616,7 @@ var KanvazBoards = (function() {
             /* idx > activeIdx: a later board was removed, active board
                and its index are unaffected. */
 
-            renderTabs();
+            renderBoardsList();
             updateTitle();
             KanvazApp.markDirty();
           }
@@ -524,7 +671,7 @@ var KanvazBoards = (function() {
     var changed = (val !== boards[idx].name);
     boards[idx].name = val;
     if (idx === activeIdx) updateTitle();
-    renderTabs();
+    renderBoardsList();
     if (changed && typeof KanvazApp !== 'undefined' && KanvazApp.markDirty) KanvazApp.markDirty();
     return { ok: true, id: boards[idx].id, name: boards[idx].name };
   }
@@ -584,7 +731,7 @@ var KanvazBoards = (function() {
       activeIdx -= 1;
     }
 
-    renderTabs();
+    renderBoardsList();
     updateTitle();
     if (typeof KanvazApp !== 'undefined' && KanvazApp.markDirty) KanvazApp.markDirty();
     return { ok: true, deleted: true, id: target.id, name: target.name };
@@ -796,6 +943,13 @@ var KanvazBoards = (function() {
      boards list. Gated behind confirmDiscardIfDirty() (audit fix) so
      none of those paths can silently blow away unsaved work. */
   function openFilePath(p) {
+    /* Defensive: covers the second-instance handoff too — someone
+       double-clicks another .kanvaz file while Kanvaz is already
+       running and showing the Start Screen. closeStartup() is a no-op
+       if the screen isn't showing, so this is safe from every call
+       site, not just the recent-item click that used to call it
+       explicitly. */
+    closeStartup();
     confirmDiscardIfDirty(function() {
       KanvazBridge.readFile(p).then(function(result) {
         if (!result.ok) {
@@ -902,7 +1056,7 @@ var KanvazBoards = (function() {
     if (activeIdx < 0 || activeIdx >= boards.length) activeIdx = 0;
 
     loadBoardState(boards[activeIdx]);
-    renderTabs();
+    renderBoardsList();
     updateTitle();
     KanvazHistory.clear();
   }
@@ -1000,6 +1154,16 @@ var KanvazBoards = (function() {
   /* ── Startup screen ── */
 
   function showStartupScreen() {
+    /* Redesign v1 Phase 2: skipped entirely (no IPC round-trip, no
+       flash) when this launch is going straight to a specific .kanvaz
+       file — double-click a file, "Open with Kanvaz", or a second-
+       instance handoff. hasStartupFile() is a synchronous snapshot set
+       at window creation (see preload.js), so this check is safe to
+       make before any settings/recent IPC has resolved. */
+    if (typeof KanvazBridge !== 'undefined' && KanvazBridge.hasStartupFile && KanvazBridge.hasStartupFile()) {
+      return;
+    }
+
     /* Respect openOnStartup setting — check is INSIDE the async callback
        rather than at the top, because loadSettings() runs asynchronously
        via IPC and may not have completed yet when showStartupScreen() is
@@ -1201,7 +1365,14 @@ var KanvazBoards = (function() {
     getSharedCardContent:    getSharedCardContent,
     setSharedCardContent:    setSharedCardContent,
     deleteSharedCardContent: deleteSharedCardContent,
-    addSharedInstanceToBoard: addSharedInstanceToBoard
+    addSharedInstanceToBoard: addSharedInstanceToBoard,
+    renderBoardsList: renderBoardsList,
+    /* Exported for sidepanel.js's profile switcher (Phase 2) — switching
+       profiles is "ending this user session" per docs/
+       PROFILES_SYSTEM_PLAN.md, so it needs the exact same Save/Don't
+       Save/Cancel gate the open-a-different-board path already uses,
+       not a second copy of the same three-button dialog. */
+    confirmDiscardIfDirty: confirmDiscardIfDirty
   };
 
 })();

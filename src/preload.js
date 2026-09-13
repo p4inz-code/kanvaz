@@ -3,7 +3,17 @@
 var contextBridge = require('electron').contextBridge;
 var ipcRenderer = require('electron').ipcRenderer;
 
+/* Redesign v1 Phase 2: main.js passes this at window-creation time (see
+   createWindow's additionalArguments) so the renderer can decide,
+   synchronously at boot, whether this launch is going straight to a
+   specific .kanvaz file — a plain boolean snapshot, not a live IPC call,
+   since it's fixed for the lifetime of this window. */
+var hasStartupFileArg = process.argv.indexOf('--kanvaz-has-startup-file=1') !== -1;
+
 contextBridge.exposeInMainWorld('KanvazBridge', {
+
+  /* Launch info */
+  hasStartupFile:  function() { return hasStartupFileArg; },
 
   /* Window controls */
   minimize:        function() { ipcRenderer.send('window-minimize'); },
@@ -40,6 +50,16 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
   writeRecovery:   function(d) { return ipcRenderer.invoke('recovery-write', d); },
   readRecovery:    function() { return ipcRenderer.invoke('recovery-read'); },
   clearRecovery:   function() { return ipcRenderer.invoke('recovery-clear'); },
+
+  /* Profiles (offline, no login — docs/PROFILES_SYSTEM_PLAN.md) */
+  listProfiles:    function() { return ipcRenderer.invoke('profiles-list'); },
+  getActiveProfile: function() { return ipcRenderer.invoke('profiles-get-active'); },
+  createProfile:   function(name, opts) { return ipcRenderer.invoke('profiles-create', name, opts); },
+  switchProfile:   function(id) { return ipcRenderer.invoke('profiles-switch', id); },
+  renameProfile:   function(id, name) { return ipcRenderer.invoke('profiles-rename', id, name); },
+  updateProfile:   function(id, fields) { return ipcRenderer.invoke('profiles-update', id, fields); },
+  setProfileAvatar: function(id, dataUrl) { return ipcRenderer.invoke('profiles-set-avatar', id, dataUrl); },
+  deleteProfile:   function(id) { return ipcRenderer.invoke('profiles-delete', id); },
 
   /* Shell */
   openExternal:    function(url) { ipcRenderer.send('shell-open-external', url); },

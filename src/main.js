@@ -17,6 +17,7 @@ var Worker = require('worker_threads').Worker;
 
 var boardContainer = require('./board-container');
 var pluginLoader = require('./plugin-loader');
+var kanvazProfiles = require('./profiles');
 
 /* electron-updater is a real dependency (see package.json), but it's
    wrapped in try/catch anyway — if it's ever missing (e.g. a stripped
@@ -32,8 +33,18 @@ try {
 var mainWindow = null;
 var allowClose = false;
 var pendingFileOpen = null;
-var RECOVERY_DIR = path.join(app.getPath('userData'), 'recovery');
-var RECENT_FILES_PATH = path.join(app.getPath('userData'), 'recent.json');
+/* Redesign v1 Phase 2: settings/recent/recovery are now owned by the
+   ACTIVE PROFILE (docs/PROFILES_SYSTEM_PLAN.md), not fixed paths under
+   userData directly — so these are functions, re-resolved on every
+   call, not module-level constants. A profile switch mid-session (see
+   'profiles-switch' below) takes effect on the very next call with no
+   extra plumbing, since nothing ever caches the resolved path. */
+function getRecoveryDir() {
+  return path.join(kanvazProfiles.getActiveProfileDir(app.getPath('userData')), 'recovery');
+}
+function getRecentFilesPath() {
+  return path.join(kanvazProfiles.getActiveProfileDir(app.getPath('userData')), 'recent.json');
+}
 var MAX_RECENT = 8;
 var LARGE_FILE_WARN_MB = 200;
 var MAX_FILE_SIZE_MB   = 500;
@@ -404,12 +415,16 @@ if (!gotLock) {
 
   app.whenReady().then(function() {
     ensureDirectories();
-    createWindow();
-    registerIPC();
 
     /* BUG 5: fresh launch with a .kanvaz file on the command line
-       (double-click a file, or "Open with Kanvaz"). */
+       (double-click a file, or "Open with Kanvaz"). Computed BEFORE
+       createWindow() so it can be handed to the renderer at window
+       creation time (see createWindow's additionalArguments) instead
+       of only after 'did-finish-load'. */
     var startupFile = pendingFileOpen || findKanvazArg(process.argv);
+    createWindow(!!startupFile);
+    registerIPC();
+
     if (startupFile && mainWindow) {
       mainWindow.webContents.once('did-finish-load', function() {
         mainWindow.webContents.send('open-file-from-argv', startupFile);
@@ -441,7 +456,7 @@ if (!gotLock) {
   });
 
   app.on('activate', function() {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) createWindow(false);
   });
 
   /* BUG 4: a second launch (e.g. double-clicking another .kanvaz file
@@ -471,7 +486,7 @@ if (!gotLock) {
 
 /* ── Window ── */
 
-function createWindow() {
+function createWindow(hasStartupFile) {
   /* Reset per new window. allowClose is only ever flipped to true right
      before a deliberate close (see 'force-close' below); without this
      reset, macOS can hit a stale `true` here — window-all-closed doesn't
@@ -480,6 +495,13 @@ function createWindow() {
      changes check on its own first close attempt. */
   allowClose = false;
 
+  /* Redesign v1 Phase 2: the renderer's Start Screen must not appear at
+     all when this launch is going straight to a specific .kanvaz file
+     (double-click a file, "Open with Kanvaz") — passed as a launch-time
+     flag rather than an IPC round-trip so the renderer can skip it
+     synchronously at boot, before Boards.init() ever calls
+     showStartupScreen(), avoiding a startup-screen flash underneath the
+     board that's about to load. */
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -494,7 +516,8 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
-      webSecurity: true
+      webSecurity: true,
+      additionalArguments: ['--kanvaz-has-startup-file=' + (hasStartupFile ? '1' : '0')]
     },
     icon: path.join(__dirname, '..', 'assets', 'icons', 'icon.png'),
     title: 'Kanvaz'
@@ -566,8 +589,13 @@ function createWindow() {
 /* ── Directories ── */
 
 function ensureDirectories() {
-  if (!fs.existsSync(RECOVERY_DIR)) {
-    fs.mkdirSync(RECOVERY_DIR, { recursive: true });
+  /* Also runs the profiles migration (idempotent) — this is the first
+     thing whenReady() calls, before anything else touches a
+     settings/recent/recovery path. */
+  kanvazProfiles.ensureMigrated(app.getPath('userData'));
+  var recoveryDir = getRecoveryDir();
+  if (!fs.existsSync(recoveryDir)) {
+    fs.mkdirSync(recoveryDir, { recursive: true });
   }
 }
 
@@ -888,25 +916,26 @@ function registerIPC() {
   });
 
   ipcMain.handle('recent-get', function() {
+    var p = getRecentFilesPath();
     try {
-      if (!fs.existsSync(RECENT_FILES_PATH)) return [];
-      var raw = fs.readFileSync(RECENT_FILES_PATH, 'utf8');
-      return JSON.parse(raw);
+      if (!fs.existsSync(p)) return [];
+      return JSON.parse(fs.readFileSync(p, 'utf8'));
     } catch (e) {
       return [];
     }
   });
 
   ipcMain.handle('recent-add', function(event, filePath) {
+    var p = getRecentFilesPath();
     try {
       var list = [];
-      if (fs.existsSync(RECENT_FILES_PATH)) {
-        list = JSON.parse(fs.readFileSync(RECENT_FILES_PATH, 'utf8'));
+      if (fs.existsSync(p)) {
+        list = JSON.parse(fs.readFileSync(p, 'utf8'));
       }
-      list = list.filter(function(p) { return p !== filePath; });
+      list = list.filter(function(f) { return f !== filePath; });
       list.unshift(filePath);
       if (list.length > MAX_RECENT) list = list.slice(0, MAX_RECENT);
-      fs.writeFileSync(RECENT_FILES_PATH, JSON.stringify(list), 'utf8');
+      fs.writeFileSync(p, JSON.stringify(list), 'utf8');
       return list;
     } catch (e) {
       return [];
@@ -914,13 +943,14 @@ function registerIPC() {
   });
 
   ipcMain.handle('recent-remove', function(event, filePath) {
+    var p = getRecentFilesPath();
     try {
       var list = [];
-      if (fs.existsSync(RECENT_FILES_PATH)) {
-        list = JSON.parse(fs.readFileSync(RECENT_FILES_PATH, 'utf8'));
+      if (fs.existsSync(p)) {
+        list = JSON.parse(fs.readFileSync(p, 'utf8'));
       }
-      list = list.filter(function(p) { return p !== filePath; });
-      fs.writeFileSync(RECENT_FILES_PATH, JSON.stringify(list), 'utf8');
+      list = list.filter(function(f) { return f !== filePath; });
+      fs.writeFileSync(p, JSON.stringify(list), 'utf8');
       return list;
     } catch (e) {
       return [];
@@ -930,7 +960,15 @@ function registerIPC() {
   /* ── IPC: Recovery ── */
 
   ipcMain.handle('recovery-write', function(event, data) {
-    var recovPath = path.join(RECOVERY_DIR, 'autosave.kanvaz.tmp');
+    var recoveryDir = getRecoveryDir();
+    /* Redesign v1 Phase 2: a just-created or just-switched-to profile
+       may not have a recovery/ subfolder yet — getActiveProfileDir()
+       only guarantees the profile's own root dir exists, not this
+       subfolder, so ensure it here rather than assuming boot-time
+       ensureDirectories() already covered whichever profile is active
+       right now. */
+    if (!fs.existsSync(recoveryDir)) fs.mkdirSync(recoveryDir, { recursive: true });
+    var recovPath = path.join(recoveryDir, 'autosave.kanvaz.tmp');
     return fs.promises.writeFile(recovPath, data, 'utf8')
       .then(function() { return { ok: true }; })
       .catch(function(e) { return { ok: false, error: e.message }; });
@@ -938,7 +976,7 @@ function registerIPC() {
 
   ipcMain.handle('recovery-read', function() {
     try {
-      var recovPath = path.join(RECOVERY_DIR, 'autosave.kanvaz.tmp');
+      var recovPath = path.join(getRecoveryDir(), 'autosave.kanvaz.tmp');
       if (!fs.existsSync(recovPath)) return { ok: false };
       var data = fs.readFileSync(recovPath, 'utf8');
       return { ok: true, data: data };
@@ -949,7 +987,7 @@ function registerIPC() {
 
   ipcMain.handle('recovery-clear', function() {
     try {
-      var recovPath = path.join(RECOVERY_DIR, 'autosave.kanvaz.tmp');
+      var recovPath = path.join(getRecoveryDir(), 'autosave.kanvaz.tmp');
       if (fs.existsSync(recovPath)) fs.unlinkSync(recovPath);
       return { ok: true };
     } catch (e) {
@@ -1024,7 +1062,7 @@ function registerIPC() {
 
   ipcMain.handle('settings-read', function() {
     try {
-      var settingsPath = path.join(app.getPath('userData'), 'settings.json');
+      var settingsPath = path.join(kanvazProfiles.getActiveProfileDir(app.getPath('userData')), 'settings.json');
       if (!fs.existsSync(settingsPath)) return { ok: true, data: null };
       var raw = fs.readFileSync(settingsPath, 'utf8');
       return { ok: true, data: raw };
@@ -1034,7 +1072,7 @@ function registerIPC() {
   });
 
   ipcMain.handle('settings-write', function(event, data) {
-    var settingsPath = path.join(app.getPath('userData'), 'settings.json');
+    var settingsPath = path.join(kanvazProfiles.getActiveProfileDir(app.getPath('userData')), 'settings.json');
     var tmpPath = settingsPath + '.tmp';
     return fs.promises.writeFile(tmpPath, data, 'utf8')
       .then(function() {
@@ -1058,36 +1096,80 @@ function registerIPC() {
     }
   });
 
-  /* Clean reset — clears settings, recent-files list, recovery/autosave
-     cache, and the first-run flag. Deliberately touches ONLY paths
-     under app.getPath('userData') — every one of them is a
-     Kanvaz-internal cache/preference file, never a saved .kanvaz board.
-     Boards always live wherever the user chose via the save dialog, a
-     location entirely outside userData by construction — there is no
-     path in this function that could ever reach one, so no exclusion
-     list is needed; the safety comes from what's simply never touched
-     here, not from filtering. */
+  /* ── IPC: Profiles (Redesign v1 Phase 2, docs/PROFILES_SYSTEM_PLAN.md) ──
+     Each handler is a thin wrapper over profiles.js — see that module
+     for the actual storage/migration logic. Switching profiles doesn't
+     hot-swap any in-memory state here or in the renderer (settings
+     caches, board state, etc.) — the renderer relaunches the whole app
+     via the existing 'app-relaunch' IPC right after a successful
+     switch, same as the plan's "treat it as ending this user session"
+     decision, not a new mechanism. */
+  ipcMain.handle('profiles-list', function() {
+    return kanvazProfiles.listProfiles(app.getPath('userData'));
+  });
+
+  ipcMain.handle('profiles-get-active', function() {
+    return kanvazProfiles.getActiveProfile(app.getPath('userData'));
+  });
+
+  ipcMain.handle('profiles-create', function(event, name, opts) {
+    return kanvazProfiles.createProfile(app.getPath('userData'), name, opts);
+  });
+
+  ipcMain.handle('profiles-switch', function(event, id) {
+    return kanvazProfiles.switchProfile(app.getPath('userData'), id);
+  });
+
+  ipcMain.handle('profiles-rename', function(event, id, name) {
+    return kanvazProfiles.renameProfile(app.getPath('userData'), id, name);
+  });
+
+  ipcMain.handle('profiles-update', function(event, id, fields) {
+    return kanvazProfiles.updateProfileMeta(app.getPath('userData'), id, fields);
+  });
+
+  ipcMain.handle('profiles-set-avatar', function(event, id, dataUrl) {
+    return kanvazProfiles.setProfileAvatar(app.getPath('userData'), id, dataUrl);
+  });
+
+  ipcMain.handle('profiles-delete', function(event, id) {
+    return kanvazProfiles.deleteProfile(app.getPath('userData'), id);
+  });
+
+  /* Clean reset — clears the ACTIVE PROFILE's settings, recent-files
+     list, and recovery/autosave cache, plus the machine-wide first-run
+     flag. Deliberately touches ONLY paths under app.getPath('userData')
+     — every one of them is a Kanvaz-internal cache/preference file,
+     never a saved .kanvaz board. Boards always live wherever the user
+     chose via the save dialog, a location entirely outside userData by
+     construction — there is no path in this function that could ever
+     reach one, so no exclusion list is needed; the safety comes from
+     what's simply never touched here, not from filtering. Redesign v1
+     Phase 2: this resets the CURRENT profile's own preferences, same as
+     it always reset "the app's" preferences before profiles existed —
+     it does not touch the profile manifest or any other profile. */
   ipcMain.handle('reset-app-data', function(event, clearCaches) {
     try {
       var userDataDir = app.getPath('userData');
-      var settingsPath = path.join(userDataDir, 'settings.json');
+      var settingsPath = path.join(kanvazProfiles.getActiveProfileDir(userDataDir), 'settings.json');
       var flagPath = path.join(userDataDir, 'first-run-done');
 
       if (fs.existsSync(settingsPath)) fs.unlinkSync(settingsPath);
-      if (fs.existsSync(RECENT_FILES_PATH)) fs.unlinkSync(RECENT_FILES_PATH);
+      if (fs.existsSync(getRecentFilesPath())) fs.unlinkSync(getRecentFilesPath());
       if (fs.existsSync(flagPath)) fs.unlinkSync(flagPath);
 
-      if (fs.existsSync(RECOVERY_DIR)) {
-        var files = fs.readdirSync(RECOVERY_DIR);
+      var recoveryDir = getRecoveryDir();
+      if (fs.existsSync(recoveryDir)) {
+        var files = fs.readdirSync(recoveryDir);
         for (var i = 0; i < files.length; i++) {
-          /* RECOVERY_DIR is only ever expected to hold flat recovery
+          /* recoveryDir is only ever expected to hold flat recovery
              files, but fs.unlinkSync throws EISDIR on a directory —
              which would abort this whole reset (caught by the outer
              try/catch, reported as a failure) over one unexpected
              subdirectory. rmSync with recursive+force handles either
              case without throwing, same as the cache-clearing block
              just below. */
-          fs.rmSync(path.join(RECOVERY_DIR, files[i]), { recursive: true, force: true });
+          fs.rmSync(path.join(recoveryDir, files[i]), { recursive: true, force: true });
         }
       }
 
@@ -1840,7 +1922,7 @@ function wireAutoUpdaterEvents() {
 /* ── Crash recovery check ── */
 
 function checkCrashRecovery() {
-  var recovPath = path.join(RECOVERY_DIR, 'autosave.kanvaz.tmp');
+  var recovPath = path.join(getRecoveryDir(), 'autosave.kanvaz.tmp');
   if (fs.existsSync(recovPath)) {
     if (mainWindow) {
       mainWindow.webContents.send('recovery-available');
