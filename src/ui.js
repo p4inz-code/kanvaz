@@ -1372,7 +1372,7 @@ var KanvazUI_Extended = (function() {
     box.className = 'about-card';
 
     /* Bug-bounty fix: version used to be hardcoded 3 separate times in
-       this markup ("Version 7.11.1", "v7.11.1" in the tagline) —
+       this markup (the version line, and again in the tagline below),
        independent of boards.js's own VERSION constant, so a real
        version bump only had to be forgotten in one of these three spots
        for the About screen to quietly start lying about what's

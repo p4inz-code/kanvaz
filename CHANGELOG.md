@@ -2,7 +2,7 @@
 
 All notable changes to Kanvaz are documented here.
 
-## [Unreleased]
+## [7.12.0] — Search finds Settings, Smart Folder context menu, Home Screen polish
 
 ### Fixed
 - **The Home Screen could be stacked twice** — a fast double-click on

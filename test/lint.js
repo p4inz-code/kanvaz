@@ -69,15 +69,23 @@ function checkVersion() {
   var m = boards.match(/var VERSION\s*=\s*'([\d.]+)'/);
   found['boards.js'] = m ? m[1] : 'MISSING';
 
-  var ui = fs.readFileSync(path.join(SRC, 'ui.js'), 'utf8');
-  var m2 = ui.match(/Version ([\d.]+)/);
-  found['ui.js'] = m2 ? m2[1] : 'MISSING';
-
   Object.keys(found).forEach(function(loc) {
     if (found[loc] !== v) {
       err(loc, 0, 'version mismatch: found "' + found[loc] + '", expected "' + v + '"');
     }
   });
+
+  /* ui.js's About screen reads the version dynamically off
+     KanvazBoards.getVersion() rather than embedding its own literal
+     "Version X.Y.Z" string (fixed a real bug: it used to hardcode that
+     string 3 separate times, independent of boards.js's VERSION
+     constant — see CHANGELOG 7.12.0). No version number lives here to
+     compare against package.json any more; just confirm the dynamic
+     read is still wired up instead of silently reverting to a literal. */
+  var ui = fs.readFileSync(path.join(SRC, 'ui.js'), 'utf8');
+  if (!/KanvazBoards\.getVersion/.test(ui)) {
+    err('ui.js', 0, 'About screen no longer reads KanvazBoards.getVersion() — version display may be hardcoded again');
+  }
 
   // Scan for any OTHER version-like strings that don't match (stale refs)
   jsFiles().forEach(function(file) {

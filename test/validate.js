@@ -206,7 +206,14 @@ var ui = fs.readFileSync(path.join(SRC, 'ui.js'), 'utf8');
 var readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
 var checks = [
   ['boards.js VERSION', new RegExp("var VERSION\\s*=\\s*'" + v.replace(/\./g,'\\.') + "'").test(boards)],
-  ['ui.js About',       ui.indexOf('Version ' + v) !== -1],
+  /* ui.js's About screen reads the version dynamically off
+     KanvazBoards.getVersion() (fixed a real bug: it used to hardcode
+     the string 3 separate times, independent of the real version
+     constant — see CHANGELOG 7.12.0) rather than embedding it as a
+     literal string, so there's no "Version X.Y.Z" substring to search
+     for any more. Check that the dynamic read is still wired up
+     instead. */
+  ['ui.js About',       /appVersion\s*=\s*.*KanvazBoards\.getVersion/.test(ui) && ui.indexOf("Version ' + appVersion") !== -1],
   ['README build cmd',  readme.indexOf(v) !== -1]
 ];
 checks.forEach(function(c) { c[1] ? ok(c[0] + ' = ' + v) : bad(c[0] + ' != ' + v); });

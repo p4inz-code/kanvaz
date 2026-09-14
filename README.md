@@ -37,7 +37,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## Latest release
 
-**v7.11.1** polishes the auto-hide toolbar (a faster reveal, a slower fade back out, a fix for it covering the side panel's own icons) and replaces every native OS tooltip in the app with a custom-styled one. v7.11.0 before it deepened the template library with real production-pipeline detail (VFX's three skill tiers, Game Dev, Animation, and UI/UX all rewritten with specific, actionable steps instead of generic placeholders) and added a new Character Design template, 14 templates total, plus a Send to Back fix and a Layer section in the Properties panel. Builds on v7.10's templates and save-as-template, v7.9's card visual polish, and v7.8's "Kanvaz Redesign v1." The full version history, with the reasoning behind each release, lives in [CHANGELOG.md](CHANGELOG.md).
+**v7.12.0** fixes a real search bug (typing "grid" or any other Settings label returned nothing — every Settings row is now individually searchable), adds a Ctrl+H Home Screen toggle with a race-condition guard, gives Smart Folders a right-click menu (Open/Favorite/Rename/Edit query/Delete), and adds Tags and Info sections to the Properties panel. v7.11.1 before it polished the auto-hide toolbar and replaced every native OS tooltip in the app with a custom-styled one. Builds on v7.11.0's template library, v7.10's templates and save-as-template, v7.9's card visual polish, and v7.8's "Kanvaz Redesign v1." The full version history, with the reasoning behind each release, lives in [CHANGELOG.md](CHANGELOG.md).
 
 <p align="center">
   <img src="assets/screenshot-cards-v7.9.0.png" alt="Kanvaz card design — note, URL, and color cards showing the new always-visible name/metadata footer" width="720">
@@ -131,7 +131,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 7.11.1.exe` and `dist/Kanvaz 7.11.1.exe`
+Output: `dist/Kanvaz Setup 7.12.0.exe` and `dist/Kanvaz 7.12.0.exe`
 
 **macOS:**
 ```bash
