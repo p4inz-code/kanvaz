@@ -5,6 +5,13 @@ All notable changes to Kanvaz are documented here.
 ## [Unreleased]
 
 ### Added
+- **Map View: Cluster by Tag (G key)** — a visual grouping toggle, not
+  a spatial rearrangement: draws a soft rounded highlight + label
+  behind every group of 2+ nodes sharing a primary tag, colored to
+  match that tag's existing node-accent color. Deliberately doesn't
+  move any node — repositioning saved `mapPosition` data is real work
+  with real risk (undo/redo interplay, saved-file drift) a visual-only
+  pass sidesteps while still answering "what belongs together."
 - **Map View: a mini-map overview**, same idea and position as Board
   View's own (bottom-right, click to pan there), scoped to Map View's
   own independent viewport and node positions rather than sharing

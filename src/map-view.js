@@ -14,6 +14,9 @@ var KanvazMapView = (function() {
   var gridCanvas = null;
   var gridCtx    = null;
   var gridRafId  = null;
+  var clusterCanvas = null;
+  var clusterCtx    = null;
+  var clusterByTag  = false;
   var lastGridTx = null;
   var lastGridTy = null;
   var lastGridScale = null;
@@ -266,6 +269,15 @@ var KanvazMapView = (function() {
     gridCtx = gridCanvas.getContext('2d');
     container.appendChild(gridCanvas);
 
+    /* Cluster-highlight layer — behind the nodes (world), above the
+       grid, so tag-group highlights read as "part of the surface,"
+       not painted over the cards themselves. */
+    clusterCanvas = document.createElement('canvas');
+    clusterCanvas.id = 'map-clusters';
+    clusterCanvas.style.cssText = ['position:absolute', 'left:0', 'top:0', 'pointer-events:none'].join(';');
+    clusterCtx = clusterCanvas.getContext('2d');
+    container.appendChild(clusterCanvas);
+
     world = document.createElement('div');
     world.id = 'map-world';
     world.style.cssText = [
@@ -292,6 +304,7 @@ var KanvazMapView = (function() {
       resizeMapGrid();
       if (!active) return;
       drawMapGrid();
+      drawClusters();
       /* Audit fix: connection lines were never re-derived on resize —
          only the background grid was. domPort()'s live DOM measurement
          (see PORT POSITIONS above) is correct at the instant it runs,
@@ -694,6 +707,7 @@ var KanvazMapView = (function() {
         lastGridTx = tx; lastGridTy = ty; lastGridScale = scale;
         drawMapGrid();
         drawMapMinimap();
+        drawClusters();
       });
     }
   }
@@ -702,6 +716,10 @@ var KanvazMapView = (function() {
     if (!gridCanvas || !container) return;
     gridCanvas.width  = container.clientWidth;
     gridCanvas.height = container.clientHeight;
+    if (clusterCanvas) {
+      clusterCanvas.width  = container.clientWidth;
+      clusterCanvas.height = container.clientHeight;
+    }
   }
 
   /* ── Mini-map — a small clickable overview, same idea as Board View's
@@ -820,6 +838,89 @@ var KanvazMapView = (function() {
     mmapCtx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-accent').trim() || '#4A9EFF';
     mmapCtx.lineWidth = 1;
     mmapCtx.strokeRect(vx, vy, vw, vh);
+  }
+
+  /* ── Cluster-by-tag — a visual grouping toggle (G key), not a spatial
+     rearrangement. Draws a soft rounded highlight + label behind every
+     group of 2+ nodes sharing a primary tag, using the same tag-hashed
+     color nodeAccentColor() already colors the nodes themselves with,
+     so a cluster's highlight and its members' accent stripes visibly
+     match. Deliberately doesn't move any node — repositioning saved
+     mapPosition data on a spatial-clustering pass is real work with
+     real risk (undo/redo interplay, saved-file drift) that a visual-
+     only pass sidesteps entirely while still answering "what belongs
+     together" at a glance. */
+  function drawRoundedRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y,     x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x,     y + h, r);
+    ctx.arcTo(x,     y + h, x,     y,     r);
+    ctx.arcTo(x,     y,     x + w, y,     r);
+    ctx.closePath();
+  }
+
+  function hashColorAlpha(str, alpha) {
+    return hashColor(str).replace('hsl(', 'hsla(').replace(/\)$/, ', ' + alpha + ')');
+  }
+
+  function drawClusters() {
+    if (!clusterCtx || !clusterCanvas) return;
+    clusterCtx.clearRect(0, 0, clusterCanvas.width, clusterCanvas.height);
+    if (!clusterByTag || !active) return;
+
+    var cards = KanvazCards.getAll();
+    var groups = {};
+    for (var id in cards) {
+      var c = cards[id];
+      if (!c.mapPosition) continue;
+      var tag = (c.tags && c.tags.length) ? c.tags[0] : null;
+      if (!tag) continue;
+      if (!groups[tag]) groups[tag] = [];
+      groups[tag].push(c);
+    }
+
+    var tagNames = Object.keys(groups);
+    for (var i = 0; i < tagNames.length; i++) {
+      var tag = tagNames[i];
+      var members = groups[tag];
+      if (members.length < 2) continue;
+
+      var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (var j = 0; j < members.length; j++) {
+        var m = members[j];
+        minX = Math.min(minX, m.mapPosition.x);
+        minY = Math.min(minY, m.mapPosition.y);
+        maxX = Math.max(maxX, m.mapPosition.x + NODE_FULL_W);
+        maxY = Math.max(maxY, m.mapPosition.y + NODE_FULL_H);
+      }
+
+      var PAD = 24;
+      var sx = (minX - PAD) * scale + tx;
+      var sy = (minY - PAD) * scale + ty;
+      var sw = (maxX - minX + PAD * 2) * scale;
+      var sh = (maxY - minY + PAD * 2) * scale;
+
+      clusterCtx.fillStyle = hashColorAlpha(tag, 0.08);
+      clusterCtx.strokeStyle = hashColorAlpha(tag, 0.35);
+      clusterCtx.lineWidth = 1.5;
+      drawRoundedRect(clusterCtx, sx, sy, sw, sh, 16);
+      clusterCtx.fill();
+      clusterCtx.stroke();
+
+      var label = tag + ' (' + members.length + ')';
+      clusterCtx.font = '600 11px system-ui, sans-serif';
+      clusterCtx.fillStyle = hashColorAlpha(tag, 0.9);
+      clusterCtx.fillText(label, sx + 10, sy + 16);
+    }
+  }
+
+  function toggleClusterByTag() {
+    clusterByTag = !clusterByTag;
+    drawClusters();
+    if (typeof KanvazUI !== 'undefined' && KanvazUI.toast) {
+      KanvazUI.toast(clusterByTag ? 'Clustering by tag' : 'Clustering off');
+    }
   }
 
   /* Same dot-grid visual language as Board View (canvas.js) — kept as a
@@ -989,6 +1090,7 @@ var KanvazMapView = (function() {
     applyTransform();
     drawMapGrid();
     drawMapMinimap();
+    drawClusters();
     updateZoomDisplay();
   }
 
@@ -1160,6 +1262,7 @@ var KanvazMapView = (function() {
     if (Object.keys(multiSelected).length) applyMultiSelectStyles();
 
     drawMapMinimap();
+    drawClusters();
   }
 
   /* Fit all nodes into viewport */
@@ -2352,6 +2455,12 @@ var KanvazMapView = (function() {
     if (e.key === 'f' || e.key === 'F') {
       e.preventDefault();
       fitAll(KanvazCards.getAll());
+      return true;
+    }
+
+    if (e.key === 'g' || e.key === 'G') {
+      e.preventDefault();
+      toggleClusterByTag();
       return true;
     }
 
