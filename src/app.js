@@ -10,6 +10,7 @@ var KanvazApp = (function() {
 
   function init() {
     KanvazErrors.init();
+    if (typeof KanvazTooltip !== 'undefined') KanvazTooltip.init();
 
     try {
       var container = document.getElementById('canvas-container');
