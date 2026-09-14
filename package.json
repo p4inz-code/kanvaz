@@ -4,7 +4,7 @@
   "description": "Reference Operating System — collect, organize, connect, and understand your references.",
   "private": true,
   "main": "src/main.js",
-  "author": "P4inz Studios (Atharva Patil)",
+  "author": "Atharva Patil | P4inz | Northbyte Studios",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -35,7 +35,7 @@
   "build": {
     "appId": "com.northbytestudios.kanvaz",
     "productName": "Kanvaz",
-    "copyright": "Copyright 2026 P4inz Studios (Atharva Patil)",
+    "copyright": "Copyright 2026 Atharva Patil | P4inz | Northbyte Studios",
     "directories": {
       "output": "dist"
     },

@@ -235,7 +235,7 @@ Same engineering philosophy, same author, adjacent problem spaces:
 ## License
 
 MIT, free forever.
-Made by Atharva Patil | **[P4inz](https://github.com/p4inz-code)** | Studios, Navi Mumbai, India.
+Made by Atharva Patil | **[P4inz](https://github.com/p4inz-code)** | Northbyte Studios, Navi Mumbai, India.
 
 <p align="left">
   <a href="https://github.com/p4inz-code"><img src="https://img.shields.io/github/followers/p4inz-code?style=flat-square&color=9D7FFF&label=follow%20%40p4inz-code" alt="Follow p4inz-code on GitHub"></a>

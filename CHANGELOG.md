@@ -38,6 +38,10 @@ All notable changes to Kanvaz are documented here.
 - **The platform badge in README claimed Windows only.** Kanvaz builds
   for Windows, macOS, and Linux (see `package.json`'s `build.win` /
   `build.mac` / `build.linux` targets) — the badge undersold that.
+- Standardized the full credit line everywhere it appears (About screen,
+  README footer, LICENSE, THIRD_PARTY_NOTICES.md, `package.json`) to
+  "Atharva Patil | P4inz | Northbyte Studios" — all three names, in that
+  order, consistently.
 - The Import toolbar button only ever imported a PureRef `.pur` file —
   every other supported media type (images, GIFs, video, audio, 3D
   models) had no toolbar entry point at all, only the right-click canvas

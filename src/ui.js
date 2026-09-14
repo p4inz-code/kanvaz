@@ -1399,7 +1399,7 @@ var KanvazUI_Extended = (function() {
       '<div class="about-divider"></div>',
       '<div class="about-desc">Free and open source, MIT licensed. Fully offline: no login, no telemetry, no background network activity. Your boards never leave this machine.</div>',
       '<div class="about-divider"></div>',
-      '<div class="about-author">Atharva Patil | <strong>P4inz</strong> | Studios</div>',
+      '<div class="about-author">Atharva Patil | <strong>P4inz</strong> | Northbyte Studios</div>',
       '<div class="about-studio">Navi Mumbai, India</div>'
     ].join('');
 

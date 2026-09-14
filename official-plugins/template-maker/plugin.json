@@ -6,5 +6,5 @@
   "entry": "main.js",
   "permissions": [],
   "description": "Save any board as a reusable template, manage your own collection, browse/install templates other people made, and export/import a single template as a .kanvaztemplate file to hand to anyone else running a compatible Kanvaz.",
-  "author": "P4inz Studios"
+  "author": "Northbyte Studios"
 }

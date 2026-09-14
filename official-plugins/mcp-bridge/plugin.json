@@ -6,5 +6,5 @@
   "entry": "main.js",
   "permissions": ["server"],
   "description": "Lets Claude Desktop, Claude Code, or any other MCP-compatible AI tool read and edit your active board over a local-only connection. Off by default — every change it makes lands in undo history exactly like a manual edit.",
-  "author": "P4inz Studios"
+  "author": "Northbyte Studios"
 }
