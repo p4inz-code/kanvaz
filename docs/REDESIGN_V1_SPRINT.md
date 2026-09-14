@@ -200,6 +200,47 @@ redesign-v1 branch before merging to `main`:
 **This phase is the gate.** Nothing merges to `main` until it's clean —
 same bar as every other milestone release this project has shipped.
 
+### Audit run — auto-hide toolbar + custom tooltips (2026-09-14)
+
+Triggered by direct feedback on the auto-hide toolbar (hover-reveal not
+firing, reveal/hide sharing one speed, revealed toolbar covering the
+side-panel rail icons) plus a request to replace native OS tooltips
+app-wide. Full findings and fixes are in this cycle's CHANGELOG entry
+(`## [Unreleased]`); summary of what this suite specifically verified:
+
+- **Static checks**: `node test/lint.js` and `node test/validate.js`
+  both clean.
+- **Bug bounty**: grep-based cross-module reference sweep — every
+  `KanvazX.method(...)` call touched or added since v7.9.1 checked
+  against that module's actual `return {...}` export list. Zero new
+  instances of the "calls a method the target module doesn't have"
+  bug class that this sprint kept finding earlier (Map View drag,
+  Import button). Nothing new found.
+- **Live CDP smoke test** (fresh Electron instance, port 9399, profile
+  `pf_suite`): card creation for note/color/url/text types, side panel
+  section switching (Boards/Properties/Settings), Map View toggle (4
+  nodes, no exceptions), template listing (14 confirmed), profile
+  listing (1 active, correctly shaped), annotation toolbar activation,
+  tooltip title-suppression, and error logging (`getRecentErrors()`
+  recorded a test error correctly) — zero `Runtime.exceptionThrown`
+  events across the whole run. Electron's own stdout log reviewed
+  after the run: clean, no warnings beyond the expected DevTools
+  listening line.
+- **Auto-hide toolbar hover-reveal specifically**: could not reproduce
+  the reported non-reveal via CDP-simulated mouse input, across a
+  single hover and a full reveal → hide → re-reveal cycle, both before
+  and after the fix. `-webkit-app-region: drag` regions are a known
+  spot where real OS hit-testing and CDP's simulated
+  `Input.dispatchMouseEvent` can diverge — treated as a real-world-only
+  risk, mitigated defensively (see CHANGELOG) rather than "fixed" with
+  certainty from CDP alone. If this is reported again after the
+  mousemove-fallback ships, it needs a real hands-on repro, not another
+  CDP pass.
+- **Not run this cycle**: full persona pass (scope was a targeted
+  bugfix + one UI-wide but low-risk polish item, not a new feature
+  surface — see "What run full suite does NOT mean" in
+  `docs/FULL_AUDIT_SUITE.md`).
+
 ## Explicitly out of scope for this sprint
 
 - Native `.blend`/`.mb` 3D format support — researched and declined, see

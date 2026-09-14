@@ -37,7 +37,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## Latest release
 
-**v7.11.0** deepens the template library with real production-pipeline detail (VFX's three skill tiers, Game Dev, Animation, and UI/UX all rewritten with specific, actionable steps instead of generic placeholders) and adds a new Character Design template, 14 templates total. Also fixes a real Send to Back bug, adds a Layer section to the Properties panel (opacity, z-order, multi-select alignment), and makes error toasts show what actually went wrong instead of a generic message. Builds on v7.10's templates and save-as-template, v7.9's card visual polish, and v7.8's "Kanvaz Redesign v1." The full version history, with the reasoning behind each release, lives in [CHANGELOG.md](CHANGELOG.md).
+**v7.11.1** polishes the auto-hide toolbar (a faster reveal, a slower fade back out, a fix for it covering the side panel's own icons) and replaces every native OS tooltip in the app with a custom-styled one. v7.11.0 before it deepened the template library with real production-pipeline detail (VFX's three skill tiers, Game Dev, Animation, and UI/UX all rewritten with specific, actionable steps instead of generic placeholders) and added a new Character Design template, 14 templates total, plus a Send to Back fix and a Layer section in the Properties panel. Builds on v7.10's templates and save-as-template, v7.9's card visual polish, and v7.8's "Kanvaz Redesign v1." The full version history, with the reasoning behind each release, lives in [CHANGELOG.md](CHANGELOG.md).
 
 <p align="center">
   <img src="assets/screenshot-cards-v7.9.0.png" alt="Kanvaz card design — note, URL, and color cards showing the new always-visible name/metadata footer" width="720">
@@ -131,7 +131,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 7.11.0.exe` and `dist/Kanvaz 7.11.0.exe`
+Output: `dist/Kanvaz Setup 7.11.1.exe` and `dist/Kanvaz 7.11.1.exe`
 
 **macOS:**
 ```bash

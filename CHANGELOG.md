@@ -2,6 +2,85 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [7.11.1] — Auto-hide toolbar polish + custom tooltips
+
+### Fixed
+- **Auto-hide toolbar (moodlock) hover-reveal reported as unreliable** —
+  never reproduced live via CDP even across a full reveal → hide →
+  re-reveal cycle, but `-webkit-app-region: drag` strips are a known
+  fragile spot for real OS-level mouse hit-testing versus simulated
+  input. Added a defensive `mousemove`-based fallback
+  (`chromeEdgeMouseMove` in `app.js`) alongside the existing
+  `mouseenter`/`mouseleave` handling, gated to `clientX > 44` so
+  hovering the always-visible side-panel rail doesn't spuriously
+  trigger a reveal.
+- **Reveal and hide used the same transition speed** — direct feedback:
+  reveal should be fast, the fade back out should be slow. The timing
+  actually governing an animation is the one declared on the
+  *destination* state's own CSS rule, not the state being left, so the
+  hidden-state rule and the revealed-state rule now carry different
+  transition durations (0.55s hide, 0.12s reveal) instead of sharing
+  one value.
+- **Revealed toolbar covered the side panel's top two rail icons** —
+  `#top-chrome` and its hover zone spanned `left: 0`, overlapping the
+  44px-wide rail once the toolbar left normal flex flow on reveal.
+  Both now start at `left: 44px`.
+
+### Added
+- **Custom-styled tooltips app-wide**, replacing the browser's native
+  title-attribute box. A single global listener (`src/tooltip.js`)
+  suppresses the OS tooltip for any element carrying a `title`
+  attribute and shows a small dark-panel-styled one instead — every
+  existing `title="..."` across the whole codebase gets this for free,
+  no per-button changes needed.
+
+## [7.11.0] — Profile export/import, per-profile plugins, Properties Layer section
+
+### Added
+- **Export/Import a profile as a portable `.kanvazprofile` file** — take
+  a profile (settings, recent files, recovery data, plugin
+  enable-state and storage, saved templates) to another machine.
+  Import reuses the same zip-slip and zip-bomb guards already built
+  for catalog plugin installs (declared-size pre-check, a running
+  decompressed-bytes cap, and a resolved-path containment check
+  against directory traversal).
+- **Plugin enable-state and plugin storage are now per-profile**, not
+  shared machine-wide — a plugin you enabled and configured under one
+  profile no longer leaks its state into another. Plugin code itself,
+  and the catalog of installed plugins, stay machine-wide by design
+  (they're not per-user data).
+- **File-reference cards now show a real inline image preview** for
+  image paths (`.jpg/.jpeg/.png/.gif/.bmp/.webp`), matching the
+  existing PDF-preview pattern (read fresh from disk on demand, never
+  persisted into the saved board) — plus a bigger default card size
+  for both when a preview is available.
+- **Start Screen shows a profile indicator and switcher** once more
+  than one profile exists, so you don't have to open the side panel
+  just to see or change which profile you're in.
+- **Properties panel — Layer section**: opacity slider, Bring to
+  Front / Send to Back, and (for a 2+ card selection) six alignment
+  modes against the selection's shared bounding box.
+
+### Fixed
+- **Send to Back didn't reliably send a card behind an *earlier*
+  back-sent card** — both landed at a hardcoded `z: 0`, and CSS breaks
+  equal-z-index ties by paint order, not by which action happened
+  more recently. Now uses an always-decreasing counter, mirroring how
+  Bring to Front already used an always-increasing one.
+- **Properties panel stuck showing the first card you opened it for**
+  — `activeId` was only synced to the live selection once, then never
+  again, so switching selection while the panel stayed open kept
+  showing stale data. Now resyncs on every render.
+
+### Also in this release
+- 6 templates upgraded with real professional-pipeline detail
+  (shot-naming conventions, WCAG contrast ratios, render-pass/AOV
+  checklists, and similar concrete detail in place of generic
+  placeholders), plus a new Character Design template — 14 templates
+  total.
+- README rewritten for tone (`/humanizer`) — factual content unchanged,
+  phrasing and rhythm varied throughout.
+
 ## [7.10.0] — 10 new templates + Save as Template
 
 ### Added
