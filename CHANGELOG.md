@@ -27,6 +27,27 @@ All notable changes to Kanvaz are documented here.
   split into a live-preview call and a separate commit call, same
   pattern the on-card swatch itself already used.
 
+### Fixed
+- **Saving a Smart Folder threw `showPrompt is not defined` and did
+  nothing** — caught live, with a screenshot. `showPrompt` is defined
+  inside `KanvazUI`'s own IIFE; the search bar's save-folder click
+  handler (a different module, `KanvazApp`) called it as a bare
+  identifier instead of `KanvazUI.showPrompt(...)`, the same mistake
+  the codebase's own established pattern (every other cross-module
+  call in this file already goes through the full `KanvazUI.` path)
+  would have caught on a read-through. A real, embarrassing miss from
+  earlier this session's own `window.prompt()` replacement work.
+
+### Added
+- **Search bar now also matches app commands** — Settings, About,
+  Shortcuts, and everything else already registered with the Command
+  Palette (Ctrl+K) shows up directly under the board search results
+  when it matches your query. Direct feedback: "the search tool can
+  search settings, tools and about... can be searched from it." The
+  capability already existed behind Ctrl+K; this surfaces the same
+  matches under the search habit people already reach for first,
+  instead of requiring a second shortcut to be discovered separately.
+
 ### Changed
 - **The search bar's color filter was a bare colored dot** — direct
   feedback: "what is need of color swatch in search panel... put
@@ -36,7 +57,35 @@ All notable changes to Kanvaz are documented here.
   the action (filter) and the state (which color) are both visible
   in one glance.
 
+### Added
+- **Search bar is now draggable** (a grip handle on the left) —
+  direct feedback: "make search bar movable as user want." Position
+  is remembered for the session; the command-results and Smart
+  Folder chip rows move with it.
+- **Smart Folders are now visible in the Boards side panel**, not just
+  as chips under a reopened search bar — direct feedback: "i made
+  smart folder but i cnat see it anywhere." Click one to reopen the
+  search bar with that query applied; delete from the same list.
+
+### Changed
+- **The search bar's type filter really is a type filter now** —
+  earlier this session it went from a color swatch to a clearer
+  filter-funnel icon, but it was still filtering by color underneath.
+  Direct correction: "types of ref cards not the color swatch!!!!!!!"
+  Replaced outright: click the funnel for a dropdown of card types
+  (Image, Video, Note, Color, URL, File, 3D Model, etc.), not a color
+  picker. The old color-proximity matching code (dominant-color
+  sampling, color-distance threshold) had no other caller once this
+  button changed, so it's removed rather than left as dead code.
+
 ### Fixed
+- **The search bar's command-results dropdown was left orphaned on
+  screen after clicking a result** — `hideSearchBar()` cleaned up the
+  search bar and the Smart Folder chip row but never the new command-
+  results element, so clicking "Open Settings" (for example) closed
+  the search bar but left the results box floating on the canvas with
+  nothing above it. Caught live, with a screenshot, immediately after
+  the feature shipped.
 - **Comprehensive live tooltip audit** (84 title/data-tooltip elements
   across the titlebar, toolbar, side panel, search bar, account menu,
   cards, the annotation toolbar, and Map View): zero failures — every

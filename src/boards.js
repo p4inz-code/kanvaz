@@ -259,6 +259,81 @@ var KanvazBoards = (function() {
       KanvazApp.handleDroppedFiles(files, worldPos);
     };
     container.appendChild(quickDrop);
+
+    renderSmartFoldersInto(container);
+  }
+
+  /* Smart Folders — saved search queries (app.js's search bar, the
+     star button). Direct feedback: "where will user actually see the
+     smart folders?... i made smart folder but i cnat see it anywhere."
+     They were only ever visible as chips under the search bar itself,
+     which meant reopening search (Ctrl+F) was the only way to find one
+     again after closing it. A persistent list here — the same side
+     panel section that already lists boards and templates — means a
+     saved search stays discoverable without having to remember it
+     exists. Clicking one opens the search bar with that query applied,
+     same result as typing it in fresh. */
+  function renderSmartFoldersInto(container) {
+    if (typeof KanvazUI_Extended === 'undefined') return;
+    var s = KanvazUI_Extended.getSettings();
+    var folders = (s && s.smartFolders) || [];
+    if (!folders.length) return;
+
+    var heading = document.createElement('div');
+    heading.textContent = 'SMART FOLDERS';
+    heading.style.cssText = 'font-size:10px;font-weight:600;letter-spacing:0.06em;color:var(--color-text-3);padding:10px 8px 4px;';
+    container.appendChild(heading);
+
+    var list = document.createElement('div');
+    list.style.cssText = 'padding:0 8px 8px;';
+
+    for (var i = 0; i < folders.length; i++) {
+      (function(folder) {
+        var row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:7px 10px;margin-bottom:2px;cursor:pointer;border-radius:6px;color:var(--color-text-2);transition:background 0.1s;';
+        row.onmouseenter = function() { row.style.background = 'var(--color-surface-2)'; };
+        row.onmouseleave = function() { row.style.background = 'transparent'; };
+
+        var icon = document.createElement('span');
+        icon.style.cssText = 'display:flex;color:var(--color-text-3);flex-shrink:0;';
+        icon.innerHTML = '<svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M7 1.5l1.6 3.4 3.7.5-2.7 2.6.6 3.7L7 9.9l-3.2 1.8.6-3.7-2.7-2.6 3.7-.5L7 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>';
+        row.appendChild(icon);
+
+        var label = document.createElement('span');
+        label.textContent = folder.name;
+        label.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;';
+        row.appendChild(label);
+
+        var del = document.createElement('span');
+        del.textContent = '×';
+        del.title = 'Delete this Smart Folder';
+        del.style.cssText = 'color:var(--color-text-3);cursor:pointer;flex-shrink:0;';
+        del.addEventListener('click', function(e) {
+          e.stopPropagation();
+          var s2 = KanvazUI_Extended.getSettings();
+          s2.smartFolders = (s2.smartFolders || []).filter(function(f) { return f.id !== folder.id; });
+          KanvazBridge.writeSettings(JSON.stringify(s2));
+          renderBoardsList(container);
+        });
+        row.appendChild(del);
+
+        row.addEventListener('click', function() {
+          if (typeof KanvazUI !== 'undefined' && KanvazUI.showSearchBar) {
+            KanvazUI.showSearchBar();
+            setTimeout(function() {
+              var input = document.querySelector('#search-bar input');
+              if (input) {
+                input.value = folder.query;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+              }
+            }, 0);
+          }
+        });
+
+        list.appendChild(row);
+      })(folders[i]);
+    }
+    container.appendChild(list);
   }
 
   /* ── Start from Template (moved inline, v7.x redesign) ──

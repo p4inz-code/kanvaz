@@ -372,6 +372,23 @@ var KanvazApp = (function() {
   var searchInput = null;
   var searchActive = false;
 
+  /* Session-scoped (not persisted to settings — this is "where did I
+     leave it this session," same category as which card is selected),
+     null until the user actually drags it once, meaning "use the
+     default centered spot." Direct feedback: "make search bar movable
+     as user want." */
+  var searchBarPos = null;
+
+  function positionSearchElements() {
+    var left = searchBarPos ? searchBarPos.x + 'px' : '50%';
+    var top  = searchBarPos ? searchBarPos.y + 'px' : '90px';
+    var xform = searchBarPos ? 'none' : 'translateX(-50%)';
+    if (searchBar) { searchBar.style.left = left; searchBar.style.top = top; searchBar.style.transform = xform; }
+    var secondTop = searchBarPos ? (searchBarPos.y + 42) + 'px' : '132px';
+    if (smartFolderRow) { smartFolderRow.style.left = left; smartFolderRow.style.top = secondTop; smartFolderRow.style.transform = xform; }
+    if (commandResultsEl) { commandResultsEl.style.left = left; commandResultsEl.style.top = secondTop; commandResultsEl.style.transform = xform; }
+  }
+
   function showSearchBar() {
     if (searchActive) { focusSearchBar(); return; }
     searchActive = true;
@@ -387,6 +404,31 @@ var KanvazApp = (function() {
       'z-index:10000',
       'animation:search-bar-in 0.2s ease-out'
     ].join(';');
+
+    /* Drag handle — a dedicated grip rather than "drag the bar's own
+       background," since flex children already fill nearly all of the
+       bar's width and leave no practical grab area otherwise. */
+    var dragHandle = document.createElement('span');
+    dragHandle.title = 'Drag to move';
+    dragHandle.style.cssText = 'cursor:move;flex-shrink:0;display:flex;color:var(--color-text-3);';
+    dragHandle.innerHTML = '<svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor"><circle cx="2" cy="2" r="1.3"/><circle cx="8" cy="2" r="1.3"/><circle cx="2" cy="7" r="1.3"/><circle cx="8" cy="7" r="1.3"/><circle cx="2" cy="12" r="1.3"/><circle cx="8" cy="12" r="1.3"/></svg>';
+    dragHandle.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      var rect = searchBar.getBoundingClientRect();
+      var offX = e.clientX - rect.left;
+      var offY = e.clientY - rect.top;
+      function onMove(ev) {
+        searchBarPos = { x: ev.clientX - offX, y: ev.clientY - offY };
+        positionSearchElements();
+      }
+      function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+    searchBar.appendChild(dragHandle);
 
     /* Polish fix: was a raw magnifying-glass emoji, rendered via the OS
        emoji font \u2014 visually clashes with every other icon in the app,
@@ -418,7 +460,7 @@ var KanvazApp = (function() {
     saveBtn.addEventListener('click', function() {
       var q = searchInput.value.trim();
       if (!q) { KanvazUI.toast('Type a search first'); return; }
-      showPrompt('Save Smart Folder', 'Name this Smart Folder:', q, function(name) {
+      KanvazUI.showPrompt('Save Smart Folder', 'Name this Smart Folder:', q, function(name) {
         if (typeof KanvazUI_Extended === 'undefined') return;
         var s = KanvazUI_Extended.getSettings();
         if (!s) return;
@@ -430,33 +472,70 @@ var KanvazApp = (function() {
       });
     });
 
-    /* Color search \u2014 click to pick a color, cards get dimmed the same
-       way a text mismatch already dims them; click again while a color
-       is active to clear it. A bare colored dot didn't read as a tool at
-       all ("what is need of color swatch in search panel... put logical
-       tools there or else remove") \u2014 a filter-funnel icon makes the
-       ACTION self-evident, and tinting the icon itself to the active
-       color (instead of a separate swatch) shows the state without a
-       second visual element. */
-    var colorBtn = document.createElement('span');
-    colorBtn.title = 'Filter by color';
-    colorBtn.style.cssText = 'cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;width:20px;height:20px;color:' + (activeColorFilter || 'var(--color-text-3)') + ';';
-    colorBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>';
-    colorBtn.addEventListener('click', function() {
-      if (activeColorFilter) { setColorFilter(null); colorBtn.style.color = 'var(--color-text-3)'; return; }
-      /* Same native-picker corner-anchoring bug the color-card swatch
-         had (a hidden proxy input with no explicit position defaults
-         to the window's top-left corner) — missed in the original
-         sweep since this one lives in the search bar, not on a card.
-         Kanvaz's own picker (colorpicker.js) instead, same as every
-         other color entry point in the app now. */
-      var rect = colorBtn.getBoundingClientRect();
-      KanvazColorPicker.open(rect.left, rect.bottom + 8, activeColorFilter || '#000000', {
-        onChange: function(hex) {
-          setColorFilter(hex);
-          colorBtn.style.color = hex;
-        }
-      });
+    /* Type filter \u2014 click the funnel to filter by card type, cards
+       get dimmed the same way a text mismatch already dims them; click
+       "Clear filter" while one is active to clear it. Direct feedback:
+       "the circled svg must work as [a filter]... more types of object
+       can be searched with search, types of ref cards not the color
+       swatch" \u2014 this was a color-proximity filter before, replaced
+       outright rather than added alongside (see clearSearchFilter's
+       area below for the removed color-matching code). */
+    var typeFilterBtn = document.createElement('span');
+    typeFilterBtn.title = 'Filter by card type';
+    typeFilterBtn.style.cssText = 'cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;width:20px;height:20px;color:' + (activeTypeFilter ? 'var(--color-accent)' : 'var(--color-text-3)') + ';';
+    typeFilterBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>';
+
+    var typeMenu = null;
+
+    function closeTypeMenu() {
+      if (typeMenu) { typeMenu.remove(); typeMenu = null; }
+      document.removeEventListener('mousedown', onOutsideClick, true);
+    }
+    function onOutsideClick(e) {
+      if (typeMenu && !typeMenu.contains(e.target) && e.target !== typeFilterBtn) closeTypeMenu();
+    }
+
+    typeFilterBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (typeMenu) { closeTypeMenu(); return; }
+
+      var rect = typeFilterBtn.getBoundingClientRect();
+      typeMenu = document.createElement('div');
+      typeMenu.style.cssText = 'position:fixed;left:' + rect.left + 'px;top:' + (rect.bottom + 8) + 'px;background:var(--color-surface);border:1px solid var(--color-border-2);border-radius:var(--radius-md);box-shadow:0 8px 32px var(--color-shadow);z-index:20001;padding:4px;min-width:140px;';
+
+      if (activeTypeFilter) {
+        var clearRow = document.createElement('div');
+        clearRow.textContent = 'Clear filter';
+        clearRow.style.cssText = 'padding:6px 10px;font-size:12px;color:var(--color-text-2);cursor:pointer;border-radius:5px;border-bottom:1px solid var(--color-border);margin-bottom:2px;';
+        clearRow.addEventListener('mouseenter', function() { clearRow.style.background = 'var(--color-surface-2)'; });
+        clearRow.addEventListener('mouseleave', function() { clearRow.style.background = 'transparent'; });
+        clearRow.addEventListener('click', function() {
+          setTypeFilter(null);
+          typeFilterBtn.style.color = 'var(--color-text-3)';
+          closeTypeMenu();
+        });
+        typeMenu.appendChild(clearRow);
+      }
+
+      for (var i = 0; i < CARD_TYPE_FILTER_OPTIONS.length; i++) {
+        (function(opt) {
+          var row = document.createElement('div');
+          row.textContent = opt[1];
+          var isOn = activeTypeFilter === opt[0];
+          row.style.cssText = 'padding:6px 10px;font-size:12px;color:' + (isOn ? 'var(--color-accent)' : 'var(--color-text)') + ';cursor:pointer;border-radius:5px;';
+          row.addEventListener('mouseenter', function() { row.style.background = 'var(--color-surface-2)'; });
+          row.addEventListener('mouseleave', function() { row.style.background = 'transparent'; });
+          row.addEventListener('click', function() {
+            setTypeFilter(opt[0]);
+            typeFilterBtn.style.color = 'var(--color-accent)';
+            closeTypeMenu();
+          });
+          typeMenu.appendChild(row);
+        })(CARD_TYPE_FILTER_OPTIONS[i]);
+      }
+
+      document.body.appendChild(typeMenu);
+      setTimeout(function() { document.addEventListener('mousedown', onOutsideClick, true); }, 0);
     });
 
     var closeBtn = document.createElement('span');
@@ -464,7 +543,10 @@ var KanvazApp = (function() {
     closeBtn.textContent = '\u00D7';
     closeBtn.addEventListener('click', function() { hideSearchBar(); });
 
-    searchInput.addEventListener('input', function() { applySearchFilter(searchInput.value); });
+    searchInput.addEventListener('input', function() {
+      applySearchFilter(searchInput.value);
+      updateCommandResults(searchInput.value);
+    });
     searchInput.addEventListener('keydown', function(e) {
       e.stopPropagation();
       if (e.key === 'Escape') hideSearchBar();
@@ -472,7 +554,7 @@ var KanvazApp = (function() {
 
     searchBar.appendChild(icon);
     searchBar.appendChild(searchInput);
-    searchBar.appendChild(colorBtn);
+    searchBar.appendChild(typeFilterBtn);
     searchBar.appendChild(saveBtn);
     searchBar.appendChild(closeBtn);
     document.body.appendChild(searchBar);
@@ -487,12 +569,93 @@ var KanvazApp = (function() {
     document.body.appendChild(smartFolderRow);
     renderSmartFolderChips();
 
+    /* Direct feedback: "the search tool can search settings, tools and
+       about and all stuff in app can be searched from it." The Command
+       Palette (Ctrl+K) already covers every registered command
+       (Settings/About/Shortcuts/etc.), but that's a second shortcut
+       the user has to already know about — this surfaces the same
+       matches directly under the board search bar instead, so there's
+       one search habit that reaches everything, not two separate ones. */
+    commandResultsEl = document.createElement('div');
+    commandResultsEl.id = 'search-command-results';
+    commandResultsEl.style.cssText = 'position:fixed;top:132px;left:50%;transform:translateX(-50%);width:320px;background:var(--color-surface);border:1px solid var(--color-border-2);border-radius:var(--radius-md);box-shadow:0 8px 32px var(--color-shadow);z-index:10000;padding:4px;display:none;';
+    document.body.appendChild(commandResultsEl);
+
+    positionSearchElements();
     searchInput.focus();
   }
 
   var smartFolderRow = null;
+  var commandResultsEl = null;
+
+  /* Matches the search query against every registered app command
+     (KanvazCommands — the same registry Ctrl+K's palette reads from)
+     and shows up to 3 results right under the search bar. Runs a
+     command and closes the search bar on click, same "pick it and
+     you're done" feel as clicking a card result. */
+  function updateCommandResults(query) {
+    if (!commandResultsEl) return;
+    commandResultsEl.innerHTML = '';
+    var q = (query || '').trim();
+    if (!q || typeof KanvazCommands === 'undefined') {
+      commandResultsEl.style.display = 'none';
+      return;
+    }
+
+    var all = KanvazCommands.getAllCommands();
+    var scored = [];
+    for (var i = 0; i < all.length; i++) {
+      var score = KanvazCommands.fuzzyScore(q, all[i].label);
+      if (score !== null) scored.push({ cmd: all[i], score: score });
+    }
+    scored.sort(function(a, b) { return a.score - b.score; });
+    var top = scored.slice(0, 3);
+
+    if (!top.length) {
+      commandResultsEl.style.display = 'none';
+      return;
+    }
+
+    var heading = document.createElement('div');
+    heading.textContent = 'APP';
+    heading.style.cssText = 'font-size:9px;font-weight:600;letter-spacing:0.08em;color:var(--color-text-3);padding:6px 8px 3px;';
+    commandResultsEl.appendChild(heading);
+
+    for (var j = 0; j < top.length; j++) {
+      (function(cmd) {
+        var row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:6px 8px;font-size:12px;color:var(--color-text);cursor:pointer;border-radius:5px;';
+        var label = document.createElement('span');
+        label.textContent = cmd.label;
+        row.appendChild(label);
+        if (cmd.shortcut) {
+          var shortcut = document.createElement('span');
+          shortcut.textContent = cmd.shortcut;
+          shortcut.style.cssText = 'font-size:10px;color:var(--color-text-3);font-family:var(--font-mono);';
+          row.appendChild(shortcut);
+        }
+        row.addEventListener('mouseenter', function() { row.style.background = 'var(--color-surface-2)'; });
+        row.addEventListener('mouseleave', function() { row.style.background = 'transparent'; });
+        row.addEventListener('mousedown', function(e) { e.preventDefault(); });
+        row.addEventListener('click', function() {
+          KanvazCommands.runCommand(cmd.id);
+          hideSearchBar();
+        });
+        commandResultsEl.appendChild(row);
+      })(top[j].cmd);
+    }
+
+    commandResultsEl.style.display = '';
+  }
 
   function renderSmartFolderChips() {
+    /* Also refreshes the persistent Smart Folders list in the Boards
+       side panel (boards.js), if that section happens to be showing
+       right now — same underlying settings.smartFolders array, two
+       places it's rendered. */
+    if (typeof KanvazBoards !== 'undefined' && KanvazBoards.renderBoardsList) {
+      KanvazBoards.renderBoardsList();
+    }
     if (!smartFolderRow) return;
     smartFolderRow.innerHTML = '';
     if (typeof KanvazUI_Extended === 'undefined') return;
@@ -537,71 +700,32 @@ var KanvazApp = (function() {
     searchActive = false;
     if (searchBar) { searchBar.remove(); searchBar = null; searchInput = null; }
     if (smartFolderRow) { smartFolderRow.remove(); smartFolderRow = null; }
+    if (commandResultsEl) { commandResultsEl.remove(); commandResultsEl = null; }
     clearSearchFilter();
   }
 
   /* v6.2.0 — color search (Eagle's own standout feature). Dominant color
      is computed on first use per card and cached in-memory only
-     (card._dominantColorCache) — deliberately NOT persisted to the
-     .kanvaz file, so this never touches the save format or needs a
-     migration; it just gets recomputed once per session, same cost
-     class as re-decoding a thumbnail. Combines with the text query via
-     AND: with both set, a card must match the text AND be close enough
-     in color to stay visible. */
-  var activeColorFilter = null; /* hex string, or null */
-  var COLOR_MATCH_THRESHOLD = 90; /* out of a max possible ~441 (sqrt(3*255^2)) */
+     Combines with the text query via AND: with both set, a card must
+     match the text AND be the selected type to stay visible.
 
-  function hexToRgb(hex) {
-    var m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
-    if (!m) return null;
-    var n = parseInt(m[1], 16);
-    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
-  }
+     v7.x — this used to be a color-proximity filter (average-sample a
+     card's dominant color, click a swatch to match nearby colors).
+     Direct feedback: "the circled svg must work as sort between
+     settings and more types of object can be searched with search,
+     types of ref cards not the color swatch." Replaced outright rather
+     than added alongside — the old color-filter UI was the only way
+     to ever set it, so keeping that matching code with no way to
+     trigger it left dead code behind. */
+  var activeTypeFilter = null; /* card.type string, or null */
+  var CARD_TYPE_FILTER_OPTIONS = [
+    ['image', 'Image'], ['gif', 'GIF'], ['video', 'Video'], ['audio', 'Audio'],
+    ['note', 'Note'], ['text', 'Text'], ['color', 'Color'], ['url', 'URL'],
+    ['file', 'File'], ['model3d', '3D Model']
+  ];
 
-  function colorDistance(hexA, hexB) {
-    var a = hexToRgb(hexA), b = hexToRgb(hexB);
-    if (!a || !b) return Infinity;
-    return Math.sqrt(Math.pow(a.r - b.r, 2) + Math.pow(a.g - b.g, 2) + Math.pow(a.b - b.b, 2));
-  }
-
-  /* Cheap average-color sample — a 8x8 downscale-and-average, not a real
-     k-means/histogram dominant-color algorithm. Good enough to tell
-     "mostly warm orange" from "mostly cool blue" for filtering purposes;
-     not attempting anything more precise than that. Video cards are
-     skipped (returns null) — sampling a live <video>'s current frame
-     for this would tie the cached result to whatever frame happened to
-     be showing when search was last used, which is a worse inconsistency
-     than just not supporting it yet. */
-  function getDominantColor(card) {
-    if (card._dominantColorCache !== undefined) return card._dominantColorCache;
-    var result = null;
-    if (card.type === 'color') {
-      result = card.color || null;
-    } else if (card.type === 'image' || card.type === 'gif') {
-      try {
-        var imgEl = document.querySelector('#' + card.id + ' img');
-        if (imgEl && imgEl.naturalWidth) {
-          var c = document.createElement('canvas');
-          c.width = 8; c.height = 8;
-          var ctx = c.getContext('2d');
-          ctx.drawImage(imgEl, 0, 0, 8, 8);
-          var data = ctx.getImageData(0, 0, 8, 8).data;
-          var r = 0, g = 0, b = 0, n = 0;
-          for (var i = 0; i < data.length; i += 4) { r += data[i]; g += data[i+1]; b += data[i+2]; n++; }
-          result = '#' + [Math.round(r/n), Math.round(g/n), Math.round(b/n)].map(function(v) {
-            var h = v.toString(16); return h.length === 1 ? '0' + h : h;
-          }).join('');
-        }
-      } catch (e) {
-        result = null; /* cross-origin-tainted canvas or similar — just skip this card for color search */
-      }
-    }
-    card._dominantColorCache = result;
-    return result;
-  }
-
-  function setColorFilter(hex) {
-    activeColorFilter = hex;
+  function setTypeFilter(type) {
+    activeTypeFilter = type;
     applySearchFilter(searchInput ? searchInput.value : '');
   }
 
@@ -613,7 +737,7 @@ var KanvazApp = (function() {
       var el = document.getElementById(id);
       if (!el) continue;
 
-      if (!q && !activeColorFilter) {
+      if (!q && !activeTypeFilter) {
         el.style.opacity = '';
         el.style.filter = '';
         continue;
@@ -632,13 +756,9 @@ var KanvazApp = (function() {
         textOk = nameMatch || typeMatch || tagMatch;
       }
 
-      var colorOk = true;
-      if (activeColorFilter) {
-        var dom = getDominantColor(card);
-        colorOk = !!dom && colorDistance(dom, activeColorFilter) <= COLOR_MATCH_THRESHOLD;
-      }
+      var typeOk = !activeTypeFilter || card.type === activeTypeFilter;
 
-      if (textOk && colorOk) {
+      if (textOk && typeOk) {
         el.style.opacity = '';
         el.style.filter = '';
       } else {
@@ -730,16 +850,16 @@ var KanvazApp = (function() {
         for (var i = 0; i < res.results.length; i++) {
           var el = document.getElementById(res.results[i]);
           if (!el) continue;
-          /* Bug-bounty fix: this used to unconditionally reveal every
-             Smart Search match, ignoring activeColorFilter entirely —
-             silently breaking the "must match both" contract the color
-             filter (v6.2.0) already established for the substring pass
-             above. A Smart-Search-only match still has to pass the same
-             color check to actually get revealed. */
-          if (activeColorFilter) {
+          /* Bug-bounty fix (v6.2.0, carried forward through the color
+             → type filter swap): this used to unconditionally reveal
+             every Smart Search match, ignoring the active filter
+             entirely — silently breaking the "must match both"
+             contract the substring pass above already established. A
+             Smart-Search-only match still has to pass the same type
+             check to actually get revealed. */
+          if (activeTypeFilter) {
             var card = KanvazCards.getAll()[res.results[i]];
-            var dom = card && getDominantColor(card);
-            if (!dom || colorDistance(dom, activeColorFilter) > COLOR_MATCH_THRESHOLD) continue;
+            if (!card || card.type !== activeTypeFilter) continue;
           }
           el.style.opacity = '';
           el.style.filter = '';
@@ -749,7 +869,7 @@ var KanvazApp = (function() {
   }
 
   function clearSearchFilter() {
-    activeColorFilter = null;
+    activeTypeFilter = null;
     smartSearchIndexedThisSession = false;
     if (smartSearchDebounceTimer) { clearTimeout(smartSearchDebounceTimer); smartSearchDebounceTimer = null; }
     var allCards = KanvazCards.getAll();
