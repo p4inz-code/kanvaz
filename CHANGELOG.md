@@ -5,6 +5,19 @@ All notable changes to Kanvaz are documented here.
 ## [Unreleased]
 
 ### Added
+- **A custom Kanvaz-styled color picker** (`colorpicker.js`), replacing
+  the native OS/Chromium color dialog everywhere it was used: the
+  color-card swatch, the annotation toolbar's custom-color button, and
+  the 3D card's background swatch. Saturation/value square, hue strip,
+  and a hex field — no more native popups to fight for on-screen
+  positioning.
+- **Three grid styles**, chosen in Settings → Appearance → "Grid
+  style": **Reference** (the existing multi-tier accent grid, default),
+  **3D** (adds red/green X/Y origin axis lines, the same convention
+  most 3D modeling software uses for its ground plane — useful for
+  centering/mirroring reference work), and **Game Dev** (a uniform,
+  single-weight tile grid at a 32px base cell with no major/minor
+  blending, for pixel/tile alignment work).
 - **Map View: Zoom to Selection (Shift+F)** — Board view has had this
   since v4.9.0, but Map View runs its own entirely separate viewport
   and never got an equivalent. Falls back to fitting everything when

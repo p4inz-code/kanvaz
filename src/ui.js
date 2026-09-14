@@ -152,6 +152,12 @@ var KanvazUI_Extended = (function() {
     showMinimap:      true,
     cardShadows:      true,
     dotGridVisible:   true,
+    /* 'reference' (default, general-purpose moodboard grid) | '3d'
+       (colored X/Y origin axis lines, like a 3D modeling app's ground
+       plane) | 'gamedev' (uniform single-weight tile grid, no major/
+       minor blending — sprite/tilemap alignment). Direct request:
+       "3 types of grid... 3d, game dev and reference normal one." */
+    gridStyle:        'reference',
     openOnStartup:    true,
     confirmDelete:    false,
     defaultCardW:     600,
@@ -290,6 +296,7 @@ var KanvazUI_Extended = (function() {
     /* Grid */
     var grid = document.getElementById('canvas-grid');
     if (grid) grid.style.display = settings.dotGridVisible ? '' : 'none';
+    if (typeof KanvazCanvas !== 'undefined' && KanvazCanvas.drawGrid) KanvazCanvas.drawGrid();
 
     /* Card shadows */
     var styleId = 'kanvaz-settings-style';
@@ -546,6 +553,11 @@ var KanvazUI_Extended = (function() {
       { key: 'theme',           label: 'Theme',                 type: 'select', options: themeOptions },
       { key: 'showMinimap',     label: 'Show minimap',          type: 'toggle' },
       { key: 'dotGridVisible',  label: 'Grid lines',            type: 'toggle' },
+      { key: 'gridStyle',       label: 'Grid style',            type: 'select', options: [
+        ['reference', 'Reference (default)'],
+        ['3d',        '3D — origin axes'],
+        ['gamedev',   'Game Dev — tile grid']
+      ] },
       { key: 'cardShadows',     label: 'Card shadows',          type: 'toggle' },
       { key: 'animationsOn',    label: 'Animations',            type: 'toggle' },
       { section: 'General' },

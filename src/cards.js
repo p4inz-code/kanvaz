@@ -2187,69 +2187,27 @@ var KanvazCards = (function() {
     labelRow.appendChild(label);
     labelRow.appendChild(copyBtn);
 
-    /* Click swatch → open native color picker */
+    /* Click swatch → open Kanvaz's own color picker (colorpicker.js),
+       replacing the native OS/Chromium dialog this used to open via a
+       hidden <input type="color"> proxy — same on-screen anchoring
+       problem class the annotation and 3D-card pickers had, solved
+       once for all three by not depending on a native popup at all. */
     swatch.addEventListener('click', function(e) {
       if (el.dataset.justDragged) { delete el.dataset.justDragged; return; }
       e.stopPropagation();
-
-      /* BUG 2 fix: clean up any orphaned picker left over from a previous
-         swatch click that never fired 'change' (Escape, click-away, etc.)
-         — otherwise these <input type="color"> elements pile up in the
-         DOM forever. */
-      var oldPicker = document.querySelector('input[type="color"][data-kanvaz-picker]');
-      if (oldPicker && oldPicker.parentNode) oldPicker.parentNode.removeChild(oldPicker);
-
-      /* Positioned at the real swatch, not left to default to the
-         document's top-left corner — Chromium's own built-in color
-         popup anchors itself to wherever the underlying <input>
-         actually sits on screen, and an unpositioned absolutely-
-         positioned element appended to document.body defaults to
-         (0,0), which is exactly where the left-docked side panel
-         lives. Direct feedback, confirmed with an actual screenshot
-         (not just DOM property checks) after a first attempt at this
-         fix that set the CSS position but kept `pointer-events:none`
-         still landed the popup at (0,0): Chromium's popup-anchoring
-         code appears to need the element to be genuinely hit-testable
-         to resolve its own screen position, and `pointer-events:none`
-         opts it out of that. Sized and matched exactly over the real
-         swatch instead, so it can't intercept a click on anything else
-         even without pointer-events:none — it's removed again the
-         instant the picker closes. */
       var swatchRect = swatch.getBoundingClientRect();
-      var picker = document.createElement('input');
-      picker.type = 'color';
-      picker.value = hex;
-      picker.dataset.kanvazPicker = '1';
-      picker.style.cssText = 'position:fixed;left:' + swatchRect.left + 'px;top:' + swatchRect.top + 'px;width:' + swatchRect.width + 'px;height:' + swatchRect.height + 'px;opacity:0;z-index:99999;';
-      document.body.appendChild(picker);
-
-      function removePicker() {
-        if (picker.parentNode) picker.parentNode.removeChild(picker);
-      }
-
-      picker.addEventListener('input', function() {
-        var newColor = picker.value;
-        card.color = newColor;
-        card.name  = newColor;
-        applyColorVisual(newColor);
-        KanvazApp.markDirty();
+      KanvazColorPicker.open(swatchRect.right + 8, swatchRect.top, hex, {
+        onChange: function(newColor) {
+          card.color = newColor;
+          card.name  = newColor;
+          applyColorVisual(newColor);
+          KanvazApp.markDirty();
+        },
+        onCommit: function() {
+          KanvazHistory.push();
+          emitCardEvent('cardUpdate', card);
+        }
       });
-
-      picker.addEventListener('change', function() {
-        KanvazHistory.push();
-        emitCardEvent('cardUpdate', card);
-        removePicker();
-      });
-
-      /* Fallback cleanup: fires when the native picker closes without a
-         'change' event (Escape, clicking away). Delayed so a genuine
-         'change' (which also blurs) removes it via the handler above
-         first — removePicker() is idempotent either way. */
-      picker.addEventListener('blur', function() {
-        setTimeout(removePicker, 200);
-      });
-
-      picker.click();
     });
 
     el.appendChild(swatch);
@@ -3268,23 +3226,31 @@ var KanvazCards = (function() {
       }
       toolbar.appendChild(modeGroup);
 
-      /* ── Toolbar: background color + reset view ── */
-      var bgSwatch = document.createElement('input');
-      bgSwatch.type = 'color';
+      /* ── Toolbar: background color + reset view ──
+         Kanvaz's own color picker (colorpicker.js) instead of a native
+         <input type="color"> — same reasoning as the color-card swatch
+         and the annotation toolbar's custom-color button. */
+      var bgSwatch = document.createElement('button');
       bgSwatch.className = 'model3d-bg-swatch';
       bgSwatch.title = 'Background color';
-      bgSwatch.value = card.bgColor || '#1c1c22';
-      bgSwatch.addEventListener('input', function(e) {
+      bgSwatch.style.background = card.bgColor || '#1c1c22';
+      bgSwatch.addEventListener('click', function(e) {
         e.stopPropagation();
-        scene.background = new THREE.Color(bgSwatch.value);
-        renderFrame();
-      });
-      bgSwatch.addEventListener('change', function(e) {
-        e.stopPropagation();
-        card.bgColor = bgSwatch.value;
-        KanvazApp.markDirty();
-        KanvazHistory.push();
-        emitCardEvent('cardUpdate', card);
+        var rect = bgSwatch.getBoundingClientRect();
+        KanvazColorPicker.open(rect.left, rect.bottom + 6, card.bgColor || '#1c1c22', {
+          onChange: function(hex) {
+            scene.background = new THREE.Color(hex);
+            bgSwatch.style.background = hex;
+            renderFrame();
+          },
+          onCommit: function(hex) {
+            card.bgColor = hex;
+            bgSwatch.style.background = hex;
+            KanvazApp.markDirty();
+            KanvazHistory.push();
+            emitCardEvent('cardUpdate', card);
+          }
+        });
       });
       bgSwatch.addEventListener('mousedown', function(e) { e.stopPropagation(); });
       toolbar.appendChild(bgSwatch);

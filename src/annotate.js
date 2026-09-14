@@ -1008,30 +1008,35 @@ var KanvazAnnotate = (function() {
     recentRow.style.cssText = 'display:flex;align-items:center;gap:4px;';
     tb.appendChild(recentRow);
 
-    /* v7.x — custom color picker. A real native color input, hidden and
-       triggered by a small "+" swatch — same pattern app.js's own
-       color-search swatch button already uses elsewhere in this app. */
+    /* v7.x — custom color, via Kanvaz's own picker (colorpicker.js)
+       rather than a hidden native <input type="color"> proxy — same
+       anchoring class of bug the color-card swatch had (a hidden proxy
+       with no reliable on-screen position for a native popup to anchor
+       to), avoided entirely by not depending on a native popup here. */
     var customSwatch = document.createElement('button');
     customSwatch.title = 'Custom color';
     customSwatch.textContent = '+';
     customSwatch.style.cssText = 'width:14px;height:14px;border-radius:50%;background:var(--color-surface-2);border:1px dashed var(--color-text-3);cursor:pointer;padding:0;flex-shrink:0;font-size:10px;line-height:12px;color:var(--color-text-3);transition:transform 0.1s;';
     customSwatch.onmouseenter = function() { customSwatch.style.transform = 'scale(1.15)'; customSwatch.style.color = 'var(--color-text)'; customSwatch.style.borderColor = 'var(--color-text)'; };
     customSwatch.onmouseleave = function() { customSwatch.style.transform = 'scale(1)'; customSwatch.style.color = 'var(--color-text-3)'; customSwatch.style.borderColor = 'var(--color-text-3)'; };
-    var colorInput = document.createElement('input');
-    colorInput.type = 'color';
-    colorInput.value = activeColor;
-    colorInput.style.cssText = 'position:absolute;width:0;height:0;opacity:0;pointer-events:none;';
-    customSwatch.onclick = function() { colorInput.click(); };
-    colorInput.oninput = function() {
-      activeColor = colorInput.value.toUpperCase();
-      if (recentColors.indexOf(activeColor) === -1 && COLORS.indexOf(activeColor) === -1) {
-        recentColors.unshift(activeColor);
-        if (recentColors.length > RECENT_COLORS_MAX) recentColors.length = RECENT_COLORS_MAX;
-      }
-      updateToolbar();
+    customSwatch.onclick = function() {
+      var rect = customSwatch.getBoundingClientRect();
+      KanvazColorPicker.open(rect.left, rect.bottom + 6, activeColor, {
+        onChange: function(hex) {
+          activeColor = hex.toUpperCase();
+          updateToolbar();
+        },
+        onCommit: function(hex) {
+          activeColor = hex.toUpperCase();
+          if (recentColors.indexOf(activeColor) === -1 && COLORS.indexOf(activeColor) === -1) {
+            recentColors.unshift(activeColor);
+            if (recentColors.length > RECENT_COLORS_MAX) recentColors.length = RECENT_COLORS_MAX;
+          }
+          updateToolbar();
+        }
+      });
     };
     tb.appendChild(customSwatch);
-    tb.appendChild(colorInput);
 
     /* Separator */
     var sep2 = document.createElement('div');

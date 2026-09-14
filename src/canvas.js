@@ -245,6 +245,98 @@ var KanvazCanvas = (function() {
     gridCanvas.height = container.clientHeight;
   }
 
+  function getGridStyle() {
+    if (typeof KanvazUI_Extended !== 'undefined' && KanvazUI_Extended.getSettings) {
+      var s = KanvazUI_Extended.getSettings();
+      if (s && s.gridStyle) return s.gridStyle;
+    }
+    return 'reference';
+  }
+
+  /* Game Dev grid — a single uniform tier, no major/minor blending, at
+     a bigger base cell (32px world units, matching common sprite/tile
+     sizes) — a clean, high-contrast alignment surface for pixel/tile
+     work rather than the reference grid's "designed" multi-tier look. */
+  function drawGameDevGrid(w, h, alpha, isLight) {
+    var baseSpacing = 32;
+    var spacing = baseSpacing * scale;
+    var ox = ((tx % spacing) + spacing) % spacing;
+    var oy = ((ty % spacing) + spacing) % spacing;
+
+    var fade = 1.0;
+    if (spacing < 6) fade = Math.max(0, (spacing - 3) / (6 - 3));
+    var lineAlpha = (isLight ? 0.24 : 0.22) * alpha * fade;
+    if (fade <= 0.01) return;
+
+    var lineColor = isLight ? '0, 0, 0' : '255, 255, 255';
+    gridCtx.lineWidth = 1;
+    gridCtx.strokeStyle = 'rgba(' + lineColor + ', ' + lineAlpha + ')';
+    gridCtx.beginPath();
+    var x = ox;
+    while (x < w) {
+      gridCtx.moveTo(x + 0.5, 0);
+      gridCtx.lineTo(x + 0.5, h);
+      x += spacing;
+    }
+    var y = oy;
+    while (y < h) {
+      gridCtx.moveTo(0, y + 0.5);
+      gridCtx.lineTo(w, y + 0.5);
+      y += spacing;
+    }
+    gridCtx.stroke();
+
+    /* A bolder line every 8th cell (a common tile-sheet/chunk grouping)
+       so a large tilemap still has some coarser structure to read by,
+       same idea as the reference grid's major tier, just less busy. */
+    var chunkSpacing = spacing * 8;
+    if (chunkSpacing >= 24) {
+      var cox = ((tx % chunkSpacing) + chunkSpacing) % chunkSpacing;
+      var coy = ((ty % chunkSpacing) + chunkSpacing) % chunkSpacing;
+      gridCtx.strokeStyle = 'rgba(' + lineColor + ', ' + Math.min(1, lineAlpha * 2.2) + ')';
+      gridCtx.beginPath();
+      var cx = cox;
+      while (cx < w) {
+        gridCtx.moveTo(cx + 0.5, 0);
+        gridCtx.lineTo(cx + 0.5, h);
+        cx += chunkSpacing;
+      }
+      var cy = coy;
+      while (cy < h) {
+        gridCtx.moveTo(0, cy + 0.5);
+        gridCtx.lineTo(w, cy + 0.5);
+        cy += chunkSpacing;
+      }
+      gridCtx.stroke();
+    }
+  }
+
+  /* 3D-style origin axes — the red/green X/Y convention most 3D
+     modeling software uses for its ground-plane grid, drawn on top of
+     the normal reference grid so a 3D-reference board has a clear
+     "center of the world" to align/mirror against. Only ever visible
+     when the origin is actually within the current viewport — a plain
+     canvas line drawn outside 0..w/0..h simply doesn't appear, no
+     extra visibility check needed. */
+  function drawOriginAxes(w, h, alpha) {
+    var originX = tx;
+    var originY = ty;
+
+    gridCtx.lineWidth = 1.5;
+
+    gridCtx.strokeStyle = 'rgba(226, 59, 59, ' + (0.55 * alpha) + ')';
+    gridCtx.beginPath();
+    gridCtx.moveTo(0, originY + 0.5);
+    gridCtx.lineTo(w, originY + 0.5);
+    gridCtx.stroke();
+
+    gridCtx.strokeStyle = 'rgba(59, 165, 92, ' + (0.55 * alpha) + ')';
+    gridCtx.beginPath();
+    gridCtx.moveTo(originX + 0.5, 0);
+    gridCtx.lineTo(originX + 0.5, h);
+    gridCtx.stroke();
+  }
+
   function drawGrid() {
     var w = gridCanvas.width;
     var h = gridCanvas.height;
@@ -281,11 +373,21 @@ var KanvazCanvas = (function() {
 
     if (alpha <= 0) return;
 
+    var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    var gridStyle = getGridStyle();
+
+    /* Game Dev grid is a completely different, single-tier layout —
+       handled entirely by its own function rather than threaded through
+       every branch below. */
+    if (gridStyle === 'gamedev') {
+      drawGameDevGrid(w, h, alpha, isLight);
+      return;
+    }
+
     /* Origin offset so grid moves with pan */
     var ox = ((tx % spacing) + spacing) % spacing;
     var oy = ((ty % spacing) + spacing) % spacing;
 
-    var isLight = document.documentElement.getAttribute('data-theme') === 'light';
     var lineColor = isLight ? '0, 0, 0' : '255, 255, 255';
     var minorAlpha = (isLight ? 0.10 : 0.09) * alpha;
     var majorAlpha = (isLight ? 0.22 : 0.20) * alpha;
@@ -409,6 +511,10 @@ var KanvazCanvas = (function() {
         }
         dy += majorSpacing;
       }
+    }
+
+    if (gridStyle === '3d') {
+      drawOriginAxes(w, h, alpha);
     }
   }
 
