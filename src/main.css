@@ -2104,12 +2104,19 @@ html, body {
 .card-text {
   background: transparent;
   border: none;
-  border-radius: 0;
+  border-radius: var(--radius-md);
   box-shadow: none;
+  transition: border-color 0.12s ease-out;
 }
 
 .card-text:hover {
   box-shadow: none;
+  /* A quiet dashed hint on hover only — signals "this is editable" for
+     what otherwise renders as plain floating text at rest, without
+     giving the label a permanent box the way every other card type
+     has. Same dashed weight/color already used for drop-zone hints
+     elsewhere in this file. */
+  border: 1px dashed var(--color-border-2);
 }
 
 .card-text.selected {
@@ -2134,7 +2141,7 @@ html, body {
 }
 
 .card-text .text-body::placeholder {
-  color: var(--color-text-2);
+  color: var(--color-text-3);
 }
 
 /* ── Video card ── */
@@ -2224,10 +2231,13 @@ html, body {
 }
 
 /* ── 3D model card (v7.x) ──
-   Deliberately plain/functional (buttons + a native color swatch, no
-   custom iconography) — the user is designing this card's real UI in
-   Figma separately and will re-skin it; this just needs to be correctly
-   wired underneath that skin. */
+   Functional toolbar (mode switch, background swatch, reset, anim
+   scrub) styled to match the rest of the app's control chrome. The
+   background swatch is still a native OS color picker under the hood
+   (`<input type="color">`) — replacing it with a real custom picker is
+   tracked as its own follow-up, shared with the other two native color
+   pickers in the app (the color-card swatch, the annotation tool's
+   picker), not something worth rebuilding three times separately. */
 .card-model3d-loading .model3d-viewport,
 .card-model3d-loading .model3d-toolbar {
   visibility: hidden;
@@ -2728,6 +2738,25 @@ html, body {
   color: var(--color-text-2);
   line-height: 1.6;
   margin-bottom: 20px;
+}
+
+.dialog-input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  margin-bottom: 20px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-2);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-family: var(--font-ui);
+  font-size: 13px;
+}
+
+.dialog-input:focus {
+  outline: none;
+  border-color: var(--color-accent);
 }
 
 .dialog-btns {

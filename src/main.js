@@ -517,6 +517,12 @@ function createWindow(hasStartupFile) {
       nodeIntegration: false,
       sandbox: false,
       webSecurity: true,
+      /* Chromium's native spellcheck (red squiggle + inline correction
+         bubble) is unstyled OS chrome that doesn't match Kanvaz's own
+         theme and can't be suppressed from the renderer side (it isn't
+         gated by the DOM 'contextmenu' event at all). Off globally, same
+         call already made per-field for rename inputs. */
+      spellcheck: false,
       additionalArguments: ['--kanvaz-has-startup-file=' + (hasStartupFile ? '1' : '0')]
     },
     icon: path.join(__dirname, '..', 'assets', 'icons', 'icon.png'),

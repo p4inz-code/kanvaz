@@ -1723,20 +1723,19 @@ var KanvazMapView = (function() {
     }
 
     bulkBar.appendChild(makeBtn('Tag', function() {
-      var tag = window.prompt('Add tag to ' + Object.keys(multiSelected).length + ' selected card(s):');
-      if (!tag) return;
-      tag = tag.trim();
-      if (!tag) return;
-      var allCards = KanvazCards.getAll();
-      var ids = Object.keys(multiSelected);
-      KanvazCards.setTagsMultiple(ids, function(id) {
-        var c = allCards[id];
-        if (!c) return null;
-        var tags = (c.tags || []).slice();
-        if (tags.indexOf(tag) === -1) tags.push(tag);
-        return tags;
+      var count = Object.keys(multiSelected).length;
+      KanvazUI.showPrompt('Add Tag', 'Add tag to ' + count + ' selected card(s):', '', function(tag) {
+        var allCards = KanvazCards.getAll();
+        var ids = Object.keys(multiSelected);
+        KanvazCards.setTagsMultiple(ids, function(id) {
+          var c = allCards[id];
+          if (!c) return null;
+          var tags = (c.tags || []).slice();
+          if (tags.indexOf(tag) === -1) tags.push(tag);
+          return tags;
+        });
+        KanvazUI.toast('Tagged ' + ids.length + ' card(s) "' + tag + '"');
       });
-      KanvazUI.toast('Tagged ' + ids.length + ' card(s) "' + tag + '"');
     }));
 
     bulkBar.appendChild(makeBtn('Delete', function() {

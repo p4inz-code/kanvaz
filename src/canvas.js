@@ -63,6 +63,11 @@ var KanvazCanvas = (function() {
       resizeGrid();
       drawGrid();
     });
+
+    new MutationObserver(function() {
+      cachedAccentRgb = null;
+      drawGrid();
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   }
 
   /* Safe-clamp tx/ty to prevent CSS transform overflow.
@@ -81,6 +86,29 @@ var KanvazCanvas = (function() {
   }
 
   var gridRafId = null;
+
+  /* Accent-tinted major grid lines, cached — same 1x1-canvas-readback
+     technique getMarqueeFillColor() already uses to turn an arbitrary
+     CSS color string into RGB components without a color-parsing
+     library. Cached because drawGrid() runs every animation frame
+     during pan/zoom; invalidated via a MutationObserver on data-theme
+     rather than chasing every place that attribute gets set (built-in
+     theme toggle in three separate files, plus any plugin-authored
+     theme) — one central invalidation point that can't miss a caller. */
+  var cachedAccentRgb = null;
+
+  function getAccentRgb() {
+    if (cachedAccentRgb) return cachedAccentRgb;
+    var accent = getComputedStyle(document.documentElement).getPropertyValue('--color-accent').trim();
+    var c = document.createElement('canvas');
+    c.width = 1; c.height = 1;
+    var ctx = c.getContext('2d');
+    ctx.fillStyle = accent || '#7C5CFC';
+    ctx.fillRect(0, 0, 1, 1);
+    var d = ctx.getImageData(0, 0, 1, 1).data;
+    cachedAccentRgb = d[0] + ',' + d[1] + ',' + d[2];
+    return cachedAccentRgb;
+  }
 
   /* ── Transform ── */
 
@@ -298,7 +326,12 @@ var KanvazCanvas = (function() {
     }
 
     if (majorFade > 0.01) {
-      gridCtx.strokeStyle = 'rgba(' + lineColor + ', ' + majorAlpha + ')';
+      /* Major lines carry a faint accent tint rather than plain gray —
+         the same brand color used everywhere else in the app (selection
+         rings, active states), just at a low enough alpha to stay a
+         quiet structural cue instead of competing with card content. */
+      var accentRgb = getAccentRgb();
+      gridCtx.strokeStyle = 'rgba(' + accentRgb + ', ' + (majorAlpha * 0.85) + ')';
       gridCtx.beginPath();
       var mx = majorOx;
       while (mx < w) {
@@ -313,6 +346,26 @@ var KanvazCanvas = (function() {
         my += majorSpacing;
       }
       gridCtx.stroke();
+
+      /* Small accent dots at major-line intersections — a CAD-style
+         anchor point at every 5th cell, reinforcing the grid as a real
+         measuring surface instead of a flat tiled texture. Same fade as
+         the lines they mark, so they never outlive the lines around
+         them at extreme zoom. */
+      var dotAlpha = majorAlpha * 1.3;
+      gridCtx.fillStyle = 'rgba(' + accentRgb + ', ' + Math.min(1, dotAlpha) + ')';
+      var dotR = Math.min(1.6, 1 + scale * 0.15);
+      var dy = majorOy;
+      while (dy < h) {
+        var dx = majorOx;
+        while (dx < w) {
+          gridCtx.beginPath();
+          gridCtx.arc(dx, dy, dotR, 0, Math.PI * 2);
+          gridCtx.fill();
+          dx += majorSpacing;
+        }
+        dy += majorSpacing;
+      }
     }
   }
 

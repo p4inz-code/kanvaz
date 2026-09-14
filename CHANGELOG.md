@@ -2,6 +2,32 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [Unreleased]
+
+### Fixed
+- **Chromium's native spellcheck (red squiggle + inline correction
+  bubble) was showing on note and text cards**, unstyled and out of
+  place next to the rest of the app's own dark-panel look — and, being
+  a Blink text-input behavior rather than something gated by the DOM
+  `contextmenu` event, it couldn't be suppressed from the renderer side
+  the way a native right-click menu can. Turned off globally via
+  `webPreferences.spellcheck: false` in `main.js`, the same call
+  already made per-field for rename inputs.
+- **Two native `window.prompt()` dialogs** (naming a Smart Folder,
+  bulk-tagging cards in Map View) replaced with a Kanvaz-styled prompt
+  reusing the existing dialog overlay, now with an optional text field
+  (`KanvazUI.showPrompt`).
+
+### Changed
+- **Canvas grid** now tints its major lines and intersection points
+  with the app's own accent color instead of plain gray/white, at a
+  low enough alpha to stay a quiet structural cue — a small step
+  toward the grid reading as a real measuring surface rather than a
+  flat tiled background.
+- **Bare text-label cards** get a quiet dashed outline on hover (hint
+  that they're editable, since they otherwise render with zero chrome
+  by design) and a higher-contrast placeholder color.
+
 ## [7.11.1] — Auto-hide toolbar polish + custom tooltips
 
 ### Fixed

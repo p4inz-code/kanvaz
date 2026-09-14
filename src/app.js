@@ -418,16 +418,16 @@ var KanvazApp = (function() {
     saveBtn.addEventListener('click', function() {
       var q = searchInput.value.trim();
       if (!q) { KanvazUI.toast('Type a search first'); return; }
-      var name = window.prompt('Name this Smart Folder:', q);
-      if (!name || !name.trim()) return;
-      if (typeof KanvazUI_Extended === 'undefined') return;
-      var s = KanvazUI_Extended.getSettings();
-      if (!s) return;
-      if (!s.smartFolders) s.smartFolders = [];
-      s.smartFolders.push({ id: 'sf-' + Date.now(), name: name.trim(), query: q });
-      KanvazBridge.writeSettings(JSON.stringify(s));
-      renderSmartFolderChips();
-      KanvazUI.toast('Saved Smart Folder "' + name.trim() + '"');
+      showPrompt('Save Smart Folder', 'Name this Smart Folder:', q, function(name) {
+        if (typeof KanvazUI_Extended === 'undefined') return;
+        var s = KanvazUI_Extended.getSettings();
+        if (!s) return;
+        if (!s.smartFolders) s.smartFolders = [];
+        s.smartFolders.push({ id: 'sf-' + Date.now(), name: name, query: q });
+        KanvazBridge.writeSettings(JSON.stringify(s));
+        renderSmartFolderChips();
+        KanvazUI.toast('Saved Smart Folder "' + name + '"');
+      });
     });
 
     /* Color search \u2014 click to pick a color, cards get dimmed the same
@@ -1073,6 +1073,57 @@ var KanvazApp = (function() {
     function closeDialog() {
       var overlay = document.getElementById('dialog-overlay');
       if (overlay) overlay.classList.remove('visible');
+      var input = document.getElementById('dialog-input');
+      if (input) input.style.display = 'none';
+    }
+
+    /* Kanvaz-styled stand-in for window.prompt() — same dialog overlay
+       as showDialog, with a text field added in. onSubmit gets the
+       trimmed value, or is never called if cancelled/empty (matches
+       window.prompt()'s null-on-cancel, but callers only ever wanted
+       a non-empty result anyway). */
+    function showPrompt(title, message, defaultValue, onSubmit) {
+      var overlay = document.getElementById('dialog-overlay');
+      var titleEl = document.getElementById('dialog-title');
+      var msgEl   = document.getElementById('dialog-message');
+      var input   = document.getElementById('dialog-input');
+      var btnsEl  = document.getElementById('dialog-btns');
+      if (!overlay || !input) return;
+
+      titleEl.textContent = title;
+      msgEl.textContent   = message || '';
+      msgEl.style.display = message ? '' : 'none';
+      input.style.display = '';
+      input.value = defaultValue || '';
+      btnsEl.innerHTML = '';
+
+      function submit() {
+        var val = input.value.trim();
+        closeDialog();
+        msgEl.style.display = '';
+        if (val) onSubmit(val);
+      }
+
+      input.onkeydown = function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); submit(); }
+        if (e.key === 'Escape') { e.preventDefault(); closeDialog(); msgEl.style.display = ''; }
+      };
+
+      var cancelBtn = document.createElement('button');
+      cancelBtn.className = 'btn';
+      cancelBtn.textContent = 'Cancel';
+      cancelBtn.onclick = function() { closeDialog(); msgEl.style.display = ''; };
+
+      var okBtn = document.createElement('button');
+      okBtn.className = 'btn primary';
+      okBtn.textContent = 'OK';
+      okBtn.onclick = submit;
+
+      btnsEl.appendChild(cancelBtn);
+      btnsEl.appendChild(okBtn);
+
+      overlay.classList.add('visible');
+      setTimeout(function() { input.focus(); input.select(); }, 0);
     }
 
     function showCardContextMenu(x, y, card) {
@@ -1665,6 +1716,7 @@ var KanvazApp = (function() {
     return {
       toast:               toast,
       showDialog:          showDialog,
+      showPrompt:          showPrompt,
       closeDialog:         closeDialog,
       showCardContextMenu: showCardContextMenu,
       showContextMenu:     showContextMenu,
