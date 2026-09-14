@@ -489,23 +489,48 @@ html, body {
 .moodlock-active #top-chrome {
   display: flex !important;
   position: fixed;
-  top: 0; left: 0; right: 0;
+  top: 0;
+  /* Direct feedback: "the reveal comes then the sidebar gets hide upper
+     two icons" — this used to span left:0, covering the always-visible
+     side panel rail's top icons the instant the chrome revealed, since
+     the rail sits at the exact same top-left corner once #top-chrome
+     leaves normal flow. Starting after the rail's own fixed width (see
+     #side-panel-rail) means the revealed chrome and the rail never
+     occupy the same pixels. */
+  left: 44px; right: 0;
   z-index: 900;
   transform: translateY(-100%);
   opacity: 0;
   pointer-events: none;
-  transition: transform 0.4s cubic-bezier(0.16,1,0.3,1), opacity 0.35s ease;
+  /* Direct feedback: "reveal should happen fast and it should fade
+     slow" — this transition used to be shared identically by both
+     directions (only reachable by adding/removing .moodlock-reveal),
+     so appearing and disappearing always took the same time. This rule
+     is the HIDDEN/hiding state, so its transition timing is what
+     governs fading OUT — kept deliberately slow and eased so the
+     chrome doesn't feel like it's snapping away mid-use. The reveal
+     (fast) timing lives on the .moodlock-reveal rule below, which wins
+     while revealing since that's the state being transitioned to. */
+  transition: transform 0.55s cubic-bezier(0.4,0,0.2,1), opacity 0.5s ease;
 }
 
 .moodlock-active.moodlock-reveal #top-chrome {
   transform: translateY(0);
   opacity: 1;
   pointer-events: auto;
+  transition: transform 0.12s cubic-bezier(0.16,1,0.3,1), opacity 0.1s ease;
 }
 
 #moodlock-hover-zone {
   position: fixed;
-  top: 0; left: 0; right: 0;
+  top: 0;
+  /* Same left offset as #top-chrome above and for the same reason —
+     left:0 would let this strip's OS drag-region sit on top of the
+     side panel rail's first icon, both visually (the accent line
+     below painting across it) and functionally (a native app-region
+     drag can swallow a click that lands in the overlap instead of it
+     ever reaching the rail button underneath). */
+  left: 44px; right: 0;
   height: 16px;
   z-index: 899;
   /* Real OS-level drag region — lets you move the window by grabbing

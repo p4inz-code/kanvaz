@@ -1492,6 +1492,29 @@ var KanvazApp = (function() {
       chromeScheduleHide();
     }
 
+    /* Coordinate-based fallback for the hover-reveal strip — see the
+       call site's own comment on why this exists alongside (not
+       instead of) chromeHoverZone's mouseenter/mouseleave pair.
+       Deliberately has a dead zone (4px–80px) where it does nothing:
+       that's roughly where the revealed #top-chrome itself lives once
+       shown, and topChrome already has its own correct mouseenter/
+       mouseleave pair for "still interacting with the revealed
+       toolbar" — this fallback firing chromeScheduleHide() in that
+       range would fight that logic and hide the toolbar out from under
+       an active click. Below the dead zone it schedules a hide exactly
+       like leaving the hover zone normally would, so a missed
+       mouseenter earlier can't leave the chrome stuck open forever
+       with nothing left to close it. */
+    function chromeEdgeMouseMove(e) {
+      /* clientX > 44 matches the hover strip's own real horizontal
+         extent (see #moodlock-hover-zone's left:44px in main.css) —
+         it starts after the side panel rail on purpose, so hovering
+         the rail's own top icon doesn't also spuriously reveal the
+         toolbar. */
+      if (e.clientY <= 4 && e.clientX > 44) chromeShow();
+      else if (e.clientY > 80) chromeScheduleHide();
+    }
+
     /* Turns the hover-reveal chrome mechanic on/off at the DOM level.
        Called whenever chromeAutoHideOn changes — the wasActive/isActive
        comparison is a leftover of when this also had to reconcile
@@ -1532,6 +1555,23 @@ var KanvazApp = (function() {
            the rest of the session. blur is the reliable backstop. */
         window.addEventListener('mouseup', chromeDragEnd, true);
         window.addEventListener('blur', chromeDragEnd);
+        /* Robustness fix (reported: "hover the top edge doesn't reveal"
+           — not reproduced via CDP-simulated input even across a full
+           reveal/hide/reveal cycle, but relying ONLY on mouseenter/
+           mouseleave on a 16px-tall element that also carries
+           -webkit-app-region:drag is fragile in real use: a fast mouse
+           movement can cross a thin target without ever firing its own
+           mouseenter (the browser only guarantees mousemove sampling,
+           not that every pixel-row boundary produces an enter/leave
+           pair), and a real OS drag-region's hit-testing is a known
+           rough edge for hover events on Windows specifically. This
+           window-level mousemove is a coordinate-based fallback that
+           doesn't depend on that one enter event ever firing — it
+           reveals whenever the cursor is anywhere near the top edge,
+           regardless of whether the hover zone's own listener caught
+           it. Cheap: one branch per mousemove, only registered while
+           auto-hide is actually on. */
+        window.addEventListener('mousemove', chromeEdgeMouseMove);
         KanvazBridge.setMoodLockSize(true);
       } else {
         app.classList.remove('moodlock-active', 'moodlock-reveal');
@@ -1540,6 +1580,7 @@ var KanvazApp = (function() {
         chromeDragGuard = false;
         window.removeEventListener('mouseup', chromeDragEnd, true);
         window.removeEventListener('blur', chromeDragEnd);
+        window.removeEventListener('mousemove', chromeEdgeMouseMove);
         if (topChrome) {
           topChrome.removeEventListener('mouseenter', chromeShow);
           topChrome.removeEventListener('mouseleave', chromeScheduleHide);
