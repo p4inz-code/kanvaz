@@ -1,12 +1,27 @@
 # The Full Audit Suite
 
-This is what runs whenever you say **"run full suite"** (or "run the full
-audit," "do the full pass," etc.) — a standing, repeatable definition so
+This is what runs whenever you say **"run full suite"** — or any of its
+trigger words: "audit," "suite," "persona audit"/"persona pass," "verify"/
+"verification audit," or "ready to ship." Any of these means the complete
+process below, not a shortcut version — a standing, repeatable definition so
 neither of us has to re-negotiate scope each time. It's the same discipline
 this project has already used release after release (3D preview, the
 post-3D bug bounty, the Reference Mode removal, the icon overhaul) — this
 document just writes it down properly instead of re-deriving it from memory
 every time.
+
+**"Ship" has one meaning, always: the complete pipeline, never a partial
+step described as done.** Commit → push → version bump across all six
+canonical locations → tag → CI build succeeds → `gh release edit <tag>
+--draft=false` → confirmed via `gh release view <tag>` showing
+`draft:false`. Only after that last check does the word "shipped"/"live"/
+"released" apply — a pushed tag, a green CI run, or a merged commit are
+real progress and get called exactly that, never "shipped." This is not
+negotiable under time pressure ("gtg in 5 mins," "do fast") — finish the
+real pipeline, or say plainly what step is still open. Stated directly,
+twice, after this got it wrong live: "ship means not draft it means real
+release" and "this shud never happen ... ship it means full ship ready
+to ship release commit push and more never over ride it."
 
 Run it before any release you're calling "done" in a real sense — not
 necessarily every single patch, but definitely before a version bump that
