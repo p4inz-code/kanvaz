@@ -693,6 +693,7 @@ var KanvazMapView = (function() {
         if (tx === lastGridTx && ty === lastGridTy && scale === lastGridScale) return;
         lastGridTx = tx; lastGridTy = ty; lastGridScale = scale;
         drawMapGrid();
+        drawMapMinimap();
       });
     }
   }
@@ -701,6 +702,124 @@ var KanvazMapView = (function() {
     if (!gridCanvas || !container) return;
     gridCanvas.width  = container.clientWidth;
     gridCanvas.height = container.clientHeight;
+  }
+
+  /* ── Mini-map — a small clickable overview, same idea as Board View's
+     own minimap (ui.js) but scoped to Map View's own mapPosition/
+     tx/ty/scale state, same reasoning as drawMapGrid's own separate
+     copy above: coupling this to the Board minimap's module would
+     mean coupling two views' independent viewport state together for
+     no real benefit. Respects the same "Show minimap" setting Board
+     View's does. */
+  var mmapWrap = null;
+  var mmapEl   = null;
+  var mmapCtx  = null;
+  var MMAP_W = 120;
+  var MMAP_H = 80;
+
+  function computeMapWorldBounds() {
+    var cards = KanvazCards.getAll();
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    var count = 0;
+    for (var id in cards) {
+      var c = cards[id];
+      if (!c.mapPosition) continue;
+      minX = Math.min(minX, c.mapPosition.x);
+      minY = Math.min(minY, c.mapPosition.y);
+      maxX = Math.max(maxX, c.mapPosition.x + NODE_FULL_W);
+      maxY = Math.max(maxY, c.mapPosition.y + NODE_FULL_H);
+      count++;
+    }
+    if (count === 0) return { minX: 0, minY: 0, maxX: 1000, maxY: 1000 };
+    var padX = 200, padY = 200;
+    return { minX: minX - padX, minY: minY - padY, maxX: maxX + padX, maxY: maxY + padY };
+  }
+
+  function initMapMinimap() {
+    if (mmapWrap || !container) return;
+    mmapWrap = document.createElement('div');
+    mmapWrap.id = 'map-minimap-wrap';
+    mmapWrap.style.cssText = [
+      'position:absolute', 'bottom:34px', 'right:12px',
+      'width:' + MMAP_W + 'px', 'height:' + MMAP_H + 'px',
+      'background:var(--color-surface)', 'border:1px solid var(--color-border)',
+      'border-radius:6px', 'overflow:hidden', 'z-index:500',
+      'opacity:0.85', 'cursor:pointer'
+    ].join(';');
+
+    var cvs = document.createElement('canvas');
+    cvs.width = MMAP_W; cvs.height = MMAP_H;
+    cvs.style.cssText = 'display:block;width:100%;height:100%;';
+    mmapWrap.appendChild(cvs);
+    container.appendChild(mmapWrap);
+    mmapEl = cvs;
+    mmapCtx = cvs.getContext('2d');
+
+    /* Click minimap to pan there — same click-fraction-of-world-bounds
+       approach as Board View's own minimap, adapted to Map View's own
+       tx/ty/scale instead of KanvazCanvas's viewport. */
+    mmapWrap.addEventListener('mousedown', function(e) {
+      e.stopPropagation();
+      var rect = mmapWrap.getBoundingClientRect();
+      var b = computeMapWorldBounds();
+      var worldW = b.maxX - b.minX;
+      var worldH = b.maxY - b.minY;
+      var mx = (e.clientX - rect.left) / MMAP_W;
+      var my = (e.clientY - rect.top) / MMAP_H;
+      var targetWorldX = b.minX + mx * worldW;
+      var targetWorldY = b.minY + my * worldH;
+      var crect = container.getBoundingClientRect();
+      var targetTx = (crect.width  / 2) - targetWorldX * scale;
+      var targetTy = (crect.height / 2) - targetWorldY * scale;
+      animateCameraTo(targetTx, targetTy, scale, 320);
+    });
+  }
+
+  function setMapMinimapVisible(visible) {
+    if (visible) initMapMinimap();
+    if (mmapWrap) mmapWrap.style.display = visible ? '' : 'none';
+  }
+
+  function isMinimapEnabled() {
+    if (typeof KanvazUI_Extended !== 'undefined' && KanvazUI_Extended.getSettings) {
+      var s = KanvazUI_Extended.getSettings();
+      return !s || s.showMinimap !== false;
+    }
+    return true;
+  }
+
+  function drawMapMinimap() {
+    if (!mmapCtx || !active || !isMinimapEnabled()) return;
+    var b = computeMapWorldBounds();
+    var worldW = Math.max(1, b.maxX - b.minX);
+    var worldH = Math.max(1, b.maxY - b.minY);
+
+    mmapCtx.clearRect(0, 0, MMAP_W, MMAP_H);
+
+    var cards = KanvazCards.getAll();
+    for (var id in cards) {
+      var c = cards[id];
+      if (!c.mapPosition) continue;
+      mmapCtx.fillStyle = nodeAccentColor(c);
+      mmapCtx.globalAlpha = 0.7;
+      mmapCtx.fillRect(
+        ((c.mapPosition.x - b.minX) / worldW) * MMAP_W,
+        ((c.mapPosition.y - b.minY) / worldH) * MMAP_H,
+        Math.max(2, (NODE_FULL_W / worldW) * MMAP_W),
+        Math.max(2, (NODE_FULL_H / worldH) * MMAP_H)
+      );
+    }
+    mmapCtx.globalAlpha = 1;
+
+    var crect = container.getBoundingClientRect();
+    var vx = ((-tx / scale) - b.minX) / worldW * MMAP_W;
+    var vy = ((-ty / scale) - b.minY) / worldH * MMAP_H;
+    var vw = (crect.width  / scale) / worldW * MMAP_W;
+    var vh = (crect.height / scale) / worldH * MMAP_H;
+
+    mmapCtx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-accent').trim() || '#4A9EFF';
+    mmapCtx.lineWidth = 1;
+    mmapCtx.strokeRect(vx, vy, vw, vh);
   }
 
   /* Same dot-grid visual language as Board View (canvas.js) — kept as a
@@ -865,9 +984,11 @@ var KanvazMapView = (function() {
     if (cg) cg.style.display = 'none';
     if (ce) ce.style.display = 'none';
     resizeMapGrid();
+    setMapMinimapVisible(isMinimapEnabled());
     render();
     applyTransform();
     drawMapGrid();
+    drawMapMinimap();
     updateZoomDisplay();
   }
 
@@ -1037,6 +1158,8 @@ var KanvazMapView = (function() {
     if (searchInput) applySearchFilter(searchInput.value);
     /* Same reasoning for an active multi-selection's outline. */
     if (Object.keys(multiSelected).length) applyMultiSelectStyles();
+
+    drawMapMinimap();
   }
 
   /* Fit all nodes into viewport */
@@ -2253,7 +2376,8 @@ var KanvazMapView = (function() {
     getState: getState, setState: setState, resetView: resetView,
     handleKey: handleKey, updateToggleBtn: updateToggleBtn,
     diagnose: diagnose,
-    showSearchBar: showSearchBar, hideSearchBar: hideSearchBar
+    showSearchBar: showSearchBar, hideSearchBar: hideSearchBar,
+    setMinimapVisible: setMapMinimapVisible
   };
 
 })();

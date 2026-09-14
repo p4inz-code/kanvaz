@@ -5,6 +5,11 @@ All notable changes to Kanvaz are documented here.
 ## [Unreleased]
 
 ### Added
+- **Map View: a mini-map overview**, same idea and position as Board
+  View's own (bottom-right, click to pan there), scoped to Map View's
+  own independent viewport and node positions rather than sharing
+  Board View's minimap module. Respects the existing "Show minimap"
+  setting.
 - **3D card controls mirrored into the Properties panel** — shading
   mode, background color, and Reset Camera, driven through the same
   live per-card registry the card's own on-canvas toolbar already

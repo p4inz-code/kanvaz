@@ -292,6 +292,9 @@ var KanvazUI_Extended = (function() {
     /* Minimap */
     var mw = document.getElementById('minimap-wrap');
     if (mw) mw.style.display = settings.showMinimap ? '' : 'none';
+    if (typeof KanvazMapView !== 'undefined' && KanvazMapView.setMinimapVisible) {
+      KanvazMapView.setMinimapVisible(!!settings.showMinimap);
+    }
 
     /* Grid */
     var grid = document.getElementById('canvas-grid');
