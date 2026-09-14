@@ -1291,10 +1291,12 @@ var KanvazMapView = (function() {
     animateCameraTo(targetTx, targetTy, newScale, 480);
   }
 
-  /* Zoom to selection — Board view has had this since v4.9.0
-     (KanvazCanvas.zoomToSelection, Ctrl+K "Zoom to Selection"), but Map
-     View runs its own entirely separate viewport (tx/ty/scale here,
-     not KanvazCanvas's), so it never got an equivalent. Reuses fitAll's
+  /* Zoom to selection — Board view has had the underlying command since
+     v4.9.0 (KanvazCanvas.zoomToSelection), but no dedicated key until
+     Board view's shortcuts.js later got its own Shift+F, matching the
+     Shift+F already used here. Map View runs its own entirely separate
+     viewport (tx/ty/scale here, not KanvazCanvas's), so this is its own
+     independent implementation, not a shared code path. Reuses fitAll's
      own bounding-box-then-animateCameraTo approach, just scoped to the
      selected id(s) instead of every node with a mapPosition. Falls
      back to fitAll() when nothing is selected — "zoom to selection"

@@ -403,6 +403,32 @@ var KanvazProperties = (function() {
         })(ALIGN_MODES[ai][0], ALIGN_MODES[ai][1]);
       }
       body.appendChild(alignGrid);
+
+      /* Distribute — needs 3+ cards (with exactly 2 there's only one
+         gap, nothing to make even), unlike Align which is useful at 2. */
+      if (selectedIds.length > 2) {
+        var distTitle = document.createElement('div');
+        distTitle.style.cssText = SECTION_TITLE_CSS;
+        distTitle.textContent = 'Distribute evenly';
+        body.appendChild(distTitle);
+
+        var distRow = document.createElement('div');
+        distRow.style.cssText = 'display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:16px;';
+
+        var DIST_MODES = [['h', 'Horizontally'], ['v', 'Vertically']];
+        for (var di = 0; di < DIST_MODES.length; di++) {
+          (function(axis, label) {
+            var btn = document.createElement('button');
+            btn.textContent = label;
+            btn.style.cssText = 'padding:6px 2px;background:var(--color-surface-2);border:1px solid var(--color-border-2);border-radius:5px;color:var(--color-text-2);font-family:var(--font-ui);font-size:10px;cursor:pointer;';
+            btn.onclick = function() {
+              if (typeof KanvazCards !== 'undefined') KanvazCards.distributeCards(KanvazCards.getSelectedIds(), axis);
+            };
+            distRow.appendChild(btn);
+          })(DIST_MODES[di][0], DIST_MODES[di][1]);
+        }
+        body.appendChild(distRow);
+      }
     }
   }
 

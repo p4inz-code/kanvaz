@@ -1505,6 +1505,7 @@ var KanvazUI_Extended = (function() {
           ['0',                'Reset zoom'],
           ['+ / -',            'Zoom step'],
           ['F',                'Fit all cards'],
+          ['Shift + F',        'Zoom to selection (fits everything if nothing is selected)'],
           /* Audit fix: this row used to unconditionally say "New note",
              but doubleClickCreatesNote defaults to false (see settings
              default above) — for most users double-clicking the canvas

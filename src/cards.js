@@ -5116,6 +5116,52 @@ var KanvazCards = (function() {
     }
   }
 
+  /* Distribute evenly (axis: 'h' or 'v') — keeps the two outermost cards
+     fixed and spaces every card between them so the GAPS are equal,
+     matching Figma/Illustrator's "Distribute spacing" rather than
+     "Distribute centers" (the more common expectation for reference
+     boards, where cards are usually different sizes). Needs 3+ cards:
+     with exactly 2 there's only one gap, nothing to make even. */
+  function distributeCards(ids, axis) {
+    if (!ids || ids.length < 3) return;
+    var relevant = [];
+    for (var i = 0; i < ids.length; i++) {
+      var c = cards[ids[i]];
+      if (c && !c.pinned) relevant.push(c);
+    }
+    if (relevant.length < 3) return;
+
+    var sizeKey = axis === 'h' ? 'w' : 'h';
+    var posKey = axis === 'h' ? 'x' : 'y';
+    relevant.sort(function(a, b) { return a[posKey] - b[posKey]; });
+
+    var first = relevant[0];
+    var last = relevant[relevant.length - 1];
+    var span = (last[posKey] + last[sizeKey]) - first[posKey];
+    var totalSize = 0;
+    for (var j = 0; j < relevant.length; j++) totalSize += relevant[j][sizeKey];
+    var gap = (span - totalSize) / (relevant.length - 1);
+
+    var changed = false;
+    var cursor = first[posKey];
+    for (var k = 0; k < relevant.length; k++) {
+      var card = relevant[k];
+      var newPos = (k === 0) ? card[posKey] : cursor;
+      if (newPos !== card[posKey]) {
+        card[posKey] = newPos;
+        var el = document.getElementById(card.id);
+        if (el) el.style[axis === 'h' ? 'left' : 'top'] = newPos + 'px';
+        changed = true;
+      }
+      cursor = card[posKey] + card[sizeKey] + gap;
+    }
+
+    if (changed) {
+      KanvazApp.markDirty();
+      KanvazHistory.push();
+    }
+  }
+
   /* ── Send to back ── */
 
   function sendToBack(id) {
@@ -5471,6 +5517,7 @@ var KanvazCards = (function() {
     resetSize:         resetSize,
     setTransform:      setTransform,
     alignCards:        alignCards,
+    distributeCards:   distributeCards,
     showOpacityPicker: showOpacityPicker,
     toggleObjectFit:   toggleObjectFit,
     showSpeedPicker:   showSpeedPicker,

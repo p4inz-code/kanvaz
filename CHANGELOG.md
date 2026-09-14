@@ -2,6 +2,27 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [7.14.0] — Distribute evenly, Shift+F zoom to selection
+
+### Added
+- **Distribute evenly**, in the Properties panel's Align section (shown
+  once 3+ cards are selected — with only 2 there's a single gap, nothing
+  to make even). Keeps the two outermost cards fixed as anchors and
+  spaces every card between them so the *gaps* are equal (Figma's
+  "Distribute spacing", not "Distribute centers" — the right choice on a
+  reference board where cards are usually different sizes). Verified
+  live: three unevenly-spaced cards ended with identical gaps on both
+  sides of the middle one.
+- **Shift+F — Zoom to Selection**, a real keybinding for a command that
+  has existed since v4.9.0 (`KanvazCanvas.zoomToSelection`, reachable
+  only via the Command Palette until now) but had no dedicated key,
+  unlike everything else in the app. Map View already had this exact
+  Shift+F binding for its own separate viewport; Board view's
+  `shortcuts.js` just never got the equivalent. Falls back to fitting
+  everything when nothing is selected. Verified live: dispatching `F`
+  and `Shift+F` routes to `zoomFit` and `zoomToSelection` respectively,
+  with no cross-firing.
+
 ## [7.13.0] — Group drag, template export/import, confirm-dialog stacking fix
 
 ### Added

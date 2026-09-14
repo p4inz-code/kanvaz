@@ -226,7 +226,15 @@ var KanvazShortcuts = (function() {
     if (e.key === '0') { e.preventDefault(); KanvazCanvas.zoomReset(); return; }
     if (e.key === '=' || e.key === '+') { e.preventDefault(); KanvazCanvas.zoomIn(); return; }
     if (e.key === '-' || e.key === '_') { e.preventDefault(); KanvazCanvas.zoomOut(); return; }
-    if (e.key === 'f' || e.key === 'F') { e.preventDefault(); KanvazCanvas.zoomFit(); return; }
+    if (!shift && (e.key === 'f' || e.key === 'F')) { e.preventDefault(); KanvazCanvas.zoomFit(); return; }
+    /* Shift+F — Zoom to Selection. The command (core.zoomToSelection,
+       KanvazCanvas.zoomToSelection) has existed since 4.9.0 and was
+       reachable via the Command Palette, but never had a dedicated key
+       — a real gap, not a stylistic one, on an app that otherwise binds
+       every common view action. zoomToSelection() already falls back to
+       fitting everything when nothing is selected, so this is safe with
+       no selection too. */
+    if (shift && (e.key === 'f' || e.key === 'F')) { e.preventDefault(); KanvazCanvas.zoomToSelection(); return; }
 
     /* Escape — deselect, close panels */
     if (e.key === 'Escape') {
