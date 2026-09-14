@@ -208,3 +208,52 @@ The website update has been explicitly held off multiple times — release/CHANG
 Full per-plugin process isolation remains explicitly declined (multi-week rearchitect, not worth it against the current plugin ecosystem size) — logged as deliberate future work in `SECURITY.md`, not a gap anyone missed. With development closed out, this stays declined; it isn't something a GitHub issue against this repo should expect to reopen.
 
 ~~Free template gallery — raised mid-session, not yet scoped.~~ **Done, shipped in v5.1.0.** Scoped as an in-app "Start from Template" button (not a website/landing-page play) with 3 bundled starter boards — see `CHANGELOG.md`'s v5.1.0 entry.
+
+---
+
+## Settings — "extreme personalization and usability" pass (planned, not started)
+
+Direct ask, after shipping the 3 grid styles: "even more settings which will
+be there for extreme personalization and usability cases... plan it." This
+is that plan — proposed additions to Settings, roughly in priority order.
+Each one is scoped to build on something that already shipped, not a fresh
+subsystem, so none of these should be a large lift individually.
+
+1. **Custom accent color** — a color swatch in Settings → Appearance, using
+   `colorpicker.js` (shipped this pass) to let the user pick their own
+   accent instead of the fixed default. Every place that already reads
+   `--color-accent` (grid tint, selection rings, buttons) picks it up for
+   free; no per-feature work needed beyond writing the one CSS variable.
+2. **Grid cell size** — a numeric field (or a slider, 8–64px) instead of
+   only the 3 fixed style presets. Reference/Game Dev styles both already
+   compute from a single `baseSpacing` constant — this just makes that
+   constant user-settable per style, with 24px/32px kept as each style's
+   default.
+3. **Toolbar auto-hide sensitivity** — the reveal-zone height (currently a
+   hardcoded 4px trigger band, see `app.js`'s `chromeEdgeMouseMove`) and
+   the reveal/hide transition speeds (currently fixed at 0.12s/0.55s in
+   `main.css`) as adjustable values, for anyone who found the current
+   defaults too twitchy or too slow after this session's fixes.
+4. **Default annotation color/width** — the annotation toolbar already
+   remembers "last used" for a session (`activeColor`/`activeWidth` in
+   `annotate.js`); persisting that as a real setting (survives a restart)
+   rather than resetting to pen/red every launch is a small, real win for
+   anyone with a consistent annotation style.
+5. **Card corner radius** — `--radius-card` is currently one fixed value
+   app-wide; exposing it as a slider (sharp/default/very rounded) is a
+   pure CSS-variable change, same shape as the accent-color idea above.
+6. **Reduced-motion / high-contrast toggles** — `animationsOn` already
+   exists for the first; a high-contrast mode (boosted border/text
+   contrast ratios) would be a genuinely new small CSS variant, useful
+   for accessibility and for very bright work environments.
+7. **Snap-to-grid strictness** — `gridSnapEnabled`/`gridSnapIncrement`
+   already exist; adding a numeric "snap radius" (how close counts as
+   "close enough to snap") gives finer control than the current binary
+   on/off.
+
+Deliberately NOT on this list: full keyboard-shortcut remapping (a real,
+separate subsystem — worth its own scoping pass if the user wants it,
+not a quick settings-panel addition) and a settings-only export/import
+separate from full profile export (profile export already covers this;
+a narrower "just settings" export would need its own decision about
+whether that's actually a distinct enough use case to justify).
