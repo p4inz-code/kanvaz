@@ -4,6 +4,17 @@ All notable changes to Kanvaz are documented here.
 
 ## [Unreleased]
 
+### Added
+- **3D card controls mirrored into the Properties panel** — shading
+  mode, background color, and Reset Camera, driven through the same
+  live per-card registry the card's own on-canvas toolbar already
+  uses (`KanvazCards.getModel3DControls()`), not a second copy of the
+  state. Caught and fixed while building this: an always-persisting
+  background setter would have pushed a new undo-history entry on
+  every drag tick of the color picker instead of once on release —
+  split into a live-preview call and a separate commit call, same
+  pattern the on-card swatch itself already used.
+
 ### Changed
 - **The titlebar's "Save As" button used a share-tray icon** — the
   exact glyph iOS uses for its own Share action, right next to the

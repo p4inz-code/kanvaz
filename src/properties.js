@@ -181,6 +181,7 @@ var KanvazProperties = (function() {
     renderTransformSection(body, card, activeId);
     renderLayerSection(body, card, activeId);
     renderMediaSection(body, card, activeId);
+    renderModel3DSection(body, card, activeId);
     renderPlaybackSection(body, card, activeId);
     renderUrlSection(body, card, activeId);
     renderFileSection(body, card, activeId);
@@ -408,6 +409,66 @@ var KanvazProperties = (function() {
       infoRow.appendChild(fmt);
     }
     if (infoRow.childNodes.length) body.appendChild(infoRow);
+  }
+
+  /* ── 3D model — mirrors the card's own on-canvas toolbar (shading
+     mode, background, reset view) via KanvazCards.getModel3DControls(),
+     the same live render-mode/background state the toolbar itself
+     drives, not a second copy of it. Only shows once the model has
+     actually finished loading (getModel3DControls returns null before
+     then) — the section just doesn't render meanwhile rather than
+     showing controls that would silently no-op. */
+  function renderModel3DSection(body, card, cardId) {
+    if (card.type !== 'model3d') return;
+    var controls = (typeof KanvazCards !== 'undefined') ? KanvazCards.getModel3DControls(cardId) : null;
+    if (!controls) return;
+
+    var title = document.createElement('div');
+    title.style.cssText = SECTION_TITLE_CSS;
+    title.textContent = '3D View';
+    body.appendChild(title);
+
+    var modeRow = document.createElement('div');
+    modeRow.style.cssText = 'display:flex;gap:6px;margin-bottom:10px;';
+    var modes = [['normal', 'Normal'], ['wireframe', 'Wireframe'], ['matcap', 'Matcap']];
+    for (var i = 0; i < modes.length; i++) {
+      (function(modeKey, modeLabel) {
+        var isOn = (card.renderMode || 'normal') === modeKey;
+        var btn = document.createElement('button');
+        btn.textContent = modeLabel;
+        btn.style.cssText = 'flex:1;padding:5px 4px;background:' + (isOn ? 'var(--color-accent-bg)' : 'var(--color-surface-2)') + ';border:1px solid ' + (isOn ? 'var(--color-accent)' : 'var(--color-border-2)') + ';border-radius:5px;color:' + (isOn ? 'var(--color-accent)' : 'var(--color-text-2)') + ';font-family:var(--font-ui);font-size:11px;cursor:pointer;';
+        btn.onclick = function() {
+          controls.setRenderMode(modeKey);
+          if (panelEl) renderInto(panelEl);
+        };
+        modeRow.appendChild(btn);
+      })(modes[i][0], modes[i][1]);
+    }
+    body.appendChild(modeRow);
+
+    var bgRow = document.createElement('div');
+    bgRow.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:10px;';
+    var bgLabel = document.createElement('div');
+    bgLabel.style.cssText = LABEL_CSS;
+    bgLabel.textContent = 'Background';
+    var bgSwatchEl = document.createElement('button');
+    bgSwatchEl.style.cssText = 'width:20px;height:20px;border-radius:5px;border:1px solid var(--color-border-2);background:' + (card.bgColor || '#1c1c22') + ';cursor:pointer;padding:0;';
+    bgSwatchEl.onclick = function() {
+      var rect = bgSwatchEl.getBoundingClientRect();
+      KanvazColorPicker.open(rect.right + 8, rect.top, card.bgColor || '#1c1c22', {
+        onChange: function(hex) { controls.previewBgColor(hex); bgSwatchEl.style.background = hex; },
+        onCommit: function(hex) { controls.setBgColor(hex); if (panelEl) renderInto(panelEl); }
+      });
+    };
+    bgRow.appendChild(bgLabel);
+    bgRow.appendChild(bgSwatchEl);
+    body.appendChild(bgRow);
+
+    var resetBtn = document.createElement('button');
+    resetBtn.textContent = 'Reset Camera';
+    resetBtn.style.cssText = 'width:100%;padding:6px;background:none;border:1px solid var(--color-border-2);border-radius:5px;color:var(--color-text-2);font-family:var(--font-ui);font-size:12px;cursor:pointer;margin-bottom:16px;';
+    resetBtn.onclick = function() { controls.resetCamera(); };
+    body.appendChild(resetBtn);
   }
 
   /* ── Playback (video/audio) — volume, speed, loop surfaced here too,

@@ -2805,6 +2805,17 @@ var KanvazCards = (function() {
     try { inst.dispose(); } catch (e) { console.warn('[Kanvaz] 3D viewer dispose failed:', e); }
   }
 
+  /* setRenderMode/setBgColor/resetCamera only exist once Three.js and
+     the model have actually finished loading (loadThreeJs().then(...)
+     in buildModel3DCard) — null while a card is still mid-load, which
+     callers (Properties panel) need to handle same as any other
+     "card exists but its live element/state isn't ready yet" case. */
+  function getModel3DControls(id) {
+    var inst = model3dInstances[id];
+    if (!inst || !inst.setRenderMode) return null;
+    return inst;
+  }
+
   /* Electron 22's bundled Chromium is old enough that dynamic import()
      of these ES module files still works fine (unlike pdf.js, Three.js
      0.186 doesn't reach for anything newer than this runtime supports),
@@ -3230,6 +3241,18 @@ var KanvazCards = (function() {
          Kanvaz's own color picker (colorpicker.js) instead of a native
          <input type="color"> — same reasoning as the color-card swatch
          and the annotation toolbar's custom-color button. */
+      function setBgColor(hex, persist) {
+        scene.background = new THREE.Color(hex);
+        bgSwatch.style.background = hex;
+        renderFrame();
+        if (persist) {
+          card.bgColor = hex;
+          KanvazApp.markDirty();
+          KanvazHistory.push();
+          emitCardEvent('cardUpdate', card);
+        }
+      }
+
       var bgSwatch = document.createElement('button');
       bgSwatch.className = 'model3d-bg-swatch';
       bgSwatch.title = 'Background color';
@@ -3238,22 +3261,32 @@ var KanvazCards = (function() {
         e.stopPropagation();
         var rect = bgSwatch.getBoundingClientRect();
         KanvazColorPicker.open(rect.left, rect.bottom + 6, card.bgColor || '#1c1c22', {
-          onChange: function(hex) {
-            scene.background = new THREE.Color(hex);
-            bgSwatch.style.background = hex;
-            renderFrame();
-          },
-          onCommit: function(hex) {
-            card.bgColor = hex;
-            bgSwatch.style.background = hex;
-            KanvazApp.markDirty();
-            KanvazHistory.push();
-            emitCardEvent('cardUpdate', card);
-          }
+          onChange: function(hex) { setBgColor(hex, false); },
+          onCommit: function(hex) { setBgColor(hex, true); }
         });
       });
       bgSwatch.addEventListener('mousedown', function(e) { e.stopPropagation(); });
       toolbar.appendChild(bgSwatch);
+
+      function resetCamera() {
+        if (root) frameModel3DCamera(THREE, root, camera, controls);
+        renderFrame();
+      }
+
+      /* Exposed on the same per-card registry dispose() already lives
+         on, so the Properties panel can drive this exact card's own
+         toolbar controls (getModel3DControls() below) instead of a
+         second, separate notion of "what mode/background is this
+         card" that could drift from what's actually rendering. */
+      model3dInstances[card.id].setRenderMode  = function(mode) { setRenderMode(mode, true); };
+      /* Split the same way the on-card swatch's own input/change split
+         already is: previewBgColor for live drag feedback (no history
+         entry per tick), setBgColor for the final committed value. A
+         single always-persisting setter here would push a new undo
+         entry on every drag tick while dragging the picker. */
+      model3dInstances[card.id].previewBgColor = function(hex) { setBgColor(hex, false); };
+      model3dInstances[card.id].setBgColor     = function(hex) { setBgColor(hex, true); };
+      model3dInstances[card.id].resetCamera    = resetCamera;
 
       var resetBtn = document.createElement('button');
       resetBtn.className = 'model3d-reset-btn';
@@ -3261,8 +3294,7 @@ var KanvazCards = (function() {
       resetBtn.textContent = '⟲';
       resetBtn.addEventListener('click', function(e) {
         e.stopPropagation();
-        if (root) frameModel3DCamera(THREE, root, camera, controls);
-        renderFrame();
+        resetCamera();
       });
       resetBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
       toolbar.appendChild(resetBtn);
@@ -5281,7 +5313,8 @@ var KanvazCards = (function() {
     resetSessionState: resetSessionState,
     getAll:            getAll,
     getSelected:       function() { return selectedId; },
-    getSelectedIds:    getSelectedIds
+    getSelectedIds:    getSelectedIds,
+    getModel3DControls: getModel3DControls
   };
 
 })();
