@@ -586,7 +586,12 @@ html, body {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
-  border-radius: 4px;
+  /* Direct feedback: "logo... lok liek block in icon where ever
+     possible make it circle" — the source PNG is a circular badge
+     design on a square canvas; a small 4px corner-round left the
+     canvas's own square edges visible around it instead of cropping
+     to the actual circle the artwork already is. */
+  border-radius: 50%;
   object-fit: contain;
 }
 
@@ -2869,7 +2874,7 @@ html, body {
 }
 
 .about-logo { margin-bottom: 14px; }
-.about-logo img { border-radius: 9px; display: block; margin: 0 auto; }
+.about-logo img { border-radius: 50%; display: block; margin: 0 auto; }
 
 .about-title {
   font-size: 23px;

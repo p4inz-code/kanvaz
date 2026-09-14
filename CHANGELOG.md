@@ -76,6 +76,15 @@ All notable changes to Kanvaz are documented here.
   smart folder but i cnat see it anywhere." Click one to reopen the
   search bar with that query applied; delete from the same list.
 
+### Fixed
+- **The Kanvaz logo showed square corners around its own circular
+  badge artwork** — direct feedback: "logo... lok liek block... make
+  it circle." The source icon is a genuine circular badge on a square
+  canvas; both places it renders in the UI (titlebar, About screen)
+  only applied a small corner-round (4px/9px) instead of a true circle
+  mask, leaving the icon's own square canvas edges visible around it.
+  Both now use `border-radius: 50%`.
+
 ### Changed
 - **Branding updated app-wide**: P4inz Studios is now the primary
   credit, with Atharva Patil named secondarily — the About screen,
