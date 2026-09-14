@@ -1379,21 +1379,28 @@ var KanvazUI_Extended = (function() {
        installed. Reads the single source of truth instead. */
     var appVersion = (typeof KanvazBoards !== 'undefined' && KanvazBoards.getVersion) ? KanvazBoards.getVersion() : '';
 
+    /* Redesign: "redesign the kanvaz about and rewrite info on it" —
+       the old version had the version number twice (once plain, once
+       repeated inside a "Reference Operating System" marketing
+       tagline that said nothing concrete), and split one real idea
+       ("free, open source, offline, private") across two separate
+       blocks with a divider between them for no reason. One pass:
+       every fact appears exactly once, grouped by what it's actually
+       about — what this is, what it costs you (nothing, in every
+       sense), who made it. */
     box.innerHTML = [
       '<div class="about-logo">',
         '<img src="../assets/icons/icon-128.png" alt="" width="44" height="44">',
       '</div>',
       '<div class="about-title">Kanvaz</div>',
-      '<div class="about-subtitle">A visual reference workspace for creative professionals.</div>',
-      '<div class="about-version">Version ' + appVersion + '</div>',
+      '<div class="about-subtitle">A visual reference board for VFX, 3D, and game art.</div>',
+      '<div class="about-version">v' + appVersion + '</div>',
       '<div id="about-update-status" class="about-update-status"></div>',
       '<div class="about-divider"></div>',
-      '<div class="about-author"><strong>P4inz</strong> | Atharva Patil</div>',
-      '<div class="about-studio">Navi Mumbai, India</div>',
-      '<div class="about-desc">Built for VFX and 3D artists,<br>and the studios and educators who rely on them.</div>',
+      '<div class="about-desc">Free and open source, MIT licensed. Fully offline: no login, no telemetry, no background network activity. Your boards never leave this machine.</div>',
       '<div class="about-divider"></div>',
-      '<div class="about-privacy">Free and open source. MIT License.<br>No telemetry, no background network activity.<br>Your data stays on your machine.</div>',
-      '<div class="about-tagline">Reference Operating System<br>Actively maintained — v' + appVersion + '</div>'
+      '<div class="about-author">Atharva Patil | <strong>P4inz</strong> | Studios</div>',
+      '<div class="about-studio">Navi Mumbai, India</div>'
     ].join('');
 
     var updateBtn = document.createElement('button');
@@ -1494,6 +1501,7 @@ var KanvazUI_Extended = (function() {
           ['Ctrl + Scroll',    'Fine zoom'],
           ['Middle mouse',     'Pan'],
           ['Space + drag',     'Pan'],
+          ['Alt + drag',       'Pan (works over cards too, Maya-style)'],
           ['0',                'Reset zoom'],
           ['+ / -',            'Zoom step'],
           ['F',                'Fit all cards'],

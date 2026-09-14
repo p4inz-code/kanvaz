@@ -740,6 +740,34 @@ function registerIPC() {
     return result ? result[0] : null;
   });
 
+  /* Bug fix: the toolbar's "Import" button (next to New/Open/Save) was
+     wired to the PureRef-only .pur importer — a real, named feature
+     that deserves its own toolbar button per the comment on the
+     'dialog-open-pur' handler below, but not what "Import" reads as to
+     someone who hasn't discovered that specific tooltip yet, and not
+     what the button icon (a generic tray-and-arrow) suggests. Direct
+     feedback: "the import button is made for all kinds of import
+     regardless of format... via import button everything which is
+     supported in kanvaz will be imported." Same filter set as Relink
+     Media above, just multi-select and a different dialog title —
+     .pur import keeps its own dedicated entry point (this toolbar
+     button no longer touches it; the canvas right-click menu's
+     "Import .pur file" item is unaffected). */
+  ipcMain.handle('dialog-import-media', function() {
+    var result = dialog.showOpenDialogSync(mainWindow, {
+      title: 'Import Files',
+      filters: [
+        { name: 'All Supported Media', extensions: ['jpg','jpeg','png','gif','bmp','webp','mp4','webm','mov','mkv','avi','mp3','wav','ogg','m4a','glb','gltf','obj','fbx'] },
+        { name: 'Images', extensions: ['jpg','jpeg','png','gif','bmp','webp'] },
+        { name: 'Video', extensions: ['mp4','webm','mov','mkv','avi'] },
+        { name: 'Audio', extensions: ['mp3','wav','ogg','m4a'] },
+        { name: '3D Models', extensions: ['glb','gltf','obj','fbx'] }
+      ],
+      properties: ['openFile', 'multiSelections']
+    });
+    return result || [];
+  });
+
   /* File Reference card — picks any file on disk to link to (not
      embedded, unlike media cards). PDF reference cards reuse the same
      dialog with a .pdf filter. */
@@ -1700,6 +1728,92 @@ function registerIPC() {
       return writeUserTemplateManifest(list).then(function() {
         return fs.promises.unlink(path.join(USER_TEMPLATES_DIR, entry.file)).catch(function() {});
       }).then(function() { return { ok: true }; });
+    }).catch(function(e) {
+      return { ok: false, error: e.message };
+    });
+  });
+
+  /* ── Template export/import (Template Maker & Manager plugin) ──
+     Templates are plain JSON (see the plugin's own header comment), so
+     the exported file is plain JSON too — no zip, unlike the profile
+     export above, since a template never carries a folder of loose
+     support files. TEMPLATE_FORMAT_VERSION guards the file's own shape:
+     bump it only when a future change would make an older Kanvaz
+     misread the fields below, and refuse to import anything higher than
+     what this build understands instead of silently misinterpreting it. */
+  var TEMPLATE_FORMAT_VERSION = 1;
+
+  ipcMain.handle('templates-export-file', function(event, payload) {
+    if (!payload || typeof payload.name !== 'string' || !Array.isArray(payload.cards)) {
+      return Promise.resolve({ ok: false, error: 'nothing to export' });
+    }
+    var savePath = dialog.showSaveDialogSync(mainWindow, {
+      title: 'Export Template',
+      defaultPath: (payload.name || 'template').replace(/[\\/:*?"<>|]/g, '_') + '.kanvaztemplate',
+      filters: [{ name: 'Kanvaz Template', extensions: ['kanvaztemplate'] }]
+    });
+    if (!savePath) return Promise.resolve({ ok: false, error: null, cancelled: true });
+
+    var fileContents = {
+      kanvazTemplateFormatVersion: TEMPLATE_FORMAT_VERSION,
+      appVersion: app.getVersion(),
+      name: payload.name,
+      description: payload.description || '',
+      createdAt: payload.createdAt || new Date().toISOString(),
+      exportedAt: new Date().toISOString(),
+      cards: payload.cards
+    };
+    return fs.promises.writeFile(savePath, JSON.stringify(fileContents, null, 2), 'utf8').then(function() {
+      return { ok: true, path: savePath };
+    }).catch(function(e) {
+      return { ok: false, error: e.message };
+    });
+  });
+
+  ipcMain.handle('templates-import-file', function() {
+    var openPath = dialog.showOpenDialogSync(mainWindow, {
+      title: 'Import Template',
+      filters: [{ name: 'Kanvaz Template', extensions: ['kanvaztemplate', 'json'] }],
+      properties: ['openFile']
+    });
+    if (!openPath || !openPath[0]) return Promise.resolve({ ok: false, error: null, cancelled: true });
+
+    /* Same size backstop as profiles-import above: check the file's real
+       size before reading it fully into memory, rather than trusting
+       that "it's just JSON" caps it naturally — a template's cards can
+       carry embedded image/video dataUrls same as a board file can, so
+       nothing stops a corrupt or hostile file from being enormous. */
+    return fs.promises.stat(openPath[0]).then(function(stat) {
+      if (stat.size > MAX_PLUGIN_EXTRACTED_BYTES) {
+        throw new Error('file is ' + Math.round(stat.size / (1024 * 1024)) + 'MB — too large to be a real template export');
+      }
+      return fs.promises.readFile(openPath[0], 'utf8');
+    }).then(function(raw) {
+      var data;
+      try {
+        data = JSON.parse(raw);
+      } catch (e) {
+        throw new Error('not a valid Kanvaz template file (bad JSON)');
+      }
+      if (!data || !Array.isArray(data.cards)) {
+        throw new Error('not a valid Kanvaz template file (missing cards)');
+      }
+      /* Support-version gate: a template exported by a future Kanvaz with
+         a higher format version may use fields this build doesn't know
+         how to read. Refuse clearly rather than inserting a partially-
+         understood card array — the same "tell the user, don't guess"
+         rule main.js's plugin-loader.js applies to kanvazApiVersion. */
+      var fileVersion = typeof data.kanvazTemplateFormatVersion === 'number' ? data.kanvazTemplateFormatVersion : 1;
+      if (fileVersion > TEMPLATE_FORMAT_VERSION) {
+        throw new Error('this template was made with a newer version of Kanvaz (format v' + fileVersion + ', this build supports up to v' + TEMPLATE_FORMAT_VERSION + ') — update Kanvaz to open it');
+      }
+      return {
+        ok: true,
+        name: data.name || path.basename(openPath[0], path.extname(openPath[0])),
+        description: data.description || '',
+        cards: data.cards,
+        sourceAppVersion: data.appVersion || null
+      };
     }).catch(function(e) {
       return { ok: false, error: e.message };
     });

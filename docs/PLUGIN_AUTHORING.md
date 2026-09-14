@@ -181,7 +181,7 @@ implemented). Practically: build a paid plugin as a one-time purchase with
 no phone-home license check, the same trust model as buying a zip off
 itch.io for any other desktop tool. Nothing about being an "official" vs.
 "third-party" plugin changes any of this — `official-plugins/*` in this repo
-just means Northbyte Studios wrote and maintains it, not that third-party
+just means P4inz Studios wrote and maintains it, not that third-party
 plugins are second-class.
 
 If you build something good enough that you'd like it considered for

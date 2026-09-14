@@ -440,6 +440,27 @@ var KanvazPluginAPI = (function() {
     return KanvazBridge.fetchTemplateContent(contentUrl);
   }
 
+  /* Export/import a single template as a portable .kanvaztemplate file —
+     a fixed native save/open dialog, same disclosed-narrow-capability
+     model as the community catalog fetchers above, not generic file
+     system access. Lets a template made in Template Maker be handed to
+     anyone else running a compatible Kanvaz, with a support-version
+     check on import so a template from a newer file format fails with a
+     clear message instead of loading corrupted. */
+  function exportTemplateToFile(template) {
+    if (typeof KanvazBridge === 'undefined' || !KanvazBridge.exportTemplateFile) {
+      return Promise.resolve({ ok: false, error: 'unavailable in this build' });
+    }
+    return KanvazBridge.exportTemplateFile(template);
+  }
+
+  function importTemplateFromFile() {
+    if (typeof KanvazBridge === 'undefined' || !KanvazBridge.importTemplateFile) {
+      return Promise.resolve({ ok: false, error: 'unavailable in this build' });
+    }
+    return KanvazBridge.importTemplateFile();
+  }
+
   function bringCardToFront(id) {
     if (typeof KanvazCards === 'undefined') return;
     KanvazCards.bringToFront(id);
@@ -711,6 +732,8 @@ var KanvazPluginAPI = (function() {
     showConfirmDialog: showConfirmDialog,
     fetchCommunityTemplates: fetchCommunityTemplates,
     fetchTemplateContent: fetchTemplateContent,
+    exportTemplateToFile: exportTemplateToFile,
+    importTemplateFromFile: importTemplateFromFile,
     /* Public — a plugin (e.g. a theme creator/editor) can call this
        directly to preview or switch to any registered theme, including
        a throwaway id it registered itself purely for a live-preview

@@ -137,6 +137,38 @@
     var myList = document.createElement('div');
     wrap.appendChild(myList);
 
+    var importRow = row(wrap);
+    var importHint = document.createElement('span');
+    importHint.style.cssText = 'flex:1;color:var(--color-text-3);font-size:11px;';
+    importHint.textContent = 'Have a .kanvaztemplate file someone sent you?';
+    importRow.appendChild(importHint);
+    importRow.appendChild(smallBtn('Import Template…', function() {
+      KanvazPluginAPI.importTemplateFromFile().then(function(res) {
+        if (!res || res.cancelled) return;
+        if (!res.ok) {
+          KanvazPluginAPI.showToast('Could not import — ' + (res.error || 'unknown error'), 'error');
+          return;
+        }
+        loadData().then(function(data) {
+          data.templates.push({
+            id: 'tpl-' + Date.now(),
+            name: res.name,
+            description: res.description || '',
+            createdAt: new Date().toISOString(),
+            cards: res.cards
+          });
+          return saveData(data);
+        }).then(function(result) {
+          if (!result || !result.ok) {
+            KanvazPluginAPI.showToast('Imported, but could not save a local copy (' + (result && result.error ? result.error : 'too large') + ')', 'error');
+            return;
+          }
+          KanvazPluginAPI.showToast('Imported "' + res.name + '" (' + res.cards.length + ' cards)', 'success');
+          renderMyTemplates();
+        });
+      });
+    }));
+
     function renderMyTemplates() {
       myList.innerHTML = '';
       loadData().then(function(data) {
@@ -154,6 +186,21 @@
           label.textContent = tpl.name + ' (' + tpl.cards.length + ')';
           r.appendChild(label);
           r.appendChild(smallBtn('Insert', function() { insertTemplateCards(tpl.cards); }));
+          r.appendChild(smallBtn('Export…', function() {
+            KanvazPluginAPI.exportTemplateToFile({
+              name: tpl.name,
+              description: tpl.description || '',
+              createdAt: tpl.createdAt,
+              cards: tpl.cards
+            }).then(function(res) {
+              if (!res || res.cancelled) return;
+              if (!res.ok) {
+                KanvazPluginAPI.showToast('Could not export — ' + (res.error || 'unknown error'), 'error');
+                return;
+              }
+              KanvazPluginAPI.showToast('Exported "' + tpl.name + '"', 'success');
+            });
+          }));
           r.appendChild(smallBtn('Rename', function() {
             var next = window.prompt('Rename template:', tpl.name);
             if (!next || !next.trim() || next.trim() === tpl.name) return;

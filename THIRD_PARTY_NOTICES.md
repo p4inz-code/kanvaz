@@ -26,7 +26,7 @@ And the following, under its own license:
 - [Feather Icons](https://feathericons.com/) — MIT License, © Cole Bemis. The icon set used across the titlebar, toolbar, media controls, and annotation tools (since 7.7.0) — individual icon paths copied directly into the relevant `.js`/`.html` files rather than vendored as a library, since only a small, fixed subset of the full icon set is used.
 
 Kanvaz's own source code (everything in `src/`, `docs/`, and this
-repository) is © Atharva Patil / Northbyte Studios, licensed under the
+repository) is © P4inz Studios (Atharva Patil), licensed under the
 MIT License — see [LICENSE](LICENSE).
 
 Build tooling (`electron-builder` and its dependencies) is used only to

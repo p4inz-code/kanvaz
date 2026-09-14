@@ -1251,6 +1251,19 @@ html, body {
   pointer-events: auto;
 }
 
+/* Bug fix: video/audio cards have a scrub-controls row sitting between
+   the tag bar and the card-bar — a fixed bottom:52px (right for every
+   other card type, which only has the plain card-bar under the tag
+   bar) put the tag bar's tags directly on top of the scrub bar's play/
+   volume/loop controls once the scrub row's own responsive height grew
+   past a few px, as confirmed live (tags rendering across the scrub
+   line). Stack it above the scrub row's own space instead for these
+   two types specifically. */
+.card:has(.video-scrub) .tag-bar,
+.card:has(.audio-scrub) .tag-bar {
+  bottom: calc(52px + clamp(28px, 11cqw, 50px));
+}
+
 .tag-chip {
   display: inline-flex;
   align-items: center;
@@ -1552,11 +1565,17 @@ html, body {
    cards.js) so this is purely bigger/easier to hit, not repositioned. */
 .resize-handle {
   position: absolute;
-  width: 12px;
-  height: 12px;
+  /* Bug bounty fix: "make unique and better and bigger handles for
+     resize and make em like they will get big or small when card
+     itself gets resized accordingly" — was a flat 12px regardless of
+     card size (tiny, easy-to-miss target on a large card). Same
+     clamp()-driven container-query scaling already used for every
+     other size-sensitive element on a card (tag chips, scrub bar, …). */
+  width: clamp(10px, 3.2cqw, 20px);
+  height: clamp(10px, 3.2cqw, 20px);
   background: var(--color-accent);
   border-radius: 50%;
-  border: 1.5px solid var(--color-bg);
+  border: clamp(1.5px, 0.4cqw, 2.5px) solid var(--color-bg);
   box-shadow: 0 0 0 1px rgba(var(--color-accent-rgb), 0.4);
   opacity: 0;
   z-index: 10;
@@ -2162,13 +2181,13 @@ html, body {
 .card-video > video {
   display: block;
   width: 100%;
-  height: calc(100% - 24px - clamp(28px, 10cqw, 48px));
+  height: calc(100% - 52px - clamp(28px, 10cqw, 48px));
   object-fit: cover;
 }
 
 .video-scrub {
   position: absolute;
-  bottom: 24px;
+  bottom: 52px;
   left: 0;
   right: 0;
   height: clamp(28px, 10cqw, 48px);
@@ -2206,8 +2225,12 @@ html, body {
 }
 
 .audio-scrub .media-loop-btn svg {
-  width: clamp(13px, 4.5cqw, 20px);
-  height: clamp(13px, 4.5cqw, 20px);
+  /* Bug bounty fix: "the refresh button... [is] so small" — the loop
+     icon was noticeably smaller than the play/mute icons right next to
+     it in the same row, not a deliberate hierarchy, just an oversight.
+     Matches the mute icon's own scale now. */
+  width: clamp(15px, 5.5cqw, 24px);
+  height: clamp(15px, 5.5cqw, 24px);
 }
 
 .audio-scrub .media-loop-btn.active {
@@ -2364,7 +2387,7 @@ html, body {
    video content, right above the card bar, regardless of hover. */
 .video-progress-line {
   position: absolute;
-  bottom: 24px;
+  bottom: 52px;
   left: 0;
   right: 0;
   height: 2px;
@@ -2473,7 +2496,7 @@ html, body {
 
 .audio-scrub {
   position: absolute;
-  bottom: 24px;
+  bottom: 52px;
   left: 0;
   right: 0;
   height: clamp(30px, 11cqw, 50px);
@@ -2482,9 +2505,23 @@ html, body {
   padding: 0 clamp(6px, 2.5cqw, 14px);
   gap: clamp(4px, 2cqw, 10px);
   background: var(--color-chrome);
-  /* Always visible — there's no preview frame to reveal it on hover */
-  opacity: 1;
+  /* Bug bounty fix: "make this minimal like text or normal img cards" —
+     used to be permanently opacity:1 (reasoned, at the time, that audio
+     has no preview frame to reveal it on hover the way video does) —
+     but that's exactly what made an audio card busier by default than
+     every other type: full play/volume/loop/time controls always on
+     screen even at rest, next to a plain waveform icon that alone
+     already reads as "this is audio." Hover/selected-only now, the
+     same reveal video-scrub already uses just below — the controls are
+     still one hover away, not gone. */
+  opacity: 0;
+  transition: opacity 0.15s;
   z-index: 3;
+}
+
+.card:hover .audio-scrub,
+.card.selected .audio-scrub {
+  opacity: 1;
 }
 
 .video-scrub .scrub-bar,
@@ -2709,10 +2746,16 @@ html, body {
 
 /* ── Dialogs ── */
 #dialog-overlay {
+  /* This single overlay handles every confirm/prompt in the app (delete
+     profile, discard changes, reset settings, etc.), including ones
+     triggered from inside another overlay — About (60000), the Manage
+     Profiles dialog (99997), the Home Screen (99998). It must always
+     render on top of whatever opened it, so its z-index has to beat
+     every other modal overlay in the app, not just the canvas UI. */
   position: fixed;
   inset: 0;
   background: var(--color-overlay);
-  z-index: 50000;
+  z-index: 999999;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2941,20 +2984,6 @@ html, body {
   font-size: 12px;
   color: var(--color-text-3);
   line-height: 1.7;
-}
-
-.about-privacy {
-  font-size: 10.5px;
-  color: var(--color-text-3);
-  line-height: 1.7;
-}
-
-.about-tagline {
-  font-size: 11px;
-  color: var(--color-accent);
-  line-height: 1.6;
-  margin-top: 16px;
-  margin-bottom: 20px;
 }
 
 .about-btn {

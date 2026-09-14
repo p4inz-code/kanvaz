@@ -59,10 +59,30 @@ var KanvazCanvas = (function() {
     drawGrid();
     applyTransform();
 
-    window.addEventListener('resize', function() {
-      resizeGrid();
-      drawGrid();
-    });
+    /* Bug fix: "the grid is not at all squares it look rectangle... when
+       side panel opens" — a plain window 'resize' listener only fires
+       when the OS window itself changes size. Opening/closing the side
+       panel (or Properties/Boards/Settings switching width) shrinks or
+       grows this canvas container via flexbox with the window staying
+       exactly the same size — no 'resize' event ever fires, so
+       gridCanvas.width/height (the canvas's actual pixel buffer,
+       resizeGrid()'s job) went stale while the container's CSS box kept
+       changing size out from under it. The browser then stretches the
+       old, now wrong-aspect-ratio bitmap to fill the new box — square
+       grid cells rendered as rectangles. A ResizeObserver on the
+       container itself reacts to ANY layout size change regardless of
+       cause, not just a real window resize. */
+    if (typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(function() {
+        resizeGrid();
+        drawGrid();
+      }).observe(container);
+    } else {
+      window.addEventListener('resize', function() {
+        resizeGrid();
+        drawGrid();
+      });
+    }
 
     new MutationObserver(function() {
       cachedAccentRgb = null;
@@ -577,8 +597,14 @@ var KanvazCanvas = (function() {
         leftDragEnabled = !s || s.leftDragPan !== false;
       }
 
+      /* Direct feedback: "add pan control like alt + drag left mb, take
+         reference from maya" — Alt+left-drag pans from anywhere,
+         including over a card, not just empty canvas (cards.js's own
+         mousedown handler bails out early on e.altKey specifically so
+         this reaches here instead of starting a card drag/resize). */
       var shouldPan = (e.button === 1)
         || (e.button === 0 && spaceDown)
+        || (e.button === 0 && e.altKey)
         || (e.button === 0 && isEmptyTarget && leftDragEnabled);
 
       if (shouldPan) {

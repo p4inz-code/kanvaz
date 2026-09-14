@@ -94,6 +94,21 @@ var KanvazProperties = (function() {
     return activeId !== null && typeof KanvazSidePanel !== 'undefined' && KanvazSidePanel.isSectionOpen('properties');
   }
 
+  /* Bug fix: "when i'm in properties tab and i click any card it shows
+     nothing but when i open tab again then it does" + "loop on/off is
+     not in sync with the card" — cards.js now calls this (via
+     refreshPropertiesIfOpen()) on every selection change and every
+     'cardUpdate' plugin event, so this panel never needs a manual
+     close/reopen to catch up with either a different card being
+     selected or this same card changing under an on-canvas control
+     (the loop/mute toggle icons, playback speed picker, tag removal,
+     …). renderInto() itself already re-reads the live selection every
+     time it runs — this just gives outside code a way to ask it to run
+     again. */
+  function refresh() {
+    if (panelEl && panelEl.isConnected && isOpen()) renderInto(panelEl);
+  }
+
   /* ── Render into the side panel's content pane ──
      Called by sidepanel.js whenever the Properties section becomes the
      active one — either via open(refId) above (a specific card) or by
@@ -193,6 +208,18 @@ var KanvazProperties = (function() {
     customHeading.style.cssText = SECTION_TITLE_CSS;
     customHeading.textContent = 'Custom Properties';
     body.appendChild(customHeading);
+
+    /* Bug fix: "what is this add new property [for]?" — the feature had
+       no explanation anywhere, just an empty list and a button. One
+       line, naming the actual use case (Tags already covers loose
+       labels; this is for structured key/value facts specific to this
+       card — artist, source, shot number, license, whatever the board
+       needs) so it reads as a real tool instead of an unexplained
+       key/value form. */
+    var customHint = document.createElement('div');
+    customHint.style.cssText = 'font-size:11px;color:var(--color-text-3);line-height:1.4;margin-bottom:8px;';
+    customHint.textContent = 'Your own key/value facts for this card: artist, source, shot number, license, anything the board needs.';
+    body.appendChild(customHint);
 
     /* Custom key-value properties get their OWN sub-container rather
        than rendering straight into `body` — renderProperties() below
@@ -542,7 +569,10 @@ var KanvazProperties = (function() {
     bgLabel.style.cssText = LABEL_CSS;
     bgLabel.textContent = 'Background';
     var bgSwatchEl = document.createElement('button');
-    bgSwatchEl.style.cssText = 'width:20px;height:20px;border-radius:5px;border:1px solid var(--color-border-2);background:' + (card.bgColor || '#1c1c22') + ';cursor:pointer;padding:0;';
+    /* Bug bounty fix: "the... color picker... [is] so small" — 20x20
+       was a hard target to click precisely and barely readable as a
+       color preview. */
+    bgSwatchEl.style.cssText = 'width:28px;height:28px;border-radius:6px;border:1px solid var(--color-border-2);background:' + (card.bgColor || '#1c1c22') + ';cursor:pointer;padding:0;';
     bgSwatchEl.onclick = function() {
       var rect = bgSwatchEl.getBoundingClientRect();
       KanvazColorPicker.open(rect.right + 8, rect.top, card.bgColor || '#1c1c22', {
@@ -1019,6 +1049,7 @@ var KanvazProperties = (function() {
     open:       open,
     close:      close,
     isOpen:     isOpen,
+    refresh:    refresh,
     renderInto: renderInto
   };
 

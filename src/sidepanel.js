@@ -20,6 +20,21 @@ var KanvazSidePanel = (function() {
   var contentEl  = null;
   var isOpenFlag = false;
   var currentSection = 'boards';
+  /* Bug fix: refreshPersistedState() (below) fires asynchronously once
+     settings.json's real contents finish loading over IPC — a real
+     round trip, not instant — and until this session, it unconditionally
+     overwrote isOpenFlag/currentSection with whatever was on disk from
+     the LAST session, even if the user (or code — e.g. Properties.open())
+     had already opened a DIFFERENT section in the meantime. That
+     produced a genuine double-render race: showSection('properties')
+     runs and renders once, then this async callback stomps back over
+     it, re-rendering a SECOND time from what could be stale disk state
+     — two renderInto() calls for one open() call, live-observed via
+     instrumented tracing while investigating "properties panel content
+     doesn't match what I just did." Once the user (or app code) has
+     driven the panel at all, the disk-persisted snapshot is stale by
+     definition and must never overwrite live state again. */
+  var userInteracted = false;
 
   /* ── Persistence ── (same settings.json path every other preference
      in this app uses — see ui.js's SETTINGS_DEFAULTS comment on why
@@ -44,6 +59,10 @@ var KanvazSidePanel = (function() {
      two keys except this module itself). */
   function refreshPersistedState() {
     if (!railEl || !contentEl) return; /* init() hasn't run yet */
+    /* See userInteracted's own comment above — once anything has driven
+       the panel live, applying a stale disk snapshot on top of it is
+       always wrong, never a legitimate sync. */
+    if (userInteracted) return;
     loadPersistedState();
     updateRailActiveState();
     updateContentVisibility();
@@ -99,6 +118,7 @@ var KanvazSidePanel = (function() {
 
   function showSection(name) {
     if (SECTIONS.indexOf(name) === -1) return;
+    userInteracted = true;
     var wasOpen = isOpenFlag;
     var prevSection = currentSection;
     isOpenFlag = true;
@@ -112,6 +132,7 @@ var KanvazSidePanel = (function() {
 
   function close() {
     if (!isOpenFlag) return;
+    userInteracted = true;
     teardownSection(currentSection);
     isOpenFlag = false;
     updateRailActiveState();

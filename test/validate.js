@@ -213,7 +213,7 @@ var checks = [
      literal string, so there's no "Version X.Y.Z" substring to search
      for any more. Check that the dynamic read is still wired up
      instead. */
-  ['ui.js About',       /appVersion\s*=\s*.*KanvazBoards\.getVersion/.test(ui) && ui.indexOf("Version ' + appVersion") !== -1],
+  ['ui.js About',       /appVersion\s*=\s*.*KanvazBoards\.getVersion/.test(ui) && ui.indexOf('v\' + appVersion') !== -1],
   ['README build cmd',  readme.indexOf(v) !== -1]
 ];
 checks.forEach(function(c) { c[1] ? ok(c[0] + ' = ' + v) : bad(c[0] + ' != ' + v); });

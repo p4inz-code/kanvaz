@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
   openFileDialog:  function() { return ipcRenderer.invoke('dialog-open-file'); },
   saveFileDialog:  function(name) { return ipcRenderer.invoke('dialog-save-file', name); },
   openMediaDialog: function() { return ipcRenderer.invoke('dialog-open-media'); },
+  importMediaDialog: function() { return ipcRenderer.invoke('dialog-import-media'); },
   openRefFileDialog: function(ext) { return ipcRenderer.invoke('dialog-open-ref-file', ext); },
   readPdfBytes: function(filePath) { return ipcRenderer.invoke('pdf-read-bytes', filePath); },
 
@@ -96,6 +97,8 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
   fetchOfficialCatalog: function() { return ipcRenderer.invoke('catalog-fetch'); },
   fetchTemplatesCatalog: function() { return ipcRenderer.invoke('templates-catalog-fetch'); },
   fetchTemplateContent: function(contentUrl) { return ipcRenderer.invoke('templates-catalog-fetch-item', contentUrl); },
+  exportTemplateFile:   function(payload) { return ipcRenderer.invoke('templates-export-file', payload); },
+  importTemplateFile:   function() { return ipcRenderer.invoke('templates-import-file'); },
   installFromCatalog:   function(entry) { return ipcRenderer.invoke('plugins-install-from-catalog', entry); },
 
   /* MCP Bridge (4.4.0) — startMcpBridge/stopMcpBridge re-verify main-

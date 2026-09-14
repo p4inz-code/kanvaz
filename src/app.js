@@ -168,21 +168,13 @@ var KanvazApp = (function() {
     on('titlebar-logo', function() { if (KanvazBoards.toggleHomeScreen) KanvazBoards.toggleHomeScreen(); });
     on('btn-new',       function() { KanvazBoards.newBoard(); });
     on('btn-open',      function() { KanvazBoards.openBoard(); });
-    /* Audit fix: "Import .pur file" existed only buried in the empty-
-       canvas right-click context menu — the single least discoverable
-       place in the whole app for a real, named feature (PureRef import
-       is one of the headline items in this app's own README). A plain
-       toolbar button next to Open/Save is the obvious, expected home
-       for it. */
-    /* Bug fix: this called KanvazUI.importPurFile() — but importPurFile
-       is defined and exported from THIS module (KanvazApp), not from
-       the separate window.KanvazUI IIFE further down this same file;
-       KanvazUI's own returned object has no such method. Every click
-       threw "KanvazUI.importPurFile is not a function," silently eaten
-       since on()'s handler isn't wrapped in try/catch — the button
-       simply appeared to do nothing. Calling the bare (hoisted, same-
-       scope) importPurFile() directly fixes it. */
-    on('btn-import',    function() { importPurFile(); });
+    /* Bug fix: this toolbar button was wired to the PureRef-only
+       importPurFile() — see importMediaFiles()'s own comment above for
+       the direct feedback that prompted switching it to a general
+       "import any supported file" picker instead. .pur import is still
+       reachable from the canvas right-click menu's own "Import .pur
+       file" entry (commands.js), unchanged. */
+    on('btn-import',    function() { importMediaFiles(); });
     on('btn-save',      function() { KanvazBoards.saveBoard(); });
     on('btn-zoom-in',   function() { KanvazCanvas.zoomIn(); });
     on('btn-zoom-out',  function() { KanvazCanvas.zoomOut(); });
@@ -1999,6 +1991,38 @@ var KanvazApp = (function() {
   });
 
   /* ── PureRef import ── */
+
+  /* Bug fix: the toolbar's "Import" button used to call importPurFile()
+     — PureRef-only — even though nothing about the button (a generic
+     tray-and-arrow icon, the plain label "Import") signals that
+     narrowing, and Kanvaz already supports importing every media type
+     placeDroppedFiles() below handles (images/GIF/video/audio/3D
+     models). Direct feedback: "the import button is made for all kinds
+     of import regardless of format... via import button everything
+     which is supported in kanvaz will be imported." .pur import keeps
+     its own explicit "Import .pur file" entry in the canvas right-click
+     menu (commands.js/context menu, unchanged) for anyone who
+     specifically wants that. Reuses the exact same
+     KanvazMedia.loadFromFile → KanvazCards.createFromMedia pipeline a
+     real drag-and-drop already goes through — one path for "add these
+     files to the board," not a second copy. */
+  function importMediaFiles() {
+    KanvazBridge.importMediaDialog().then(function(paths) {
+      if (!paths || !paths.length) return;
+      var files = paths.map(function(p) {
+        var sep = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'));
+        return { path: p, name: sep === -1 ? p : p.slice(sep + 1) };
+      });
+      var vp = (typeof KanvazCanvas !== 'undefined') ? KanvazCanvas.getViewport() : null;
+      var worldPos = vp
+        ? { x: (-vp.tx / vp.scale) + 200, y: (-vp.ty / vp.scale) + 200 }
+        : { x: 200, y: 200 };
+      placeDroppedFiles(files, worldPos);
+    }).catch(function(e) {
+      console.warn('[Kanvaz] importMediaDialog IPC failed:', e);
+      KanvazUI.toast('Could not open the file dialog', 'error');
+    });
+  }
 
   function importPurFile() {
     KanvazBridge.openPurDialog().then(function(purPath) {

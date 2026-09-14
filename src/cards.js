@@ -17,9 +17,11 @@ var KanvazCards = (function() {
                                   '.selected' DOM class by every function that
                                   changes selection (selectCard/selectAll/
                                   deselectAll/clearAll/setMultiSelection). Length
-                                  0 or 1 in the common case; >1 only after
-                                  Select All (Ctrl+A) — there's no rectangle/
-                                  shift-click multi-select in this app yet. */
+                                  0 or 1 in the common case; >1 after Select
+                                  All (Ctrl+A) or after Ctrl/Cmd-clicking two
+                                  or more cards by hand (toggleCardInSelection)
+                                  — there's still no rectangle/shift-click
+                                  multi-select in this app. */
   var world = null;
   var zCounter = 1;
   /* Direct feedback: "Send to Back doesn't work." Real bug, not a
@@ -94,6 +96,17 @@ var KanvazCards = (function() {
       if (e.button !== 0) return;
       var target = e.target;
 
+      /* Direct feedback: "add pan control like alt + drag left mb, take
+         reference from maya" — Maya's Alt+drag always means "navigate
+         the camera," regardless of what's under the cursor (a resize
+         handle, a card, a scrub bar — everything). Bailing out here,
+         before any of the specific-target checks below and without
+         stopping propagation, lets the event fall through untouched to
+         canvas.js's own mousedown handler on the ancestor `container`,
+         which is where the actual pan starts (see its matching
+         `e.altKey` branch in shouldPan). */
+      if (e.altKey) return;
+
       /* Resize handle */
       if (target.classList.contains('resize-handle')) {
         e.stopPropagation();
@@ -155,7 +168,26 @@ var KanvazCards = (function() {
       if (!card) return;
 
       e.stopPropagation();
-      selectCard(card.id);
+
+      /* Ctrl/Cmd-click toggles this card in or out of the multi-selection
+         instead of collapsing to just this one — the only way to build a
+         group of specific cards (Select All is the other, all-or-nothing
+         path into multiSelectedIds). Never starts a drag on its own, so
+         toggling doesn't also yank the card under the cursor. */
+      if (e.ctrlKey || e.metaKey) {
+        toggleCardInSelection(card.id);
+        return;
+      }
+
+      /* A plain click on a card that's already part of the current
+         multi-selection keeps the whole group selected (so it can be
+         dragged together); a plain click on any card outside that group
+         collapses back down to just this one, same as before. */
+      if (multiSelectedIds.length > 1 && multiSelectedIds.indexOf(card.id) !== -1) {
+        selectedId = card.id;
+      } else {
+        selectCard(card.id);
+      }
       bringToFront(card.id);
 
       /* Let textareas/inputs/buttons receive focus normally — no drag */
@@ -216,6 +248,23 @@ var KanvazCards = (function() {
     var scale  = KanvazCanvas.getScale();
     var moved  = false;
 
+    /* Group drag: dragging any member of an active multi-selection moves
+       every member by the same delta instead of just the one under the
+       cursor — otherwise Ctrl-click multi-select could build a group but
+       never actually rearrange it together. Alignment-snap and grid-snap
+       stay single-card-only (groupOrigins is null otherwise): snapping
+       each member independently mid-group-move would distort the
+       group's relative spacing rather than preserve it. */
+    var groupOrigins = null;
+    if (multiSelectedIds.length > 1 && multiSelectedIds.indexOf(card.id) !== -1) {
+      groupOrigins = {};
+      for (var gi = 0; gi < multiSelectedIds.length; gi++) {
+        var gid = multiSelectedIds[gi];
+        var gcard = cards[gid];
+        if (gcard) groupOrigins[gid] = { x: gcard.x, y: gcard.y };
+      }
+    }
+
     function onMove(ev) {
       var dx = (ev.clientX - startX) / scale;
       var dy = (ev.clientY - startY) / scale;
@@ -230,6 +279,19 @@ var KanvazCards = (function() {
          making the card feel like it snaps back / "won't move". Flag the
          element so those handlers can recognize and skip that one click. */
       el.dataset.justDragged = '1';
+
+      if (groupOrigins) {
+        for (var id in groupOrigins) {
+          var gcard = cards[id];
+          var gel = document.getElementById(id);
+          if (!gcard || !gel) continue;
+          gcard.x = groupOrigins[id].x + dx;
+          gcard.y = groupOrigins[id].y + dy;
+          gel.style.left = gcard.x + 'px';
+          gel.style.top  = gcard.y + 'px';
+        }
+        return;
+      }
 
       var nx = snapToGrid(origX + dx);
       var ny = snapToGrid(origY + dy);
@@ -262,7 +324,14 @@ var KanvazCards = (function() {
       if (moved) {
         KanvazApp.markDirty();
         KanvazHistory.push();
-        emitCardEvent('cardUpdate', card);
+        if (groupOrigins) {
+          for (var id in groupOrigins) {
+            var gcard = cards[id];
+            if (gcard) emitCardEvent('cardUpdate', gcard);
+          }
+        } else {
+          emitCardEvent('cardUpdate', card);
+        }
       }
     }
 
@@ -570,7 +639,21 @@ var KanvazCards = (function() {
     var btn = cardEl.querySelector('.media-play-btn');
     if (!vid || !btn) return;
     if (vid.paused) {
-      vid.play();
+      /* Bug fix: play() returns a Promise that rejects with a benign
+         AbortError/"interrupted by a call to pause()" (or "...by end of
+         playback") whenever playback is stopped again — by another
+         click, the card being deselected/removed, or the clip simply
+         ending — before the browser finishes actually starting it. A
+         bare, unhandled vid.play() turned that into an unhandled
+         promise rejection, which errors.js's global handler then
+         surfaced as a scary E999 toast for something that isn't a real
+         error at all. Every other genuine rejection still logs. */
+      var playResult = vid.play();
+      if (playResult && playResult.catch) {
+        playResult.catch(function(e) {
+          if (e && e.name !== 'AbortError') console.warn('[Kanvaz] media play() failed:', e.message);
+        });
+      }
       btn.innerHTML = PAUSE_ICON;
     } else {
       vid.pause();
@@ -593,6 +676,7 @@ var KanvazCards = (function() {
     if (card) {
       card.muted = vid.muted;
       KanvazApp.markDirty();
+      refreshPropertiesIfOpen(card);
     }
   }
 
@@ -655,6 +739,7 @@ var KanvazCards = (function() {
     if (card) {
       card.audioLoop = aud.loop;
       KanvazApp.markDirty();
+      refreshPropertiesIfOpen(card);
     }
   }
 
@@ -732,11 +817,62 @@ var KanvazCards = (function() {
      something forgotten. selectionChange fires from selectCard/
      selectAll/deselectAll/setMultiSelection below. */
   function emitCardEvent(type, card) {
+    /* Bug fix: catches every existing (and future) 'cardUpdate' call
+       site in one place — see refreshPropertiesIfOpen()'s own comment
+       below for the actual bug this closes (Properties panel going
+       stale while open, e.g. the loop toggle). Systematic instead of
+       patching each individual on-canvas control one at a time.
+
+       Real bug caught live while testing this: passing THIS card
+       through, not refreshing unconditionally — a note card's own
+       text-editing <textarea> fires 'cardUpdate' on every blur (even
+       with no real change), and blurring it is a completely ordinary
+       side effect of focusing ANY other input on screen, including
+       the Properties panel's own "+Add property" key/value fields. An
+       unconditional refresh here meant clicking "+Add property" for
+       card B, while some unrelated note card A's textarea happened to
+       still hold focus, immediately blurred A, fired 'cardUpdate' for
+       A, and wiped the whole panel (including the just-opened,
+       not-yet-saved form) — the exact "edited B, it landed on A"
+       report. Only ever refresh for the card Properties is actually
+       showing. */
+    if (type === 'cardUpdate') refreshPropertiesIfOpen(card);
     if (typeof KanvazPluginAPI === 'undefined' || !KanvazPluginAPI._emit) return;
     KanvazPluginAPI._emit(type, card);
   }
 
+  /* Bug fix: "when i'm in properties tab and i click any card it shows
+     nothing but when i open tab again then it does" + "loop on/off is
+     not in sync with the card" — the Properties panel only ever
+     re-rendered when its OWN section was (re)opened; nothing told it
+     to refresh when the selection changed, or when a card was mutated
+     from its own on-canvas controls (the loop/mute toggle icons on an
+     audio/video card) while Properties happened to already be open and
+     showing that same card. renderInto() itself already re-reads the
+     live selection every time it runs (a prior fix) — the missing
+     piece was ever calling it again after the panel's first render.
+
+     forCard (optional): when the caller knows which specific card
+     changed (every emitCardEvent('cardUpdate', card) site does), skip
+     the refresh entirely unless that card is the one actually selected
+     — Properties always shows the live selection, so a refresh
+     triggered by any OTHER card is not just wasted work, it actively
+     wipes whatever the user is doing in the panel right now. Callers
+     with no specific card in mind (the plain selection-change path)
+     omit it and always refresh, since a selection change legitimately
+     means "show whatever's selected now" unconditionally. Also skips
+     while the "+Add property" mini-form is open — even a refresh for
+     the RIGHT card would otherwise discard an in-progress, unsaved
+     key/value the user hasn't clicked Add on yet. */
+  function refreshPropertiesIfOpen(forCard) {
+    if (typeof KanvazProperties === 'undefined' || !KanvazProperties.isOpen || !KanvazProperties.isOpen() || !KanvazProperties.refresh) return;
+    if (forCard && forCard.id !== selectedId) return;
+    if (document.querySelector('.prop-add-form')) return;
+    KanvazProperties.refresh();
+  }
+
   function emitSelectionChange() {
+    refreshPropertiesIfOpen();
     if (typeof KanvazPluginAPI === 'undefined' || !KanvazPluginAPI._emit) return;
     KanvazPluginAPI._emit('selectionChange', getSelectedIds());
   }
@@ -1593,7 +1729,16 @@ var KanvazCards = (function() {
     vid.onloadeddata = function() {
       clearLoadingState(el);
       vid.playbackRate = card.playbackRate || 1;
-      vid.play();
+      /* Bug fix: same benign-rejection risk as toggleVideoPlay() above
+         — autoplaying immediately on load races especially easily with
+         a user who's already clicked pause/deleted the card before the
+         browser finishes starting it. */
+      var playResult = vid.play();
+      if (playResult && playResult.catch) {
+        playResult.catch(function(e) {
+          if (e && e.name !== 'AbortError') console.warn('[Kanvaz] media autoplay failed:', e.message);
+        });
+      }
       playBtn.innerHTML = PAUSE_ICON;
     };
 
@@ -3813,15 +3958,23 @@ var KanvazCards = (function() {
        the card edge as the old 8px/-5.5px handle did (center = offset +
        size/2 = -1.5px past the edge either way) — audit fix made the
        handle itself bigger (12px, easier to grab) without shifting it. */
+    /* Bug bounty fix: half-offsets used to be a flat -7.5px (half of
+       the old fixed 12px handle) — now that .resize-handle's own size
+       scales with the card (clamp(10px,3.2cqw,20px), see main.css), a
+       fixed offset would leave the handle visibly off-center on the
+       edge at any size other than the one -7.5px happened to match.
+       calc() against the exact same clamp() keeps it centered on the
+       border at every size. */
+    var HALF_OFFSET = 'calc(clamp(10px, 3.2cqw, 20px) * -0.5)';
     var positions = [
-      { name: 'tl', style: 'top:-7.5px;left:-7.5px;cursor:nw-resize;' },
-      { name: 'tc', style: 'top:-7.5px;left:50%;transform:translateX(-50%);cursor:n-resize;' },
-      { name: 'tr', style: 'top:-7.5px;right:-7.5px;cursor:ne-resize;' },
-      { name: 'ml', style: 'top:50%;left:-7.5px;transform:translateY(-50%);cursor:w-resize;' },
-      { name: 'mr', style: 'top:50%;right:-7.5px;transform:translateY(-50%);cursor:e-resize;' },
-      { name: 'bl', style: 'bottom:-7.5px;left:-7.5px;cursor:sw-resize;' },
-      { name: 'bc', style: 'bottom:-7.5px;left:50%;transform:translateX(-50%);cursor:s-resize;' },
-      { name: 'br', style: 'bottom:-7.5px;right:-7.5px;cursor:se-resize;' }
+      { name: 'tl', style: 'top:' + HALF_OFFSET + ';left:' + HALF_OFFSET + ';cursor:nw-resize;' },
+      { name: 'tc', style: 'top:' + HALF_OFFSET + ';left:50%;transform:translateX(-50%);cursor:n-resize;' },
+      { name: 'tr', style: 'top:' + HALF_OFFSET + ';right:' + HALF_OFFSET + ';cursor:ne-resize;' },
+      { name: 'ml', style: 'top:50%;left:' + HALF_OFFSET + ';transform:translateY(-50%);cursor:w-resize;' },
+      { name: 'mr', style: 'top:50%;right:' + HALF_OFFSET + ';transform:translateY(-50%);cursor:e-resize;' },
+      { name: 'bl', style: 'bottom:' + HALF_OFFSET + ';left:' + HALF_OFFSET + ';cursor:sw-resize;' },
+      { name: 'bc', style: 'bottom:' + HALF_OFFSET + ';left:50%;transform:translateX(-50%);cursor:s-resize;' },
+      { name: 'br', style: 'bottom:' + HALF_OFFSET + ';right:' + HALF_OFFSET + ';cursor:se-resize;' }
     ];
 
     for (var i = 0; i < positions.length; i++) {
@@ -3836,11 +3989,13 @@ var KanvazCards = (function() {
   /* ── Select ── */
 
   function selectCard(id) {
-    /* Selecting any single card always collapses a prior multi-selection
-       (e.g. after Ctrl+A) down to just this one — there's no group-drag
-       or group-select-add in this app, so a click/drag/create always
-       means "just this card now", same as clicking one of several
-       highlighted rows in a file browser. */
+    /* Plain click/drag/create always collapses a prior multi-selection
+       down to just this one card, same as clicking one of several
+       highlighted rows in a file browser — Ctrl/Cmd-click is the only
+       path that grows or shrinks a group instead (toggleCardInSelection,
+       in the world mousedown handler), and the mousedown handler skips
+       calling selectCard() at all when the click lands on a card that's
+       already part of the current group, so the group survives. */
     if (multiSelectedIds.length > 1) {
       clearSelectionVisuals();
     } else if (selectedId && selectedId !== id) {
@@ -3882,6 +4037,21 @@ var KanvazCards = (function() {
     multiSelectedIds = applied;
     selectedId = applied.length ? applied[applied.length - 1] : null;
     emitSelectionChange();
+  }
+
+  /* Ctrl/Cmd-click add-or-remove for building a specific multi-selection
+     by hand (the click-driven counterpart to Select All). Starting from
+     a single plain selection, the first Ctrl-click grows it to a group
+     of two rather than just swapping which one card is selected. */
+  function toggleCardInSelection(id) {
+    var base = multiSelectedIds.length ? multiSelectedIds.slice() : (selectedId ? [selectedId] : []);
+    var idx = base.indexOf(id);
+    if (idx !== -1) {
+      base.splice(idx, 1);
+    } else {
+      base.push(id);
+    }
+    setMultiSelection(base);
   }
 
   /* Returns every currently-selected id (length 0, 1, or many). This is

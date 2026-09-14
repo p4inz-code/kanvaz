@@ -8,7 +8,7 @@
   <a href="https://github.com/p4inz-code/kanvaz/releases/latest"><img src="https://img.shields.io/github/downloads/p4inz-code/kanvaz/total?style=flat-square&color=4ECDC4&label=downloads" alt="Downloads"></a>
   <a href="https://github.com/p4inz-code/kanvaz/stargazers"><img src="https://img.shields.io/github/stars/p4inz-code/kanvaz?style=flat-square&color=FFD700" alt="Stars"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/p4inz-code/kanvaz?style=flat-square&color=FF6B6B" alt="License"></a>
-  <img src="https://img.shields.io/badge/platform-Windows-blue?style=flat-square" alt="Platform">
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue?style=flat-square" alt="Platform">
   <img src="https://img.shields.io/badge/offline-100%25-green?style=flat-square" alt="Offline">
 </p>
 
@@ -37,7 +37,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## Latest release
 
-**v7.12.0** fixes a real search bug (typing "grid" or any other Settings label returned nothing — every Settings row is now individually searchable), adds a Ctrl+H Home Screen toggle with a race-condition guard, gives Smart Folders a right-click menu (Open/Favorite/Rename/Edit query/Delete), and adds Tags and Info sections to the Properties panel. v7.11.1 before it polished the auto-hide toolbar and replaced every native OS tooltip in the app with a custom-styled one. Builds on v7.11.0's template library, v7.10's templates and save-as-template, v7.9's card visual polish, and v7.8's "Kanvaz Redesign v1." The full version history, with the reasoning behind each release, lives in [CHANGELOG.md](CHANGELOG.md).
+**v7.13.0** adds Ctrl/Cmd-click multi-select with real group drag (previously only Select All could multi-select, and even then dragging never moved the group), Export/Import for a single template as a portable `.kanvaztemplate` file, and fixes a confirm-dialog stacking bug where delete/discard dialogs could render invisibly behind whatever opened them. v7.12.0 before it fixed a real search bug: typing "grid" or any other Settings label returned nothing, since every Settings row is now individually searchable. It also added a Ctrl+H Home Screen toggle with a race-condition guard, a Smart Folders right-click menu (Open/Favorite/Rename/Edit query/Delete), and new Tags and Info sections in the Properties panel. Builds on v7.11.1's toolbar and tooltip polish, v7.11.0's template library, v7.10's templates and save-as-template, v7.9's card visual polish, and v7.8's "Kanvaz Redesign v1." The full version history, with the reasoning behind each release, lives in [CHANGELOG.md](CHANGELOG.md).
 
 <p align="center">
   <img src="assets/screenshot-cards-v7.9.0.png" alt="Kanvaz card design — note, URL, and color cards showing the new always-visible name/metadata footer" width="720">
@@ -131,7 +131,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 7.12.0.exe` and `dist/Kanvaz 7.12.0.exe`
+Output: `dist/Kanvaz Setup 7.13.0.exe` and `dist/Kanvaz 7.13.0.exe`
 
 **macOS:**
 ```bash
@@ -235,7 +235,7 @@ Same engineering philosophy, same author, adjacent problem spaces:
 ## License
 
 MIT, free forever.
-Made by **[P4inz](https://github.com/p4inz-code)** | Atharva Patil, Navi Mumbai, India.
+Made by Atharva Patil | **[P4inz](https://github.com/p4inz-code)** | Studios, Navi Mumbai, India.
 
 <p align="left">
   <a href="https://github.com/p4inz-code"><img src="https://img.shields.io/github/followers/p4inz-code?style=flat-square&color=9D7FFF&label=follow%20%40p4inz-code" alt="Follow p4inz-code on GitHub"></a>

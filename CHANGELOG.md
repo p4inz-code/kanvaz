@@ -2,6 +2,96 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [7.13.0] — Group drag, template export/import, confirm-dialog stacking fix
+
+### Added
+- **Ctrl/Cmd-click multi-select, with an actual group drag.** Before this,
+  the only way to select more than one card was Select All (Ctrl+A), and
+  even then dragging any card only moved that one card — reported live
+  as "when I select two cards I can't move them together... if a group
+  is selected at once it must move, it's common sense." Ctrl/Cmd-clicking
+  a card now adds or removes it from the selection, and dragging any
+  member of an active multi-selection moves the whole group by the same
+  delta. Alignment-snap and grid-snap stay single-card-only during a
+  group move — snapping each member independently would distort the
+  group's relative spacing instead of preserving it.
+- **Export/Import for a single template** in the Template Maker &
+  Manager plugin, requested so a template built in Kanvaz "can be given
+  to anyone with a compatible version." Export writes a plain-JSON
+  `.kanvaztemplate` file via a native save dialog; Import reads one back
+  via a native open dialog. The file carries its own format-version
+  number, and importing a file from a newer format than this build
+  understands fails with a clear message instead of loading a partially
+  understood card array.
+
+### Fixed
+- **Confirm/delete dialogs could render invisibly behind whatever opened
+  them.** `#dialog-overlay` — the single shared surface behind every
+  delete/discard/reset confirmation in the app — was styled at
+  `z-index: 50000`, lower than the About screen (60000), the Manage
+  Profiles dialog (99997), and the Home Screen (99998). Deleting a
+  profile from Manage Profiles, for one concrete repro, showed the
+  confirmation stuck behind the profile dialog with no visible way to
+  confirm or cancel. Caught live, from a screenshot, while testing the
+  Manage Profiles flow. `#dialog-overlay` now sits above every other
+  modal overlay in the app.
+- **The platform badge in README claimed Windows only.** Kanvaz builds
+  for Windows, macOS, and Linux (see `package.json`'s `build.win` /
+  `build.mac` / `build.linux` targets) — the badge undersold that.
+- The Import toolbar button only ever imported a PureRef `.pur` file —
+  every other supported media type (images, GIFs, video, audio, 3D
+  models) had no toolbar entry point at all, only the right-click canvas
+  menu. Import now opens a multi-select file dialog for every supported
+  type; `.pur` import stays on the right-click menu, since it's a
+  board-replacing action, not a drop-in-media one.
+- **"play() request was interrupted" toast on ordinary video playback.**
+  A rapid pause/interrupt rejects the `<video>` element's `play()`
+  promise with a benign `AbortError`, which the app's unhandled-
+  rejection handler was surfacing as a scary error toast. Non-`AbortError`
+  failures still warn; the benign case is now silently swallowed.
+- Resize handles were a fixed 12px regardless of card size, and drifted
+  off-center on very small or very large cards because their offset was
+  hardcoded to match. Both are now `clamp()`-based and share one
+  `calc()` half-offset constant, so they stay centered at every size.
+- **Properties panel edits could land on the wrong card** — reported
+  live as "each property we change in the properties panel must show
+  effect quickly, it's like A has B but C has A." Root cause: a note
+  card's own textarea fires a card-update event on every blur, even with
+  no real change, and focusing the Properties panel's own "+Add
+  property" input blurred whichever OTHER note still had DOM focus,
+  firing that update for the wrong card mid-edit — an over-broad refresh
+  from an earlier fix in the same area re-rendered the panel for that
+  wrong card. Fixed by scoping the refresh to the card whose id actually
+  matches the open panel, and skipping it entirely while an add-property
+  form is mid-edit. Verified live under the exact repro: editing card A
+  while card B still holds focus, then saving a property on A, no longer
+  touches B.
+- The on-card loop/mute toggle and the same toggle in the Properties
+  panel could disagree with each other after a click, since only one
+  side ever refreshed. Both now stay in sync immediately.
+- **The grid became a stretched rectangle whenever the side panel opened
+  or closed.** The canvas's pixel buffer was only ever resized on a
+  native `window.resize` event; the side panel's flexbox-driven resize
+  of its container never fires one, so the grid's bitmap kept its old
+  buffer size while its CSS box changed shape around it. Replaced with a
+  `ResizeObserver` on the canvas container, verified live: the buffer
+  now tracks the container's actual pixel size on every panel toggle,
+  square grid cells preserved.
+- Deleting or switching away from a board with a heavy embedded 3D model
+  could look frozen for several seconds with zero feedback — a genuinely
+  slow synchronous parse, not a hang. Both actions now show a "Loading
+  board…" toast, deferred just long enough to actually paint before the
+  blocking work starts.
+- A fast double-click on the titlebar logo, or Ctrl+H pressed twice in
+  quick succession, could stack two Home Screen overlays before the
+  first one's async data fetch finished — closed with an in-flight
+  guard.
+- Maya-style Alt+drag now pans the canvas from anywhere, including over
+  a card, instead of only working on empty canvas.
+- The About screen was rewritten with real Kanvaz-specific copy (it
+  previously read as generic placeholder text) and gained a Keyboard
+  Shortcuts button; the Shortcuts list documents the new Alt+drag pan.
+
 ## [7.12.0] — Search finds Settings, Smart Folder context menu, Home Screen polish
 
 ### Fixed

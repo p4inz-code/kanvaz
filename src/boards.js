@@ -7,7 +7,7 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '7.12.0';
+  var VERSION       = '7.13.0';
 
   /* ── Shared cards (v6.4.0) — "same card, no duplicate, edit once
      updates everywhere" (Are.na-style), across boards in ONE .kanvaz
@@ -673,9 +673,18 @@ var KanvazBoards = (function() {
        query against a board it was never applied to */
     if (typeof KanvazUI !== 'undefined' && KanvazUI.hideSearchBar) KanvazUI.hideSearchBar();
 
-    loadBoardState(boards[idx]);
-    renderBoardsList();
-    updateTitle();
+    /* Bug fix: same "feels stuck, no feedback" issue as deleting the
+       active board — switching TO a board holding a heavy 3D model is
+       the far more common way to hit this same multi-second, main-
+       thread-blocking parse. A toast plus a one-frame defer at least
+       gives the user something to look at while it works instead of a
+       silent freeze that looks identical to a hang. */
+    KanvazUI.toast('Loading board…');
+    setTimeout(function() {
+      loadBoardState(boards[idx]);
+      renderBoardsList();
+      updateTitle();
+    }, 20);
   }
 
   /* ── Save current board state into boards array ── */
@@ -829,21 +838,39 @@ var KanvazBoards = (function() {
 
             if (wasActive) {
               if (activeIdx >= boards.length) activeIdx = boards.length - 1;
-              loadBoardState(boards[activeIdx]);
-            } else if (idx < activeIdx) {
-              /* A board before the active one was removed — shift the
-                 index to keep pointing at the SAME (still-active) board.
-                 Do NOT call loadBoardState here: that would re-deserialise
-                 the active board from its possibly-stale serialised
-                 `.cards` (last synced at the previous switch/save),
-                 discarding any live unsaved edits made since then. */
-              activeIdx -= 1;
+              /* Bug fix: "when i try to delete a board it takes 10sec
+                 and stuck" — deleting the ACTIVE board means the newly-
+                 active one loads right here, synchronously, and a board
+                 holding a heavy 3D model (a real multi-second GLTF/FBX
+                 parse, not a bug in the parse itself) blocked the main
+                 thread with the confirm dialog barely closed and zero
+                 visual feedback — indistinguishable from a hang. A
+                 toast + a one-frame defer lets the browser actually
+                 paint that toast before the blocking parse starts,
+                 instead of queuing both behind the same paint. */
+              KanvazUI.toast('Loading board…');
+              var idxToLoad = activeIdx;
+              setTimeout(function() {
+                loadBoardState(boards[idxToLoad]);
+                renderBoardsList();
+                updateTitle();
+              }, 20);
+            } else {
+              if (idx < activeIdx) {
+                /* A board before the active one was removed — shift the
+                   index to keep pointing at the SAME (still-active) board.
+                   Do NOT call loadBoardState here: that would re-deserialise
+                   the active board from its possibly-stale serialised
+                   `.cards` (last synced at the previous switch/save),
+                   discarding any live unsaved edits made since then. */
+                activeIdx -= 1;
+              }
+              /* idx > activeIdx: a later board was removed, active board
+                 and its index are unaffected. */
+              renderBoardsList();
+              updateTitle();
             }
-            /* idx > activeIdx: a later board was removed, active board
-               and its index are unaffected. */
 
-            renderBoardsList();
-            updateTitle();
             KanvazApp.markDirty();
           }
         },
@@ -1490,16 +1517,21 @@ var KanvazBoards = (function() {
         'background:var(--color-bg)',
         'z-index:99998',
         'display:flex',
-        'flex-direction:column',
-        'overflow-y:auto'
+        'flex-direction:row',
+        'overflow:hidden'
       ].join(';');
 
-      /* Header — logo/wordmark left, profile indicator right (only
-         once there's an actual choice to make — a single-profile
-         household sees nothing extra here, "no forced picker" per
-         docs/PROFILES_SYSTEM_PLAN.md). */
-      var header = document.createElement('div');
-      header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:20px 40px;flex-shrink:0;';
+      /* v3 — real sidebar-nav layout instead of a single centered
+         column. Direct feedback with a reference image: "no side bar
+         in home screen and then no profile stuff nor no border all is
+         center focused which is not at all like the ref." Left rail
+         (logo + Home/Templates/Boards/Settings nav, same four
+         destinations the reference shows) plus a profile avatar in the
+         main column's own top-right corner — full-height, full-width,
+         nothing artificially capped to a centered column on a wide
+         monitor. */
+      var sidebar = document.createElement('div');
+      sidebar.style.cssText = 'flex-shrink:0;width:220px;height:100%;display:flex;flex-direction:column;padding:20px 14px;border-right:1px solid var(--color-border);box-sizing:border-box;';
 
       /* Same logo-as-toggle affordance as the titlebar's own logo
          (which this screen currently covers) — clicking it here goes
@@ -1515,72 +1547,135 @@ var KanvazBoards = (function() {
          circular crop (.logo-icon's border-radius:50% fix) — one source
          of truth for what the Kanvaz logo looks like, not two. */
       var logoRow = document.createElement('div');
-      logoRow.style.cssText = 'display:flex;align-items:center;gap:10px;cursor:pointer;font-family:var(--font-ui);';
+      logoRow.style.cssText = 'display:flex;align-items:center;gap:10px;cursor:pointer;font-family:var(--font-ui);padding:6px 10px 20px;';
       logoRow.title = 'Back to Board';
       logoRow.innerHTML = '<img src="../assets/icons/icon-128.png" alt="" width="26" height="26" style="border-radius:50%;object-fit:contain;flex-shrink:0;"><span style="font-size:19px;font-weight:600;color:var(--color-text);font-family:var(--font-ui);">Kanvaz</span>';
       logoRow.onclick = closeStartup;
-      header.appendChild(logoRow);
+      sidebar.appendChild(logoRow);
 
       /* Direct feedback: "something can be opened directly inside home
-         [screen] instead of going to canvaz" and "profile switch and
-         [board] making can be done from home screen" — New Board/Open/
-         Templates already cover "making," and profile Switch already
-         lives here for a multi-profile setup; what was still missing
-         was a one-click path to Boards and Settings themselves instead
-         of closing the Home Screen blind and hunting for the side
-         panel's rail icons afterward. Both close the Home Screen AND
-         land directly on that section, not just on a blank canvas. */
-      var headerRight = document.createElement('div');
-      headerRight.style.cssText = 'display:flex;align-items:center;gap:8px;';
+         [screen] instead of going to canvaz" — a one-click path to
+         Templates/Boards/Settings instead of closing the Home Screen
+         blind and hunting for the side panel's rail icons afterward.
+         Home itself is the current screen (marked active, no-op) —
+         matches the reference's own nav shape, where the highlighted
+         item is wherever you already are. */
+      var NAV_ICON_HOME = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>';
+      var NAV_ICON_TEMPLATES = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>';
+      var NAV_ICON_BOARDS = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
+      var NAV_ICON_SETTINGS = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
 
-      var quickLinks = [
-        ['boards',   'Boards'],
-        ['settings', 'Settings']
+      var navItems = [
+        { icon: NAV_ICON_HOME, label: 'Home', active: true, onClick: null },
+        { icon: NAV_ICON_TEMPLATES, label: 'Templates', active: false, onClick: function() {
+          closeStartup();
+          if (typeof KanvazSidePanel !== 'undefined' && KanvazSidePanel.showSection) KanvazSidePanel.showSection('boards');
+          if (lastBoardsContainer) renderTemplateGalleryInto(lastBoardsContainer);
+        } },
+        { icon: NAV_ICON_BOARDS, label: 'Boards', active: false, onClick: function() {
+          closeStartup();
+          if (typeof KanvazSidePanel !== 'undefined' && KanvazSidePanel.showSection) KanvazSidePanel.showSection('boards');
+        } },
+        { icon: NAV_ICON_SETTINGS, label: 'Settings', active: false, onClick: function() {
+          closeStartup();
+          if (typeof KanvazSidePanel !== 'undefined' && KanvazSidePanel.showSection) KanvazSidePanel.showSection('settings');
+        } }
       ];
-      for (var qi = 0; qi < quickLinks.length; qi++) {
-        (function(section, label) {
-          var link = document.createElement('button');
-          link.textContent = label;
-          link.style.cssText = 'flex-shrink:0;padding:6px 12px;background:var(--color-surface);border:1px solid var(--color-border-2);border-radius:999px;color:var(--color-text-2);font-family:var(--font-ui);font-size:11px;cursor:pointer;transition:border-color 0.1s,color 0.1s;';
-          link.onmouseenter = function() { link.style.borderColor = 'var(--color-accent)'; link.style.color = 'var(--color-text)'; };
-          link.onmouseleave = function() { link.style.borderColor = 'var(--color-border-2)'; link.style.color = 'var(--color-text-2)'; };
-          link.onclick = function() {
-            closeStartup();
-            if (typeof KanvazSidePanel !== 'undefined' && KanvazSidePanel.showSection) KanvazSidePanel.showSection(section);
-          };
-          headerRight.appendChild(link);
-        })(quickLinks[qi][0], quickLinks[qi][1]);
+      for (var ni = 0; ni < navItems.length; ni++) {
+        (function(item) {
+          var navBtn = document.createElement('div');
+          navBtn.style.cssText = 'display:flex;align-items:center;gap:10px;padding:9px 12px;margin-bottom:2px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:' + (item.active ? '600' : '500') + ';color:' + (item.active ? 'var(--color-accent)' : 'var(--color-text-2)') + ';background:' + (item.active ? 'var(--color-accent-bg)' : 'transparent') + ';transition:background 0.1s,color 0.1s;';
+          var iconEl = document.createElement('span');
+          iconEl.style.cssText = 'display:flex;flex-shrink:0;';
+          iconEl.innerHTML = item.icon;
+          navBtn.appendChild(iconEl);
+          var labelEl = document.createElement('span');
+          labelEl.textContent = item.label;
+          navBtn.appendChild(labelEl);
+          if (!item.active) {
+            navBtn.onmouseenter = function() { navBtn.style.background = 'var(--color-surface-2)'; navBtn.style.color = 'var(--color-text)'; };
+            navBtn.onmouseleave = function() { navBtn.style.background = 'transparent'; navBtn.style.color = 'var(--color-text-2)'; };
+            navBtn.onclick = item.onClick;
+          }
+          sidebar.appendChild(navBtn);
+        })(navItems[ni]);
       }
 
+      var sidebarSpacer = document.createElement('div');
+      sidebarSpacer.style.cssText = 'flex:1;';
+      sidebar.appendChild(sidebarSpacer);
+
+      /* Bottom of sidebar: version + (when there's an actual choice to
+         make) a profile switch link — "no forced picker" per
+         docs/PROFILES_SYSTEM_PLAN.md, so a single-profile household
+         sees just the version line. */
+      var sidebarFooter = document.createElement('div');
+      sidebarFooter.style.cssText = 'padding:10px 10px 4px;border-top:1px solid var(--color-border);font-size:10px;color:var(--color-text-3);';
+      var verEl = document.createElement('div');
+      verEl.textContent = 'Kanvaz v' + VERSION;
+      sidebarFooter.appendChild(verEl);
       if (profiles.length > 1 && activeProfile) {
-        var profileRow = document.createElement('div');
-        profileRow.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--color-surface);border:1px solid var(--color-border-2);border-radius:999px;font-size:11px;';
-
-        var profileLabel = document.createElement('span');
-        profileLabel.style.cssText = 'color:var(--color-text-2);';
-        profileLabel.textContent = activeProfile.name;
-        profileRow.appendChild(profileLabel);
-
         var switchLink = document.createElement('button');
-        switchLink.textContent = 'Switch';
-        switchLink.style.cssText = 'flex-shrink:0;background:none;border:none;color:var(--color-accent);font-family:var(--font-ui);font-size:11px;cursor:pointer;padding:0;';
+        switchLink.textContent = 'Switch profile (' + activeProfile.name + ')';
+        switchLink.style.cssText = 'display:block;background:none;border:none;color:var(--color-accent);font-family:var(--font-ui);font-size:10px;cursor:pointer;padding:4px 0 0;text-align:left;';
         switchLink.onclick = function() {
           closeStartup();
           if (typeof KanvazSidePanel !== 'undefined' && KanvazSidePanel.showManageProfilesDialog) {
             KanvazSidePanel.showManageProfilesDialog();
           }
         };
-        profileRow.appendChild(switchLink);
-
-        headerRight.appendChild(profileRow);
+        sidebarFooter.appendChild(switchLink);
       }
-      header.appendChild(headerRight);
-      overlay.appendChild(header);
+      sidebar.appendChild(sidebarFooter);
+      overlay.appendChild(sidebar);
 
-      /* Main content — capped width, centered, like a real page rather
-         than edge-to-edge on a wide monitor. */
+      /* Right column — everything that isn't the sidebar, scrollable on
+         its own so the sidebar always stays put. */
+      var rightCol = document.createElement('div');
+      rightCol.style.cssText = 'flex:1;min-width:0;height:100%;display:flex;flex-direction:column;overflow-y:auto;';
+
+      /* Profile avatar, top-right of the main column — direct feedback:
+         "no profile stuff." A single circular initial rather than a
+         fake notification bell/search bar the reference shows but
+         Kanvaz has no real backing feature for yet — this one IS real:
+         click opens the same profile management the sidebar's own
+         "Switch profile" link does.
+         Bug fix: "where is option to put profile photo? add it" — the
+         option already existed (Manage Profiles → Change Photo…,
+         stored as activeProfile.avatarDataUrl), it just never showed up
+         anywhere — this avatar always rendered the plain initial letter
+         regardless of whether a photo was actually set. Now shows the
+         real photo when one exists, falling back to the initial only
+         when it doesn't. */
+      var topBar = document.createElement('div');
+      topBar.style.cssText = 'flex-shrink:0;display:flex;justify-content:flex-end;padding:18px 32px 0;';
+      var avatarBtn = document.createElement('button');
+      var avatarInitial = (activeProfile && activeProfile.name) ? activeProfile.name.trim().charAt(0).toUpperCase() : 'K';
+      if (activeProfile && activeProfile.avatarDataUrl) {
+        var avatarImg = document.createElement('img');
+        avatarImg.src = activeProfile.avatarDataUrl;
+        avatarImg.alt = '';
+        avatarImg.style.cssText = 'width:100%;height:100%;border-radius:50%;object-fit:cover;';
+        avatarBtn.appendChild(avatarImg);
+      } else {
+        avatarBtn.textContent = avatarInitial;
+      }
+      avatarBtn.title = (activeProfile && activeProfile.name) ? activeProfile.name : 'Profile';
+      avatarBtn.style.cssText = 'width:32px;height:32px;border-radius:50%;background:var(--color-accent);border:none;color:#fff;font-family:var(--font-ui);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;overflow:hidden;';
+      avatarBtn.onclick = function() {
+        closeStartup();
+        if (typeof KanvazSidePanel !== 'undefined' && KanvazSidePanel.showManageProfilesDialog) {
+          KanvazSidePanel.showManageProfilesDialog();
+        }
+      };
+      topBar.appendChild(avatarBtn);
+      rightCol.appendChild(topBar);
+
+      /* Main content — full width of the right column now (minus its
+         own side padding), not artificially capped to a centered
+         column like a document. */
       var main = document.createElement('div');
-      main.style.cssText = 'flex:1;width:100%;max-width:1000px;margin:0 auto;padding:8px 40px 40px;box-sizing:border-box;';
+      main.style.cssText = 'flex:1;width:100%;padding:8px 40px 40px;box-sizing:border-box;';
 
       /* v7.x — Home Screen v2. Direct feedback with a reference image:
          "fill the empty space the current kanvaz home screen has...
@@ -1835,13 +1930,13 @@ var KanvazBoards = (function() {
         main.appendChild(grid);
       }
 
-      overlay.appendChild(main);
+      rightCol.appendChild(main);
 
       /* A real, honest tip banner instead of the reference's fictional
          "watch tutorial" video — Kanvaz's actual equivalent is the
          built-in keyboard shortcuts overlay. */
       var tipBanner = document.createElement('div');
-      tipBanner.style.cssText = 'flex-shrink:0;max-width:1000px;width:calc(100% - 80px);margin:0 auto 20px;padding:16px 20px;background:var(--color-surface);border:1px solid var(--color-border-2);border-radius:10px;display:flex;align-items:center;justify-content:space-between;gap:16px;';
+      tipBanner.style.cssText = 'flex-shrink:0;width:calc(100% - 80px);margin:0 40px 20px;padding:16px 20px;background:var(--color-surface);border:1px solid var(--color-border-2);border-radius:10px;display:flex;align-items:center;justify-content:space-between;gap:16px;box-sizing:border-box;';
       var tipText = document.createElement('div');
       tipText.innerHTML = '<div style="font-size:10px;font-weight:600;letter-spacing:0.06em;color:var(--color-accent);margin-bottom:4px;">NEW HERE?</div><div style="font-size:13px;color:var(--color-text);">Press <strong>?</strong> anytime for the full keyboard shortcuts list.</div>';
       tipBanner.appendChild(tipText);
@@ -1853,7 +1948,7 @@ var KanvazBoards = (function() {
         if (typeof KanvazUI !== 'undefined' && KanvazUI.showShortcuts) KanvazUI.showShortcuts();
       };
       tipBanner.appendChild(tipBtn);
-      overlay.appendChild(tipBanner);
+      rightCol.appendChild(tipBanner);
 
       /* Footer branding — P4inz | Atharva Patil, same order used
          everywhere else in the app now (About screen, README). No
@@ -1862,8 +1957,9 @@ var KanvazBoards = (function() {
       var footer = document.createElement('div');
       footer.style.cssText = 'flex-shrink:0;padding:0 40px 16px;text-align:center;font-size:11px;color:var(--color-text-3);';
       footer.textContent = 'P4inz | Atharva Patil';
-      overlay.appendChild(footer);
+      rightCol.appendChild(footer);
 
+      overlay.appendChild(rightCol);
       document.body.appendChild(overlay);
       startupScreenOpening = false;
 
