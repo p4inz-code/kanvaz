@@ -5,6 +5,10 @@ All notable changes to Kanvaz are documented here.
 ## [Unreleased]
 
 ### Added
+- **Map View: Zoom to Selection (Shift+F)** — Board view has had this
+  since v4.9.0, but Map View runs its own entirely separate viewport
+  and never got an equivalent. Falls back to fitting everything when
+  nothing's selected, same as fit-all's own behavior.
 - **Per-card-type Properties panel sections**: URL cards get an editable
   link field plus Open/Copy, mirroring the card's own inline controls
   for when the card itself is too small to comfortably use. File-

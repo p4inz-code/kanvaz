@@ -1065,6 +1065,44 @@ var KanvazMapView = (function() {
     animateCameraTo(targetTx, targetTy, newScale, 480);
   }
 
+  /* Zoom to selection — Board view has had this since v4.9.0
+     (KanvazCanvas.zoomToSelection, Ctrl+K "Zoom to Selection"), but Map
+     View runs its own entirely separate viewport (tx/ty/scale here,
+     not KanvazCanvas's), so it never got an equivalent. Reuses fitAll's
+     own bounding-box-then-animateCameraTo approach, just scoped to the
+     selected id(s) instead of every node with a mapPosition. Falls
+     back to fitAll() when nothing is selected — "zoom to selection"
+     with nothing selected is "zoom to everything," not a no-op. */
+  function fitToSelection(cards) {
+    var ids = Object.keys(multiSelected);
+    if (!ids.length && selectedNode) ids = [selectedNode];
+    if (!ids.length) { fitAll(cards); return; }
+
+    var minX = Infinity; var minY = Infinity;
+    var maxX = -Infinity; var maxY = -Infinity;
+    var count = 0;
+    for (var i = 0; i < ids.length; i++) {
+      var c = cards[ids[i]];
+      if (!c || !c.mapPosition) continue;
+      minX = Math.min(minX, c.mapPosition.x);
+      minY = Math.min(minY, c.mapPosition.y);
+      maxX = Math.max(maxX, c.mapPosition.x + NODE_FULL_W);
+      maxY = Math.max(maxY, c.mapPosition.y + NODE_FULL_H);
+      count++;
+    }
+    if (count === 0) return;
+
+    var rect = container.getBoundingClientRect();
+    var padX = 100; var padY = 80;
+    var contentW = maxX - minX + padX * 2;
+    var contentH = maxY - minY + padY * 2;
+    var newScale = Math.min(rect.width / contentW, rect.height / contentH, 1.5);
+    newScale = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, newScale));
+    var targetTx = (rect.width  / 2) - ((minX + (maxX - minX) / 2) * newScale);
+    var targetTy = (rect.height / 2) - ((minY + (maxY - minY) / 2) * newScale);
+    animateCameraTo(targetTx, targetTy, newScale, 480);
+  }
+
   /* ══════════════════════════════════════════
      NODE BUILDER — with ports
      ══════════════════════════════════════════ */
@@ -2179,6 +2217,12 @@ var KanvazMapView = (function() {
 
     if ((e.key === 'c' || e.key === 'C') && selectedNode) {
       if (typeof KanvazInspector !== 'undefined') KanvazInspector.open(selectedNode);
+      return true;
+    }
+
+    if ((e.key === 'f' || e.key === 'F') && e.shiftKey) {
+      e.preventDefault();
+      fitToSelection(KanvazCards.getAll());
       return true;
     }
 
