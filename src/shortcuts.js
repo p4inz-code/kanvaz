@@ -204,8 +204,16 @@ var KanvazShortcuts = (function() {
     }
 
     /* About — toggle open/close */
-    if (e.key === 'i' || e.key === 'I') {
+    if (!shift && (e.key === 'i' || e.key === 'I')) {
       if (typeof KanvazUI_Extended !== 'undefined') KanvazUI_Extended.showAbout();
+      return;
+    }
+
+    /* Isolate View — Shift+I, Maya's own binding for the same feature.
+       Hides every card not currently selected; toggling again (or
+       Escape, below) brings everything back. */
+    if (shift && (e.key === 'i' || e.key === 'I')) {
+      if (typeof KanvazCards !== 'undefined') KanvazCards.toggleIsolate();
       return;
     }
 
@@ -247,10 +255,13 @@ var KanvazShortcuts = (function() {
       return;
     }
 
-    /* Escape — deselect, close panels */
+    /* Escape — deselect, close panels, exit Isolate View if active */
     if (e.key === 'Escape') {
       KanvazUI.closeAll();
       KanvazCards.deselectAll();
+      if (typeof KanvazCards.isIsolateActive === 'function' && KanvazCards.isIsolateActive()) {
+        KanvazCards.toggleIsolate();
+      }
       return;
     }
 

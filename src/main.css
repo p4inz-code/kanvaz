@@ -1092,6 +1092,16 @@ html, body {
   box-shadow: var(--shadow-card-selected);
 }
 
+/* Isolate View (Shift+I) — cards.js's toggleIsolate() adds this to every
+   card NOT in the selection at the moment isolate was turned on. Plain
+   display:none rather than opacity/pointer-events: an isolated card
+   should behave as if it doesn't exist (no accidental clicks through a
+   dimmed card, no layout space reserved for it), same as Maya's own
+   Isolate Select. */
+.card.card-isolated-hidden {
+  display: none;
+}
+
 .card:hover:not(.selected) {
   outline: 1px solid var(--color-border-2);
   outline-offset: 0px;

@@ -22,6 +22,10 @@ var KanvazCards = (function() {
                                   or more cards by hand (toggleCardInSelection)
                                   — there's still no rectangle/shift-click
                                   multi-select in this app. */
+  var isolateActive = false;  /* Isolate View (Shift+I, Maya's own binding
+                                  for the same feature) — true while every
+                                  non-selected card is hidden. See
+                                  toggleIsolate() below. */
   var world = null;
   var zCounter = 1;
   /* Direct feedback: "Send to Back doesn't work." Real bug, not a
@@ -5170,6 +5174,47 @@ var KanvazCards = (function() {
     return Object.keys(cards);
   }
 
+  /* Isolate View (Shift+I) — Maya/Blender's own "hide everything except
+     what's selected, then bring it all back" toggle. Applied purely as a
+     DOM class (.card-isolated-hidden, see main.css) rather than any
+     stored id list: exiting just strips the class from whatever
+     currently has it, which stays correct even if a card was created or
+     deleted while isolated — no stale-id bookkeeping to get wrong. */
+  function isIsolateActive() {
+    return isolateActive;
+  }
+
+  function toggleIsolate() {
+    if (isolateActive) exitIsolate();
+    else enterIsolate();
+  }
+
+  function enterIsolate() {
+    var selected = getSelectedIds();
+    if (!selected.length) {
+      if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Select one or more cards first', 'error');
+      return;
+    }
+    var selectedSet = {};
+    for (var i = 0; i < selected.length; i++) selectedSet[selected[i]] = true;
+    var allIds = getAllIds();
+    for (var j = 0; j < allIds.length; j++) {
+      if (!selectedSet[allIds[j]]) {
+        var el = document.getElementById(allIds[j]);
+        if (el) el.classList.add('card-isolated-hidden');
+      }
+    }
+    isolateActive = true;
+    if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Isolate view on — Shift+I to exit');
+  }
+
+  function exitIsolate() {
+    var hidden = document.querySelectorAll('.card-isolated-hidden');
+    for (var i = 0; i < hidden.length; i++) hidden[i].classList.remove('card-isolated-hidden');
+    isolateActive = false;
+    if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Isolate view off');
+  }
+
   /* Tidy up — packs cards into a grid, closest thing this app has to
      Miro/Figma's "Tidy up" or Blender's "Arrange". Sorts by current
      reading order (top-to-bottom, then left-to-right) so the resulting
@@ -5587,6 +5632,8 @@ var KanvazCards = (function() {
     distributeCards:   distributeCards,
     tidyUp:            tidyUp,
     getAllIds:         getAllIds,
+    toggleIsolate:     toggleIsolate,
+    isIsolateActive:   isIsolateActive,
     showOpacityPicker: showOpacityPicker,
     toggleObjectFit:   toggleObjectFit,
     showSpeedPicker:   showSpeedPicker,

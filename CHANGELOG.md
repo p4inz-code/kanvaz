@@ -2,6 +2,22 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [7.17.0] — Isolate View
+
+### Added
+- **Isolate View (Shift+I)** — Maya/Blender's own binding for the same
+  feature: hides every card except the current selection, so a busy
+  board doesn't visually compete with whatever you're focused on.
+  Toggle again or press Escape to bring everything back. Implemented as
+  a pure DOM class (`.card-isolated-hidden`) rather than a stored id
+  list, so it stays correct even if a card is created or deleted while
+  isolated — exiting just strips the class from whatever currently has
+  it. Toggling with nothing selected shows a toast instead of silently
+  hiding the entire board. Plain `I` still toggles the About screen;
+  only `Shift+I` isolates. Verified live: the selected card stayed
+  visible, the other two were hidden via `display:none`, and Escape
+  restored all three.
+
 ## [7.16.0] — Numbered view bookmarks
 
 ### Added
