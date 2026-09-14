@@ -1604,6 +1604,30 @@ function registerIPC() {
      displayed permission list is a description of intent, not a
      technical guarantee. */
 
+  /* ── Recent changelog (Home Screen "What's New") ──
+     Reads CHANGELOG.md straight off disk and regex-extracts just the
+     "## [version] — headline" lines — no network call, same offline
+     discipline as the bundled templates below. Deliberately doesn't
+     parse the bullet lists under each heading: version + one-line
+     headline is what the changelog's own entries put right there for
+     exactly this purpose, and a fuller parse would be one more thing
+     to keep in sync with CHANGELOG.md's actual formatting. */
+  ipcMain.handle('changelog-recent', function(event, count) {
+    var limit = (typeof count === 'number' && count > 0) ? count : 3;
+    var changelogPath = path.join(__dirname, '..', 'CHANGELOG.md');
+    return fs.promises.readFile(changelogPath, 'utf8').then(function(raw) {
+      var entries = [];
+      var re = /^## \[([^\]]+)\]\s*—\s*(.+)$/gm;
+      var match;
+      while ((match = re.exec(raw)) !== null && entries.length < limit) {
+        entries.push({ version: match[1], headline: match[2].trim() });
+      }
+      return { ok: true, entries: entries };
+    }).catch(function(e) {
+      return { ok: false, error: e.message, entries: [] };
+    });
+  });
+
   /* ── Board templates (v5.1.0) ──
      Bundled with the app itself (assets/templates/), not fetched from
      anywhere — unlike Browse Official Plugins' catalog, this needs no

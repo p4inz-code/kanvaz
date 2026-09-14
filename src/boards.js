@@ -7,7 +7,7 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '7.20.0';
+  var VERSION       = '7.21.0';
 
   /* ── Shared cards (v6.4.0) — "same card, no duplicate, edit once
      updates everywhere" (Are.na-style), across boards in ONE .kanvaz
@@ -1480,11 +1480,21 @@ var KanvazBoards = (function() {
       ? KanvazBridge.listTemplates()
       : Promise.resolve({ ok: false, templates: [] });
 
-    Promise.all([KanvazBridge.getRecent(), profilesPromise, templatesPromise]).then(function(results) {
+    /* "What's New" — fills the remaining empty space below the template
+       previews on a fresh profile with no recent boards yet, same
+       motivation as the template-preview section above. Reads straight
+       off CHANGELOG.md (main.js's changelog-recent handler), so it's
+       never a second source of truth to keep in sync by hand. */
+    var changelogPromise = (typeof KanvazBridge !== 'undefined' && KanvazBridge.getRecentChangelog)
+      ? KanvazBridge.getRecentChangelog(3)
+      : Promise.resolve({ ok: false, entries: [] });
+
+    Promise.all([KanvazBridge.getRecent(), profilesPromise, templatesPromise, changelogPromise]).then(function(results) {
       var recent = results[0] || [];
       var profiles = results[1][0] || [];
       var activeProfile = results[1][1];
       var templates = (results[2] && results[2].ok && results[2].templates) || [];
+      var changelogEntries = (results[3] && results[3].ok && results[3].entries) || [];
       /* Direct feedback: "fill the empty space the current kanvaz home
          screen has... rather than 4-5 opts in doom [blank] space" — a
          brand-new install with zero recent boards used to skip the
@@ -1702,9 +1712,9 @@ var KanvazBoards = (function() {
       main.appendChild(subGreeting);
 
       /* Quick start — three rich tiles instead of a flat button row.
-         New Board stays visually primary (accent-filled), matching
-         its role as the one action that always applies even with zero
-         history. */
+         New Board stays visually primary (accent tint + border, see
+         buildQuickTile below), matching its role as the one action
+         that always applies even with zero history. */
       var quickLabel = document.createElement('div');
       quickLabel.textContent = 'Quick start';
       quickLabel.style.cssText = 'font-size:13px;font-weight:600;color:var(--color-text);margin-bottom:12px;';
@@ -1719,24 +1729,34 @@ var KanvazBoards = (function() {
           'display:flex', 'align-items:center', 'gap:14px', 'padding:16px',
           'border-radius:10px', 'cursor:pointer',
           'transition:transform 0.12s, background 0.12s, border-color 0.12s',
+          /* Color audit fix: a full-opacity solid var(--color-accent)
+             tile (#9D7FFF, at 100%) next to the rest of this screen's
+             near-black surfaces and every other accent usage in the app
+             (a 14%-opacity tint, --color-accent-bg, with the solid color
+             reserved for small badges/borders/text) read as a jarring,
+             disproportionately bright block — direct feedback: "new
+             board card look too bright." Same tint-plus-border treatment
+             the selected-card outline already uses elsewhere, so "this
+             is the primary action" still reads clearly without a wall
+             of raw saturated color. */
           opts.primary
-            ? 'background:var(--color-accent);border:1px solid var(--color-accent);'
+            ? 'background:var(--color-accent-bg);border:1.5px solid var(--color-accent);'
             : 'background:var(--color-surface);border:1px solid var(--color-border-2);'
         ].join(';');
 
         var iconBadge = document.createElement('div');
-        iconBadge.style.cssText = 'flex-shrink:0;width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:' + (opts.primary ? 'rgba(255,255,255,0.2)' : 'var(--color-accent-bg)') + ';color:' + (opts.primary ? '#fff' : 'var(--color-accent)') + ';';
+        iconBadge.style.cssText = 'flex-shrink:0;width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:' + (opts.primary ? 'var(--color-accent)' : 'var(--color-accent-bg)') + ';color:' + (opts.primary ? '#fff' : 'var(--color-accent)') + ';';
         iconBadge.innerHTML = opts.icon;
         tile.appendChild(iconBadge);
 
         var textCol = document.createElement('div');
         textCol.style.cssText = 'flex:1;min-width:0;';
         var titleEl = document.createElement('div');
-        titleEl.style.cssText = 'font-size:13px;font-weight:600;color:' + (opts.primary ? '#fff' : 'var(--color-text)') + ';margin-bottom:2px;';
+        titleEl.style.cssText = 'font-size:13px;font-weight:600;color:var(--color-text);margin-bottom:2px;';
         titleEl.textContent = opts.title;
         textCol.appendChild(titleEl);
         var subEl = document.createElement('div');
-        subEl.style.cssText = 'font-size:11px;color:' + (opts.primary ? 'rgba(255,255,255,0.75)' : 'var(--color-text-3)') + ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+        subEl.style.cssText = 'font-size:11px;color:var(--color-text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
         subEl.textContent = opts.subtitle;
         textCol.appendChild(subEl);
         tile.appendChild(textCol);
@@ -1928,6 +1948,50 @@ var KanvazBoards = (function() {
           })(recent[i]);
         }
         main.appendChild(grid);
+      }
+
+      if (changelogEntries.length) {
+        var whatsNewHeaderRow = document.createElement('div');
+        whatsNewHeaderRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin:20px 0 12px;';
+        var whatsNewLabel = document.createElement('div');
+        whatsNewLabel.textContent = "What's new";
+        whatsNewLabel.style.cssText = 'font-size:13px;font-weight:600;color:var(--color-text);';
+        whatsNewHeaderRow.appendChild(whatsNewLabel);
+        main.appendChild(whatsNewHeaderRow);
+
+        var whatsNewList = document.createElement('div');
+        whatsNewList.style.cssText = 'display:flex;flex-direction:column;gap:1px;background:var(--color-border-2);border:1px solid var(--color-border-2);border-radius:10px;overflow:hidden;';
+
+        for (var wi = 0; wi < changelogEntries.length; wi++) {
+          (function(entry) {
+            var row = document.createElement('div');
+            row.style.cssText = 'display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--color-surface);cursor:pointer;transition:background 0.12s;';
+            row.onmouseenter = function() { row.style.background = 'var(--color-surface-2)'; };
+            row.onmouseleave = function() { row.style.background = 'var(--color-surface)'; };
+
+            var badge = document.createElement('span');
+            badge.textContent = 'v' + entry.version;
+            badge.style.cssText = 'flex-shrink:0;font-family:var(--font-mono);font-size:11px;color:var(--color-accent);background:var(--color-accent-bg);padding:3px 8px;border-radius:5px;';
+            row.appendChild(badge);
+
+            var headline = document.createElement('span');
+            headline.textContent = entry.headline;
+            headline.style.cssText = 'flex:1;font-size:12px;color:var(--color-text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+            row.appendChild(headline);
+
+            /* Opens the matching GitHub release — same user-click-only,
+               disclosed external-link pattern as the About screen's own
+               "View on GitHub" button, never automatic. */
+            row.onclick = function() {
+              if (typeof KanvazBridge !== 'undefined' && KanvazBridge.openExternal) {
+                KanvazBridge.openExternal('https://github.com/p4inz-code/kanvaz/releases/tag/v' + entry.version);
+              }
+            };
+
+            whatsNewList.appendChild(row);
+          })(changelogEntries[wi]);
+        }
+        main.appendChild(whatsNewList);
       }
 
       rightCol.appendChild(main);

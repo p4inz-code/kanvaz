@@ -2,6 +2,32 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [7.21.0] — Home Screen "What's New", New Board color fix
+
+### Added
+- **A "What's New" section** on the Home Screen, filling the empty
+  space below the template previews on a fresh profile with no recent
+  boards yet. Reads the last 3 entries straight off `CHANGELOG.md`
+  (main.js's new `changelog-recent` handler — no network call, same
+  offline discipline as the bundled templates) rather than a second,
+  hand-maintained source of truth. Clicking an entry opens the matching
+  GitHub release, same disclosed external-link pattern as the About
+  screen's "View on GitHub" button. Verified live: the IPC handler
+  returned the real top 3 versions with correct headlines, and the
+  panel rendered them exactly as returned.
+
+### Fixed
+- **The Home Screen's "New Board" tile was jarringly bright** — direct
+  feedback: "new board card look too bright." It used a full 100%-
+  opacity solid `var(--color-accent)` fill, while every other accent
+  usage in the app (including the exact same "selected" state on a
+  canvas card) is a 14%-opacity tint with the solid color reserved for
+  small badges, borders, and text. Switched to that same tint-plus-
+  border treatment — still visually primary, no longer a wall of raw
+  saturated color. Verified live via computed style: background is now
+  `rgba(157, 127, 255, 0.14)` with a solid accent border, matching the
+  rest of the app's accent convention exactly.
+
 ## [7.20.0] — Layers panel
 
 ### Added
