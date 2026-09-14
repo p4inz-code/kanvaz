@@ -2,6 +2,22 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [7.15.0] — Tidy up
+
+### Added
+- **Tidy up**, the closest thing this app has to Miro/Figma's "Tidy up"
+  or Blender's "Arrange." Two entry points: "Tidy up board" in the
+  canvas right-click menu (packs every card on the board, no selection
+  needed) and "Tidy up selection" in the Properties panel (useful at 2+
+  cards, unlike Distribute which needs 3+). Sorts cards by current
+  reading order (top-to-bottom, then left-to-right) before laying them
+  into a uniform grid sized off the largest card in the set, anchored at
+  the group's own top-left corner rather than a fixed board origin, so
+  tidying a cluster in the middle of a busy board doesn't relocate it
+  across the canvas. Verified live: four scattered cards packed into a
+  clean 2×2 grid with zero overlap, in the same reading order they
+  started in.
+
 ## [7.14.0] — Distribute evenly, Shift+F zoom to selection
 
 ### Added

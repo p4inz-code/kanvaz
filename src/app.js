@@ -1575,6 +1575,11 @@ var KanvazApp = (function() {
           { sep: true },
           { label: 'Import .pur file', action: function() { importPurFile(); }},
           { sep: true },
+          { label: 'Tidy up board', action: function() {
+            if (typeof KanvazCards === 'undefined') return;
+            KanvazCards.tidyUp(KanvazCards.getAllIds());
+          }},
+          { sep: true },
           { label: 'Reset zoom', shortcut: '0', action: function() { KanvazCanvas.zoomReset(); }},
           { label: 'Fit all cards', shortcut: 'F', action: function() { KanvazCanvas.zoomFit(); }}
         ];

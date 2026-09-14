@@ -5162,6 +5162,73 @@ var KanvazCards = (function() {
     }
   }
 
+  /* Every card id currently on the board, in no particular order — a
+     thin wrapper so callers (the canvas right-click menu's "Tidy up
+     board") don't need their own reference to the module-private
+     `cards` object. */
+  function getAllIds() {
+    return Object.keys(cards);
+  }
+
+  /* Tidy up — packs cards into a grid, closest thing this app has to
+     Miro/Figma's "Tidy up" or Blender's "Arrange". Sorts by current
+     reading order (top-to-bottom, then left-to-right) so the resulting
+     grid roughly preserves the layout's existing sense of order instead
+     of scrambling it, then lays cards out in a roughly square grid sized
+     off the LARGEST card in the set — every cell is uniform, so a mix of
+     card sizes doesn't overlap, at the cost of extra whitespace around
+     smaller cards. Anchored at the selection's own top-left corner
+     rather than some fixed board origin, so tidying a group in the
+     middle of a busy board doesn't relocate it across the canvas. */
+  var TIDY_GAP = 24;
+  function tidyUp(ids) {
+    if (!ids || ids.length < 2) return;
+    var relevant = [];
+    for (var i = 0; i < ids.length; i++) {
+      var c = cards[ids[i]];
+      if (c && !c.pinned) relevant.push(c);
+    }
+    if (relevant.length < 2) return;
+
+    relevant.sort(function(a, b) { return (a.y - b.y) || (a.x - b.x); });
+
+    var originX = Infinity, originY = Infinity, maxW = 0, maxH = 0;
+    for (var j = 0; j < relevant.length; j++) {
+      if (relevant[j].x < originX) originX = relevant[j].x;
+      if (relevant[j].y < originY) originY = relevant[j].y;
+      if (relevant[j].w > maxW) maxW = relevant[j].w;
+      if (relevant[j].h > maxH) maxH = relevant[j].h;
+    }
+
+    var columns = Math.max(1, Math.ceil(Math.sqrt(relevant.length)));
+    var cellW = maxW + TIDY_GAP;
+    var cellH = maxH + TIDY_GAP;
+    var changed = false;
+
+    for (var k = 0; k < relevant.length; k++) {
+      var card = relevant[k];
+      var row = Math.floor(k / columns);
+      var col = k % columns;
+      var newX = originX + col * cellW;
+      var newY = originY + row * cellH;
+      if (newX !== card.x || newY !== card.y) {
+        card.x = newX;
+        card.y = newY;
+        var el = document.getElementById(card.id);
+        if (el) {
+          el.style.left = newX + 'px';
+          el.style.top = newY + 'px';
+        }
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      KanvazApp.markDirty();
+      KanvazHistory.push();
+    }
+  }
+
   /* ── Send to back ── */
 
   function sendToBack(id) {
@@ -5518,6 +5585,8 @@ var KanvazCards = (function() {
     setTransform:      setTransform,
     alignCards:        alignCards,
     distributeCards:   distributeCards,
+    tidyUp:            tidyUp,
+    getAllIds:         getAllIds,
     showOpacityPicker: showOpacityPicker,
     toggleObjectFit:   toggleObjectFit,
     showSpeedPicker:   showSpeedPicker,

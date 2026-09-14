@@ -429,6 +429,17 @@ var KanvazProperties = (function() {
         }
         body.appendChild(distRow);
       }
+
+      /* Tidy up — packs the selection into a grid. Useful at 2+ (unlike
+         Distribute, which needs 3+ to mean anything), so it sits with
+         Align rather than gated behind the Distribute-only threshold. */
+      var tidyBtn = document.createElement('button');
+      tidyBtn.textContent = 'Tidy up selection';
+      tidyBtn.style.cssText = 'width:100%;padding:6px 2px;background:var(--color-surface-2);border:1px solid var(--color-border-2);border-radius:5px;color:var(--color-text-2);font-family:var(--font-ui);font-size:10px;cursor:pointer;margin-bottom:16px;';
+      tidyBtn.onclick = function() {
+        if (typeof KanvazCards !== 'undefined') KanvazCards.tidyUp(KanvazCards.getSelectedIds());
+      };
+      body.appendChild(tidyBtn);
     }
   }
 
