@@ -932,11 +932,28 @@ function registerIPC() {
     });
   });
 
+  /* recent.json on disk stays a plain array of path strings (the
+     format recent-add/recent-remove below already read and write,
+     and the one existing installs' saved files are already in) — no
+     migration needed. This handler is the only place that enriches
+     it with a real mtime for the Home Screen's "Edited X ago" text,
+     computed fresh per call rather than stored, and it's also the one
+     natural place to quietly drop entries whose file no longer exists
+     (moved/deleted since it was added) instead of leaving a stale
+     path that would fail when clicked. */
   ipcMain.handle('recent-get', function() {
     var p = getRecentFilesPath();
     try {
       if (!fs.existsSync(p)) return [];
-      return JSON.parse(fs.readFileSync(p, 'utf8'));
+      var paths = JSON.parse(fs.readFileSync(p, 'utf8'));
+      var out = [];
+      for (var i = 0; i < paths.length; i++) {
+        try {
+          var stat = fs.statSync(paths[i]);
+          out.push({ path: paths[i], mtimeMs: stat.mtimeMs });
+        } catch (e) { /* file moved/deleted since it was added — drop it */ }
+      }
+      return out;
     } catch (e) {
       return [];
     }

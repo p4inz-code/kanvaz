@@ -105,6 +105,21 @@ var KanvazShortcuts = (function() {
       return;
     }
 
+    /* Direct feedback: "keep one shortcut other than [the logo click] to
+       go and come back to home and canvas, like h or whatever feels
+       easy" — plain H is already Toggle Annotation Visibility (below),
+       so Ctrl+H (unclaimed, no native textarea meaning to fight) is the
+       Home Screen toggle instead. "Always fire" like Ctrl+K just above:
+       reachable even mid-typing in a note, same as any other view
+       switch. toggleHomeScreen() (not showHomeScreen()) so pressing it
+       again while already on the Home Screen goes back to the board
+       instead of stacking a second overlay. */
+    if (ctrl && !shift && keyLower === 'h') {
+      e.preventDefault();
+      if (typeof KanvazBoards !== 'undefined' && KanvazBoards.toggleHomeScreen) KanvazBoards.toggleHomeScreen();
+      return;
+    }
+
     /* ── Skip text inputs below this line ──
        Ctrl+Z/Ctrl+Y/Ctrl+Shift+Z/Ctrl+A have native meanings inside a
        textarea (undo typing, redo, select all text) — they must NOT be

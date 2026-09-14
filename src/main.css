@@ -580,6 +580,15 @@ html, body {
   padding: 0 14px;
   flex-shrink: 0;
   -webkit-app-region: no-drag;
+  /* Direct feedback: "make kanvaz icon in this corner the button to
+     go home to canvaz and canvaz to home" — the logo itself is the
+     Home Screen toggle now, not a separate toolbar button. */
+  cursor: pointer;
+  transition: opacity 0.1s;
+}
+
+#titlebar-logo:hover {
+  opacity: 0.8;
 }
 
 #titlebar-logo .logo-icon {
@@ -2960,23 +2969,19 @@ html, body {
   margin-bottom: 8px;
 }
 
-.about-btn-update {
+/* Shared "secondary" outline look — Update, GitHub, and Keyboard
+   Shortcuts are all the same visual weight (a plain button, not the
+   only-one-of-these Close). Was two separately-declared, byte-for-byte
+   identical rule blocks (.about-btn-update / .about-btn-github); a
+   bare .about-btn (the new Keyboard Shortcuts button) would otherwise
+   need a THIRD copy just to look like a real button instead of unstyled
+   text. */
+.about-btn:not(.about-btn-close) {
   background: transparent;
   border: 1px solid var(--color-border-2);
   color: var(--color-text-2);
 }
-.about-btn-update:hover {
-  background: var(--color-surface-2);
-  border-color: var(--color-accent);
-  color: var(--color-accent);
-}
-
-.about-btn-github {
-  background: transparent;
-  border: 1px solid var(--color-border-2);
-  color: var(--color-text-2);
-}
-.about-btn-github:hover {
+.about-btn:not(.about-btn-close):hover {
   background: var(--color-surface-2);
   border-color: var(--color-accent);
   color: var(--color-accent);

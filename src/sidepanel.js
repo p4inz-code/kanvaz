@@ -197,6 +197,19 @@ var KanvazSidePanel = (function() {
       });
     }
 
+    /* Direct feedback: "how will user go back to home screen add a
+       option too" — the Home Screen only ever showed automatically on
+       launch before this; manual=true bypasses the hasStartupFile/
+       openOnStartup gates that only make sense for the automatic
+       on-launch case. */
+    var homeItem = document.getElementById('account-menu-home');
+    if (homeItem) {
+      homeItem.addEventListener('click', function() {
+        closeMenu();
+        if (typeof KanvazBoards !== 'undefined' && KanvazBoards.toggleHomeScreen) KanvazBoards.toggleHomeScreen();
+      });
+    }
+
     /* Phase 2 — offline profiles (docs/PROFILES_SYSTEM_PLAN.md). Label
        refreshes every time the menu opens rather than once at init(),
        since the active profile can change without a page reload (a

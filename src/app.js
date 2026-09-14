@@ -153,12 +153,19 @@ var KanvazApp = (function() {
     }
 
     /* Titlebar */
-    on('btn-export',         function() { KanvazBoards.saveBoardAs(); });
     on('btn-minimize',      function() { KanvazBridge.minimize(); });
     on('btn-maximize',      function() { KanvazBridge.maximize(); });
     on('btn-close',         function() { KanvazBridge.close(); });
 
     /* Toolbar */
+    /* Bug-bounty fix: this called showHomeScreen() while every other
+       entry point (Ctrl+H, the account-menu item, the Command Palette)
+       deliberately calls toggleHomeScreen() to avoid stacking a second
+       #startup-screen overlay — this one click path was missed, and
+       since the overlay renders behind this same clickable logo (it's
+       only reachable again after the overlay covers it), a double-click
+       here could genuinely stack two. */
+    on('titlebar-logo', function() { if (KanvazBoards.toggleHomeScreen) KanvazBoards.toggleHomeScreen(); });
     on('btn-new',       function() { KanvazBoards.newBoard(); });
     on('btn-open',      function() { KanvazBoards.openBoard(); });
     /* Audit fix: "Import .pur file" existed only buried in the empty-
@@ -371,6 +378,14 @@ var KanvazApp = (function() {
   var searchBar = null;
   var searchInput = null;
   var searchActive = false;
+  /* Bug-bounty fix: the type-filter dropdown (typeMenu, built fresh
+     inside showSearchBar() below) is appended straight to document.body
+     rather than inside searchBar, so closing the search bar never
+     touched it — leaving it floating, orphaned, and un-clickable-away
+     the moment searchBar itself was removed out from under it. Set by
+     showSearchBar() each time it (re)builds the dropdown's own
+     closeTypeMenu(), so hideSearchBar() below has something to call. */
+  var closeTypeMenuFn = null;
 
   /* Session-scoped (not persisted to settings — this is "where did I
      leave it this session," same category as which card is selected),
@@ -490,9 +505,21 @@ var KanvazApp = (function() {
     function closeTypeMenu() {
       if (typeMenu) { typeMenu.remove(); typeMenu = null; }
       document.removeEventListener('mousedown', onOutsideClick, true);
+      document.removeEventListener('keydown', onTypeMenuEscape, true);
     }
+    closeTypeMenuFn = closeTypeMenu;
     function onOutsideClick(e) {
       if (typeMenu && !typeMenu.contains(e.target) && e.target !== typeFilterBtn) closeTypeMenu();
+    }
+    /* Polish fix: Escape used to close the search bar itself but leave
+       this dropdown open and orphaned behind it — same class of cleanup
+       gap hideSearchBar()'s own commandResultsEl removal exists to
+       prevent. Added/removed in lockstep with onOutsideClick (not a
+       bare unconditional document listener added once per search-bar
+       session) so reopening the search bar repeatedly can't stack up
+       duplicate listeners the way a naive always-on binding would. */
+    function onTypeMenuEscape(e) {
+      if (e.key === 'Escape' && typeMenu) closeTypeMenu();
     }
 
     typeFilterBtn.addEventListener('click', function(e) {
@@ -520,9 +547,23 @@ var KanvazApp = (function() {
       for (var i = 0; i < CARD_TYPE_FILTER_OPTIONS.length; i++) {
         (function(opt) {
           var row = document.createElement('div');
-          row.textContent = opt[1];
           var isOn = activeTypeFilter === opt[0];
-          row.style.cssText = 'padding:6px 10px;font-size:12px;color:' + (isOn ? 'var(--color-accent)' : 'var(--color-text)') + ';cursor:pointer;border-radius:5px;';
+          /* Polish fix: "polish improve the filter opt in search bar" —
+             the only signal for "this is the active type" used to be the
+             label's own text color, easy to miss at a glance in a plain
+             list of 10 otherwise-identical rows. A trailing checkmark
+             reads instantly the way every other menu with a persisted
+             choice in the app already does (Theme, Grid style). */
+          row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 10px;font-size:12px;color:' + (isOn ? 'var(--color-accent)' : 'var(--color-text)') + ';cursor:pointer;border-radius:5px;';
+          var label = document.createElement('span');
+          label.textContent = opt[1];
+          row.appendChild(label);
+          if (isOn) {
+            var check = document.createElement('span');
+            check.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+            check.style.cssText = 'display:flex;flex-shrink:0;';
+            row.appendChild(check);
+          }
           row.addEventListener('mouseenter', function() { row.style.background = 'var(--color-surface-2)'; });
           row.addEventListener('mouseleave', function() { row.style.background = 'transparent'; });
           row.addEventListener('click', function() {
@@ -535,7 +576,10 @@ var KanvazApp = (function() {
       }
 
       document.body.appendChild(typeMenu);
-      setTimeout(function() { document.addEventListener('mousedown', onOutsideClick, true); }, 0);
+      setTimeout(function() {
+        document.addEventListener('mousedown', onOutsideClick, true);
+        document.addEventListener('keydown', onTypeMenuEscape, true);
+      }, 0);
     });
 
     var closeBtn = document.createElement('span');
@@ -660,11 +704,27 @@ var KanvazApp = (function() {
     smartFolderRow.innerHTML = '';
     if (typeof KanvazUI_Extended === 'undefined') return;
     var s = KanvazUI_Extended.getSettings();
-    var folders = (s && s.smartFolders) || [];
+    /* Favorites first \u2014 same ordering the side panel's own Smart
+       Folders list (boards.js) applies, so "favorite one, find it
+       faster" holds true in both places it's rendered. .slice() before
+       .sort() so this never reorders the underlying settings.json array
+       itself (sort() mutates in place) just from rendering. */
+    var folders = ((s && s.smartFolders) || []).slice().sort(function(a, b) {
+      return (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0);
+    });
     for (var i = 0; i < folders.length; i++) {
       (function(folder) {
         var chip = document.createElement('div');
         chip.style.cssText = 'display:flex;align-items:center;gap:5px;padding:3px 8px;background:var(--color-surface);border:1px solid var(--color-border-2);border-radius:999px;font-size:11px;color:var(--color-text-2);cursor:pointer;box-shadow:0 2px 8px var(--color-shadow);';
+        chip.title = 'Left-click: run this search. Right-click: more options.';
+
+        if (folder.favorite) {
+          var heart = document.createElement('span');
+          heart.style.cssText = 'display:flex;color:var(--color-red);flex-shrink:0;';
+          heart.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-6.7-4.35-9.3-8.1C1 10.3 1.7 6.9 4.6 5.4 6.9 4.2 9.6 5 12 7.3 14.4 5 17.1 4.2 19.4 5.4c2.9 1.5 3.6 4.9 1.9 7.5C18.7 16.65 12 21 12 21z"/></svg>';
+          chip.appendChild(heart);
+        }
+
         var label = document.createElement('span');
         label.textContent = folder.name;
         chip.appendChild(label);
@@ -687,6 +747,18 @@ var KanvazApp = (function() {
             applySearchFilter(folder.query);
           }
         });
+        /* Direct feedback: "right click on search will give options
+           open, fav it with heart svg and more" \u2014 routes to the same
+           smartFolder branch showCardContextMenu's sibling
+           showContextMenu() gained above, so Open/Favorite/Rename/
+           Edit query/Delete are all one shared implementation instead
+           of a second copy living here. */
+        chip.addEventListener('contextmenu', function(e) {
+          e.preventDefault();
+          if (typeof KanvazUI !== 'undefined' && KanvazUI.showContextMenu) {
+            KanvazUI.showContextMenu(e.clientX, e.clientY, 'smartFolder', folder);
+          }
+        });
         smartFolderRow.appendChild(chip);
       })(folders[i]);
     }
@@ -701,6 +773,7 @@ var KanvazApp = (function() {
     if (searchBar) { searchBar.remove(); searchBar = null; searchInput = null; }
     if (smartFolderRow) { smartFolderRow.remove(); smartFolderRow = null; }
     if (commandResultsEl) { commandResultsEl.remove(); commandResultsEl = null; }
+    if (closeTypeMenuFn) { closeTypeMenuFn(); closeTypeMenuFn = null; }
     clearSearchFilter();
   }
 
@@ -1551,6 +1624,68 @@ var KanvazApp = (function() {
         } catch (e) {
           console.error('[Kanvaz Plugin] failed to build plugin context-menu items, showing built-in items only:', e.message);
         }
+      }
+
+      /* Direct feedback: "right click on search will give options open,
+         fav it with heart svg and more" — a Smart Folder chip/row (the
+         search bar's own row of saved-search chips, or its persistent
+         twin in the Boards side panel) had no interaction besides a
+         left-click-to-run and a small delete "×". `target` here is the
+         folder object itself ({id, name, query, favorite}) — nested
+         inside KanvazApp's IIFE, so this reaches applySearchFilter/
+         searchInput/showSearchBar/renderSmartFolderChips directly via
+         closure, same as every other cross-boundary call already made
+         from within this same window.KanvazUI IIFE. */
+      if (type === 'smartFolder') {
+        var folder = target;
+        items = [
+          { label: 'Open', action: function() {
+            if (!searchActive) showSearchBar();
+            setTimeout(function() {
+              if (searchInput) searchInput.value = folder.query;
+              applySearchFilter(folder.query);
+            }, 0);
+          }},
+          { label: folder.favorite ? 'Remove from Favorites' : 'Add to Favorites', action: function() {
+            var s = KanvazUI_Extended.getSettings();
+            if (!s || !s.smartFolders) return;
+            var f = s.smartFolders.filter(function(x) { return x.id === folder.id; })[0];
+            if (!f) return;
+            f.favorite = !f.favorite;
+            KanvazBridge.writeSettings(JSON.stringify(s));
+            renderSmartFolderChips();
+          }},
+          { label: 'Rename', action: function() {
+            showPrompt('Rename Smart Folder', 'New name:', folder.name, function(newName) {
+              var s = KanvazUI_Extended.getSettings();
+              if (!s || !s.smartFolders) return;
+              var f = s.smartFolders.filter(function(x) { return x.id === folder.id; })[0];
+              if (!f) return;
+              f.name = newName;
+              KanvazBridge.writeSettings(JSON.stringify(s));
+              renderSmartFolderChips();
+            });
+          }},
+          { label: 'Edit query', action: function() {
+            showPrompt('Edit Smart Folder query', 'Search query:', folder.query, function(newQuery) {
+              var s = KanvazUI_Extended.getSettings();
+              if (!s || !s.smartFolders) return;
+              var f = s.smartFolders.filter(function(x) { return x.id === folder.id; })[0];
+              if (!f) return;
+              f.query = newQuery;
+              KanvazBridge.writeSettings(JSON.stringify(s));
+              renderSmartFolderChips();
+            });
+          }},
+          { sep: true },
+          { label: 'Delete', danger: true, action: function() {
+            var s = KanvazUI_Extended.getSettings();
+            if (!s || !s.smartFolders) return;
+            s.smartFolders = s.smartFolders.filter(function(f) { return f.id !== folder.id; });
+            KanvazBridge.writeSettings(JSON.stringify(s));
+            renderSmartFolderChips();
+          }}
+        ];
       }
 
       for (var i = 0; i < items.length; i++) {

@@ -244,6 +244,15 @@ var KanvazCommands = (function() {
       label: 'Show Keyboard Shortcuts', shortcut: '?',
       run: function() { if (typeof KanvazUI !== 'undefined') KanvazUI.showShortcuts(); }
     });
+    registerCommand('core.openHomeScreen', {
+      label: 'Go to Home Screen', shortcut: 'Ctrl+H',
+      /* toggleHomeScreen(), not showHomeScreen() — same duplicate-overlay
+         reasoning as the Ctrl+H shortcut itself (shortcuts.js): this is
+         reachable from the Command Palette too, and stacking a second
+         #startup-screen on top of an already-open one is a real bug, not
+         a hypothetical one. */
+      run: function() { if (typeof KanvazBoards !== 'undefined' && KanvazBoards.toggleHomeScreen) KanvazBoards.toggleHomeScreen(); }
+    });
   }
 
   /* ══════════════════════════════════════════════════════════════

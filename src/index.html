@@ -47,7 +47,10 @@
 
   <!-- Titlebar -->
   <div id="titlebar">
-    <div id="titlebar-logo">
+    <!-- data-tooltip, not title: this sits inside #titlebar's drag
+         region (see the other 4 titlebar buttons' own comment on why
+         a plain title attribute can leak a native tooltip there). -->
+    <div id="titlebar-logo" data-tooltip="Home Screen">
       <img class="logo-icon" src="../assets/icons/icon-128.png" alt="" width="18" height="18">
       <span class="logo-text">Kanvaz</span>
     </div>
@@ -55,27 +58,17 @@
     <div id="titlebar-title">Untitled Board</div>
 
     <div id="titlebar-controls">
-      <!-- Audit fix: this button calls KanvazBoards.saveBoardAs(), which
-           writes a new .kanvaz file (same native format, new path/name) —
-           it does not convert to any other file format, so "Export" was
-           misleading. Left the element id as btn-export (internal only,
-           app.js wires it via getElementById) to avoid an unrelated
-           id-rename diff; only the user-facing label changed. -->
-      <!-- v7.x — icon set switched to Feather Icons (MIT license,
-           https://github.com/feathericons/feather) paths, verbatim,
-           at Feather's native 24x24 viewBox/stroke-width so they scale
-           correctly at any rendered size — only width/height differ
-           per button to match this toolbar's existing compact sizing. -->
-      <!-- Direct feedback: this used an upload-into-tray glyph that
-           reads as "Share" (the exact shape iOS uses for its own Share
-           button) right next to the toolbar's plain-disk "Save" — two
-           save-related icons with no shared visual language, one of
-           them shaped like an entirely different, nonexistent feature
-           (Kanvaz has no network sharing). Feather's "copy" icon reads
-           as "save a copy" instead — matches what Save As actually
-           does (write a new file, same content) without borrowing a
-           glyph that already means something else everywhere. -->
-      <!-- data-tooltip, not title: these 4 buttons sit inside #titlebar's
+      <!-- Direct feedback: "remove save as in corner near minimize
+           totally since save and save as are almost the same so one of
+           em must be removed completely" — the titlebar's dedicated
+           Save-As button (formerly id="btn-export") sat one click away
+           from Save on the regular toolbar and did nothing a titlebar
+           button earns its place for. Save As itself isn't gone — still
+           reachable via Ctrl+Shift+S and the Command Palette
+           (core.saveBoardAs) for the genuine "write a copy under a new
+           name" case — only this redundant titlebar shortcut to it is
+           removed.
+           data-tooltip, not title: these 3 buttons sit inside #titlebar's
            -webkit-app-region:drag ancestor (they're individually marked
            no-drag so clicks work, but Windows' own drag-region hit-
            testing can still let a native OS tooltip through for a plain
@@ -84,9 +77,6 @@
            not theoretical). data-tooltip isn't a real HTML attribute
            the browser acts on, so there's nothing native left to leak;
            tooltip.js reads it as a second source, same custom UI. -->
-      <button class="titlebar-btn" id="btn-export" data-tooltip="Save board as… (Ctrl+Shift+S)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-      </button>
       <button class="titlebar-btn" id="btn-minimize" data-tooltip="Minimize">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
       </button>
@@ -171,6 +161,7 @@
       <div class="account-menu-profile-label" id="account-menu-profile-label">Profile</div>
       <button class="account-menu-item" id="account-menu-profiles">Manage Profiles&hellip;</button>
       <div class="account-menu-sep"></div>
+      <button class="account-menu-item" id="account-menu-home">Home Screen</button>
       <button class="account-menu-item" id="account-menu-about">About Kanvaz</button>
       <button class="account-menu-item" id="account-menu-shortcuts">Shortcuts</button>
     </div>

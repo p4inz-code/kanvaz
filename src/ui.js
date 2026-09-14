@@ -520,6 +520,93 @@ var KanvazUI_Extended = (function() {
     });
   }
 
+  /* Bug-bounty fix: "search settings, tools and about... all stuff in
+     app can be searched" + direct repro "search grid, no results" —
+     the search bar's command dropdown (app.js's updateCommandResults)
+     only ever matched KanvazCommands' registry, and no individual
+     Settings row (e.g. "Grid style") was ever registered there — only
+     the generic "Settings" command was. Typing "grid" had nothing to
+     fuzzy-match against. This static label list mirrors every real row
+     below (kept as plain strings, not the live row objects, since the
+     row objects are only built inside renderSettingsInto() and some —
+     Theme's plugin-added options — are dynamic at render time; a
+     command doesn't need the row's live value, only enough to find and
+     jump to it) and is turned into one real, searchable command per
+     row by registerSettingsSearchCommands() below. `advanced:true`
+     entries live inside the collapsed Advanced section and need it
+     auto-expanded on jump — see jumpToSettingRow(). */
+  var SETTINGS_SEARCH_INDEX = [
+    'Theme', 'Show minimap', 'Grid lines', 'Grid style', 'Card shadows', 'Animations',
+    'Show Home Screen on startup', 'Confirm before delete',
+    'Left-drag empty canvas to pan', 'Auto-hide toolbar (hover top edge to reveal)',
+    'Double-click canvas creates note', 'Snap to grid (move & resize)', 'Snap increment',
+    'Always on top (default: on)', 'Autosave (seconds)', 'Default card width (px)',
+    'Smart Search (on-device NLP, off by default)'
+  ];
+  var SETTINGS_SEARCH_INDEX_ADVANCED = [
+    'FPS / render-time overlay', 'Show card/connection IDs', 'Run diagnostics now',
+    'Generate 50 test cards', 'Export debug info', 'Load unpacked plugin…',
+    'Reset Kanvaz (settings & cache only)'
+  ];
+
+  function slugifyLabel(label) {
+    return label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  }
+
+  /* Opens Settings (if not already showing) then scrolls the matching
+     row into view and flashes it — same "find it, don't just open the
+     section and make me hunt" bar the persistent Smart Folders list
+     and the search-bar command results already set. Retries briefly
+     since the row may not exist in the DOM yet (Settings section still
+     switching in / renderSettingsInto() still running). */
+  function jumpToSettingRow(label, isAdvanced) {
+    var id = 'setting-row-' + slugifyLabel(label);
+
+    function attempt(triesLeft) {
+      var el = document.getElementById(id);
+      if (!el) {
+        if (triesLeft > 0) setTimeout(function() { attempt(triesLeft - 1); }, 60);
+        return;
+      }
+      if (isAdvanced && el.parentNode && el.parentNode.style.display === 'none') {
+        var toggle = el.parentNode.previousElementSibling;
+        if (toggle) toggle.click();
+      }
+      setTimeout(function() {
+        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        var prevBg = el.style.background;
+        var prevTransition = el.style.transition;
+        el.style.transition = 'background 0.25s';
+        el.style.background = 'var(--color-accent-bg)';
+        setTimeout(function() {
+          el.style.background = prevBg;
+          el.style.transition = prevTransition;
+        }, 1100);
+      }, isAdvanced ? 120 : 20);
+    }
+    attempt(10);
+  }
+
+  function registerSettingsSearchCommands() {
+    if (typeof KanvazCommands === 'undefined') return;
+
+    function register(label, isAdvanced) {
+      KanvazCommands.registerCommand('settings.' + slugifyLabel(label), {
+        label: 'Settings: ' + label,
+        showInPalette: true,
+        run: function() {
+          if (typeof KanvazSidePanel !== 'undefined' && KanvazSidePanel.showSection) {
+            KanvazSidePanel.showSection('settings');
+          }
+          setTimeout(function() { jumpToSettingRow(label, isAdvanced); }, 80);
+        }
+      });
+    }
+
+    for (var i = 0; i < SETTINGS_SEARCH_INDEX.length; i++) register(SETTINGS_SEARCH_INDEX[i], false);
+    for (var j = 0; j < SETTINGS_SEARCH_INDEX_ADVANCED.length; j++) register(SETTINGS_SEARCH_INDEX_ADVANCED[j], true);
+  }
+
   /* v7.x redesign — renders directly into the side panel's content pane
      instead of building its own floating popover. Reorganized from 8
      flat section fragments (two of which were single-setting orphans:
@@ -646,6 +733,9 @@ var KanvazUI_Extended = (function() {
         }
         var el = document.createElement('div');
         el.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--color-border);';
+        /* Jump target for registerSettingsSearchCommands() above — same
+           slug the command's jumpToSettingRow() call looks up. */
+        el.id = 'setting-row-' + slugifyLabel(row.label);
 
         var lbl = document.createElement('span');
         lbl.style.cssText = 'color:var(--color-text-2);';
@@ -1281,21 +1371,29 @@ var KanvazUI_Extended = (function() {
     var box = document.createElement('div');
     box.className = 'about-card';
 
+    /* Bug-bounty fix: version used to be hardcoded 3 separate times in
+       this markup ("Version 7.11.1", "v7.11.1" in the tagline) —
+       independent of boards.js's own VERSION constant, so a real
+       version bump only had to be forgotten in one of these three spots
+       for the About screen to quietly start lying about what's
+       installed. Reads the single source of truth instead. */
+    var appVersion = (typeof KanvazBoards !== 'undefined' && KanvazBoards.getVersion) ? KanvazBoards.getVersion() : '';
+
     box.innerHTML = [
       '<div class="about-logo">',
         '<img src="../assets/icons/icon-128.png" alt="" width="44" height="44">',
       '</div>',
       '<div class="about-title">Kanvaz</div>',
       '<div class="about-subtitle">A visual reference workspace for creative professionals.</div>',
-      '<div class="about-version">Version 7.11.1</div>',
+      '<div class="about-version">Version ' + appVersion + '</div>',
       '<div id="about-update-status" class="about-update-status"></div>',
       '<div class="about-divider"></div>',
-      '<div class="about-author"><strong>P4inz Studios</strong></div>',
-      '<div class="about-studio">by Atharva Patil — Navi Mumbai, India</div>',
+      '<div class="about-author"><strong>P4inz</strong> | Atharva Patil</div>',
+      '<div class="about-studio">Navi Mumbai, India</div>',
       '<div class="about-desc">Built for VFX and 3D artists,<br>and the studios and educators who rely on them.</div>',
       '<div class="about-divider"></div>',
       '<div class="about-privacy">Free and open source. MIT License.<br>No telemetry, no background network activity.<br>Your data stays on your machine.</div>',
-      '<div class="about-tagline">Reference Operating System<br>Actively maintained — v7.11.1</div>'
+      '<div class="about-tagline">Reference Operating System<br>Actively maintained — v' + appVersion + '</div>'
     ].join('');
 
     var updateBtn = document.createElement('button');
@@ -1317,6 +1415,18 @@ var KanvazUI_Extended = (function() {
       KanvazBridge.openExternal('https://github.com/p4inz-code/kanvaz');
     };
     box.appendChild(githubBtn);
+
+    /* Polish: About and Shortcuts were two disconnected dead ends —
+       closing one never led to the other even though they're the two
+       "help" surfaces in the app. One click across. */
+    var shortcutsBtn = document.createElement('button');
+    shortcutsBtn.className = 'about-btn';
+    shortcutsBtn.textContent = 'Keyboard Shortcuts';
+    shortcutsBtn.onclick = function() {
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      showShortcuts();
+    };
+    box.appendChild(shortcutsBtn);
 
     var closeBtn = document.createElement('button');
     closeBtn.className = 'about-btn about-btn-close';
@@ -1428,6 +1538,7 @@ var KanvazUI_Extended = (function() {
         name: 'View',
         items: [
           ['M',           'Board \u2194 Map view'],
+          ['Ctrl+H',      'Home Screen \u2194 Board'],
           ['L',           'Light \u2194 Dark theme'],
           ['S',           'Settings'],
           ['I',           'About'],
@@ -1436,6 +1547,19 @@ var KanvazUI_Extended = (function() {
         ]
       }
     ];
+
+    /* Polish: "polish about and shortcuts section pg" — the list grew
+       past 25 entries across this session's additions (Ctrl+H, etc.)
+       with no way to jump straight to one. A plain client-side filter,
+       same "type to narrow" habit the search bar and Command Palette
+       already train. */
+    var filterInput = document.createElement('input');
+    filterInput.type = 'text';
+    filterInput.placeholder = 'Filter shortcuts…';
+    filterInput.style.cssText = 'width:100%;box-sizing:border-box;padding:7px 10px;margin-bottom:14px;background:var(--color-surface-2);border:1px solid var(--color-border-2);border-radius:6px;color:var(--color-text);font-family:var(--font-ui);font-size:12px;outline:none;';
+    box.appendChild(filterInput);
+
+    var allRows = [];
 
     var cols = document.createElement('div');
     cols.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px 24px;';
@@ -1464,12 +1588,36 @@ var KanvazUI_Extended = (function() {
         row.appendChild(keyEl);
         row.appendChild(descEl);
         col.appendChild(row);
+        allRows.push({ el: row, col: col, text: (group.items[r][0] + ' ' + group.items[r][1]).toLowerCase() });
       }
 
       cols.appendChild(col);
     }
 
     box.appendChild(cols);
+
+    var noResults = document.createElement('div');
+    noResults.style.cssText = 'display:none;text-align:center;color:var(--color-text-3);font-size:12px;padding:16px 0;';
+    noResults.textContent = 'No shortcuts match.';
+    box.appendChild(noResults);
+
+    filterInput.addEventListener('input', function() {
+      var q = filterInput.value.trim().toLowerCase();
+      var colHasVisible = new Map();
+      for (var ri = 0; ri < allRows.length; ri++) {
+        var match = !q || allRows[ri].text.indexOf(q) !== -1;
+        allRows[ri].el.hidden = !match;
+        if (match) colHasVisible.set(allRows[ri].col, true);
+      }
+      var anyVisible = false;
+      var colEls = cols.children;
+      for (var ci = 0; ci < colEls.length; ci++) {
+        var visible = colHasVisible.get(colEls[ci]) || false;
+        colEls[ci].style.display = visible ? '' : 'none';
+        if (visible) anyVisible = true;
+      }
+      noResults.style.display = anyVisible ? 'none' : '';
+    });
 
     var closeBtn = document.createElement('button');
     closeBtn.textContent = 'Close';
@@ -1596,6 +1744,7 @@ var KanvazUI_Extended = (function() {
     loadSettings();
     initMinimap();
     showFirstRunIfNeeded();
+    registerSettingsSearchCommands();
 
     /* Plugins (4.2.0): re-scan whenever the window regains focus, so a
        plugin folder dropped in via "Add a Plugin…" is picked up as soon

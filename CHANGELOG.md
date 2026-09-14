@@ -4,6 +4,89 @@ All notable changes to Kanvaz are documented here.
 
 ## [Unreleased]
 
+### Fixed
+- **The Home Screen could be stacked twice** — a fast double-click on
+  the titlebar logo, or Ctrl+H pressed twice in quick succession (or
+  held, triggering OS key-repeat), could both pass the "is it already
+  open" check before the first call's IPC round trip (fetching recent
+  boards/profiles/templates) had actually finished creating the
+  overlay — a genuine race, not just a theoretical one, caught during
+  this session's own bug-bounty pass. A synchronous in-flight guard
+  closes the window. The titlebar logo's click handler was also still
+  calling the non-toggling `showHomeScreen()` while every other entry
+  point (Ctrl+H, the account menu, the Command Palette) had already
+  been switched to `toggleHomeScreen()` — fixed to match.
+- **A Home Screen template tile had no double-click guard** (unlike the
+  equivalent button in the Boards panel, which disables itself first)
+  — a fast double-click could fire the load-template flow twice
+  concurrently.
+- **Searching "grid" (or any other individual Settings label) returned
+  nothing** — direct repro: "when i search a grid which is grid type or
+  style why no search results are there?" The search bar's command
+  dropdown only ever matched entries in the Command Palette registry,
+  and no individual Settings row (Grid style, Grid lines, Autosave,
+  etc.) was ever registered there — only the generic "Open Settings"
+  command was. Every real Settings row now has its own searchable
+  command ("Settings: Grid style"); picking one opens Settings, jumps
+  to that row (auto-expanding the collapsed Advanced section if
+  needed), and briefly highlights it.
+- **The search bar's type-filter dropdown could be left orphaned on
+  screen** two different ways: pressing Escape closed the search bar
+  but not the dropdown (it renders into `document.body`, not inside the
+  search bar itself), and closing the search bar by any other means
+  never closed it either. Both fixed.
+- **The Home Screen's logo didn't match the real app logo** — direct
+  feedback: "why not using same logo as in inside." It was a hand-drawn
+  inline SVG approximation instead of the actual icon artwork the
+  titlebar and taskbar use. Now the same `icon-128.png`, same circular
+  crop, in both places.
+- **About screen's version number was hardcoded in three separate
+  places**, independent of the real version constant — a real version
+  bump only had to be forgotten in one of the three for About to start
+  quietly lying about what's installed. Now reads the single source of
+  truth.
+
+### Added
+- **Ctrl+H toggles the Home Screen** on and off from anywhere, including
+  while typing in a note — direct feedback: "keep one shortcut other
+  than [the logo] to go and come back to home and canvas, like h or
+  whatever feels easy." (Plain H was already taken — Hide Annotations.)
+  Also wired into the account menu's "Home Screen" item and the Command
+  Palette's "Go to Home Screen" entry, both of which used to risk
+  stacking a second overlay if triggered while the Home Screen was
+  already open.
+- **Smart Folders can now be right-clicked** — direct feedback: "right
+  click on search will give options open, fav it with heart svg and
+  more." Open / Add to Favorites / Rename / Edit query / Delete, on both
+  the search bar's own chip row and the persistent list in the Boards
+  side panel. Favorited folders show a filled heart and sort to the
+  top in both places. The side panel's Smart Folders section also no
+  longer disappears entirely when empty — a short "how to create one"
+  hint takes its place instead of nothing.
+- **Properties panel: Tags and Info sections** — Tags mirrors the
+  on-card tag bar (add/remove chips) without needing to shrink a small
+  card down to find it; Info shows the card's own ID with a Copy button,
+  useful alongside "Show card/connection IDs" and for anyone scripting
+  the MCP Bridge tools.
+- **About screen links to Keyboard Shortcuts** and the Shortcuts overlay
+  now lists Ctrl+H — the app's two "help" surfaces used to be dead ends
+  with no way from one to the other.
+- **The Shortcuts overlay has a filter box** — the list passed 30+
+  entries across this session's additions with no way to jump straight
+  to one; typing narrows both the rows and their column headings.
+- **Home Screen header now has one-click Boards / Settings links** —
+  direct feedback: "something can be opened directly inside home
+  [screen] instead of going to canvaz." Both close the Home Screen and
+  land straight on that side-panel section, instead of closing blind
+  onto a plain canvas and having to find the rail icon afterward.
+
+### Removed
+- **Titlebar's dedicated Save As button** — direct feedback: "remove
+  save as in corner near minimize totally since save and save as are
+  almost the same so one of em must be removed completely." Save As
+  itself isn't gone — Ctrl+Shift+S and the Command Palette still reach
+  it — only the redundant titlebar shortcut to it.
+
 ### Added
 - **Map View: Cluster by Tag (G key)** — a visual grouping toggle, not
   a spatial rearrangement: draws a soft rounded highlight + label
@@ -86,12 +169,14 @@ All notable changes to Kanvaz are documented here.
   Both now use `border-radius: 50%`.
 
 ### Changed
-- **Branding updated app-wide**: P4inz Studios is now the primary
-  credit, with Atharva Patil named secondarily — the About screen,
-  README footer, package.json's author/copyright, and the new Home
-  Screen's footer all use the same order. The installer's internal
-  `appId` is deliberately left as-is (an OS-level identifier, not
-  display text — changing it risks breaking auto-update continuity
+- **Branding updated app-wide**: "P4inz | Atharva Patil" — the About
+  screen, README footer, package.json's author/copyright, and the Home
+  Screen's footer all use the same order. (An earlier pass in this same
+  cycle briefly read this as "P4inz Studios" primary/Atharva Patil
+  secondary — direct correction: "its not p4inz studio its only p4inz
+  | then my name." There is no "Studios" in the name.) The installer's
+  internal `appId` is deliberately left as-is (an OS-level identifier,
+  not display text — changing it risks breaking auto-update continuity
   for anyone with Kanvaz already installed).
 - **The search bar's type filter really is a type filter now** —
   earlier this session it went from a color swatch to a clearer

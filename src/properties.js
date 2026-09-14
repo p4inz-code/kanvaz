@@ -180,6 +180,8 @@ var KanvazProperties = (function() {
 
     renderTransformSection(body, card, activeId);
     renderLayerSection(body, card, activeId);
+    renderTagsSection(body, card, activeId);
+    renderInfoSection(body, card, activeId);
     renderMediaSection(body, card, activeId);
     renderModel3DSection(body, card, activeId);
     renderPlaybackSection(body, card, activeId);
@@ -375,6 +377,94 @@ var KanvazProperties = (function() {
       }
       body.appendChild(alignGrid);
     }
+  }
+
+  /* ── Tags ── Direct feedback: "add more content in properties
+     panel" — tags were only ever editable from the small on-card tag
+     bar (cards.js's buildTagBar, easy to miss and cramped on a small
+     card), even though they're one of the three things search actually
+     matches against (name/type/tag — see app.js's applySearchFilter).
+     Mirrors the on-card tag bar's chips-plus-add-input shape but goes
+     through KanvazCards.setTags() (a full-array replace with its own
+     dirty/history/event handling) rather than splicing card.tags
+     directly, so this never has to duplicate that bookkeeping. */
+  function renderTagsSection(body, card, cardId) {
+    var title = document.createElement('div');
+    title.style.cssText = SECTION_TITLE_CSS;
+    title.textContent = 'Tags';
+    body.appendChild(title);
+
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:16px;';
+
+    var tags = card.tags || [];
+    for (var i = 0; i < tags.length; i++) {
+      (function(tag) {
+        var chip = document.createElement('span');
+        chip.style.cssText = 'display:flex;align-items:center;gap:4px;padding:3px 8px;background:var(--color-surface-2);border:1px solid var(--color-border-2);border-radius:999px;font-size:11px;color:var(--color-text-2);';
+        var label = document.createElement('span');
+        label.textContent = tag;
+        chip.appendChild(label);
+        var rm = document.createElement('span');
+        rm.textContent = '×';
+        rm.title = 'Remove tag';
+        rm.style.cssText = 'cursor:pointer;color:var(--color-text-3);line-height:1;';
+        rm.onclick = function() {
+          var next = (card.tags || []).filter(function(t) { return t !== tag; });
+          if (typeof KanvazCards !== 'undefined') KanvazCards.setTags(cardId, next);
+          if (panelEl) renderInto(panelEl);
+        };
+        chip.appendChild(rm);
+        wrap.appendChild(chip);
+      })(tags[i]);
+    }
+
+    var addInput = document.createElement('input');
+    addInput.type = 'text';
+    addInput.placeholder = '+ tag';
+    addInput.style.cssText = 'width:60px;padding:3px 8px;background:transparent;border:1px dashed var(--color-border-2);border-radius:999px;color:var(--color-text);font-family:var(--font-ui);font-size:11px;outline:none;';
+    addInput.addEventListener('keydown', function(e) {
+      if (e.key !== 'Enter') return;
+      var val = addInput.value.trim().toLowerCase();
+      if (!val) return;
+      if ((card.tags || []).indexOf(val) !== -1) { addInput.value = ''; return; }
+      if (typeof KanvazCards !== 'undefined') KanvazCards.setTags(cardId, (card.tags || []).concat([val]));
+      if (panelEl) renderInto(panelEl);
+    });
+    wrap.appendChild(addInput);
+    body.appendChild(wrap);
+  }
+
+  /* ── Info ── Read-only card identity — mainly useful alongside
+     Settings' "Show card/connection IDs" overlay and for anyone
+     scripting the MCP Bridge tools (which address cards by this exact
+     id), so it's copyable rather than just displayed. */
+  function renderInfoSection(body, card, cardId) {
+    var title = document.createElement('div');
+    title.style.cssText = SECTION_TITLE_CSS;
+    title.textContent = 'Info';
+    body.appendChild(title);
+
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:16px;font-size:11px;color:var(--color-text-3);';
+
+    var idText = document.createElement('span');
+    idText.style.cssText = 'font-family:var(--font-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    idText.textContent = 'ID: ' + cardId;
+    idText.title = cardId;
+    row.appendChild(idText);
+
+    var copyBtn = document.createElement('button');
+    copyBtn.textContent = 'Copy';
+    copyBtn.style.cssText = 'flex-shrink:0;padding:2px 8px;background:none;border:1px solid var(--color-border-2);border-radius:5px;color:var(--color-text-2);font-family:var(--font-ui);font-size:10px;cursor:pointer;';
+    copyBtn.onclick = function() {
+      if (!navigator.clipboard) return;
+      navigator.clipboard.writeText(cardId).then(function() {
+        if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Copied card ID', 'success');
+      });
+    };
+    row.appendChild(copyBtn);
+    body.appendChild(row);
   }
 
   /* ── Media info (read-only resolution/format) + Annotations ──

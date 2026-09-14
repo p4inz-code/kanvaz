@@ -178,7 +178,7 @@ var KanvazBoards = (function() {
           var closeBtn = document.createElement('button');
           closeBtn.innerHTML = '&times;';
           closeBtn.title = 'Delete board';
-          closeBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-text-3);font-size:14px;padding:0;line-height:1;flex-shrink:0;';
+          closeBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-text-3);font-size:14px;font-family:var(--font-ui);padding:0;line-height:1;flex-shrink:0;';
           closeBtn.onclick = function(e) {
             e.stopPropagation();
             deleteBoard(idx);
@@ -276,13 +276,33 @@ var KanvazBoards = (function() {
   function renderSmartFoldersInto(container) {
     if (typeof KanvazUI_Extended === 'undefined') return;
     var s = KanvazUI_Extended.getSettings();
-    var folders = (s && s.smartFolders) || [];
-    if (!folders.length) return;
+    /* Favorites first — same ordering as the search bar's own chip row
+       (app.js's renderSmartFolderChips); .slice() first so sort() never
+       mutates the underlying settings.json array as a side effect of
+       just rendering it. */
+    var folders = ((s && s.smartFolders) || []).slice().sort(function(a, b) {
+      return (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0);
+    });
 
     var heading = document.createElement('div');
     heading.textContent = 'SMART FOLDERS';
     heading.style.cssText = 'font-size:10px;font-weight:600;letter-spacing:0.06em;color:var(--color-text-3);padding:10px 8px 4px;';
     container.appendChild(heading);
+
+    /* Direct feedback: "where will user actually see the smart
+       folders?... i made smart folder but i can't see it anywhere" —
+       this whole section used to return early (render nothing at all)
+       until at least one existed, which meant there was zero indication
+       here of what a Smart Folder even is or how to make one. A short,
+       permanent how-to takes that early-return's place instead of
+       nothing. */
+    if (!folders.length) {
+      var hint = document.createElement('div');
+      hint.style.cssText = 'padding:0 8px 12px;font-size:11px;line-height:1.5;color:var(--color-text-3);';
+      hint.textContent = 'None yet. Open Search (Ctrl+F), type a query, then click the star icon to save it here for one click next time.';
+      container.appendChild(hint);
+      return;
+    }
 
     var list = document.createElement('div');
     list.style.cssText = 'padding:0 8px 8px;';
@@ -295,8 +315,13 @@ var KanvazBoards = (function() {
         row.onmouseleave = function() { row.style.background = 'transparent'; };
 
         var icon = document.createElement('span');
-        icon.style.cssText = 'display:flex;color:var(--color-text-3);flex-shrink:0;';
-        icon.innerHTML = '<svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M7 1.5l1.6 3.4 3.7.5-2.7 2.6.6 3.7L7 9.9l-3.2 1.8.6-3.7-2.7-2.6 3.7-.5L7 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>';
+        icon.style.cssText = 'display:flex;color:' + (folder.favorite ? 'var(--color-red)' : 'var(--color-text-3)') + ';flex-shrink:0;';
+        /* Favorited folders get the same filled heart the search bar's
+           own chip row uses — one visual language for "this one" across
+           both places a Smart Folder shows up. */
+        icon.innerHTML = folder.favorite
+          ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-6.7-4.35-9.3-8.1C1 10.3 1.7 6.9 4.6 5.4 6.9 4.2 9.6 5 12 7.3 14.4 5 17.1 4.2 19.4 5.4c2.9 1.5 3.6 4.9 1.9 7.5C18.7 16.65 12 21 12 21z"/></svg>'
+          : '<svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M7 1.5l1.6 3.4 3.7.5-2.7 2.6.6 3.7L7 9.9l-3.2 1.8.6-3.7-2.7-2.6 3.7-.5L7 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>';
         row.appendChild(icon);
 
         var label = document.createElement('span');
@@ -327,6 +352,19 @@ var KanvazBoards = (function() {
                 input.dispatchEvent(new Event('input', { bubbles: true }));
               }
             }, 0);
+          }
+        });
+
+        /* Direct feedback: "right click on search will give options
+           open, fav it with heart svg and more" — same shared
+           smartFolder context-menu branch the search bar's own chips
+           use (app.js's showContextMenu), so Open/Favorite/Rename/Edit
+           query/Delete stay one implementation, not two copies drifting
+           apart between this panel and the search bar row. */
+        row.addEventListener('contextmenu', function(e) {
+          e.preventDefault();
+          if (typeof KanvazUI !== 'undefined' && KanvazUI.showContextMenu) {
+            KanvazUI.showContextMenu(e.clientX, e.clientY, 'smartFolder', folder);
           }
         });
 
@@ -498,20 +536,7 @@ var KanvazBoards = (function() {
           useBtn.onclick = function() {
             useBtn.disabled = true;
             useBtn.textContent = 'Loading…';
-            KanvazBridge.loadTemplate(entry.id).then(function(res) {
-              if (!res || !res.ok) {
-                KanvazUI.toast((res && res.error) || 'Could not load template', 'error');
-                useBtn.disabled = false;
-                useBtn.textContent = 'Use';
-                return;
-              }
-              newBoard(true, entry.name, res.cards);
-              KanvazApp.markDirty();
-              KanvazHistory.push();
-              renderBoardsList(container);
-              KanvazUI.toast('Started board from "' + entry.name + '"');
-            }).catch(function(e) {
-              KanvazUI.toast('Could not load template: ' + e.message, 'error');
+            useTemplate(entry, function() { renderBoardsList(container); }, function() {
               useBtn.disabled = false;
               useBtn.textContent = 'Use';
             });
@@ -526,7 +551,7 @@ var KanvazBoards = (function() {
             var delBtn = document.createElement('button');
             delBtn.textContent = '✕';
             delBtn.title = 'Delete this template';
-            delBtn.style.cssText = 'background:none;border:1px solid var(--color-border-2);border-radius:4px;color:var(--color-text-3);padding:3px 7px;font-size:11px;cursor:pointer;flex-shrink:0;';
+            delBtn.style.cssText = 'background:none;border:1px solid var(--color-border-2);border-radius:4px;color:var(--color-text-3);padding:3px 7px;font-size:11px;font-family:var(--font-ui);cursor:pointer;flex-shrink:0;';
             delBtn.onclick = function() {
               KanvazBridge.deleteTemplate(entry.id).then(function(res) {
                 if (!res || !res.ok) {
@@ -571,6 +596,29 @@ var KanvazBoards = (function() {
      (loadBoardState(), below) already deserialises first and fires the
      event after; this brings newBoard() in line with that same order
      for its one caller that actually has cards to load up front. */
+  /* Shared by the Boards panel's template gallery and the Home
+     Screen's own template row — same load-and-start-a-board flow,
+     just a different "what happens after" step (stay on the gallery
+     vs. close the Home Screen), so that's the one thing callers still
+     provide themselves. */
+  function useTemplate(entry, onDone, onError) {
+    return KanvazBridge.loadTemplate(entry.id).then(function(res) {
+      if (!res || !res.ok) {
+        KanvazUI.toast((res && res.error) || 'Could not load template', 'error');
+        if (onError) onError();
+        return;
+      }
+      newBoard(true, entry.name, res.cards);
+      KanvazApp.markDirty();
+      KanvazHistory.push();
+      KanvazUI.toast('Started board from "' + entry.name + '"');
+      if (onDone) onDone();
+    }).catch(function(e) {
+      KanvazUI.toast('Could not load template: ' + e.message, 'error');
+      if (onError) onError();
+    });
+  }
+
   function newBoard(silent, name, initialCards) {
     saveCurrentBoardState();
 
@@ -1331,14 +1379,56 @@ var KanvazBoards = (function() {
 
   /* ── Startup screen ── */
 
-  function showStartupScreen() {
+  /* "Edited 12 min ago" / "yesterday" / "Sep 11" — same rough tiers
+     most file-manager-style UIs use, cheapest thing that reads
+     naturally without pulling in a date-formatting library for one
+     small label. */
+  function formatRelativeTime(mtimeMs) {
+    if (!mtimeMs) return '';
+    var diffMs = Date.now() - mtimeMs;
+    var minute = 60000, hour = 3600000, day = 86400000;
+    if (diffMs < minute) return 'just now';
+    if (diffMs < hour) return Math.round(diffMs / minute) + ' min ago';
+    if (diffMs < day) return Math.round(diffMs / hour) + ' hr ago';
+    if (diffMs < 2 * day) return 'yesterday';
+    if (diffMs < 7 * day) return Math.round(diffMs / day) + ' days ago';
+    var d = new Date(mtimeMs);
+    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return months[d.getMonth()] + ' ' + d.getDate();
+  }
+
+  /* Bug-bounty fix: toggleHomeScreen()'s own `#startup-screen` DOM
+     check only catches an ALREADY-RENDERED overlay — but the overlay
+     itself isn't created until the Promise.all(...).then(...) below
+     resolves, a real IPC round trip. Two Ctrl+H presses in quick
+     succession (or OS key-repeat), or two clicks on the titlebar logo
+     before the first call's IPC round trip finishes, both see "not
+     open yet" and both proceed — stacking two overlays, each with its
+     own document-level Escape listener that closeStartup() only ever
+     tears down one at a time. This flag closes that window: set
+     synchronously before the async work starts, cleared once the
+     overlay actually lands in the DOM (or on any early-return/failure
+     path that never gets there). */
+  var startupScreenOpening = false;
+
+  /* manual=true (from the account menu's "Home Screen" item, or the
+     "core.openHomeScreen" command) bypasses both the startup-file and
+     openOnStartup gates below — those exist to decide whether this
+     shows automatically on launch, not whether the user is ever
+     allowed to see it again. Direct feedback: "how will user go back
+     to home screen add a option too." */
+  function showStartupScreen(manual) {
+    if (startupScreenOpening || document.getElementById('startup-screen')) return;
+    startupScreenOpening = true;
+
     /* Redesign v1 Phase 2: skipped entirely (no IPC round-trip, no
        flash) when this launch is going straight to a specific .kanvaz
        file — double-click a file, "Open with Kanvaz", or a second-
        instance handoff. hasStartupFile() is a synchronous snapshot set
        at window creation (see preload.js), so this check is safe to
        make before any settings/recent IPC has resolved. */
-    if (typeof KanvazBridge !== 'undefined' && KanvazBridge.hasStartupFile && KanvazBridge.hasStartupFile()) {
+    if (!manual && typeof KanvazBridge !== 'undefined' && KanvazBridge.hasStartupFile && KanvazBridge.hasStartupFile()) {
+      startupScreenOpening = false;
       return;
     }
 
@@ -1359,16 +1449,27 @@ var KanvazBoards = (function() {
       ? Promise.all([KanvazBridge.listProfiles(), KanvazBridge.getActiveProfile()])
       : Promise.resolve([[], null]);
 
-    Promise.all([KanvazBridge.getRecent(), profilesPromise]).then(function(results) {
-      var recent = results[0];
+    var templatesPromise = (typeof KanvazBridge !== 'undefined' && KanvazBridge.listTemplates)
+      ? KanvazBridge.listTemplates()
+      : Promise.resolve({ ok: false, templates: [] });
+
+    Promise.all([KanvazBridge.getRecent(), profilesPromise, templatesPromise]).then(function(results) {
+      var recent = results[0] || [];
       var profiles = results[1][0] || [];
       var activeProfile = results[1][1];
-      if (!recent || !recent.length) return;
+      var templates = (results[2] && results[2].ok && results[2].templates) || [];
+      /* Direct feedback: "fill the empty space the current kanvaz home
+         screen has... rather than 4-5 opts in doom [blank] space" — a
+         brand-new install with zero recent boards used to skip the
+         Home Screen entirely and land on a blank canvas, which is
+         exactly backwards from "make it feel like a real app." Quick
+         Start alone is worth showing even with nothing to resume yet;
+         only the Recent section itself is conditional now, further
+         down. */
 
-
-      if (typeof KanvazUI_Extended !== 'undefined') {
+      if (!manual && typeof KanvazUI_Extended !== 'undefined') {
         var s = KanvazUI_Extended.getSettings();
-        if (s && s.openOnStartup === false) return;
+        if (s && s.openOnStartup === false) { startupScreenOpening = false; return; }
       }
 
       /* v7.x — Home Screen redesign. Direct feedback: "where is start
@@ -1400,10 +1501,56 @@ var KanvazBoards = (function() {
       var header = document.createElement('div');
       header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:20px 40px;flex-shrink:0;';
 
+      /* Same logo-as-toggle affordance as the titlebar's own logo
+         (which this screen currently covers) — clicking it here goes
+         the other direction, back to whatever board is open behind
+         this overlay. Direct feedback: "make kanvaz icon in this
+         corner the button to go home to canvaz and canvaz to home." */
+      /* Direct feedback: "why not using same logo as in inside" — this
+         used to hand-draw its own standalone SVG approximation of the
+         app icon instead of reusing the actual artwork, so it visibly
+         didn't match the titlebar's real logo (index.html's
+         #titlebar-logo, the same assets/icons/icon-128.png used for the
+         taskbar icon). Now a plain <img> of that same file, same
+         circular crop (.logo-icon's border-radius:50% fix) — one source
+         of truth for what the Kanvaz logo looks like, not two. */
       var logoRow = document.createElement('div');
-      logoRow.style.cssText = 'display:flex;align-items:center;gap:10px;';
-      logoRow.innerHTML = '<svg width="26" height="26" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="8" fill="#1A1A22" stroke="#2E2E3A" stroke-width="0.5"/><circle cx="9" cy="9" r="5.5" fill="#DCDCE8"/><circle cx="11.5" cy="6.5" r="2" fill="#4A9EFF"/></svg><span style="font-size:19px;font-weight:600;color:var(--color-text);">Kanvaz</span>';
+      logoRow.style.cssText = 'display:flex;align-items:center;gap:10px;cursor:pointer;font-family:var(--font-ui);';
+      logoRow.title = 'Back to Board';
+      logoRow.innerHTML = '<img src="../assets/icons/icon-128.png" alt="" width="26" height="26" style="border-radius:50%;object-fit:contain;flex-shrink:0;"><span style="font-size:19px;font-weight:600;color:var(--color-text);font-family:var(--font-ui);">Kanvaz</span>';
+      logoRow.onclick = closeStartup;
       header.appendChild(logoRow);
+
+      /* Direct feedback: "something can be opened directly inside home
+         [screen] instead of going to canvaz" and "profile switch and
+         [board] making can be done from home screen" — New Board/Open/
+         Templates already cover "making," and profile Switch already
+         lives here for a multi-profile setup; what was still missing
+         was a one-click path to Boards and Settings themselves instead
+         of closing the Home Screen blind and hunting for the side
+         panel's rail icons afterward. Both close the Home Screen AND
+         land directly on that section, not just on a blank canvas. */
+      var headerRight = document.createElement('div');
+      headerRight.style.cssText = 'display:flex;align-items:center;gap:8px;';
+
+      var quickLinks = [
+        ['boards',   'Boards'],
+        ['settings', 'Settings']
+      ];
+      for (var qi = 0; qi < quickLinks.length; qi++) {
+        (function(section, label) {
+          var link = document.createElement('button');
+          link.textContent = label;
+          link.style.cssText = 'flex-shrink:0;padding:6px 12px;background:var(--color-surface);border:1px solid var(--color-border-2);border-radius:999px;color:var(--color-text-2);font-family:var(--font-ui);font-size:11px;cursor:pointer;transition:border-color 0.1s,color 0.1s;';
+          link.onmouseenter = function() { link.style.borderColor = 'var(--color-accent)'; link.style.color = 'var(--color-text)'; };
+          link.onmouseleave = function() { link.style.borderColor = 'var(--color-border-2)'; link.style.color = 'var(--color-text-2)'; };
+          link.onclick = function() {
+            closeStartup();
+            if (typeof KanvazSidePanel !== 'undefined' && KanvazSidePanel.showSection) KanvazSidePanel.showSection(section);
+          };
+          headerRight.appendChild(link);
+        })(quickLinks[qi][0], quickLinks[qi][1]);
+      }
 
       if (profiles.length > 1 && activeProfile) {
         var profileRow = document.createElement('div');
@@ -1425,134 +1572,300 @@ var KanvazBoards = (function() {
         };
         profileRow.appendChild(switchLink);
 
-        header.appendChild(profileRow);
+        headerRight.appendChild(profileRow);
       }
+      header.appendChild(headerRight);
       overlay.appendChild(header);
 
       /* Main content — capped width, centered, like a real page rather
          than edge-to-edge on a wide monitor. */
       var main = document.createElement('div');
-      main.style.cssText = 'flex:1;width:100%;max-width:900px;margin:0 auto;padding:20px 40px 40px;box-sizing:border-box;';
+      main.style.cssText = 'flex:1;width:100%;max-width:1000px;margin:0 auto;padding:8px 40px 40px;box-sizing:border-box;';
 
-      /* New / Open — the two primary actions, front and center, same
-         "what do I do first" role Photoshop's "New file" / "Open"
-         pair plays. */
-      var actionsRow = document.createElement('div');
-      actionsRow.style.cssText = 'display:flex;gap:12px;margin-bottom:36px;';
+      /* v7.x — Home Screen v2. Direct feedback with a reference image:
+         "fill the empty space the current kanvaz home screen has...
+         make it look real professional rather than 4-5 opts in doom
+         [blank] space." A personalized greeting, richer Quick Start
+         tiles (icon badge + title + subtitle, not a flat button row),
+         and a Recent grid with a real relative-time readout instead of
+         a bare path. Adapted to what Kanvaz genuinely has, not a
+         literal copy of the reference — no fake storage meter or
+         invented "shared with you" section standing in for features
+         that don't exist. */
+      var hour = new Date().getHours();
+      var timeOfDay = hour < 12 ? 'morning' : (hour < 18 ? 'afternoon' : 'evening');
+      var greetName = (activeProfile && activeProfile.name) ? activeProfile.name : null;
 
-      var newBtn = document.createElement('button');
-      newBtn.textContent = '+ New Board';
-      newBtn.style.cssText = 'padding:12px 22px;background:var(--color-accent);border:none;border-radius:8px;color:#fff;font-family:var(--font-ui);font-size:14px;font-weight:600;cursor:pointer;transition:opacity 0.1s;';
-      newBtn.onmouseenter = function() { newBtn.style.opacity = '0.88'; };
-      newBtn.onmouseleave = function() { newBtn.style.opacity = '1'; };
-      newBtn.onclick = closeStartup;
-      actionsRow.appendChild(newBtn);
+      var greeting = document.createElement('div');
+      greeting.style.cssText = 'font-size:30px;font-weight:700;color:var(--color-text);margin-bottom:6px;';
+      greeting.textContent = greetName ? ('Good ' + timeOfDay + ', ' + greetName) : ('Good ' + timeOfDay);
+      main.appendChild(greeting);
 
-      var openBtn = document.createElement('button');
-      openBtn.textContent = 'Open…';
-      openBtn.style.cssText = 'padding:12px 22px;background:var(--color-surface);border:1px solid var(--color-border-2);border-radius:8px;color:var(--color-text);font-family:var(--font-ui);font-size:14px;cursor:pointer;transition:background 0.1s;';
-      openBtn.onmouseenter = function() { openBtn.style.background = 'var(--color-surface-2)'; };
-      openBtn.onmouseleave = function() { openBtn.style.background = 'var(--color-surface)'; };
-      openBtn.onclick = function() {
-        closeStartup();
-        if (typeof KanvazBoards !== 'undefined' && KanvazBoards.openBoard) KanvazBoards.openBoard();
-      };
-      actionsRow.appendChild(openBtn);
+      var subGreeting = document.createElement('div');
+      subGreeting.style.cssText = 'font-size:14px;color:var(--color-text-3);margin-bottom:28px;';
+      subGreeting.textContent = 'Start a new board or continue where you left off.';
+      main.appendChild(subGreeting);
 
-      var templateBtn = document.createElement('button');
-      templateBtn.textContent = 'Start from Template';
-      templateBtn.style.cssText = 'padding:12px 22px;background:transparent;border:1px solid var(--color-border-2);border-radius:8px;color:var(--color-text-2);font-family:var(--font-ui);font-size:14px;cursor:pointer;transition:background 0.1s;';
-      templateBtn.onmouseenter = function() { templateBtn.style.background = 'var(--color-surface-2)'; };
-      templateBtn.onmouseleave = function() { templateBtn.style.background = 'transparent'; };
-      templateBtn.onclick = function() {
-        closeStartup();
-        if (typeof KanvazSidePanel !== 'undefined' && KanvazSidePanel.showSection) KanvazSidePanel.showSection('boards');
-        if (lastBoardsContainer) renderTemplateGalleryInto(lastBoardsContainer);
-      };
-      actionsRow.appendChild(templateBtn);
+      /* Quick start — three rich tiles instead of a flat button row.
+         New Board stays visually primary (accent-filled), matching
+         its role as the one action that always applies even with zero
+         history. */
+      var quickLabel = document.createElement('div');
+      quickLabel.textContent = 'Quick start';
+      quickLabel.style.cssText = 'font-size:13px;font-weight:600;color:var(--color-text);margin-bottom:12px;';
+      main.appendChild(quickLabel);
 
-      main.appendChild(actionsRow);
+      var quickGrid = document.createElement('div');
+      quickGrid.style.cssText = 'display:grid;grid-template-columns:repeat(3, 1fr);gap:12px;margin-bottom:32px;';
+
+      function buildQuickTile(opts) {
+        var tile = document.createElement('div');
+        tile.style.cssText = [
+          'display:flex', 'align-items:center', 'gap:14px', 'padding:16px',
+          'border-radius:10px', 'cursor:pointer',
+          'transition:transform 0.12s, background 0.12s, border-color 0.12s',
+          opts.primary
+            ? 'background:var(--color-accent);border:1px solid var(--color-accent);'
+            : 'background:var(--color-surface);border:1px solid var(--color-border-2);'
+        ].join(';');
+
+        var iconBadge = document.createElement('div');
+        iconBadge.style.cssText = 'flex-shrink:0;width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:' + (opts.primary ? 'rgba(255,255,255,0.2)' : 'var(--color-accent-bg)') + ';color:' + (opts.primary ? '#fff' : 'var(--color-accent)') + ';';
+        iconBadge.innerHTML = opts.icon;
+        tile.appendChild(iconBadge);
+
+        var textCol = document.createElement('div');
+        textCol.style.cssText = 'flex:1;min-width:0;';
+        var titleEl = document.createElement('div');
+        titleEl.style.cssText = 'font-size:13px;font-weight:600;color:' + (opts.primary ? '#fff' : 'var(--color-text)') + ';margin-bottom:2px;';
+        titleEl.textContent = opts.title;
+        textCol.appendChild(titleEl);
+        var subEl = document.createElement('div');
+        subEl.style.cssText = 'font-size:11px;color:' + (opts.primary ? 'rgba(255,255,255,0.75)' : 'var(--color-text-3)') + ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+        subEl.textContent = opts.subtitle;
+        textCol.appendChild(subEl);
+        tile.appendChild(textCol);
+
+        tile.onmouseenter = function() { tile.style.transform = 'translateY(-2px)'; };
+        tile.onmouseleave = function() { tile.style.transform = 'none'; };
+        tile.onclick = opts.onClick;
+        return tile;
+      }
+
+      var ICON_PLUS = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+      var ICON_FOLDER = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
+      var ICON_GRID = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>';
+
+      quickGrid.appendChild(buildQuickTile({
+        primary: true, icon: ICON_PLUS, title: 'New Board', subtitle: 'Begin with an open canvas',
+        onClick: closeStartup
+      }));
+      quickGrid.appendChild(buildQuickTile({
+        primary: false, icon: ICON_FOLDER, title: 'Open from computer', subtitle: 'Open a .kanvaz file',
+        onClick: function() {
+          closeStartup();
+          if (typeof KanvazBoards !== 'undefined' && KanvazBoards.openBoard) KanvazBoards.openBoard();
+        }
+      }));
+      quickGrid.appendChild(buildQuickTile({
+        primary: false, icon: ICON_GRID, title: 'Browse templates', subtitle: 'Start with a curated layout',
+        onClick: function() {
+          closeStartup();
+          if (typeof KanvazSidePanel !== 'undefined' && KanvazSidePanel.showSection) KanvazSidePanel.showSection('boards');
+          if (lastBoardsContainer) renderTemplateGalleryInto(lastBoardsContainer);
+        }
+      }));
+      main.appendChild(quickGrid);
+
+      /* Templates preview — real content instead of empty space.
+         Direct feedback: "polish the home screen with more details
+         its still looks a lot empty tbh." Kanvaz ships 14 real
+         production-researched templates (VFX/game-dev/animation/UI-UX/
+         etc, see docs/REDESIGN_V1_SPRINT.md) that a Home Screen
+         showing nothing about them undersells badly. Shows the first
+         few with their real name + description; "Browse all" opens
+         the full gallery the same way the Quick Start tile does. */
+      if (templates.length) {
+        var tmplHeaderRow = document.createElement('div');
+        tmplHeaderRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;';
+        var tmplLabel = document.createElement('div');
+        tmplLabel.textContent = 'Start from a template';
+        tmplLabel.style.cssText = 'font-size:13px;font-weight:600;color:var(--color-text);';
+        tmplHeaderRow.appendChild(tmplLabel);
+        var browseAllLink = document.createElement('button');
+        browseAllLink.textContent = 'Browse all (' + templates.length + ') →';
+        browseAllLink.style.cssText = 'background:none;border:none;color:var(--color-accent);font-family:var(--font-ui);font-size:12px;cursor:pointer;padding:0;';
+        browseAllLink.onclick = function() {
+          closeStartup();
+          if (typeof KanvazSidePanel !== 'undefined' && KanvazSidePanel.showSection) KanvazSidePanel.showSection('boards');
+          if (lastBoardsContainer) renderTemplateGalleryInto(lastBoardsContainer);
+        };
+        tmplHeaderRow.appendChild(browseAllLink);
+        main.appendChild(tmplHeaderRow);
+
+        var tmplGrid = document.createElement('div');
+        tmplGrid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));gap:12px;margin-bottom:32px;';
+
+        var previewTemplates = templates.slice(0, 4);
+        for (var ti = 0; ti < previewTemplates.length; ti++) {
+          (function(entry) {
+            var tCard = document.createElement('div');
+            tCard.style.cssText = 'display:flex;flex-direction:column;padding:14px;background:var(--color-surface);border:1px solid var(--color-border-2);border-radius:10px;cursor:pointer;transition:border-color 0.12s, transform 0.12s;';
+
+            var tTitle = document.createElement('div');
+            tTitle.style.cssText = 'font-size:13px;font-weight:600;color:var(--color-text);margin-bottom:5px;';
+            tTitle.textContent = entry.name;
+            tCard.appendChild(tTitle);
+
+            var tDesc = document.createElement('div');
+            tDesc.style.cssText = 'font-size:11px;color:var(--color-text-3);line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;';
+            tDesc.textContent = entry.description || '';
+            tCard.appendChild(tDesc);
+
+            tCard.onmouseenter = function() { tCard.style.borderColor = 'var(--color-accent)'; tCard.style.transform = 'translateY(-2px)'; };
+            tCard.onmouseleave = function() { tCard.style.borderColor = 'var(--color-border-2)'; tCard.style.transform = 'none'; };
+            /* Bug-bounty fix: no double-click guard, unlike the
+               equivalent Boards-panel "Use" button (which disables
+               itself first) — a fast double-click here fired
+               loadTemplate()+newBoard()+KanvazHistory.push() twice
+               concurrently. */
+            tCard.onclick = function() {
+              if (tCard.style.pointerEvents === 'none') return;
+              tCard.style.pointerEvents = 'none';
+              tCard.style.opacity = '0.6';
+              useTemplate(entry, closeStartup, function() {
+                tCard.style.opacity = '1';
+                tCard.style.pointerEvents = '';
+              });
+            };
+
+            tmplGrid.appendChild(tCard);
+          })(previewTemplates[ti]);
+        }
+        main.appendChild(tmplGrid);
+      }
 
       /* Recent boards — a real grid of tiles, not a plain list, the
          part of the "photoshop-like" reference that actually changed
          the layout shape rather than just the chrome around it. No
          real thumbnails (a board isn't rendered to an image anywhere
          today — a genuine future feature, not squeezed in here), so
-         each tile is an honest file-icon tile rather than pretending
-         to have a preview it doesn't. */
-      var label = document.createElement('div');
-      label.textContent = 'Recent';
-      label.style.cssText = 'font-size:12px;font-weight:600;color:var(--color-text-2);margin-bottom:14px;text-transform:uppercase;letter-spacing:0.06em;';
-      main.appendChild(label);
+         each tile gets a deterministic color banner (hashed from its
+         own filename, same idea Map View already uses to color-code
+         nodes by tag) for visual variety instead of a flat icon-on-
+         white-card that reads more like a file manager than an app.
+         Skipped entirely when there's nothing to show yet — a first
+         launch still gets the full Quick Start section above. */
+      if (recent.length) {
+        var label = document.createElement('div');
+        label.textContent = 'Recent';
+        label.style.cssText = 'font-size:13px;font-weight:600;color:var(--color-text);margin-bottom:12px;';
+        main.appendChild(label);
 
-      var grid = document.createElement('div');
-      grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));gap:14px;';
+        var grid = document.createElement('div');
+        grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));gap:14px;';
 
-      for (var i = 0; i < recent.length; i++) {
-        (function(p) {
-          var tile = document.createElement('div');
-          tile.style.cssText = [
-            'display:flex',
-            'flex-direction:column',
-            'padding:16px 14px',
-            'background:var(--color-surface)',
-            'border:1px solid var(--color-border-2)',
-            'border-radius:10px',
-            'cursor:pointer',
-            'transition:background 0.12s, border-color 0.12s, transform 0.12s'
-          ].join(';');
+        for (var i = 0; i < recent.length; i++) {
+          (function(entry) {
+            var p = entry.path;
+            var tile = document.createElement('div');
+            tile.style.cssText = [
+              'display:flex', 'flex-direction:column', 'overflow:hidden',
+              'background:var(--color-surface)',
+              'border:1px solid var(--color-border-2)',
+              'border-radius:10px',
+              'cursor:pointer',
+              'transition:border-color 0.12s, transform 0.12s'
+            ].join(';');
 
-          var parts = p.split(/[\\/]/);
-          var fname = parts[parts.length - 1];
-          var dir   = parts.slice(0, -1).join('/');
+            var parts = p.split(/[\\/]/);
+            var fname = parts[parts.length - 1];
+            var dir   = parts.slice(0, -1).join('/');
 
-          /* Security fix (carried forward from the old popup): fname/
-             dir come from a filesystem path that can originate from a
-             .kanvaz file someone else shared (added to recent.json via
-             the argv/open-file handoff, not just the user's own Save
-             dialog) — set via textContent, never innerHTML, so a
-             crafted filename can never be interpreted as markup. */
-          var iconHolder = document.createElement('div');
-          iconHolder.style.cssText = 'margin-bottom:10px;';
-          iconHolder.innerHTML = '<svg width="22" height="22" viewBox="0 0 14 14" fill="none"><path d="M2 3.5A1.5 1.5 0 013.5 2h2.086a1 1 0 01.707.293l.914.914H10.5A1.5 1.5 0 0112 4.707V9.5A1.5 1.5 0 0110.5 11h-8A1.5 1.5 0 011 9.5V3.5z" stroke="var(--color-accent)" stroke-width="1.1"/></svg>';
-          tile.appendChild(iconHolder);
+            /* Deterministic hue from the filename — same tiny hash-
+               to-hue trick map-view.js's own hashColor() uses for
+               tag colors, kept as its own copy here since it's a few
+               lines and not worth a cross-module dependency for. */
+            var hash = 0;
+            for (var h = 0; h < fname.length; h++) hash = (hash * 31 + fname.charCodeAt(h)) | 0;
+            var hue = Math.abs(hash) % 360;
 
-          var fnameEl = document.createElement('div');
-          fnameEl.style.cssText = 'font-size:13px;color:var(--color-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px;';
-          fnameEl.textContent = fname;
-          tile.appendChild(fnameEl);
+            var banner = document.createElement('div');
+            banner.style.cssText = 'height:64px;background:linear-gradient(135deg, hsl(' + hue + ',55%,42%), hsl(' + ((hue + 40) % 360) + ',55%,30%));display:flex;align-items:center;justify-content:center;flex-shrink:0;';
+            banner.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 15l4.5-4.5a2 2 0 0 1 2.8 0L15 15"/><circle cx="15.5" cy="8.5" r="1.5"/></svg>';
+            tile.appendChild(banner);
 
-          var dirEl = document.createElement('div');
-          dirEl.style.cssText = 'font-size:10px;color:var(--color-text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--font-mono);';
-          dirEl.textContent = dir;
-          tile.appendChild(dirEl);
+            var textCol = document.createElement('div');
+            textCol.style.cssText = 'padding:10px 12px;';
 
-          tile.onmouseenter = function() { tile.style.background = 'var(--color-surface-2)'; tile.style.borderColor = 'var(--color-accent)'; tile.style.transform = 'translateY(-2px)'; };
-          tile.onmouseleave = function() { tile.style.background = 'var(--color-surface)'; tile.style.borderColor = 'var(--color-border-2)'; tile.style.transform = 'none'; };
+            /* Security fix (carried forward from the old popup): fname/
+               dir come from a filesystem path that can originate from a
+               .kanvaz file someone else shared (added to recent.json
+               via the argv/open-file handoff, not just the user's own
+               Save dialog) — set via textContent, never innerHTML, so
+               a crafted filename can never be interpreted as markup. */
+            var fnameEl = document.createElement('div');
+            fnameEl.style.cssText = 'font-size:13px;color:var(--color-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:2px;';
+            fnameEl.textContent = fname;
+            textCol.appendChild(fnameEl);
 
-          /* Reuses openFilePath() (was previously a duplicate inline
-             copy of its readFile/parse/load logic) — picks up the same
-             unsaved-changes guard and newer-version warning for free,
-             and removes the drift risk of two copies of this logic. */
-          tile.onclick = function() {
-            closeStartup();
-            openFilePath(p);
-          };
+            var metaEl = document.createElement('div');
+            metaEl.style.cssText = 'font-size:10px;color:var(--color-text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+            metaEl.textContent = 'Board · ' + formatRelativeTime(entry.mtimeMs);
+            metaEl.title = dir;
+            textCol.appendChild(metaEl);
 
-          grid.appendChild(tile);
-        })(recent[i]);
+            tile.appendChild(textCol);
+
+            tile.onmouseenter = function() { tile.style.borderColor = 'var(--color-accent)'; tile.style.transform = 'translateY(-2px)'; };
+            tile.onmouseleave = function() { tile.style.borderColor = 'var(--color-border-2)'; tile.style.transform = 'none'; };
+
+            /* Reuses openFilePath() (was previously a duplicate inline
+               copy of its readFile/parse/load logic) — picks up the
+               same unsaved-changes guard and newer-version warning for
+               free, and removes the drift risk of two copies. */
+            tile.onclick = function() {
+              closeStartup();
+              openFilePath(p);
+            };
+
+            grid.appendChild(tile);
+          })(recent[i]);
+        }
+        main.appendChild(grid);
       }
-      main.appendChild(grid);
+
       overlay.appendChild(main);
 
-      /* Footer branding — P4inz Studios (Atharva Patil), same order
-         used everywhere else in the app now (About screen, README). */
+      /* A real, honest tip banner instead of the reference's fictional
+         "watch tutorial" video — Kanvaz's actual equivalent is the
+         built-in keyboard shortcuts overlay. */
+      var tipBanner = document.createElement('div');
+      tipBanner.style.cssText = 'flex-shrink:0;max-width:1000px;width:calc(100% - 80px);margin:0 auto 20px;padding:16px 20px;background:var(--color-surface);border:1px solid var(--color-border-2);border-radius:10px;display:flex;align-items:center;justify-content:space-between;gap:16px;';
+      var tipText = document.createElement('div');
+      tipText.innerHTML = '<div style="font-size:10px;font-weight:600;letter-spacing:0.06em;color:var(--color-accent);margin-bottom:4px;">NEW HERE?</div><div style="font-size:13px;color:var(--color-text);">Press <strong>?</strong> anytime for the full keyboard shortcuts list.</div>';
+      tipBanner.appendChild(tipText);
+      var tipBtn = document.createElement('button');
+      tipBtn.textContent = 'Show Shortcuts';
+      tipBtn.style.cssText = 'flex-shrink:0;padding:9px 16px;background:var(--color-accent-bg);border:1px solid var(--color-accent);border-radius:6px;color:var(--color-accent);font-family:var(--font-ui);font-size:12px;font-weight:600;cursor:pointer;';
+      tipBtn.onclick = function() {
+        closeStartup();
+        if (typeof KanvazUI !== 'undefined' && KanvazUI.showShortcuts) KanvazUI.showShortcuts();
+      };
+      tipBanner.appendChild(tipBtn);
+      overlay.appendChild(tipBanner);
+
+      /* Footer branding — P4inz | Atharva Patil, same order used
+         everywhere else in the app now (About screen, README). No
+         "Studios" suffix — direct correction: "its not p4inz studio
+         its only p4inz | then my name." */
       var footer = document.createElement('div');
-      footer.style.cssText = 'flex-shrink:0;padding:16px 40px;text-align:center;font-size:11px;color:var(--color-text-3);';
-      footer.textContent = 'P4inz Studios — by Atharva Patil';
+      footer.style.cssText = 'flex-shrink:0;padding:0 40px 16px;text-align:center;font-size:11px;color:var(--color-text-3);';
+      footer.textContent = 'P4inz | Atharva Patil';
       overlay.appendChild(footer);
 
       document.body.appendChild(overlay);
+      startupScreenOpening = false;
 
       /* Escape dismisses into an empty board, same as picking
          "New Board" — there's no backdrop to click away from anymore
@@ -1564,8 +1877,24 @@ var KanvazBoards = (function() {
       document.addEventListener('keydown', onEscape);
       overlay._onEscape = onEscape;
     }).catch(function(e) {
+      startupScreenOpening = false;
       console.warn('[Kanvaz] startup screen IPC failed:', e);
     });
+  }
+
+  /* Toggle for the Ctrl+H shortcut (shortcuts.js) — showHomeScreen()
+     alone would stack a second #startup-screen overlay on top of the
+     first if called while it's already open (no duplicate-id guard in
+     showStartupScreen), which the mouse-driven entry points never hit
+     since the overlay itself covers the titlebar logo that opens it.
+     A keyboard shortcut has no such natural coverage, so it needs its
+     own explicit open/close check. */
+  function toggleHomeScreen() {
+    if (document.getElementById('startup-screen')) {
+      closeStartup();
+    } else {
+      showStartupScreen(true);
+    }
   }
 
   function closeStartup() {
@@ -1611,6 +1940,8 @@ var KanvazBoards = (function() {
     openBoard:    openBoard,
     openFilePath: openFilePath,
     updateTitle:  updateTitle,
+    showHomeScreen: function() { showStartupScreen(true); },
+    toggleHomeScreen: toggleHomeScreen,
     saveBoard:    saveBoard,
     saveBoardAs:  saveBoardAs,
     loadFromJSON: loadFromJSON,
