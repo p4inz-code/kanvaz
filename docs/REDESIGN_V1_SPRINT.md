@@ -241,6 +241,50 @@ app-wide. Full findings and fixes are in this cycle's CHANGELOG entry
   surface — see "What run full suite does NOT mean" in
   `docs/FULL_AUDIT_SUITE.md`).
 
+### Audit run — Properties panel overhaul, custom color picker, 3 grid styles, Map View additions (2026-09-14, continued)
+
+Triggered by "do all audits suite now without launching kanvaz" — the user
+was actively using their PC, so this run is static-only by explicit
+instruction; live CDP verification and the persona pass are deferred until
+the user confirms the PC is free.
+
+- **Static checks**: `node test/lint.js` and `node test/validate.js` both
+  clean (28 files parse, all 10+ validate.js sections pass).
+- **Cross-file call-site audit**: every new/changed `ModuleX.method(...)`
+  call introduced this session (across `colorpicker.js`, the Properties
+  panel's new sections, the 3D-card control registry, Map View's minimap/
+  clustering, the `shell-reveal-in-folder` IPC channel) checked against
+  its target module's actual export list. All matched — no drift found.
+- **Two real, confirmed bugs found and fixed** (see `CHANGELOG.md`'s
+  matching entries for detail):
+  1. `colorpicker.js` — Escape mid-drag left a `mousemove` listener
+     attached against a detached canvas, producing `NaN`-based garbage
+     hex values (`"#NaNNaNNaN"`) on the next mouse move. This is exactly
+     the kind of bug a pure code-reading pass is meant to catch before
+     it ships — found by tracing the close()/drag lifecycle interaction,
+     not by reproducing it live.
+  2. `KanvazCanvas.drawGrid()` — no null-guard for its own canvas/context,
+     unlike Map View's equivalent. Not a bug in isolation (the existing
+     call sites are all safe by construction), but this pass added a new
+     call site from `applySettings()`'s async IPC-driven settings load
+     that didn't exist before, so it's guarded defensively now rather
+     than resting on "the timing always works out."
+  3. Already caught and fixed *during* implementation (not held over to
+     this pass): the 3D card Properties section's background-color
+     setter would have pushed a new undo-history entry on every drag
+     tick of the picker instead of once on release — split into a
+     preview call and a commit call before this ever shipped.
+- **Not run this cycle, explicit and disclosed**: live CDP verification
+  and the persona pass — both need a running Electron instance, which
+  the user asked to hold off on while using their PC. The Properties
+  panel additions, 3 grid styles, and Map View minimap/clustering are
+  the least live-tested pieces from this sprint as a result; a live pass
+  before calling any of it fully "done" is still owed, not skipped by
+  oversight.
+- **Documentation pass**: CHANGELOG.md, this file, and `docs/ROADMAP.md`
+  (the personalization-settings plan) all updated same-session as each
+  piece landed, not batched at the end.
+
 ## Explicitly out of scope for this sprint
 
 - Native `.blend`/`.mb` 3D format support — researched and declined, see

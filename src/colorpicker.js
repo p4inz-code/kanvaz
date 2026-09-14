@@ -153,7 +153,19 @@ var KanvazColorPicker = (function() {
       e.preventDefault();
       e.stopPropagation();
       move(e);
-      function onMouseMove(ev) { move(ev); }
+      function onMouseMove(ev) {
+        /* Escape (or any other close() path) can fire mid-drag, before
+           the real mouseup that would normally unhook these listeners
+           — leaving them attached to `document` against a now-detached
+           `el`. A detached element's getBoundingClientRect() is all
+           zeros, so the very next mousemove would divide by a 0 width/
+           height in move()'s caller (curS = px/w), producing NaN that
+           silently propagates through onChangeCb as a garbage hex like
+           "#NaNNaNNaN". Bail out (and clean up) the instant a close is
+           detected, rather than waiting for the eventual mouseup. */
+        if (!pickerEl) { onMouseUp(); return; }
+        move(ev);
+      }
       function onMouseUp() {
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', onMouseUp);

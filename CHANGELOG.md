@@ -27,6 +27,26 @@ All notable changes to Kanvaz are documented here.
   split into a live-preview call and a separate commit call, same
   pattern the on-card swatch itself already used.
 
+### Fixed
+- **`colorpicker.js`: pressing Escape mid-drag** (dragging the
+  saturation/hue square while still holding the mouse button) left the
+  drag's `mousemove` listener attached to `document` against a now-
+  detached canvas — the very next mouse move computed against a
+  zero-size `getBoundingClientRect()`, producing `NaN` saturation/
+  value that silently propagated as a garbage hex (`"#NaNNaNNaN"`)
+  through the live-preview callback. Found in a static bug-bounty pass
+  (no live app run, working alongside the user's own PC use) rather
+  than live reproduction — the listener now self-checks and unhooks
+  the instant a close is detected, instead of waiting for the mouseup
+  that a mid-drag Escape skips past.
+- **`KanvazCanvas.drawGrid()` had no null-guard** for its own grid
+  canvas/context, unlike Map View's equivalent function — harmless
+  while only ever called from canvas.js's own controlled init sequence,
+  but this pass added a new call site from `applySettings()` (an
+  async, IPC-driven settings load) that didn't exist before. Guarded
+  defensively rather than relying on the async timing always working
+  out.
+
 ### Changed
 - **The titlebar's "Save As" button used a share-tray icon** — the
   exact glyph iOS uses for its own Share action, right next to the

@@ -338,6 +338,14 @@ var KanvazCanvas = (function() {
   }
 
   function drawGrid() {
+    /* Audit fix: applySettings() (ui.js) now calls this directly on
+       every settings load/change, including the very first one, which
+       resolves asynchronously over IPC — normally well after
+       KanvazCanvas.init() has already run synchronously during
+       startup, but not something to leave provably unguarded when the
+       fix is one line. Map View's equivalent (resizeMapGrid) already
+       guards the same way. */
+    if (!gridCanvas || !gridCtx) return;
     var w = gridCanvas.width;
     var h = gridCanvas.height;
 
