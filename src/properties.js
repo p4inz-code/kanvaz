@@ -181,6 +181,7 @@ var KanvazProperties = (function() {
     renderTransformSection(body, card, activeId);
     renderLayerSection(body, card, activeId);
     renderMediaSection(body, card, activeId);
+    renderAnnotateSection(body, card, activeId);
 
     var customHeading = document.createElement('div');
     customHeading.style.cssText = SECTION_TITLE_CSS;
@@ -381,10 +382,9 @@ var KanvazProperties = (function() {
      annotation overlay of their own). */
   function renderMediaSection(body, card, cardId) {
     var hasResolution = (card.type === 'image' || card.type === 'gif' || card.type === 'video') && card.naturalW && card.naturalH;
-    var hasAnnotations = card.annotations && card.annotations.length > 0;
     var hasModelFormat = card.type === 'model3d' && card.modelFormat;
 
-    if (!hasResolution && !hasAnnotations && !hasModelFormat) return;
+    if (!hasResolution && !hasModelFormat) return;
 
     var title = document.createElement('div');
     title.style.cssText = SECTION_TITLE_CSS;
@@ -405,27 +405,113 @@ var KanvazProperties = (function() {
       infoRow.appendChild(fmt);
     }
     if (infoRow.childNodes.length) body.appendChild(infoRow);
+  }
 
-    if (hasAnnotations) {
-      var annRow = document.createElement('div');
-      annRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;';
+  /* ── Annotate — draw straight from the panel, no right-click needed.
+     Direct feedback: "add annotation tools to properties panel asw so
+     so user can do it from there too." Tool/color buttons are built
+     from the exact same TOOLS/COLORS lists and mutate the exact same
+     shared state the floating on-card toolbar uses (via
+     KanvazAnnotate.setActiveTool/setActiveColor) — this is a second
+     set of controls for the same state, not a second independent
+     annotation mode that could drift out of sync with what's actually
+     drawing strokes on the card. */
+  var NOT_ANNOTATABLE_TYPES = { note: 1, audio: 1, color: 1, url: 1, file: 1, text: 1 };
 
+  function renderAnnotateSection(body, card, cardId) {
+    if (NOT_ANNOTATABLE_TYPES[card.type]) return;
+    if (typeof KanvazAnnotate === 'undefined') return;
+
+    var title = document.createElement('div');
+    title.style.cssText = SECTION_TITLE_CSS;
+    title.textContent = 'Annotate';
+    body.appendChild(title);
+
+    var isActive = KanvazAnnotate.getActiveCardId() === cardId;
+
+    if (!isActive) {
+      var startBtn = document.createElement('button');
+      startBtn.textContent = 'Start Annotating';
+      startBtn.style.cssText = [
+        'width:100%', 'padding:8px', 'background:var(--color-surface-2)',
+        'border:1px solid var(--color-border-2)', 'border-radius:6px',
+        'color:var(--color-text)', 'font-family:var(--font-ui)', 'font-size:12px',
+        'cursor:pointer', 'margin-bottom:16px'
+      ].join(';');
+      startBtn.onclick = function() {
+        KanvazAnnotate.activate(cardId);
+        if (panelEl) renderInto(panelEl);
+      };
+      body.appendChild(startBtn);
+      return;
+    }
+
+    var toolRow = document.createElement('div');
+    toolRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;';
+    var tools = KanvazAnnotate.getTools();
+    var activeTool = KanvazAnnotate.getActiveTool();
+    for (var i = 0; i < tools.length; i++) {
+      (function(tool) {
+        var isOn = activeTool === tool.id;
+        var btn = document.createElement('button');
+        btn.title = tool.title;
+        btn.innerHTML = tool.icon;
+        btn.style.cssText = 'background:' + (isOn ? 'var(--color-accent-bg)' : 'var(--color-surface-2)') + ';border:1px solid ' + (isOn ? 'var(--color-accent)' : 'var(--color-border-2)') + ';border-radius:4px;cursor:pointer;color:var(--color-text);padding:5px 7px;display:flex;align-items:center;justify-content:center;';
+        btn.onclick = function() {
+          KanvazAnnotate.setActiveTool(tool.id);
+          if (panelEl) renderInto(panelEl);
+        };
+        toolRow.appendChild(btn);
+      })(tools[i]);
+    }
+    body.appendChild(toolRow);
+
+    var colorRow = document.createElement('div');
+    colorRow.style.cssText = 'display:flex;gap:6px;margin-bottom:12px;';
+    var colors = KanvazAnnotate.getColors();
+    var activeColor = KanvazAnnotate.getActiveColor();
+    for (var j = 0; j < colors.length; j++) {
+      (function(color) {
+        var sw = document.createElement('button');
+        sw.style.cssText = 'width:16px;height:16px;border-radius:50%;background:' + color + ';border:2px solid ' + (activeColor === color ? 'var(--color-text)' : 'transparent') + ';cursor:pointer;padding:0;';
+        sw.onclick = function() {
+          KanvazAnnotate.setActiveColor(color);
+          if (panelEl) renderInto(panelEl);
+        };
+        colorRow.appendChild(sw);
+      })(colors[j]);
+    }
+    body.appendChild(colorRow);
+
+    var actionsRow = document.createElement('div');
+    actionsRow.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:16px;';
+
+    if (card.annotations && card.annotations.length) {
       var annLabel = document.createElement('div');
-      annLabel.style.cssText = 'font-size:12px;color:var(--color-text-2);';
+      annLabel.style.cssText = 'font-size:12px;color:var(--color-text-2);flex:1;';
       annLabel.textContent = card.annotations.length + ' annotation' + (card.annotations.length === 1 ? '' : 's');
-      annRow.appendChild(annLabel);
+      actionsRow.appendChild(annLabel);
 
       var clearBtn = document.createElement('button');
       clearBtn.textContent = 'Clear';
       clearBtn.style.cssText = 'padding:4px 10px;background:none;border:1px solid var(--color-border-2);border-radius:5px;color:var(--color-text-2);font-family:var(--font-ui);font-size:11px;cursor:pointer;';
       clearBtn.onclick = function() {
-        if (typeof KanvazAnnotate !== 'undefined' && KanvazAnnotate.clearAnnotations) {
-          KanvazAnnotate.clearAnnotations(cardId);
-        }
+        KanvazAnnotate.clearAnnotations(cardId);
+        if (panelEl) renderInto(panelEl);
       };
-      annRow.appendChild(clearBtn);
-      body.appendChild(annRow);
+      actionsRow.appendChild(clearBtn);
     }
+
+    var stopBtn = document.createElement('button');
+    stopBtn.textContent = 'Stop Annotating';
+    stopBtn.style.cssText = 'padding:4px 10px;background:none;border:1px solid var(--color-border-2);border-radius:5px;color:var(--color-text-2);font-family:var(--font-ui);font-size:11px;cursor:pointer;margin-left:auto;';
+    stopBtn.onclick = function() {
+      KanvazAnnotate.deactivate();
+      if (panelEl) renderInto(panelEl);
+    };
+    actionsRow.appendChild(stopBtn);
+
+    body.appendChild(actionsRow);
   }
 
   /* ── Render all properties ── */

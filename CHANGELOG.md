@@ -4,7 +4,34 @@ All notable changes to Kanvaz are documented here.
 
 ## [Unreleased]
 
+### Added
+- **Canvas grid stays visible at extreme zoom-out** via a third, coarser
+  reference tier (every 25th cell) that keeps its own on-screen spacing
+  above the visual-merge threshold even at the lowest zoom level,
+  instead of everything density-fading to a blank canvas together.
+- **Annotate straight from the Properties panel** — no right-click
+  needed. A new "Annotate" section shows the same tool set (pen,
+  highlighter, line, arrow, rectangle, ellipse, text, measure,
+  eyedropper) and color swatches as the on-card floating toolbar, and
+  they drive the exact same shared state — picking a tool here is
+  picking it there, not a second, independently-tracked notion of
+  "what's selected." Shows a "Start Annotating" button first for cards
+  that support it; hidden entirely for card types that don't (note,
+  color, URL, file-ref, audio, plain text).
+
 ### Fixed
+- **The color-card swatch's native color picker opened anchored to the
+  window's top-left corner, overlapping the side panel** — direct
+  feedback: "once spawning it does go to corner and block properties
+  opanel." The hidden `<input type="color">` proxy behind the swatch
+  had no explicit position, so it defaulted to (0,0); Chromium anchors
+  the native picker to wherever that underlying input actually sits on
+  screen. Now positioned at the swatch's real `getBoundingClientRect()`
+  before being triggered.
+- **Canvas grid faded to fully invisible at maximum zoom-in** — the
+  same shape of bug as the zoom-out fade fixed earlier (fades linearly
+  to a true 0 right at the reachable extreme), just at the other end.
+  Floored instead of zeroed, same fix as before.
 - **Undoing a stroke mid-annotation silently kicked you out of
   annotate mode** — direct feedback: "when i ctrl z the annotate tab
   vanishes and i hv to re right click and make it come." Undo/redo

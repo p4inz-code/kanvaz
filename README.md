@@ -225,6 +225,13 @@ Kanvaz keeps getting developed as an ongoing side project, no fixed deadline, mo
 
 ---
 
+## Related projects
+
+Same engineering philosophy, same author, adjacent problem spaces:
+
+- [3d-ref-skills](https://github.com/p4inz-code/3d-ref-skills)
+- [reference-engineering](https://github.com/p4inz-code/reference-engineering) — the reference-engineering concept itself, proposed and developed independently of Kanvaz
+
 ## License
 
 MIT, free forever.

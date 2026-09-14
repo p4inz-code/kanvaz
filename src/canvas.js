@@ -266,10 +266,17 @@ var KanvazCanvas = (function() {
        space line spacing, not raw scale) still handles the "lines too
        close together look like a solid wash" problem on its own — this
        change only affects the extreme-zoom-out zero-out, not that. */
+    /* Direct feedback: the grid should "still be visible when more zoom
+       and more zoom out" — the top end used to fade linearly to a true
+       0 exactly AT ZOOM_MAX, same shape as the low-end bug already
+       fixed once above. Same fix, same reasoning: floor it below full
+       transparency instead of letting it reach 0 within the reachable
+       range. */
     var GRID_FADE_FLOOR = ZOOM_MIN * 0.5;
+    var GRID_FADE_FLOOR_HIGH = 0.35;
     var alpha = 1.0;
     if (scale < 0.25) alpha = (scale - GRID_FADE_FLOOR) / (0.25 - GRID_FADE_FLOOR);
-    if (scale > 3.0)  alpha = 1.0 - (scale - 3.0) / (ZOOM_MAX - 3.0);
+    if (scale > 3.0)  alpha = 1.0 - (1.0 - GRID_FADE_FLOOR_HIGH) * (scale - 3.0) / (ZOOM_MAX - 3.0);
     alpha = Math.max(0, Math.min(1, alpha));
 
     if (alpha <= 0) return;
@@ -305,6 +312,23 @@ var KanvazCanvas = (function() {
     if (majorSpacing < 40) majorFade = Math.max(0, (majorSpacing - 24) / (40 - 24));
     majorAlpha *= majorFade;
 
+    /* A third, coarser tier (every 25th cell — 5x the major spacing) so
+       zooming out a lot doesn't just fade the whole grid to nothing once
+       minor/major lines get too dense to draw. At ZOOM_MIN this tier's
+       on-screen spacing stays comfortably above its own density-fade
+       threshold, so there's always at least one visible reference grid
+       no matter how far out you go — same idea a map application uses
+       to swap in coarser tiles as you zoom out, rather than just
+       drawing less. */
+    var SUPER_MAJOR_EVERY = 25;
+    var superMajorSpacing = spacing * SUPER_MAJOR_EVERY;
+    var superMajorOx = ((tx % superMajorSpacing) + superMajorSpacing) % superMajorSpacing;
+    var superMajorOy = ((ty % superMajorSpacing) + superMajorSpacing) % superMajorSpacing;
+    var superMajorAlpha = (isLight ? 0.30 : 0.28) * alpha;
+    var superMajorFade = 1.0;
+    if (superMajorSpacing < 40) superMajorFade = Math.max(0, (superMajorSpacing - 24) / (40 - 24));
+    superMajorAlpha *= superMajorFade;
+
     gridCtx.lineWidth = 1;
 
     if (minorFade > 0.01) {
@@ -321,6 +345,25 @@ var KanvazCanvas = (function() {
         gridCtx.moveTo(0, y + 0.5);
         gridCtx.lineTo(w, y + 0.5);
         y += spacing;
+      }
+      gridCtx.stroke();
+    }
+
+    if (superMajorFade > 0.01) {
+      var superAccentRgb = getAccentRgb();
+      gridCtx.strokeStyle = 'rgba(' + superAccentRgb + ', ' + (superMajorAlpha * 0.85) + ')';
+      gridCtx.beginPath();
+      var sx = superMajorOx;
+      while (sx < w) {
+        gridCtx.moveTo(sx + 0.5, 0);
+        gridCtx.lineTo(sx + 0.5, h);
+        sx += superMajorSpacing;
+      }
+      var sy = superMajorOy;
+      while (sy < h) {
+        gridCtx.moveTo(0, sy + 0.5);
+        gridCtx.lineTo(w, sy + 0.5);
+        sy += superMajorSpacing;
       }
       gridCtx.stroke();
     }

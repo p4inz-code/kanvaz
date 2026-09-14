@@ -2199,11 +2199,19 @@ var KanvazCards = (function() {
       var oldPicker = document.querySelector('input[type="color"][data-kanvaz-picker]');
       if (oldPicker && oldPicker.parentNode) oldPicker.parentNode.removeChild(oldPicker);
 
+      /* Positioned at the real swatch, not left to default to the
+         document's top-left corner — Chromium anchors the native color
+         dialog to wherever the underlying <input> actually sits on
+         screen, and an unpositioned absolutely-positioned element
+         appended to document.body defaults to (0,0), which is exactly
+         where the left-docked side panel lives. Direct feedback: the
+         picker "does go to corner and block properties panel." */
+      var swatchRect = swatch.getBoundingClientRect();
       var picker = document.createElement('input');
       picker.type = 'color';
       picker.value = hex;
       picker.dataset.kanvazPicker = '1';
-      picker.style.cssText = 'position:absolute;opacity:0;pointer-events:none;';
+      picker.style.cssText = 'position:fixed;left:' + swatchRect.left + 'px;top:' + swatchRect.top + 'px;opacity:0;pointer-events:none;';
       document.body.appendChild(picker);
 
       function removePicker() {

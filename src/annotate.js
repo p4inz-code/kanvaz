@@ -3,6 +3,22 @@
 var KanvazAnnotate = (function() {
 
   var COLORS = ['#FF5A5A', '#F0A500', '#4A9EFF', '#4CAF82', '#FFFFFF', '#DCDCE8'];
+
+  /* Hoisted out of showToolbar() so properties.js's mirrored tool row
+     (the "add annotation tools to Properties too" ask) can build
+     identical buttons from the same source instead of a second,
+     drift-prone copy of these icon paths. */
+  var TOOLS = [
+    { id: 'pen',   title: 'Pen',       icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>' },
+    { id: 'highlighter', title: 'Highlighter', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>' },
+    { id: 'line',  title: 'Line',      icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="20" x2="20" y2="4"/></svg>' },
+    { id: 'arrow', title: 'Arrow',     icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>' },
+    { id: 'rect',  title: 'Rectangle', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" ry="2"/></svg>' },
+    { id: 'ellipse', title: 'Ellipse', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="9" ry="6"/></svg>' },
+    { id: 'text',  title: 'Text',      icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>' },
+    { id: 'measure', title: 'Measure (pixel distance)', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="21" x2="21" y2="3"/><path d="M3 21l3-3M8 16l3-3M13 11l3-3M18 6l3-3" stroke-width="1.6"/></svg>' },
+    { id: 'eyedropper', title: 'Eyedropper (sample a color)', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5l4 4-10.5 10.5-4.5 1 1-4.5L16.5 3.5z"/><line x1="13.5" y1="6.5" x2="17.5" y2="10.5"/></svg>' }
+  ];
   var WIDTHS  = [2, 4, 8];
   /* v7.x — session-scoped recent-colors row, same "in-memory only, reset
      on restart" scope decision as cards.js's own recentTags — the pain
@@ -941,19 +957,7 @@ var KanvazAnnotate = (function() {
        from — kept as custom shapes but redrawn at the same 24-viewBox/
        stroke-width-2 convention so the whole toolbar reads as one
        consistent icon set rather than two different visual weights. */
-    var tools = [
-      { id: 'pen',   title: 'Pen',       icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>' },
-      { id: 'highlighter', title: 'Highlighter', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>' },
-      { id: 'line',  title: 'Line',      icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="20" x2="20" y2="4"/></svg>' },
-      { id: 'arrow', title: 'Arrow',     icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>' },
-      { id: 'rect',  title: 'Rectangle', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" ry="2"/></svg>' },
-      { id: 'ellipse', title: 'Ellipse', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="9" ry="6"/></svg>' },
-      { id: 'text',  title: 'Text',      icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>' },
-      { id: 'measure', title: 'Measure (pixel distance)', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="21" x2="21" y2="3"/><path d="M3 21l3-3M8 16l3-3M13 11l3-3M18 6l3-3" stroke-width="1.6"/></svg>' },
-      { id: 'eyedropper', title: 'Eyedropper (sample a color)', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5l4 4-10.5 10.5-4.5 1 1-4.5L16.5 3.5z"/><line x1="13.5" y1="6.5" x2="17.5" y2="10.5"/></svg>' }
-    ];
-
-    for (var i = 0; i < tools.length; i++) {
+    for (var i = 0; i < TOOLS.length; i++) {
       (function(tool) {
         var btn = document.createElement('button');
         btn.title = tool.title;
@@ -972,7 +976,7 @@ var KanvazAnnotate = (function() {
         btn.onmouseleave = function() { if (activeTool !== tool.id) btn.style.background = 'transparent'; };
         btn.dataset.toolBtn = tool.id;
         tb.appendChild(btn);
-      })(tools[i]);
+      })(TOOLS[i]);
     }
 
     /* Separator */
@@ -1325,6 +1329,39 @@ var KanvazAnnotate = (function() {
     return activeCardId;
   }
 
+  /* Tool/color setters — a second entry point into the same activeTool/
+     activeColor state the floating toolbar's own buttons mutate
+     directly via closure. Added so the Properties panel's mirrored
+     controls (built from the same TOOLS/COLORS lists) drive real,
+     shared annotation state instead of a second parallel notion of
+     "what tool is selected" that could drift out of sync with the
+     toolbar actually drawing strokes. */
+  function setActiveTool(id) {
+    activeTool = id;
+    updateToolbar();
+  }
+
+  function setActiveColor(hex) {
+    activeColor = hex;
+    updateToolbar();
+  }
+
+  function getTools() {
+    return TOOLS;
+  }
+
+  function getColors() {
+    return COLORS;
+  }
+
+  function getActiveTool() {
+    return activeTool;
+  }
+
+  function getActiveColor() {
+    return activeColor;
+  }
+
   return {
     attach:           attach,
     detach:           detach,
@@ -1336,7 +1373,13 @@ var KanvazAnnotate = (function() {
     clearAnnotations: clearAnnotations,
     getStrokes:       getStrokes,
     loadStrokes:      loadStrokes,
-    getActiveCardId:  getActiveCardId
+    getActiveCardId:  getActiveCardId,
+    setActiveTool:    setActiveTool,
+    setActiveColor:   setActiveColor,
+    getTools:         getTools,
+    getColors:        getColors,
+    getActiveTool:    getActiveTool,
+    getActiveColor:   getActiveColor
   };
 
 })();
