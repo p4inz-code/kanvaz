@@ -2,6 +2,20 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [7.16.0] — Numbered view bookmarks
+
+### Added
+- **View bookmarks** — Ctrl+1..9 saves the current pan/zoom to a
+  numbered slot, plain 1..9 jumps back to it, Maya/Photoshop-style.
+  Deliberately session-only (never written to the board file): the same
+  scoping decision this codebase already made for 3D card orbit
+  position ("NOT persisted by design"), and it sidesteps any board-file
+  schema question entirely. Recalling an unset slot shows a toast
+  telling you how to set it instead of doing nothing silently. Digits
+  1-9 were completely unbound before this. Verified live: saved a view,
+  moved away, recalled it — tx/ty/scale matched exactly; recalling an
+  empty slot showed the expected toast and didn't throw.
+
 ## [7.15.0] — Tidy up
 
 ### Added

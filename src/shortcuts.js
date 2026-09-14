@@ -236,6 +236,17 @@ var KanvazShortcuts = (function() {
        no selection too. */
     if (shift && (e.key === 'f' || e.key === 'F')) { e.preventDefault(); KanvazCanvas.zoomToSelection(); return; }
 
+    /* View bookmarks — Ctrl+1..9 saves the current pan/zoom to a
+       numbered slot, plain 1..9 jumps back to it. Maya/Photoshop-style,
+       session-only (see canvas.js's saveViewBookmark comment for why).
+       Digits 1-9 were completely unbound before this. */
+    if (e.key >= '1' && e.key <= '9') {
+      e.preventDefault();
+      if (ctrl) KanvazCanvas.saveViewBookmark(e.key);
+      else KanvazCanvas.recallViewBookmark(e.key);
+      return;
+    }
+
     /* Escape — deselect, close panels */
     if (e.key === 'Escape') {
       KanvazUI.closeAll();

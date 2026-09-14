@@ -232,6 +232,29 @@ var KanvazCanvas = (function() {
     zoomFit(ids);
   }
 
+  /* View bookmarks (Ctrl+1..9 to save, 1..9 to recall) — Maya/Photoshop-
+     style numbered camera bookmarks. Deliberately session-only (an
+     in-memory object, never written to the board file): the exact same
+     scoping decision this codebase already made for 3D card orbit
+     position ("NOT persisted by design"), and it sidesteps any board
+     file schema/migration question entirely. A bookmark simply stops
+     existing once the board is closed or reloaded. */
+  var viewBookmarks = {};
+
+  function saveViewBookmark(slot) {
+    viewBookmarks[slot] = { tx: tx, ty: ty, scale: scale };
+    if (typeof KanvazUI !== 'undefined') KanvazUI.toast('View ' + slot + ' saved');
+  }
+
+  function recallViewBookmark(slot) {
+    var v = viewBookmarks[slot];
+    if (!v) {
+      if (typeof KanvazUI !== 'undefined') KanvazUI.toast('No view saved for ' + slot + ' — Ctrl+' + slot + ' to save one', 'error');
+      return;
+    }
+    setViewport(v.tx, v.ty, v.scale);
+  }
+
   function panBy(dx, dy) {
     tx += dx;
     ty += dy;
@@ -887,6 +910,8 @@ var KanvazCanvas = (function() {
     zoomReset:      zoomReset,
     zoomFit:        zoomFit,
     zoomToSelection: zoomToSelection,
+    saveViewBookmark: saveViewBookmark,
+    recallViewBookmark: recallViewBookmark,
     panBy:          panBy,
     panTo:          panTo,
     setViewport:    setViewport,
