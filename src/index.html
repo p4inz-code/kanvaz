@@ -75,19 +75,28 @@
            as "save a copy" instead — matches what Save As actually
            does (write a new file, same content) without borrowing a
            glyph that already means something else everywhere. -->
-      <button class="titlebar-btn" id="btn-export" title="Save board as… (Ctrl+Shift+S)">
+      <!-- data-tooltip, not title: these 4 buttons sit inside #titlebar's
+           -webkit-app-region:drag ancestor (they're individually marked
+           no-drag so clicks work, but Windows' own drag-region hit-
+           testing can still let a native OS tooltip through for a plain
+           title attribute here, unstyled and out of Kanvaz's theme,
+           bypassing tooltip.js's suppression entirely — confirmed live,
+           not theoretical). data-tooltip isn't a real HTML attribute
+           the browser acts on, so there's nothing native left to leak;
+           tooltip.js reads it as a second source, same custom UI. -->
+      <button class="titlebar-btn" id="btn-export" data-tooltip="Save board as… (Ctrl+Shift+S)">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
       </button>
-      <button class="titlebar-btn" id="btn-minimize" title="Minimize">
+      <button class="titlebar-btn" id="btn-minimize" data-tooltip="Minimize">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
       </button>
-      <button class="titlebar-btn" id="btn-maximize" title="Maximize">
+      <button class="titlebar-btn" id="btn-maximize" data-tooltip="Maximize">
         <svg id="icon-maximize" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
         <svg id="icon-restore" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
           <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
         </svg>
       </button>
-      <button class="titlebar-btn close" id="btn-close" title="Close">
+      <button class="titlebar-btn close" id="btn-close" data-tooltip="Close">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>

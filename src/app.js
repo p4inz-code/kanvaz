@@ -201,7 +201,7 @@ var KanvazApp = (function() {
       if (!iconMax || !iconRes) return;
       iconMax.style.display = isMax ? 'none' : '';
       iconRes.style.display = isMax ? '' : 'none';
-      if (btnMax) btnMax.title = isMax ? 'Restore' : 'Maximize';
+      if (btnMax) btnMax.dataset.tooltip = isMax ? 'Restore' : 'Maximize';
     }
 
     KanvazBridge.isMaximized().then(function(isMax) {
@@ -439,17 +439,19 @@ var KanvazApp = (function() {
     colorBtn.style.cssText = 'cursor:pointer;flex-shrink:0;width:14px;height:14px;border-radius:50%;border:1.5px solid var(--color-text-3);background:' + (activeColorFilter || 'transparent') + ';';
     colorBtn.addEventListener('click', function() {
       if (activeColorFilter) { setColorFilter(null); colorBtn.style.background = 'transparent'; return; }
-      var picker = document.createElement('input');
-      picker.type = 'color';
-      picker.style.cssText = 'position:absolute;opacity:0;pointer-events:none;';
-      document.body.appendChild(picker);
-      picker.addEventListener('input', function() {
-        setColorFilter(picker.value);
-        colorBtn.style.background = picker.value;
+      /* Same native-picker corner-anchoring bug the color-card swatch
+         had (a hidden proxy input with no explicit position defaults
+         to the window's top-left corner) — missed in the original
+         sweep since this one lives in the search bar, not on a card.
+         Kanvaz's own picker (colorpicker.js) instead, same as every
+         other color entry point in the app now. */
+      var rect = colorBtn.getBoundingClientRect();
+      KanvazColorPicker.open(rect.left, rect.bottom + 8, activeColorFilter || '#000000', {
+        onChange: function(hex) {
+          setColorFilter(hex);
+          colorBtn.style.background = hex;
+        }
       });
-      picker.addEventListener('change', function() { picker.remove(); });
-      picker.addEventListener('blur', function() { setTimeout(function() { if (picker.parentNode) picker.remove(); }, 200); });
-      picker.click();
     });
 
     var closeBtn = document.createElement('span');

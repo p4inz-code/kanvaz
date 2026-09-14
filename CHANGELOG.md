@@ -28,6 +28,21 @@ All notable changes to Kanvaz are documented here.
   pattern the on-card swatch itself already used.
 
 ### Fixed
+- **The search bar's "Filter by color" swatch still used the old
+  native color picker** — missed in the original sweep since it lives
+  in the search bar, not on a card; same corner-anchoring bug as the
+  color-card swatch had, now using Kanvaz's own picker like every
+  other color entry point in the app.
+- **Titlebar buttons (Save As, Minimize, Maximize, Close) could still
+  show a native OS tooltip**, unstyled — confirmed live. They sit
+  inside `#titlebar`'s `-webkit-app-region: drag` region (individually
+  marked `no-drag` so clicks work), and Windows' own drag-region hit-
+  testing can apparently still let a native tooltip through for a
+  plain `title` attribute there, bypassing `tooltip.js`'s suppression
+  entirely. Switched those 4 buttons to a `data-tooltip` attribute
+  instead — not a real HTML attribute the browser acts on, so there's
+  nothing native left to leak — and taught `tooltip.js` to read it as
+  a second source alongside `title`.
 - **`colorpicker.js`: pressing Escape mid-drag** (dragging the
   saturation/hue square while still holding the mouse button) left the
   drag's `mousemove` listener attached to `document` against a now-

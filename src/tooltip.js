@@ -13,7 +13,17 @@
  * and shows a small styled tooltip that matches the rest of the app's
  * dark-panel look instead. Every existing title="..." in the whole
  * codebase gets this for free — nothing else needs to change.
- */
+ *
+ * Also reads `data-tooltip` — a second source for the handful of
+ * elements (the titlebar's minimize/maximize/close/save-as buttons)
+ * that live inside a `-webkit-app-region: drag` ancestor. Confirmed
+ * live: a plain `title` there can still leak Windows' own native
+ * tooltip, unstyled, bypassing the remove/restore suppression below
+ * entirely — the drag region's own OS-level hit-testing appears to
+ * intercept it before this module's mouseover listener gets a look.
+ * `data-tooltip` isn't a real HTML attribute the browser acts on, so
+ * for those elements there's nothing native left to leak in the first
+ * place; no remove/restore dance needed for that source. */
 
 var KanvazTooltip = (function() {
 
@@ -32,18 +42,27 @@ var KanvazTooltip = (function() {
   }
 
   /* Walks up from the actual hovered node to find the nearest ancestor
-     carrying a real (non-empty) title attribute — matches how the
-     native tooltip already behaves for a titled container with plain
-     children (e.g. an icon <span> inside a titled <button>). */
+     carrying a real (non-empty) title or data-tooltip attribute —
+     matches how the native tooltip already behaves for a titled
+     container with plain children (e.g. an icon <span> inside a
+     titled <button>). */
   function findTitledAncestor(node) {
     while (node && node !== document.body && node.nodeType === 1) {
       if (node.hasAttribute && node.hasAttribute('title')) {
         var t = node.getAttribute('title');
         if (t && t.trim()) return node;
       }
+      if (node.dataset && node.dataset.tooltip) {
+        if (node.dataset.tooltip.trim()) return node;
+      }
       node = node.parentNode;
     }
     return null;
+  }
+
+  function readTooltipText(el) {
+    if (el.hasAttribute('title')) return el.getAttribute('title');
+    return el.dataset.tooltip;
   }
 
   function positionTooltip(target, el) {
@@ -88,6 +107,8 @@ var KanvazTooltip = (function() {
   }
 
   function restoreTitle(el) {
+    /* Only ever re-adds `title` — data-tooltip was never touched, so
+       there's nothing to restore for that source. */
     if (el && el.dataset && el.dataset.tooltipText !== undefined) {
       el.setAttribute('title', el.dataset.tooltipText);
       delete el.dataset.tooltipText;
@@ -104,13 +125,15 @@ var KanvazTooltip = (function() {
     currentEl = target;
     if (!target) return;
 
-    var text = target.getAttribute('title');
-    /* Stash under a different key so the native tooltip never shows
-       even for the SHOW_DELAY window before the custom one appears —
-       removing the attribute immediately is what actually suppresses
-       it; restoring happens on mouseout/dismiss below. */
-    target.dataset.tooltipText = text;
-    target.removeAttribute('title');
+    var text = readTooltipText(target);
+    /* Only the title-attribute source needs suppressing — stash under
+       a different key so the native tooltip never shows even for the
+       SHOW_DELAY window before the custom one appears. data-tooltip
+       elements have nothing native to suppress in the first place. */
+    if (target.hasAttribute('title')) {
+      target.dataset.tooltipText = text;
+      target.removeAttribute('title');
+    }
 
     showTimer = setTimeout(function() {
       showTooltip(target, text);
