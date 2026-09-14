@@ -18,10 +18,13 @@ var KanvazCards = (function() {
                                   changes selection (selectCard/selectAll/
                                   deselectAll/clearAll/setMultiSelection). Length
                                   0 or 1 in the common case; >1 after Select
-                                  All (Ctrl+A) or after Ctrl/Cmd-clicking two
-                                  or more cards by hand (toggleCardInSelection)
-                                  — there's still no rectangle/shift-click
-                                  multi-select in this app. */
+                                  All (Ctrl+A), Ctrl/Cmd-clicking two or more
+                                  cards by hand (toggleCardInSelection), or
+                                  canvas.js's own marquee/rubber-band drag
+                                  select (Ctrl+drag or V-toggled drag on empty
+                                  canvas — see canvas.js's setMultiSelection
+                                  call), which feeds into this exact same
+                                  state. */
   var isolateActive = false;  /* Isolate View (Shift+I, Maya's own binding
                                   for the same feature) — true while every
                                   non-selected card is hidden. See
@@ -189,6 +192,12 @@ var KanvazCards = (function() {
          collapses back down to just this one, same as before. */
       if (multiSelectedIds.length > 1 && multiSelectedIds.indexOf(card.id) !== -1) {
         selectedId = card.id;
+      } else if (card.groupId && getGroupMembers(card.groupId).length > 1) {
+        /* Persistent grouping (Ctrl+G) — clicking any member selects the
+           whole group, same as clicking one shape in an Illustrator/
+           Figma group. */
+        setMultiSelection(getGroupMembers(card.groupId));
+        selectedId = card.id;
       } else {
         selectCard(card.id);
       }
@@ -237,7 +246,19 @@ var KanvazCards = (function() {
       if (!card) return;
       e.preventDefault();
       e.stopPropagation();
-      selectCard(card.id);
+      /* Same preserve-the-group/multi-selection logic as the plain-click
+         handler above — right-clicking a card that's already part of an
+         active multi-selection or persistent group must not collapse it
+         first, or the context menu's "Group" item (which needs 2+
+         selected) could never show after a real multi-select. */
+      if (multiSelectedIds.length > 1 && multiSelectedIds.indexOf(card.id) !== -1) {
+        selectedId = card.id;
+      } else if (card.groupId && getGroupMembers(card.groupId).length > 1) {
+        setMultiSelection(getGroupMembers(card.groupId));
+        selectedId = card.id;
+      } else {
+        selectCard(card.id);
+      }
       KanvazUI.showCardContextMenu(e.clientX, e.clientY, card);
     });
   }
@@ -447,8 +468,17 @@ var KanvazCards = (function() {
        a deliberate, disclosed behavior flip from the previous default
        (aspect-locked without Shift, free while holding it) — the old
        default was backwards from user expectation coming from any other
-       design tool, flagged directly by user feedback. */
-    var aspectLock  = e.shiftKey;
+       design tool, flagged directly by user feedback.
+
+       Bug fix: aspectLock used to be read ONCE here from the initial
+       mousedown event and never rechecked — pressing Shift only AFTER
+       the drag had already started (the natural "start resizing freely,
+       then hold Shift once you want to lock it" workflow, and the only
+       way most people actually use this) did nothing, reported as
+       "shift while resize doesn't work at all." Read live from each
+       mousemove event's own modifier state inside onMove instead, so
+       toggling Shift up/down mid-drag engages/disengages the lock in
+       real time, same as every other design tool. */
     var aspectRatio = startW / startH;
 
     /* Audit fix: handle visibility used to be pure CSS :hover, so
@@ -485,7 +515,7 @@ var KanvazCards = (function() {
          exclusion the first block existed to enforce. Computed once
          here so both branches below agree on whether this card/corner
          combination actually locks. */
-      var lockThisResize = aspectLock && isCorner && card.type !== 'note' && card.type !== 'audio' && card.type !== 'url' && card.type !== 'file' && card.type !== 'text';
+      var lockThisResize = ev.shiftKey && isCorner && card.type !== 'note' && card.type !== 'audio' && card.type !== 'url' && card.type !== 'file' && card.type !== 'text';
 
       if (lockThisResize) {
         /* Snap width only, then re-derive height from the snapped width
@@ -4028,11 +4058,13 @@ var KanvazCards = (function() {
   function selectCard(id) {
     /* Plain click/drag/create always collapses a prior multi-selection
        down to just this one card, same as clicking one of several
-       highlighted rows in a file browser — Ctrl/Cmd-click is the only
-       path that grows or shrinks a group instead (toggleCardInSelection,
-       in the world mousedown handler), and the mousedown handler skips
-       calling selectCard() at all when the click lands on a card that's
-       already part of the current group, so the group survives. */
+       highlighted rows in a file browser. Ctrl/Cmd-click
+       (toggleCardInSelection) and canvas.js's marquee/rubber-band drag
+       both grow or shrink a selection instead of calling this; the
+       world mousedown/contextmenu handlers also skip calling this
+       entirely when the click lands on a card that's already part of
+       the current multi-selection or a persistent group (Ctrl+G), so
+       either survives a click on one of its own members. */
     if (multiSelectedIds.length > 1) {
       clearSelectionVisuals();
     } else if (selectedId && selectedId !== id) {
@@ -4855,6 +4887,8 @@ var KanvazCards = (function() {
       adjustBrightness: c.adjustBrightness !== undefined ? c.adjustBrightness : null,
       adjustContrast:   c.adjustContrast   !== undefined ? c.adjustContrast   : null,
       adjustSaturate:   c.adjustSaturate   !== undefined ? c.adjustSaturate   : null,
+      /* v7.x — persistent card grouping (Ctrl+G/Ctrl+Shift+G). */
+      groupId:      c.groupId      || null,
       /* v6.4.0 */
       sharedId:     c.sharedId     || null
     };
@@ -5202,6 +5236,68 @@ var KanvazCards = (function() {
     if (changed) {
       KanvazApp.markDirty();
       KanvazHistory.push();
+    }
+  }
+
+  /* Card grouping (Ctrl+G / Ctrl+Shift+G) — a persistent grouping, unlike
+     the transient multi-selection above: clicking any member later
+     re-selects the whole group (see the world mousedown handler), and
+     dragging any member already moves the whole group for free via the
+     existing multi-select group-drag in startDrag(). Deliberately just
+     a shared `groupId` string on each card, no separate group entity to
+     keep in sync — "every card with this id" IS the group. */
+  function getGroupMembers(groupId) {
+    if (!groupId) return [];
+    var allIds = getAllIds();
+    var members = [];
+    for (var i = 0; i < allIds.length; i++) {
+      var c = cards[allIds[i]];
+      if (c && c.groupId === groupId) members.push(allIds[i]);
+    }
+    return members;
+  }
+
+  function groupCards(ids) {
+    if (!ids || ids.length < 2) return;
+    var groupId = 'group-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    var changed = false;
+    for (var i = 0; i < ids.length; i++) {
+      var c = cards[ids[i]];
+      if (c) { c.groupId = groupId; changed = true; }
+    }
+    if (changed) {
+      KanvazApp.markDirty();
+      KanvazHistory.push();
+      if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Grouped ' + ids.length + ' cards');
+    }
+  }
+
+  /* Ungroups every group touched by the given ids — if the selection
+     spans two different existing groups, both are dissolved, matching
+     Illustrator's own "Ungroup acts on every selected group" behavior
+     rather than picking just one arbitrarily. */
+  function ungroupCards(ids) {
+    if (!ids || !ids.length) return;
+    var groupIdsToClear = {};
+    for (var i = 0; i < ids.length; i++) {
+      var c = cards[ids[i]];
+      if (c && c.groupId) groupIdsToClear[c.groupId] = true;
+    }
+    var keys = Object.keys(groupIdsToClear);
+    if (!keys.length) return;
+    var allIds = getAllIds();
+    var changed = false;
+    for (var j = 0; j < allIds.length; j++) {
+      var card = cards[allIds[j]];
+      if (card && card.groupId && groupIdsToClear[card.groupId]) {
+        card.groupId = null;
+        changed = true;
+      }
+    }
+    if (changed) {
+      KanvazApp.markDirty();
+      KanvazHistory.push();
+      if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Ungrouped');
     }
   }
 
@@ -5673,6 +5769,9 @@ var KanvazCards = (function() {
     getAllIds:         getAllIds,
     toggleIsolate:     toggleIsolate,
     isIsolateActive:   isIsolateActive,
+    groupCards:        groupCards,
+    ungroupCards:      ungroupCards,
+    getGroupMembers:   getGroupMembers,
     showOpacityPicker: showOpacityPicker,
     toggleObjectFit:   toggleObjectFit,
     setAdjustment:     setAdjustment,

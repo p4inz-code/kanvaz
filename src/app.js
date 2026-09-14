@@ -1375,6 +1375,25 @@ var KanvazApp = (function() {
         }
       );
 
+      /* Group / Ungroup — Group only makes sense with 2+ selected;
+         Ungroup only when the right-clicked card is actually part of
+         one. Mirrors the Ctrl+G/Ctrl+Shift+G shortcuts exactly. */
+      var selIds = KanvazCards.getSelectedIds();
+      if (selIds.length > 1) {
+        items.push({
+          label: 'Group',
+          shortcut: 'Ctrl+G',
+          action: function() { KanvazCards.groupCards(selIds); }
+        });
+      }
+      if (card.groupId) {
+        items.push({
+          label: 'Ungroup',
+          shortcut: 'Ctrl+Shift+G',
+          action: function() { KanvazCards.ungroupCards([card.id]); }
+        });
+      }
+
       /* Media-only items: flip, reset size */
       if (card.type !== 'note' && card.type !== 'color' && card.type !== 'audio' && card.type !== 'url' && card.type !== 'file' && card.type !== 'text') {
         items.push({ sep: true });

@@ -157,6 +157,20 @@ var KanvazShortcuts = (function() {
       return;
     }
 
+    /* Group / Ungroup — standard Illustrator/Figma bindings. Group
+       needs 2+ selected (a "group" of one is meaningless); Ungroup acts
+       on whatever group(s) the current selection touches. */
+    if (ctrl && !shift && keyLower === 'g') {
+      e.preventDefault();
+      KanvazCards.groupCards(KanvazCards.getSelectedIds());
+      return;
+    }
+    if (ctrl && shift && keyLower === 'g') {
+      e.preventDefault();
+      KanvazCards.ungroupCards(KanvazCards.getSelectedIds());
+      return;
+    }
+
     /* Theme toggle — works in both views. Binary dark/light toggle, same
        as before (a plugin theme still collapses to 'light' on press —
        cycling through every registered theme is a possible future

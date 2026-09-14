@@ -7,7 +7,7 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '7.18.0';
+  var VERSION       = '7.19.0';
 
   /* ── Shared cards (v6.4.0) — "same card, no duplicate, edit once
      updates everywhere" (Are.na-style), across boards in ONE .kanvaz
@@ -1950,13 +1950,12 @@ var KanvazBoards = (function() {
       tipBanner.appendChild(tipBtn);
       rightCol.appendChild(tipBanner);
 
-      /* Footer branding — P4inz | Atharva Patil, same order used
-         everywhere else in the app now (About screen, README). No
-         "Studios" suffix — direct correction: "its not p4inz studio
-         its only p4inz | then my name." */
+      /* Footer branding — three-part credit, same order used everywhere
+         else in the app now (About screen, README, LICENSE): person,
+         then the actual brand name, then the studio/business name last. */
       var footer = document.createElement('div');
       footer.style.cssText = 'flex-shrink:0;padding:0 40px 16px;text-align:center;font-size:11px;color:var(--color-text-3);';
-      footer.textContent = 'P4inz | Atharva Patil';
+      footer.textContent = 'Atharva Patil | P4inz | Northbyte Studios';
       rightCol.appendChild(footer);
 
       overlay.appendChild(rightCol);

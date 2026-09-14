@@ -2,6 +2,38 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [7.19.0] — Card grouping, live Shift-resize lock fix
+
+### Added
+- **Card grouping (Ctrl+G / Ctrl+Shift+G)**, in the canvas right-click
+  menu too. Clicking any member of a group later re-selects the whole
+  group (same as clicking one shape in an Illustrator/Figma group), and
+  dragging any member already moves the whole group for free via the
+  existing multi-select group-drag. Just a shared `groupId` string on
+  each card — no separate group entity to keep in sync. Caught and
+  fixed while wiring this up: the canvas right-click handler
+  unconditionally collapsed the selection to just the right-clicked
+  card before building the context menu, which meant the new "Group"
+  item (needs 2+ selected) could never actually appear after a real
+  multi-select — fixed to preserve an active selection/group the same
+  way the plain-click handler already did.
+
+### Fixed
+- **Shift-to-lock-aspect-ratio while resizing only worked if Shift was
+  already held down before the drag started** — reported as "the shift
+  characteristic while resize doesn't work at all." `aspectLock` was
+  read once from the initial mousedown event and never rechecked; the
+  natural workflow (start dragging freely, then hold Shift once you
+  want to lock it) did nothing. Now reads the live modifier state from
+  each mousemove event, so toggling Shift up or down mid-drag
+  engages/disengages the lock in real time, matching Figma/Photoshop.
+  Verified live: dragged a corner freely (ratio drifted to 1.077 on a
+  1.5-ratio card), held Shift mid-drag (snapped to exactly 1.500), then
+  released Shift and kept dragging (unlocked again to 1.280).
+- The Home Screen footer still showed the old two-part "P4inz | Atharva
+  Patil" credit — missed in the branding pass that fixed this
+  everywhere else (About screen, README, LICENSE, package.json).
+
 ## [7.18.0] — Non-destructive image/video adjustments
 
 ### Added
