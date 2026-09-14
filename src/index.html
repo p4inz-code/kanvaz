@@ -66,8 +66,17 @@
            at Feather's native 24x24 viewBox/stroke-width so they scale
            correctly at any rendered size — only width/height differ
            per button to match this toolbar's existing compact sizing. -->
+      <!-- Direct feedback: this used an upload-into-tray glyph that
+           reads as "Share" (the exact shape iOS uses for its own Share
+           button) right next to the toolbar's plain-disk "Save" — two
+           save-related icons with no shared visual language, one of
+           them shaped like an entirely different, nonexistent feature
+           (Kanvaz has no network sharing). Feather's "copy" icon reads
+           as "save a copy" instead — matches what Save As actually
+           does (write a new file, same content) without borrowing a
+           glyph that already means something else everywhere. -->
       <button class="titlebar-btn" id="btn-export" title="Save board as… (Ctrl+Shift+S)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
       </button>
       <button class="titlebar-btn" id="btn-minimize" title="Minimize">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>

@@ -4,6 +4,14 @@ All notable changes to Kanvaz are documented here.
 
 ## [Unreleased]
 
+### Changed
+- **The titlebar's "Save As" button used a share-tray icon** — the
+  exact glyph iOS uses for its own Share action, right next to the
+  toolbar's plain-disk "Save" button, with no shared visual language
+  between the two and a real feature (network sharing) Kanvaz doesn't
+  have. Now uses a "copy" icon instead, matching what Save As actually
+  does (write a new file with the same content).
+
 ### Added
 - **A custom Kanvaz-styled color picker** (`colorpicker.js`), replacing
   the native OS/Chromium color dialog everywhere it was used: the
