@@ -7,7 +7,7 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '7.19.0';
+  var VERSION       = '7.20.0';
 
   /* ── Shared cards (v6.4.0) — "same card, no duplicate, edit once
      updates everywhere" (Are.na-style), across boards in ONE .kanvaz

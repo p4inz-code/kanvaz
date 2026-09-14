@@ -14,7 +14,7 @@
 
 var KanvazSidePanel = (function() {
 
-  var SECTIONS = ['boards', 'properties', 'settings'];
+  var SECTIONS = ['boards', 'properties', 'layers', 'settings'];
 
   var railEl     = null;
   var contentEl  = null;
@@ -109,6 +109,8 @@ var KanvazSidePanel = (function() {
       if (typeof KanvazBoards !== 'undefined') KanvazBoards.renderBoardsList(contentEl);
     } else if (currentSection === 'properties') {
       if (typeof KanvazProperties !== 'undefined') KanvazProperties.renderInto(contentEl);
+    } else if (currentSection === 'layers') {
+      if (typeof KanvazCards !== 'undefined') KanvazCards.renderLayersInto(contentEl);
     } else if (currentSection === 'settings') {
       if (typeof KanvazUI_Extended !== 'undefined') KanvazUI_Extended.renderSettingsInto(contentEl);
     }

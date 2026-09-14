@@ -2,6 +2,25 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [7.20.0] — Layers panel
+
+### Added
+- **A Layers panel**, its own tab on the side-panel icon rail. Lists
+  every card in top-to-bottom z-order (topmost first, matching
+  Photoshop/Figma), with a click-to-select row, an eye icon toggling a
+  new persisted `hidden` property (distinct from Isolate View's
+  transient hide — the two never share a CSS class), and a lock icon
+  that's just the existing `pinned` concept exposed here rather than a
+  second flag meaning the same thing. Deliberately basic for a first
+  pass: no drag-to-reorder yet — z-order still changes via the existing
+  Bring to Front / Send to Back actions. Stays live-synced with
+  selection changes, card edits, and deletes. Verified live end-to-end:
+  the rail button, the list rendering both cards, the eye toggle
+  actually hiding the element (`display:none`, confirmed via
+  `getComputedStyle`) and surviving a `serialise()` round trip, the
+  lock icon, clicking a row actually selecting that card, and clicking
+  the eye/lock icons NOT also selecting the row underneath them.
+
 ## [7.19.0] — Card grouping, live Shift-resize lock fix
 
 ### Added

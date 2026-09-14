@@ -871,6 +871,7 @@ var KanvazCards = (function() {
        report. Only ever refresh for the card Properties is actually
        showing. */
     if (type === 'cardUpdate') refreshPropertiesIfOpen(card);
+    refreshLayersIfOpen();
     if (typeof KanvazPluginAPI === 'undefined' || !KanvazPluginAPI._emit) return;
     KanvazPluginAPI._emit(type, card);
   }
@@ -907,6 +908,7 @@ var KanvazCards = (function() {
 
   function emitSelectionChange() {
     refreshPropertiesIfOpen();
+    refreshLayersIfOpen();
     if (typeof KanvazPluginAPI === 'undefined' || !KanvazPluginAPI._emit) return;
     KanvazPluginAPI._emit('selectionChange', getSelectedIds());
   }
@@ -1332,6 +1334,7 @@ var KanvazCards = (function() {
     }
     buildPinIndicator(el);
     buildResizeHandles(el);
+    if (card.hidden) el.classList.add('card-layer-hidden');
 
     world.appendChild(el);
   }
@@ -1666,6 +1669,112 @@ var KanvazCards = (function() {
       if (media) media.style.filter = getFilterCss(card);
     }
     KanvazApp.markDirty();
+  }
+
+  /* Layer visibility (Layers panel eye icon) — a persistent per-card
+     `hidden` flag, distinct from Isolate View's transient
+     `.card-isolated-hidden` class (that one clears itself on exit;
+     this one is a real saved property, same class of thing as
+     `pinned`). Applied via its own CSS class so the two mechanisms
+     never fight over the same class name. */
+  function toggleCardVisibility(id) {
+    var card = cards[id];
+    if (!card) return;
+    card.hidden = !card.hidden;
+    var el = document.getElementById(id);
+    if (el) el.classList.toggle('card-layer-hidden', card.hidden);
+    KanvazApp.markDirty();
+    KanvazHistory.push();
+    refreshLayersIfOpen();
+  }
+
+  /* ── Layers panel ── Sidebar tab (icon rail, sidepanel.js) listing
+     every card in top-to-bottom z-order — closest thing this app has
+     to Photoshop/Figma's Layers panel. Deliberately "basic" for a first
+     pass: click a row to select that card, an eye icon toggles
+     `hidden` (a real persisted property), a lock icon reuses the
+     existing `pinned` concept (a locked layer already means "can't be
+     dragged" in this app, no need to invent a second flag that means
+     the same thing). No drag-to-reorder yet — reordering happens via
+     the existing Bring To Front/Send To Back actions elsewhere. */
+  function renderLayersInto(container) {
+    container.innerHTML = '';
+
+    var title = document.createElement('div');
+    title.style.cssText = 'font-size:11px;color:var(--color-text-3);text-transform:uppercase;letter-spacing:0.06em;padding:14px 14px 8px;';
+    title.textContent = 'Layers';
+    container.appendChild(title);
+
+    var allIds = getAllIds();
+    if (!allIds.length) {
+      var empty = document.createElement('div');
+      empty.style.cssText = 'text-align:center;color:var(--color-text-3);font-size:12px;padding:24px 14px;line-height:1.5;';
+      empty.textContent = 'No cards on this board yet.';
+      container.appendChild(empty);
+      return;
+    }
+
+    /* Topmost (highest z) first, matching Photoshop/Figma's own layer
+       ordering convention. */
+    allIds.sort(function(a, b) { return (cards[b].z || 0) - (cards[a].z || 0); });
+
+    var list = document.createElement('div');
+    list.style.cssText = 'padding:0 8px 14px;';
+
+    var selectedIdsNow = getSelectedIds();
+    var selectedSet = {};
+    for (var s = 0; s < selectedIdsNow.length; s++) selectedSet[selectedIdsNow[s]] = true;
+
+    for (var i = 0; i < allIds.length; i++) {
+      (function(id) {
+        var card = cards[id];
+        if (!card) return;
+
+        var row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:5px;cursor:pointer;font-family:var(--font-ui);font-size:12px;' +
+          (selectedSet[id] ? 'background:var(--color-accent-bg);color:var(--color-text);' : 'color:var(--color-text-2);');
+        row.onmouseenter = function() { if (!selectedSet[id]) row.style.background = 'var(--color-surface-2)'; };
+        row.onmouseleave = function() { if (!selectedSet[id]) row.style.background = 'transparent'; };
+        row.onclick = function() { selectCard(id); bringToFront(id); renderLayersInto(container); };
+
+        var nameEl = document.createElement('span');
+        nameEl.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+        nameEl.textContent = (card.name && card.name.trim()) ? card.name : (card.type.charAt(0).toUpperCase() + card.type.slice(1));
+        row.appendChild(nameEl);
+
+        var lockBtn = document.createElement('span');
+        lockBtn.title = card.pinned ? 'Unlock' : 'Lock';
+        lockBtn.textContent = card.pinned ? '🔒' : '🔓';
+        lockBtn.style.cssText = 'cursor:pointer;font-size:11px;opacity:' + (card.pinned ? '1' : '0.45') + ';';
+        lockBtn.onclick = function(e) {
+          e.stopPropagation();
+          togglePin(id);
+          renderLayersInto(container);
+        };
+        row.appendChild(lockBtn);
+
+        var eyeBtn = document.createElement('span');
+        eyeBtn.title = card.hidden ? 'Show' : 'Hide';
+        eyeBtn.textContent = card.hidden ? '🚫' : '👁';
+        eyeBtn.style.cssText = 'cursor:pointer;font-size:11px;opacity:' + (card.hidden ? '0.6' : '1') + ';';
+        eyeBtn.onclick = function(e) {
+          e.stopPropagation();
+          toggleCardVisibility(id);
+          renderLayersInto(container);
+        };
+        row.appendChild(eyeBtn);
+
+        list.appendChild(row);
+      })(allIds[i]);
+    }
+
+    container.appendChild(list);
+  }
+
+  function refreshLayersIfOpen() {
+    if (typeof KanvazSidePanel === 'undefined' || !KanvazSidePanel.isSectionOpen || !KanvazSidePanel.isSectionOpen('layers')) return;
+    var container = document.getElementById('side-panel-content');
+    if (container) renderLayersInto(container);
   }
 
   /* Toggle object-fit cover ↔ contain (right-click menu, image cards only) */
@@ -4244,6 +4353,11 @@ var KanvazCards = (function() {
     updateCount();
     KanvazApp.markDirty();
     KanvazHistory.push();
+    /* Unconditional, not folded into the selectCard()/emitSelectionChange()
+       branch above: when the still-selected card ISN'T the one that got
+       deleted, neither of those fire, and the Layers panel would keep
+       showing a row for a card that no longer exists. */
+    refreshLayersIfOpen();
   }
 
   function doDelete(id) {
@@ -4889,6 +5003,9 @@ var KanvazCards = (function() {
       adjustSaturate:   c.adjustSaturate   !== undefined ? c.adjustSaturate   : null,
       /* v7.x — persistent card grouping (Ctrl+G/Ctrl+Shift+G). */
       groupId:      c.groupId      || null,
+      /* v7.x — Layers panel visibility toggle (distinct from Isolate
+         View's transient hide, which never touches this field). */
+      hidden:       c.hidden       || false,
       /* v6.4.0 */
       sharedId:     c.sharedId     || null
     };
@@ -5772,6 +5889,8 @@ var KanvazCards = (function() {
     groupCards:        groupCards,
     ungroupCards:      ungroupCards,
     getGroupMembers:   getGroupMembers,
+    toggleCardVisibility: toggleCardVisibility,
+    renderLayersInto:  renderLayersInto,
     showOpacityPicker: showOpacityPicker,
     toggleObjectFit:   toggleObjectFit,
     setAdjustment:     setAdjustment,

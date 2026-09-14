@@ -1102,6 +1102,13 @@ html, body {
   display: none;
 }
 
+/* Layers panel eye-icon toggle (cards.js's toggleCardVisibility) — a
+   real persisted `hidden` property, distinct from the isolate class
+   above so the two mechanisms never fight over the same class name. */
+.card.card-layer-hidden {
+  display: none;
+}
+
 .card:hover:not(.selected) {
   outline: 1px solid var(--color-border-2);
   outline-offset: 0px;
