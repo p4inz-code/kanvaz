@@ -1371,48 +1371,47 @@ var KanvazBoards = (function() {
         if (s && s.openOnStartup === false) return;
       }
 
+      /* v7.x — Home Screen redesign. Direct feedback: "where is start
+         up home screen i want proper it like photoshop not this same
+         but liek this... dont keep taht anmoying pop up which ask
+         user recents." Replaces the small centered modal (backdrop-
+         blurred popup floating over the canvas) with a real full-
+         screen takeover — a permanent surface with its own header,
+         a prominent New/Open pair, and a recent-boards grid, closer
+         to how Photoshop's/other pro tools' own start screens read.
+         Same skip conditions as before (a specific file on launch, or
+         openOnStartup === false) — only the screen itself changed. */
       var overlay = document.createElement('div');
       overlay.id = 'startup-screen';
       overlay.style.cssText = [
         'position:fixed',
         'inset:0',
-        'background:rgba(14,14,16,0.92)',
+        'background:var(--color-bg)',
         'z-index:99998',
         'display:flex',
-        'align-items:center',
-        'justify-content:center',
-        'backdrop-filter:blur(4px)'
+        'flex-direction:column',
+        'overflow-y:auto'
       ].join(';');
 
-      var panel = document.createElement('div');
-      panel.style.cssText = [
-        'background:var(--color-surface)',
-        'border:1px solid var(--color-border-2)',
-        'border-radius:12px',
-        'padding:28px',
-        'width:400px',
-        'max-height:80vh',
-        'overflow-y:auto',
-        'box-shadow:0 24px 64px rgba(0,0,0,0.7)'
-      ].join(';');
+      /* Header — logo/wordmark left, profile indicator right (only
+         once there's an actual choice to make — a single-profile
+         household sees nothing extra here, "no forced picker" per
+         docs/PROFILES_SYSTEM_PLAN.md). */
+      var header = document.createElement('div');
+      header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:20px 40px;flex-shrink:0;';
 
-      /* Logo row */
       var logoRow = document.createElement('div');
-      logoRow.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:20px;';
-      logoRow.innerHTML = '<svg width="24" height="24" viewBox="0 0 18 18" fill="none"><rect x="2" y="6" width="12" height="9" rx="2" fill="#2A2A35"/><rect x="3" y="4" width="12" height="9" rx="2" fill="#1A1A22" stroke="#2E2E3A" stroke-width="0.5"/><rect x="4" y="2" width="12" height="9" rx="2" fill="#DCDCE8"/><circle cx="14" cy="3" r="2" fill="#4A9EFF"/></svg><span style="font-size:18px;font-weight:600;color:var(--color-text);">Kanvaz</span>';
-      panel.appendChild(logoRow);
+      logoRow.style.cssText = 'display:flex;align-items:center;gap:10px;';
+      logoRow.innerHTML = '<svg width="26" height="26" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="8" fill="#1A1A22" stroke="#2E2E3A" stroke-width="0.5"/><circle cx="9" cy="9" r="5.5" fill="#DCDCE8"/><circle cx="11.5" cy="6.5" r="2" fill="#4A9EFF"/></svg><span style="font-size:19px;font-weight:600;color:var(--color-text);">Kanvaz</span>';
+      header.appendChild(logoRow);
 
-      /* Profile indicator + switcher — only shown once there's an
-         actual choice to make; a single-profile household sees nothing
-         extra here, matching "no forced picker" from the plan. Opens
-         the exact same Manage Profiles dialog the account menu uses. */
       if (profiles.length > 1 && activeProfile) {
         var profileRow = document.createElement('div');
-        profileRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;margin-bottom:16px;background:var(--color-surface-2);border-radius:6px;font-size:11px;';
+        profileRow.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--color-surface);border:1px solid var(--color-border-2);border-radius:999px;font-size:11px;';
 
         var profileLabel = document.createElement('span');
-        profileLabel.style.cssText = 'color:var(--color-text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
-        profileLabel.textContent = 'Profile: ' + activeProfile.name;
+        profileLabel.style.cssText = 'color:var(--color-text-2);';
+        profileLabel.textContent = activeProfile.name;
         profileRow.appendChild(profileLabel);
 
         var switchLink = document.createElement('button');
@@ -1426,106 +1425,144 @@ var KanvazBoards = (function() {
         };
         profileRow.appendChild(switchLink);
 
-        panel.appendChild(profileRow);
+        header.appendChild(profileRow);
       }
+      overlay.appendChild(header);
 
-      /* Recent files */
+      /* Main content — capped width, centered, like a real page rather
+         than edge-to-edge on a wide monitor. */
+      var main = document.createElement('div');
+      main.style.cssText = 'flex:1;width:100%;max-width:900px;margin:0 auto;padding:20px 40px 40px;box-sizing:border-box;';
+
+      /* New / Open — the two primary actions, front and center, same
+         "what do I do first" role Photoshop's "New file" / "Open"
+         pair plays. */
+      var actionsRow = document.createElement('div');
+      actionsRow.style.cssText = 'display:flex;gap:12px;margin-bottom:36px;';
+
+      var newBtn = document.createElement('button');
+      newBtn.textContent = '+ New Board';
+      newBtn.style.cssText = 'padding:12px 22px;background:var(--color-accent);border:none;border-radius:8px;color:#fff;font-family:var(--font-ui);font-size:14px;font-weight:600;cursor:pointer;transition:opacity 0.1s;';
+      newBtn.onmouseenter = function() { newBtn.style.opacity = '0.88'; };
+      newBtn.onmouseleave = function() { newBtn.style.opacity = '1'; };
+      newBtn.onclick = closeStartup;
+      actionsRow.appendChild(newBtn);
+
+      var openBtn = document.createElement('button');
+      openBtn.textContent = 'Open…';
+      openBtn.style.cssText = 'padding:12px 22px;background:var(--color-surface);border:1px solid var(--color-border-2);border-radius:8px;color:var(--color-text);font-family:var(--font-ui);font-size:14px;cursor:pointer;transition:background 0.1s;';
+      openBtn.onmouseenter = function() { openBtn.style.background = 'var(--color-surface-2)'; };
+      openBtn.onmouseleave = function() { openBtn.style.background = 'var(--color-surface)'; };
+      openBtn.onclick = function() {
+        closeStartup();
+        if (typeof KanvazBoards !== 'undefined' && KanvazBoards.openBoard) KanvazBoards.openBoard();
+      };
+      actionsRow.appendChild(openBtn);
+
+      var templateBtn = document.createElement('button');
+      templateBtn.textContent = 'Start from Template';
+      templateBtn.style.cssText = 'padding:12px 22px;background:transparent;border:1px solid var(--color-border-2);border-radius:8px;color:var(--color-text-2);font-family:var(--font-ui);font-size:14px;cursor:pointer;transition:background 0.1s;';
+      templateBtn.onmouseenter = function() { templateBtn.style.background = 'var(--color-surface-2)'; };
+      templateBtn.onmouseleave = function() { templateBtn.style.background = 'transparent'; };
+      templateBtn.onclick = function() {
+        closeStartup();
+        if (typeof KanvazSidePanel !== 'undefined' && KanvazSidePanel.showSection) KanvazSidePanel.showSection('boards');
+        if (lastBoardsContainer) renderTemplateGalleryInto(lastBoardsContainer);
+      };
+      actionsRow.appendChild(templateBtn);
+
+      main.appendChild(actionsRow);
+
+      /* Recent boards — a real grid of tiles, not a plain list, the
+         part of the "photoshop-like" reference that actually changed
+         the layout shape rather than just the chrome around it. No
+         real thumbnails (a board isn't rendered to an image anywhere
+         today — a genuine future feature, not squeezed in here), so
+         each tile is an honest file-icon tile rather than pretending
+         to have a preview it doesn't. */
       var label = document.createElement('div');
-      label.textContent = 'Recent boards';
-      label.style.cssText = 'font-size:11px;color:var(--color-text-3);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.06em;';
-      panel.appendChild(label);
+      label.textContent = 'Recent';
+      label.style.cssText = 'font-size:12px;font-weight:600;color:var(--color-text-2);margin-bottom:14px;text-transform:uppercase;letter-spacing:0.06em;';
+      main.appendChild(label);
+
+      var grid = document.createElement('div');
+      grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));gap:14px;';
 
       for (var i = 0; i < recent.length; i++) {
         (function(p) {
-          var row = document.createElement('div');
-          row.style.cssText = [
+          var tile = document.createElement('div');
+          tile.style.cssText = [
             'display:flex',
-            'align-items:center',
-            'gap:8px',
-            'padding:8px 10px',
-            'border-radius:6px',
+            'flex-direction:column',
+            'padding:16px 14px',
+            'background:var(--color-surface)',
+            'border:1px solid var(--color-border-2)',
+            'border-radius:10px',
             'cursor:pointer',
-            'transition:background 0.1s'
+            'transition:background 0.12s, border-color 0.12s, transform 0.12s'
           ].join(';');
 
           var parts = p.split(/[\\/]/);
           var fname = parts[parts.length - 1];
           var dir   = parts.slice(0, -1).join('/');
 
-          /* Security fix: fname/dir come from a filesystem path that can
-             originate from a .kanvaz file someone else shared (added to
-             recent.json via the argv/open-file handoff, not just the
-             user's own Save dialog). This used to be concatenated
-             straight into row.innerHTML with no escaping — a crafted
-             filename could inject HTML/script, and since 4.2.0's CSP
-             allows script-src file:, an injected <script src="file://...">
-             would actually execute. The icon SVG is static/trusted
-             markup so it's still set via innerHTML; the two untrusted
-             strings are now set via textContent, which can never be
-             interpreted as markup. */
+          /* Security fix (carried forward from the old popup): fname/
+             dir come from a filesystem path that can originate from a
+             .kanvaz file someone else shared (added to recent.json via
+             the argv/open-file handoff, not just the user's own Save
+             dialog) — set via textContent, never innerHTML, so a
+             crafted filename can never be interpreted as markup. */
           var iconHolder = document.createElement('div');
-          iconHolder.innerHTML = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 3.5A1.5 1.5 0 013.5 2h2.086a1 1 0 01.707.293l.914.914H10.5A1.5 1.5 0 0112 4.707V9.5A1.5 1.5 0 0110.5 11h-8A1.5 1.5 0 011 9.5V3.5z" stroke="var(--color-text-3)" stroke-width="1.2"/></svg>';
-          row.appendChild(iconHolder.firstChild);
-
-          var textCol = document.createElement('div');
-          textCol.style.cssText = 'flex:1;overflow:hidden;';
+          iconHolder.style.cssText = 'margin-bottom:10px;';
+          iconHolder.innerHTML = '<svg width="22" height="22" viewBox="0 0 14 14" fill="none"><path d="M2 3.5A1.5 1.5 0 013.5 2h2.086a1 1 0 01.707.293l.914.914H10.5A1.5 1.5 0 0112 4.707V9.5A1.5 1.5 0 0110.5 11h-8A1.5 1.5 0 011 9.5V3.5z" stroke="var(--color-accent)" stroke-width="1.1"/></svg>';
+          tile.appendChild(iconHolder);
 
           var fnameEl = document.createElement('div');
-          fnameEl.style.cssText = 'font-size:13px;color:var(--color-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+          fnameEl.style.cssText = 'font-size:13px;color:var(--color-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px;';
           fnameEl.textContent = fname;
+          tile.appendChild(fnameEl);
 
           var dirEl = document.createElement('div');
           dirEl.style.cssText = 'font-size:10px;color:var(--color-text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--font-mono);';
           dirEl.textContent = dir;
+          tile.appendChild(dirEl);
 
-          textCol.appendChild(fnameEl);
-          textCol.appendChild(dirEl);
-          row.appendChild(textCol);
-
-          row.onmouseenter = function() { row.style.background = 'var(--color-surface-2)'; };
-          row.onmouseleave = function() { row.style.background = 'transparent'; };
+          tile.onmouseenter = function() { tile.style.background = 'var(--color-surface-2)'; tile.style.borderColor = 'var(--color-accent)'; tile.style.transform = 'translateY(-2px)'; };
+          tile.onmouseleave = function() { tile.style.background = 'var(--color-surface)'; tile.style.borderColor = 'var(--color-border-2)'; tile.style.transform = 'none'; };
 
           /* Reuses openFilePath() (was previously a duplicate inline
              copy of its readFile/parse/load logic) — picks up the same
              unsaved-changes guard and newer-version warning for free,
              and removes the drift risk of two copies of this logic. */
-          row.onclick = function() {
+          tile.onclick = function() {
             closeStartup();
             openFilePath(p);
           };
 
-          panel.appendChild(row);
+          grid.appendChild(tile);
         })(recent[i]);
       }
+      main.appendChild(grid);
+      overlay.appendChild(main);
 
-      /* New board button */
-      var newBtn = document.createElement('button');
-      newBtn.textContent = 'Start with empty board';
-      newBtn.style.cssText = [
-        'margin-top:16px',
-        'width:100%',
-        'padding:9px',
-        'background:var(--color-accent-bg)',
-        'border:1px solid var(--color-accent)',
-        'border-radius:6px',
-        'color:var(--color-accent)',
-        'font-family:var(--font-ui)',
-        'font-size:13px',
-        'cursor:pointer',
-        'transition:background 0.1s'
-      ].join(';');
-      newBtn.onmouseenter = function() { newBtn.style.background = 'rgba(var(--color-accent-rgb),0.2)'; };
-      newBtn.onmouseleave = function() { newBtn.style.background = 'var(--color-accent-bg)'; };
-      newBtn.onclick = closeStartup;
-      panel.appendChild(newBtn);
+      /* Footer branding — P4inz Studios (Atharva Patil), same order
+         used everywhere else in the app now (About screen, README). */
+      var footer = document.createElement('div');
+      footer.style.cssText = 'flex-shrink:0;padding:16px 40px;text-align:center;font-size:11px;color:var(--color-text-3);';
+      footer.textContent = 'P4inz Studios — by Atharva Patil';
+      overlay.appendChild(footer);
 
-      overlay.appendChild(panel);
       document.body.appendChild(overlay);
 
-      /* Close on backdrop click */
-      overlay.onclick = function(e) {
-        if (e.target === overlay) closeStartup();
-      };
+      /* Escape dismisses into an empty board, same as picking
+         "New Board" — there's no backdrop to click away from anymore
+         (this is a real full-screen surface, not a popup over the
+         canvas), so Escape is the one non-button way out. */
+      function onEscape(e) {
+        if (e.key === 'Escape') { closeStartup(); }
+      }
+      document.addEventListener('keydown', onEscape);
+      overlay._onEscape = onEscape;
     }).catch(function(e) {
       console.warn('[Kanvaz] startup screen IPC failed:', e);
     });
@@ -1533,7 +1570,14 @@ var KanvazBoards = (function() {
 
   function closeStartup() {
     var el = document.getElementById('startup-screen');
-    if (el && el.parentNode) el.parentNode.removeChild(el);
+    if (!el) return;
+    /* The full-screen Home Screen has no backdrop to click away from,
+       so it binds its own document-level Escape listener — has to be
+       unhooked here or it leaks forever and keeps firing closeStartup()
+       (harmless once, since the element it looks for is already gone,
+       but a real leaked listener all the same). */
+    if (el._onEscape) document.removeEventListener('keydown', el._onEscape);
+    if (el.parentNode) el.parentNode.removeChild(el);
   }
 
   /* ── Title bar update ── */

@@ -58,6 +58,15 @@ All notable changes to Kanvaz are documented here.
   in one glance.
 
 ### Added
+- **A real Home Screen**, replacing the small centered popup shown on
+  launch. Direct feedback: "i want proper it like photoshop not this
+  same but liek this... dont keep taht anmoying pop up." Now a genuine
+  full-screen surface (no backdrop over the canvas) with a logo header,
+  New Board / Open / Start from Template up front, and Recent as a
+  real grid of tiles instead of a plain list. The existing "Show Home
+  Screen on startup" setting (renamed from "Show recent on startup")
+  still turns it off entirely if you don't want it — freedom stays in
+  the user's hands, nothing forced.
 - **Search bar is now draggable** (a grip handle on the left) —
   direct feedback: "make search bar movable as user want." Position
   is remembered for the session; the command-results and Smart
@@ -68,6 +77,13 @@ All notable changes to Kanvaz are documented here.
   search bar with that query applied; delete from the same list.
 
 ### Changed
+- **Branding updated app-wide**: P4inz Studios is now the primary
+  credit, with Atharva Patil named secondarily — the About screen,
+  README footer, package.json's author/copyright, and the new Home
+  Screen's footer all use the same order. The installer's internal
+  `appId` is deliberately left as-is (an OS-level identifier, not
+  display text — changing it risks breaking auto-update continuity
+  for anyone with Kanvaz already installed).
 - **The search bar's type filter really is a type filter now** —
   earlier this session it went from a color swatch to a clearer
   filter-funnel icon, but it was still filtering by color underneath.
