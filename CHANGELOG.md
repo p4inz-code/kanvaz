@@ -27,7 +27,21 @@ All notable changes to Kanvaz are documented here.
   split into a live-preview call and a separate commit call, same
   pattern the on-card swatch itself already used.
 
+### Changed
+- **The search bar's color filter was a bare colored dot** — direct
+  feedback: "what is need of color swatch in search panel... put
+  logical tools there or else remove." It didn't read as a tool at
+  all without hovering for the tooltip. Now a filter-funnel icon,
+  tinted to the active filter color instead of a separate swatch —
+  the action (filter) and the state (which color) are both visible
+  in one glance.
+
 ### Fixed
+- **Comprehensive live tooltip audit** (84 title/data-tooltip elements
+  across the titlebar, toolbar, side panel, search bar, account menu,
+  cards, the annotation toolbar, and Map View): zero failures — every
+  one correctly suppresses its native title and shows Kanvaz's own
+  dark tooltip.
 - **The search bar's "Filter by color" swatch still used the old
   native color picker** — missed in the original sweep since it lives
   in the search bar, not on a card; same corner-anchoring bug as the

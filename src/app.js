@@ -432,13 +432,18 @@ var KanvazApp = (function() {
 
     /* Color search \u2014 click to pick a color, cards get dimmed the same
        way a text mismatch already dims them; click again while a color
-       is active to clear it. Swatch itself shows the active color (or a
-       neutral ring when none is set) so the state is visible at a glance. */
+       is active to clear it. A bare colored dot didn't read as a tool at
+       all ("what is need of color swatch in search panel... put logical
+       tools there or else remove") \u2014 a filter-funnel icon makes the
+       ACTION self-evident, and tinting the icon itself to the active
+       color (instead of a separate swatch) shows the state without a
+       second visual element. */
     var colorBtn = document.createElement('span');
     colorBtn.title = 'Filter by color';
-    colorBtn.style.cssText = 'cursor:pointer;flex-shrink:0;width:14px;height:14px;border-radius:50%;border:1.5px solid var(--color-text-3);background:' + (activeColorFilter || 'transparent') + ';';
+    colorBtn.style.cssText = 'cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;width:20px;height:20px;color:' + (activeColorFilter || 'var(--color-text-3)') + ';';
+    colorBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>';
     colorBtn.addEventListener('click', function() {
-      if (activeColorFilter) { setColorFilter(null); colorBtn.style.background = 'transparent'; return; }
+      if (activeColorFilter) { setColorFilter(null); colorBtn.style.color = 'var(--color-text-3)'; return; }
       /* Same native-picker corner-anchoring bug the color-card swatch
          had (a hidden proxy input with no explicit position defaults
          to the window's top-left corner) — missed in the original
@@ -449,7 +454,7 @@ var KanvazApp = (function() {
       KanvazColorPicker.open(rect.left, rect.bottom + 8, activeColorFilter || '#000000', {
         onChange: function(hex) {
           setColorFilter(hex);
-          colorBtn.style.background = hex;
+          colorBtn.style.color = hex;
         }
       });
     });
