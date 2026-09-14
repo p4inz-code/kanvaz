@@ -4,6 +4,34 @@ name: Build
 # Only actually build installers when a v* tag is pushed, one native
 # runner per platform since electron-builder can't reliably cross-compile
 # NSIS/dmg/AppImage from a single OS.
+#
+# ── CRITICAL: how to actually ship a release, read before running
+#    `gh release create`/`gh release edit --draft=false` for a new tag ──
+# electron-builder's `--publish always` (in the build job below) can
+# ONLY attach installers to a release that's still a DRAFT for that tag.
+# If a release for that tag already exists and is PUBLISHED (not draft)
+# by the time this workflow's build job runs, electron-builder logs
+# "GitHub release not created — existing type not compatible with
+# publishing type" and silently SKIPS uploading every installer file —
+# the workflow still reports green/success, and the only thing that
+# lands on the release is whatever a separate step uploads with plain
+# `gh release upload` (the official-plugin zips below, which have no
+# such draft-only restriction). This is exactly how 8 releases in a row
+# (v7.14.0–v7.21.0) shipped with zero Windows/Mac/Linux installers and
+# only the 3 plugin zips — caught only when a user found empty releases.
+#
+# The correct sequence after `git push origin vX.Y.Z`:
+#   1. Wait for this workflow's "Build" jobs to finish for all three
+#      platforms (several minutes each, run serially — see
+#      max-parallel: 1 below). Check with `gh run list` /
+#      `gh run watch <run-id>`.
+#   2. THEN look for the draft release electron-builder created:
+#      `gh release list` (it appears with isDraft:true, often at a
+#      throwaway "untagged-..." URL until you touch it).
+#   3. Edit that SAME draft's title/notes (`gh release edit vX.Y.Z
+#      --title "..." --notes-file ...`) and publish it
+#      (`--draft=false`). Never call `gh release create` for a tag
+#      that doesn't have a draft yet — that's what breaks this.
 
 on:
   push:

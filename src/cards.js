@@ -1709,7 +1709,7 @@ var KanvazCards = (function() {
     if (!allIds.length) {
       var empty = document.createElement('div');
       empty.style.cssText = 'text-align:center;color:var(--color-text-3);font-size:12px;padding:24px 14px;line-height:1.5;';
-      empty.textContent = 'No cards on this board yet.';
+      empty.textContent = 'No layers on this board yet.';
       container.appendChild(empty);
       return;
     }
@@ -1739,13 +1739,31 @@ var KanvazCards = (function() {
 
         var nameEl = document.createElement('span');
         nameEl.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
-        nameEl.textContent = (card.name && card.name.trim()) ? card.name : (card.type.charAt(0).toUpperCase() + card.type.slice(1));
+        /* Terminology audit fix: this used to build its own fallback
+           label (charAt(0).toUpperCase() + slice(1)), which gives "Url"
+           instead of "URL", "Gif" instead of "GIF", "Model3d" instead of
+           "3D" — the exact display names the app already has, via
+           getCardTypeLabel()/CARD_TYPE_LABELS above, just not reused
+           here. */
+        nameEl.textContent = (card.name && card.name.trim()) ? card.name : getCardTypeLabel(card);
         row.appendChild(nameEl);
 
+        /* Labeled "Pin"/"Unpin", not "Lock"/"Unlock" — this is the exact
+           same `pinned` property the rest of the app already has a name
+           for (right-click menu, the P shortcut, the Shortcuts overlay
+           all say "Pin"). The lock icon is just a clear visual metaphor
+           for what pinning does; the words shouldn't invent a second
+           name for a concept that already has one. */
+        /* Feather Icons (MIT License, see THIRD_PARTY_NOTICES.md) —
+           individual paths copied inline, same pattern already used for
+           every other icon in this app, rather than colored emoji glyphs
+           that clash with the rest of the UI's flat line-icon look. */
         var lockBtn = document.createElement('span');
-        lockBtn.title = card.pinned ? 'Unlock' : 'Lock';
-        lockBtn.textContent = card.pinned ? '🔒' : '🔓';
-        lockBtn.style.cssText = 'cursor:pointer;font-size:11px;opacity:' + (card.pinned ? '1' : '0.45') + ';';
+        lockBtn.title = card.pinned ? 'Unpin' : 'Pin';
+        lockBtn.innerHTML = card.pinned
+          ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
+          : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>';
+        lockBtn.style.cssText = 'cursor:pointer;line-height:0;color:var(--color-text-2);opacity:' + (card.pinned ? '1' : '0.45') + ';';
         lockBtn.onclick = function(e) {
           e.stopPropagation();
           togglePin(id);
@@ -1755,8 +1773,10 @@ var KanvazCards = (function() {
 
         var eyeBtn = document.createElement('span');
         eyeBtn.title = card.hidden ? 'Show' : 'Hide';
-        eyeBtn.textContent = card.hidden ? '🚫' : '👁';
-        eyeBtn.style.cssText = 'cursor:pointer;font-size:11px;opacity:' + (card.hidden ? '0.6' : '1') + ';';
+        eyeBtn.innerHTML = card.hidden
+          ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'
+          : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+        eyeBtn.style.cssText = 'cursor:pointer;line-height:0;color:var(--color-text-2);opacity:' + (card.hidden ? '0.6' : '1') + ';';
         eyeBtn.onclick = function(e) {
           e.stopPropagation();
           toggleCardVisibility(id);

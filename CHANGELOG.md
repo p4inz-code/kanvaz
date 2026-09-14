@@ -2,6 +2,49 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [7.22.0] — Layers panel terminology/icon audit, broken release fix
+
+### Fixed
+- **Terminology audit across the Layers panel** (direct feedback: "must
+  say no layers on this board not cards"):
+  - The empty-state message said "No cards on this board yet." inside a
+    panel titled "Layers" — now says "No layers on this board yet."
+  - The pin icon's tooltip said "Lock"/"Unlock" for the exact same
+    `pinned` property the rest of the app already calls "Pin"/"Unpin"
+    everywhere else (right-click menu, the P shortcut, the Shortcuts
+    overlay) — now says "Pin"/"Unpin" to match.
+  - A card with no custom name fell back to its own ad-hoc
+    capitalization (`charAt(0).toUpperCase() + slice(1)`), producing
+    "Url" instead of "URL", "Gif" instead of "GIF", "Model3d" instead of
+    "3D" — now reuses `getCardTypeLabel()`/`CARD_TYPE_LABELS`, the exact
+    display names the rest of the app already has for this.
+- **Replaced the Layers panel's emoji icons** (🔒/🔓/👁/🚫) with Feather
+  Icons SVG paths — MIT-licensed, the same icon set already used across
+  the rest of the app (titlebar, toolbar, media controls, annotation
+  tools) — since colored emoji glyphs clashed with the app's flat
+  line-icon look. Direct feedback: "use only gud svgs from mit lic
+  librabires... replace em and put gud ones which will look
+  professional."
+- **8 consecutive releases (v7.14.0–v7.21.0) shipped with zero Windows/
+  macOS/Linux installers** — only the 3 official-plugin zips landed on
+  each release page; "Download for Windows" on a broken release gave
+  users nothing. Root cause: `gh release create` was run manually right
+  after pushing each tag, before the CI build workflow's own draft
+  release existed. electron-builder's `--publish always` refuses to
+  attach installers to a release that's already published (not draft)
+  for that tag — it logs "GitHub release not created — existing type
+  not compatible with publishing type" and skips every file, while the
+  workflow still reports green because that's just a log line, not a
+  failure. Only the separate plugin-zip upload step (plain `gh release
+  upload`, no draft-only restriction) actually landed anything. Fixed
+  by deleting each broken release (tags kept) and re-running that tag's
+  original workflow run so electron-builder gets a clean draft to
+  publish into, then re-editing/publishing each one properly. The
+  correct sequence is now written directly into
+  `.github/workflows/build.yml`'s header comment — wait for CI, find
+  the draft it creates, edit and publish THAT one, never create the
+  release first.
+
 ## [7.21.0] — Home Screen "What's New", New Board color fix
 
 ### Added
