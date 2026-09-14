@@ -5,6 +5,15 @@ All notable changes to Kanvaz are documented here.
 ## [Unreleased]
 
 ### Fixed
+- **Undoing a stroke mid-annotation silently kicked you out of
+  annotate mode** — direct feedback: "when i ctrl z the annotate tab
+  vanishes and i hv to re right click and make it come." Undo/redo
+  works by fully rebuilding every card's DOM element from the
+  snapshot, which necessarily tears down the annotation overlay and
+  toolbar tied to the old element — there's no way around that part.
+  What was missing was putting it back: `KanvazHistory.restore()` now
+  captures which card had annotate mode active before the rebuild and,
+  if that card still exists afterward, re-activates it immediately.
 - **Chromium's native spellcheck (red squiggle + inline correction
   bubble) was showing on note and text cards**, unstyled and out of
   place next to the rest of the app's own dark-panel look — and, being

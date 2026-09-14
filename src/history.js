@@ -213,6 +213,18 @@ var KanvazHistory = (function() {
   function restore(snap) {
     locked = true;
 
+    /* deserialise() does a full clearAll()/rebuild of every card's DOM
+       element, which tears down annotate.js's overlay canvas and
+       toolbar along with the old element (they're not something a
+       snapshot restore can meaningfully skip past). Direct feedback:
+       undoing a stroke mid-annotation silently kicked you out of
+       annotate mode entirely, with no visible reason why. Capture
+       what was active before the rebuild and, if that card still
+       exists afterward, hand annotate mode straight back to it. */
+    var reactivateAnnotateId = (typeof KanvazAnnotate !== 'undefined')
+      ? KanvazAnnotate.getActiveCardId()
+      : null;
+
     /* v3 snapshots: { refs, conns }. v2 snapshots: plain array. */
     if (snap && snap.refs) {
       KanvazCards.deserialise(cloneRefsForRestore(snap.refs));
@@ -222,6 +234,10 @@ var KanvazHistory = (function() {
     } else {
       /* Backward compat: v2-style snapshot (plain card array) */
       KanvazCards.deserialise(cloneRefsForRestore(snap));
+    }
+
+    if (reactivateAnnotateId && document.getElementById(reactivateAnnotateId)) {
+      KanvazAnnotate.activate(reactivateAnnotateId);
     }
 
     locked = false;

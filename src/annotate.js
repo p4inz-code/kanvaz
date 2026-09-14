@@ -1321,6 +1321,10 @@ var KanvazAnnotate = (function() {
     deactivate();
   }
 
+  function getActiveCardId() {
+    return activeCardId;
+  }
+
   return {
     attach:           attach,
     detach:           detach,
@@ -1331,7 +1335,8 @@ var KanvazAnnotate = (function() {
     toggleVisibility: toggleVisibility,
     clearAnnotations: clearAnnotations,
     getStrokes:       getStrokes,
-    loadStrokes:      loadStrokes
+    loadStrokes:      loadStrokes,
+    getActiveCardId:  getActiveCardId
   };
 
 })();
