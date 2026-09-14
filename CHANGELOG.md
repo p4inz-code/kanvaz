@@ -20,14 +20,20 @@ All notable changes to Kanvaz are documented here.
   color, URL, file-ref, audio, plain text).
 
 ### Fixed
-- **The color-card swatch's native color picker opened anchored to the
+- **The color-card swatch's color picker opened anchored to the
   window's top-left corner, overlapping the side panel** — direct
   feedback: "once spawning it does go to corner and block properties
   opanel." The hidden `<input type="color">` proxy behind the swatch
-  had no explicit position, so it defaulted to (0,0); Chromium anchors
-  the native picker to wherever that underlying input actually sits on
-  screen. Now positioned at the swatch's real `getBoundingClientRect()`
-  before being triggered.
+  had no explicit position, so it defaulted to (0,0), and Chromium's
+  own built-in color popup anchors to wherever that underlying input
+  actually sits. Fixing the CSS position alone wasn't enough — verified
+  with a real screenshot, not just a DOM property check, that the popup
+  still opened at (0,0) — because `pointer-events:none` on the proxy
+  apparently keeps Chromium from resolving its true on-screen position
+  for anchoring. Fixed by sizing and positioning the proxy exactly over
+  the real swatch instead (so it's safe to make hit-testable — it can
+  only ever intercept a click on the same area the visible swatch
+  already occupies, and it's removed the instant the picker closes).
 - **Canvas grid faded to fully invisible at maximum zoom-in** — the
   same shape of bug as the zoom-out fade fixed earlier (fades linearly
   to a true 0 right at the reachable extreme), just at the other end.

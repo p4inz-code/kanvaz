@@ -2200,18 +2200,27 @@ var KanvazCards = (function() {
       if (oldPicker && oldPicker.parentNode) oldPicker.parentNode.removeChild(oldPicker);
 
       /* Positioned at the real swatch, not left to default to the
-         document's top-left corner — Chromium anchors the native color
-         dialog to wherever the underlying <input> actually sits on
-         screen, and an unpositioned absolutely-positioned element
-         appended to document.body defaults to (0,0), which is exactly
-         where the left-docked side panel lives. Direct feedback: the
-         picker "does go to corner and block properties panel." */
+         document's top-left corner — Chromium's own built-in color
+         popup anchors itself to wherever the underlying <input>
+         actually sits on screen, and an unpositioned absolutely-
+         positioned element appended to document.body defaults to
+         (0,0), which is exactly where the left-docked side panel
+         lives. Direct feedback, confirmed with an actual screenshot
+         (not just DOM property checks) after a first attempt at this
+         fix that set the CSS position but kept `pointer-events:none`
+         still landed the popup at (0,0): Chromium's popup-anchoring
+         code appears to need the element to be genuinely hit-testable
+         to resolve its own screen position, and `pointer-events:none`
+         opts it out of that. Sized and matched exactly over the real
+         swatch instead, so it can't intercept a click on anything else
+         even without pointer-events:none — it's removed again the
+         instant the picker closes. */
       var swatchRect = swatch.getBoundingClientRect();
       var picker = document.createElement('input');
       picker.type = 'color';
       picker.value = hex;
       picker.dataset.kanvazPicker = '1';
-      picker.style.cssText = 'position:fixed;left:' + swatchRect.left + 'px;top:' + swatchRect.top + 'px;opacity:0;pointer-events:none;';
+      picker.style.cssText = 'position:fixed;left:' + swatchRect.left + 'px;top:' + swatchRect.top + 'px;width:' + swatchRect.width + 'px;height:' + swatchRect.height + 'px;opacity:0;z-index:99999;';
       document.body.appendChild(picker);
 
       function removePicker() {
