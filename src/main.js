@@ -778,6 +778,17 @@ function registerIPC() {
     return shell.openPath(filePath);
   });
 
+  /* Reveal a file-ref card's linked path in the OS file manager with the
+     item pre-selected — no extension gate needed, unlike shell-open-
+     path above: this only ever opens Explorer/Finder itself, never the
+     file's own default handler, so there's no "runs a script" risk to
+     block regardless of what a shared board's saved path points at. */
+  ipcMain.handle('shell-reveal-in-folder', function(event, filePath) {
+    if (typeof filePath !== 'string' || !filePath) return false;
+    shell.showItemInFolder(filePath);
+    return true;
+  });
+
   /* ── IPC: File read/write ── */
 
   ipcMain.handle('file-read', function(event, filePath) {

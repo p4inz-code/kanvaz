@@ -75,6 +75,7 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
   smartSearchIndex: function(cards) { return ipcRenderer.invoke('smart-search-index', cards); },
   smartSearchQuery: function(query) { return ipcRenderer.invoke('smart-search-query', query); },
   openPath:        function(p) { return ipcRenderer.invoke('shell-open-path', p); },
+  revealInFolder:  function(p) { return ipcRenderer.invoke('shell-reveal-in-folder', p); },
 
   /* PureRef import */
   openPurDialog:   function() { return ipcRenderer.invoke('dialog-open-pur'); },

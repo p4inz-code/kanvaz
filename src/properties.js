@@ -181,6 +181,9 @@ var KanvazProperties = (function() {
     renderTransformSection(body, card, activeId);
     renderLayerSection(body, card, activeId);
     renderMediaSection(body, card, activeId);
+    renderPlaybackSection(body, card, activeId);
+    renderUrlSection(body, card, activeId);
+    renderFileSection(body, card, activeId);
     renderAnnotateSection(body, card, activeId);
 
     var customHeading = document.createElement('div');
@@ -405,6 +408,203 @@ var KanvazProperties = (function() {
       infoRow.appendChild(fmt);
     }
     if (infoRow.childNodes.length) body.appendChild(infoRow);
+  }
+
+  /* ── Playback (video/audio) — volume, speed, loop surfaced here too,
+     not just on the card's own hover-only controls, which are easy to
+     miss or hard to hit precisely on a small card. */
+  function renderPlaybackSection(body, card, cardId) {
+    if (card.type !== 'video' && card.type !== 'audio') return;
+
+    var title = document.createElement('div');
+    title.style.cssText = SECTION_TITLE_CSS;
+    title.textContent = 'Playback';
+    body.appendChild(title);
+
+    function getMediaEl() {
+      var el = document.getElementById(cardId);
+      return el ? el.querySelector(card.type === 'video' ? 'video' : 'audio') : null;
+    }
+
+    var volRow = document.createElement('div');
+    volRow.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:10px;';
+    var volLabel = document.createElement('div');
+    volLabel.style.cssText = LABEL_CSS + 'flex-shrink:0;width:44px;';
+    volLabel.textContent = 'Volume';
+    var volInput = document.createElement('input');
+    volInput.type = 'range';
+    volInput.min = '0';
+    volInput.max = '1';
+    volInput.step = '0.05';
+    volInput.value = (card.volume !== undefined && card.volume !== null) ? card.volume : 1;
+    volInput.style.cssText = 'flex:1;';
+    volInput.addEventListener('input', function() {
+      card.volume = parseFloat(volInput.value);
+      var mediaEl = getMediaEl();
+      if (mediaEl) mediaEl.volume = card.volume;
+      KanvazApp.markDirty();
+    });
+    volInput.addEventListener('change', function() { KanvazHistory.push(); });
+    volInput.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+    volRow.appendChild(volLabel);
+    volRow.appendChild(volInput);
+    body.appendChild(volRow);
+
+    if (card.type === 'video') {
+      var speedRow = document.createElement('div');
+      speedRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;';
+      var speedLabel = document.createElement('div');
+      speedLabel.style.cssText = 'font-size:12px;color:var(--color-text-2);';
+      speedLabel.textContent = 'Speed: ' + (card.playbackRate || 1) + '×';
+      var speedBtn = document.createElement('button');
+      speedBtn.textContent = 'Change';
+      speedBtn.style.cssText = 'padding:4px 10px;background:none;border:1px solid var(--color-border-2);border-radius:5px;color:var(--color-text-2);font-family:var(--font-ui);font-size:11px;cursor:pointer;';
+      speedBtn.onclick = function() {
+        var rect = speedBtn.getBoundingClientRect();
+        KanvazCards.showSpeedPicker(cardId, rect.left, rect.bottom + 4);
+      };
+      speedRow.appendChild(speedLabel);
+      speedRow.appendChild(speedBtn);
+      body.appendChild(speedRow);
+    }
+
+    if (card.type === 'audio') {
+      var loopRow = document.createElement('div');
+      loopRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;';
+      var loopLabel = document.createElement('div');
+      loopLabel.style.cssText = 'font-size:12px;color:var(--color-text-2);';
+      loopLabel.textContent = 'Loop';
+      var loopBtn = document.createElement('button');
+      var isLoop = !!card.audioLoop;
+      loopBtn.textContent = isLoop ? 'On' : 'Off';
+      loopBtn.style.cssText = 'padding:4px 10px;background:' + (isLoop ? 'var(--color-accent-bg)' : 'none') + ';border:1px solid ' + (isLoop ? 'var(--color-accent)' : 'var(--color-border-2)') + ';border-radius:5px;color:' + (isLoop ? 'var(--color-accent)' : 'var(--color-text-2)') + ';font-family:var(--font-ui);font-size:11px;cursor:pointer;';
+      loopBtn.onclick = function() {
+        card.audioLoop = !card.audioLoop;
+        var mediaEl = getMediaEl();
+        if (mediaEl) mediaEl.loop = card.audioLoop;
+        KanvazApp.markDirty();
+        KanvazHistory.push();
+        if (panelEl) renderInto(panelEl);
+      };
+      loopRow.appendChild(loopLabel);
+      loopRow.appendChild(loopBtn);
+      body.appendChild(loopRow);
+    }
+  }
+
+  /* ── URL card — mirrors the card's own inline controls, useful when
+     the card itself is too small on the canvas to comfortably read or
+     click. Edits the exact same card.url field, not a separate copy. */
+  function renderUrlSection(body, card, cardId) {
+    if (card.type !== 'url') return;
+
+    var title = document.createElement('div');
+    title.style.cssText = SECTION_TITLE_CSS;
+    title.textContent = 'Link';
+    body.appendChild(title);
+
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.value = card.url || '';
+    input.placeholder = 'https://…';
+    input.spellcheck = false;
+    input.style.cssText = INPUT_CSS + ';margin-bottom:8px;';
+    input.addEventListener('input', function() {
+      card.url = input.value;
+      KanvazApp.markDirty();
+      var el = document.getElementById(cardId);
+      var urlInput = el && el.querySelector('.url-input');
+      if (urlInput && urlInput !== input) urlInput.value = input.value;
+      var barName = el && el.querySelector('.card-bar-title');
+      if (barName) {
+        var v = (card.url || '').trim();
+        barName.textContent = v ? (v.length > 28 ? v.slice(0, 28) + '…' : v) : (card.name || 'URL reference');
+      }
+    });
+    input.addEventListener('blur', function() { KanvazHistory.push(); });
+    body.appendChild(input);
+
+    var btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:8px;margin-bottom:16px;';
+
+    var openBtn = document.createElement('button');
+    openBtn.textContent = 'Open';
+    openBtn.style.cssText = 'padding:4px 10px;background:none;border:1px solid var(--color-border-2);border-radius:5px;color:var(--color-text-2);font-family:var(--font-ui);font-size:11px;cursor:pointer;';
+    openBtn.onclick = function() {
+      var raw = (card.url || '').trim();
+      if (!raw) return;
+      var target = /^https?:\/\//i.test(raw) ? raw : 'https://' + raw;
+      KanvazBridge.openExternal(target);
+    };
+    btnRow.appendChild(openBtn);
+
+    var copyBtn = document.createElement('button');
+    copyBtn.textContent = 'Copy';
+    copyBtn.style.cssText = openBtn.style.cssText;
+    copyBtn.onclick = function() {
+      var raw = (card.url || '').trim();
+      if (!raw || !navigator.clipboard) return;
+      navigator.clipboard.writeText(raw).then(function() {
+        if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Copied link', 'success');
+      });
+    };
+    btnRow.appendChild(copyBtn);
+    body.appendChild(btnRow);
+  }
+
+  /* ── File-reference card — resolved path, quick actions. "Change
+     file" (re-pointing to a different path) stays on the card itself
+     — that flow also rebuilds the PDF/image preview in place, real
+     enough logic that duplicating it here isn't worth the risk of the
+     two copies drifting apart. */
+  function renderFileSection(body, card, cardId) {
+    if (card.type !== 'file') return;
+
+    var title = document.createElement('div');
+    title.style.cssText = SECTION_TITLE_CSS;
+    title.textContent = 'File';
+    body.appendChild(title);
+
+    var pathRow = document.createElement('div');
+    pathRow.style.cssText = 'font-size:11px;color:var(--color-text-2);word-break:break-all;margin-bottom:10px;line-height:1.5;';
+    pathRow.textContent = card.path || '(no file)';
+    body.appendChild(pathRow);
+
+    var btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;';
+
+    var openBtn = document.createElement('button');
+    openBtn.textContent = 'Open';
+    openBtn.style.cssText = 'padding:4px 10px;background:none;border:1px solid var(--color-border-2);border-radius:5px;color:var(--color-text-2);font-family:var(--font-ui);font-size:11px;cursor:pointer;';
+    openBtn.onclick = function() {
+      if (!card.path) return;
+      KanvazBridge.openPath(card.path).then(function(err) {
+        if (err && typeof KanvazUI !== 'undefined') KanvazUI.toast(err, 'error');
+      });
+    };
+    btnRow.appendChild(openBtn);
+
+    var revealBtn = document.createElement('button');
+    revealBtn.textContent = 'Reveal in folder';
+    revealBtn.style.cssText = openBtn.style.cssText;
+    revealBtn.onclick = function() {
+      if (!card.path) return;
+      KanvazBridge.revealInFolder(card.path);
+    };
+    btnRow.appendChild(revealBtn);
+
+    var copyBtn = document.createElement('button');
+    copyBtn.textContent = 'Copy path';
+    copyBtn.style.cssText = openBtn.style.cssText;
+    copyBtn.onclick = function() {
+      if (!card.path || !navigator.clipboard) return;
+      navigator.clipboard.writeText(card.path).then(function() {
+        if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Copied path', 'success');
+      });
+    };
+    btnRow.appendChild(copyBtn);
+
+    body.appendChild(btnRow);
   }
 
   /* ── Annotate — draw straight from the panel, no right-click needed.

@@ -5,6 +5,15 @@ All notable changes to Kanvaz are documented here.
 ## [Unreleased]
 
 ### Added
+- **Per-card-type Properties panel sections**: URL cards get an editable
+  link field plus Open/Copy, mirroring the card's own inline controls
+  for when the card itself is too small to comfortably use. File-
+  reference cards get the resolved path plus Open/Reveal in folder/Copy
+  path (a new "Reveal in folder" IPC call, `shell.showItemInFolder`).
+  Video and audio cards get a volume slider, playback speed (video),
+  and loop toggle (audio) — previously only reachable through the
+  card's own hover-only on-canvas controls, easy to miss on a small
+  card.
 - **Canvas grid stays visible at extreme zoom-out** via a third, coarser
   reference tier (every 25th cell) that keeps its own on-screen spacing
   above the visual-merge threshold even at the lowest zoom level,
