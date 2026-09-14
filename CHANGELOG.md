@@ -2,6 +2,28 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [7.18.0] — Non-destructive image/video adjustments
+
+### Added
+- **Brightness/Contrast/Saturation adjustments**, in a new Properties
+  panel section for image, GIF, and video cards. Applied as a CSS
+  `filter()` on the img/video element itself — never touches the
+  card's own `dataUrl`, so nothing is re-encoded and a "Reset
+  adjustments" button always gets back to pixel-identical to the
+  original. Caught and fixed during implementation, before it ever
+  shipped: `buildFullCardRecord()` (cards.js) is a hand-maintained
+  field whitelist with its own comment warning about exactly this trap
+  — a new persisted per-card field that isn't added there gets silently
+  dropped on every save. Added the three new fields there and to the
+  matching read-back defaults; a `!= null` check (not `!== undefined`)
+  in the filter-string builder handles a deserialised card's missing
+  fields coming back as `null` rather than `undefined`, which would
+  otherwise emit a silently-broken `brightness(null%)`. Verified live
+  end-to-end: set 150%/80%/50%, confirmed the CSS filter and the
+  Properties panel both reflected it, ran an actual
+  `serialise()`/`deserialise()` round trip and confirmed the values
+  survived, and confirmed Reset restores all three to 100%.
+
 ## [7.17.0] — Isolate View
 
 ### Added

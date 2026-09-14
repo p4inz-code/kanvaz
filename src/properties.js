@@ -198,6 +198,7 @@ var KanvazProperties = (function() {
     renderTagsSection(body, card, activeId);
     renderInfoSection(body, card, activeId);
     renderMediaSection(body, card, activeId);
+    renderAdjustmentsSection(body, card, activeId);
     renderModel3DSection(body, card, activeId);
     renderPlaybackSection(body, card, activeId);
     renderUrlSection(body, card, activeId);
@@ -563,6 +564,78 @@ var KanvazProperties = (function() {
       infoRow.appendChild(fmt);
     }
     if (infoRow.childNodes.length) body.appendChild(infoRow);
+  }
+
+  /* ── Adjustments — non-destructive brightness/contrast/saturation via
+     CSS filter() (cards.js's setAdjustment/getFilterCss), never touching
+     the card's own dataUrl. Image/GIF/video only — a filter on a note or
+     color swatch has no visual meaning. Live update on drag (matching
+     Opacity's own convention above), one history push per completed
+     drag rather than one per tick. */
+  function renderAdjustmentsSection(body, card, cardId) {
+    if (card.type !== 'image' && card.type !== 'gif' && card.type !== 'video') return;
+
+    var title = document.createElement('div');
+    title.style.cssText = SECTION_TITLE_CSS;
+    title.textContent = 'Adjustments';
+    body.appendChild(title);
+
+    var ADJUSTMENTS = [
+      ['adjustBrightness', 'Brightness'],
+      ['adjustContrast', 'Contrast'],
+      ['adjustSaturate', 'Saturation']
+    ];
+
+    for (var i = 0; i < ADJUSTMENTS.length; i++) {
+      (function(key, label) {
+        var row = document.createElement('div');
+        row.style.cssText = 'margin-bottom:10px;';
+
+        var labelRow = document.createElement('div');
+        labelRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;';
+        var labelEl = document.createElement('span');
+        labelEl.style.cssText = LABEL_CSS;
+        labelEl.textContent = label;
+        var valueEl = document.createElement('span');
+        valueEl.style.cssText = 'font-family:var(--font-mono);font-size:11px;color:var(--color-text-2);';
+        var current = (card[key] != null) ? card[key] : 100;
+        valueEl.textContent = current + '%';
+        labelRow.appendChild(labelEl);
+        labelRow.appendChild(valueEl);
+        row.appendChild(labelRow);
+
+        var slider = document.createElement('input');
+        slider.type = 'range';
+        slider.min = 0;
+        slider.max = 200;
+        slider.step = 1;
+        slider.value = current;
+        slider.style.cssText = 'width:100%;accent-color:var(--color-accent);';
+        slider.oninput = function() {
+          var val = parseInt(slider.value, 10);
+          valueEl.textContent = val + '%';
+          if (typeof KanvazCards !== 'undefined') KanvazCards.setAdjustment(cardId, key, val);
+        };
+        slider.onchange = function() {
+          if (typeof KanvazHistory !== 'undefined') KanvazHistory.push();
+        };
+        row.appendChild(slider);
+        body.appendChild(row);
+      })(ADJUSTMENTS[i][0], ADJUSTMENTS[i][1]);
+    }
+
+    var resetBtn = document.createElement('button');
+    resetBtn.textContent = 'Reset adjustments';
+    resetBtn.style.cssText = 'width:100%;padding:6px 2px;background:var(--color-surface-2);border:1px solid var(--color-border-2);border-radius:5px;color:var(--color-text-2);font-family:var(--font-ui);font-size:10px;cursor:pointer;margin-bottom:16px;';
+    resetBtn.onclick = function() {
+      if (typeof KanvazCards === 'undefined') return;
+      KanvazCards.setAdjustment(cardId, 'adjustBrightness', 100);
+      KanvazCards.setAdjustment(cardId, 'adjustContrast', 100);
+      KanvazCards.setAdjustment(cardId, 'adjustSaturate', 100);
+      if (typeof KanvazHistory !== 'undefined') KanvazHistory.push();
+      if (typeof renderInto === 'function' && panelEl) renderInto(panelEl);
+    };
+    body.appendChild(resetBtn);
   }
 
   /* ── 3D model — mirrors the card's own on-canvas toolbar (shading

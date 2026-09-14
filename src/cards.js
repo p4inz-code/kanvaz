@@ -1588,7 +1588,7 @@ var KanvazCards = (function() {
 
     var img = document.createElement('img');
     img.src = card.dataUrl;
-    img.style.cssText = 'display:block;width:100%;height:100%;object-fit:' + card.objectFit + ';pointer-events:none;';
+    img.style.cssText = 'display:block;width:100%;height:100%;object-fit:' + card.objectFit + ';pointer-events:none;filter:' + getFilterCss(card) + ';';
 
     img.onload = function() {
       removeSkeleton(el);
@@ -1603,6 +1603,39 @@ var KanvazCards = (function() {
 
     el.appendChild(img);
     buildAnnotationDot(el, card);
+  }
+
+  /* Non-destructive image/video adjustments — brightness/contrast/
+     saturation, applied as a CSS filter() on the img/video element
+     itself (never touching card.dataUrl), so they're free to change or
+     reset at any time with no re-encoding and no quality loss. Filter
+     functions at 100% are a visual no-op, so a card that's never had
+     any of these touched renders identically whether the properties
+     exist on it or not — safe to always emit the full filter string
+     rather than conditionally omitting default terms. */
+  function getFilterCss(card) {
+    /* Loose null check on purpose: a deserialised card's missing fields
+       come back as `null` (see buildFullCardRecord's whitelist), not
+       `undefined` — a strict undefined check here would pass `null`
+       straight into the CSS string as "brightness(null%)", a silently
+       broken filter that visually does nothing but isn't the same as
+       actually having no filter set. */
+    var b = (card.adjustBrightness != null) ? card.adjustBrightness : 100;
+    var c = (card.adjustContrast != null) ? card.adjustContrast : 100;
+    var s = (card.adjustSaturate != null) ? card.adjustSaturate : 100;
+    return 'brightness(' + b + '%) contrast(' + c + '%) saturate(' + s + '%)';
+  }
+
+  function setAdjustment(id, key, value) {
+    var card = cards[id];
+    if (!card) return;
+    card[key] = value;
+    var el = document.getElementById(id);
+    if (el) {
+      var media = el.querySelector('img, video');
+      if (media) media.style.filter = getFilterCss(card);
+    }
+    KanvazApp.markDirty();
   }
 
   /* Toggle object-fit cover ↔ contain (right-click menu, image cards only) */
@@ -1629,7 +1662,7 @@ var KanvazCards = (function() {
 
     var img = document.createElement('img');
     img.src = card.dataUrl;
-    img.style.cssText = 'display:block;width:100%;height:calc(100% - 24px);object-fit:cover;cursor:pointer;';
+    img.style.cssText = 'display:block;width:100%;height:calc(100% - 24px);object-fit:cover;cursor:pointer;filter:' + getFilterCss(card) + ';';
     img.title = 'Click to pause / resume';
     img._origSrc = card.dataUrl;
     img._paused = false;
@@ -1688,7 +1721,7 @@ var KanvazCards = (function() {
     vid.loop = true;
     vid.playsInline = true;
     /* Height set by CSS (.card-video > video) using container-query-aware calc */
-    vid.style.cssText = 'display:block;width:100%;object-fit:cover;pointer-events:none;';
+    vid.style.cssText = 'display:block;width:100%;object-fit:cover;pointer-events:none;filter:' + getFilterCss(card) + ';';
 
     /* Scrub bar — built before vid.src so we can reference it in handlers */
     var scrub = document.createElement('div');
@@ -4816,6 +4849,12 @@ var KanvazCards = (function() {
       renderMode:       c.renderMode       || null,
       bgColor:          c.bgColor          || null,
       animationPlaying: c.animationPlaying || false,
+      /* v7.x — non-destructive image/video adjustments (setAdjustment,
+         applied as a CSS filter, never touching dataUrl). Same
+         "missing -> default" fallback as objectFit etc. above. */
+      adjustBrightness: c.adjustBrightness !== undefined ? c.adjustBrightness : null,
+      adjustContrast:   c.adjustContrast   !== undefined ? c.adjustContrast   : null,
+      adjustSaturate:   c.adjustSaturate   !== undefined ? c.adjustSaturate   : null,
       /* v6.4.0 */
       sharedId:     c.sharedId     || null
     };
@@ -5636,6 +5675,7 @@ var KanvazCards = (function() {
     isIsolateActive:   isIsolateActive,
     showOpacityPicker: showOpacityPicker,
     toggleObjectFit:   toggleObjectFit,
+    setAdjustment:     setAdjustment,
     showSpeedPicker:   showSpeedPicker,
     refreshAnnotationDot: refreshAnnotationDot,
     nudge:             nudge,

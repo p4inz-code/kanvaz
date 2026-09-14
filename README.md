@@ -37,7 +37,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## Latest release
 
-**v7.17.0** adds Isolate View (Shift+I) — hides everything but the current selection, Maya/Blender-style, toggle again or Escape to bring it all back. v7.16.0 before it added numbered view bookmarks — Ctrl+1..9 saves the current pan/zoom, plain 1..9 jumps back, Maya/Photoshop-style (session-only, not saved to the board file). v7.15.0 added Tidy Up — packs cards into a uniform grid, either the whole board (canvas right-click menu) or just the current selection (Properties panel), preserving reading order. v7.14.0 added Distribute Evenly (Properties panel, 3+ cards) and a real Shift+F keybinding for Zoom to Selection, a command that existed since v4.9.0 but only had Command Palette access until now. v7.13.0 added Ctrl/Cmd-click multi-select with real group drag (previously only Select All could multi-select, and even then dragging never moved the group), Export/Import for a single template as a portable `.kanvaztemplate` file, and fixed a confirm-dialog stacking bug where delete/discard dialogs could render invisibly behind whatever opened them. v7.12.0 fixed a real search bug: typing "grid" or any other Settings label returned nothing, since every Settings row is now individually searchable. It also added a Ctrl+H Home Screen toggle with a race-condition guard, a Smart Folders right-click menu (Open/Favorite/Rename/Edit query/Delete), and new Tags and Info sections in the Properties panel. Builds on v7.11.1's toolbar and tooltip polish, v7.11.0's template library, v7.10's templates and save-as-template, v7.9's card visual polish, and v7.8's "Kanvaz Redesign v1." The full version history, with the reasoning behind each release, lives in [CHANGELOG.md](CHANGELOG.md).
+**v7.18.0** adds non-destructive Brightness/Contrast/Saturation adjustments for image, GIF, and video cards (Properties panel), applied as a CSS filter so a Reset button always gets back to the original. v7.17.0 before it added Isolate View (Shift+I) — hides everything but the current selection, Maya/Blender-style, toggle again or Escape to bring it all back. v7.16.0 added numbered view bookmarks — Ctrl+1..9 saves the current pan/zoom, plain 1..9 jumps back, Maya/Photoshop-style (session-only, not saved to the board file). v7.15.0 added Tidy Up — packs cards into a uniform grid, either the whole board (canvas right-click menu) or just the current selection (Properties panel), preserving reading order. v7.14.0 added Distribute Evenly (Properties panel, 3+ cards) and a real Shift+F keybinding for Zoom to Selection, a command that existed since v4.9.0 but only had Command Palette access until now. v7.13.0 added Ctrl/Cmd-click multi-select with real group drag (previously only Select All could multi-select, and even then dragging never moved the group), Export/Import for a single template as a portable `.kanvaztemplate` file, and fixed a confirm-dialog stacking bug where delete/discard dialogs could render invisibly behind whatever opened them. v7.12.0 fixed a real search bug: typing "grid" or any other Settings label returned nothing, since every Settings row is now individually searchable. It also added a Ctrl+H Home Screen toggle with a race-condition guard, a Smart Folders right-click menu (Open/Favorite/Rename/Edit query/Delete), and new Tags and Info sections in the Properties panel. Builds on v7.11.1's toolbar and tooltip polish, v7.11.0's template library, v7.10's templates and save-as-template, v7.9's card visual polish, and v7.8's "Kanvaz Redesign v1." The full version history, with the reasoning behind each release, lives in [CHANGELOG.md](CHANGELOG.md).
 
 <p align="center">
   <img src="assets/screenshot-cards-v7.9.0.png" alt="Kanvaz card design — note, URL, and color cards showing the new always-visible name/metadata footer" width="720">
@@ -75,7 +75,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 **Card design & templates**
 - Every card shows an always-visible name and at-a-glance metadata (resolution, duration, character count) plus one clean type badge
-- Photoshop/Illustrator-style Properties panel: Transform (X/Y/W/H), opacity, layer order, multi-select alignment, distribute-evenly, and Tidy Up, and Media info
+- Photoshop/Illustrator-style Properties panel: Transform (X/Y/W/H), opacity, layer order, multi-select alignment, distribute-evenly, and Tidy Up, non-destructive Brightness/Contrast/Saturation for image/GIF/video, and Media info
 - 13 board templates spanning VFX (three skill tiers), Game Dev, Music, Animation, Photography, Architecture, UI/UX, and Branding, plus the option to save your own board as a template
 
 **Offline profiles**
@@ -131,7 +131,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 7.17.0.exe` and `dist/Kanvaz 7.17.0.exe`
+Output: `dist/Kanvaz Setup 7.18.0.exe` and `dist/Kanvaz 7.18.0.exe`
 
 **macOS:**
 ```bash
