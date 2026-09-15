@@ -2,6 +2,29 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [8.4.0] — 3D camera position persistence
+
+### Added
+- **3D model cards now remember their camera orbit position across
+  saves and reloads.** Deliberately NOT persisted through v7.4.0–v8.2.0
+  ("every load reframes to a default view") — revisited now that 3D is
+  this line's flagship identity, not a launch-scope footnote. Saved on
+  `OrbitControls`' own `end` event (fires once per orbit/pan/zoom
+  gesture, not per mousemove frame the way `change` does) — same
+  one-history-entry-per-gesture convention `setRenderMode`/`setBgColor`
+  already use, not a new pattern. Stored as plain `{x,y,z}` objects
+  (not `THREE.Vector3` instances) so it round-trips through the
+  `.kanvaz` JSON format like every other card field. "Reset view"
+  still always re-frames to the computed default regardless of what's
+  saved, by design — the saved position is only ever restored on the
+  card's first load in a session.
+  - New persisted fields `cameraPosition`/`cameraTarget`, added to
+    `buildFullCardRecord()`'s whitelist and the deserialize-defaults
+    block — the two places this codebase's own established convention
+    requires touching for any new per-card field, done both times.
+  - README's "Known limitations" line calling this out as a disclosed
+    trade-off removed, since it's no longer true.
+
 ## [8.3.0] — .blend support via an optional external tool (Blender)
 
 ### Added

@@ -37,7 +37,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## Latest release
 
-**v8.3.0** adds `.blend` support — if you have Blender installed, Kanvaz converts and previews it live, right on the board; if not, it becomes a plain file reference instead of failing. The first release in the v8.x line to reach into a real DCC tool rather than just add another in-app parser. v8.2.0 before it added the whole USD family, v8.1.0 added `.vox`, v8.0.0 added `.stl`/`.ply` — five new 3D formats in the v8.x line's first four releases. Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
+**v8.4.0** persists 3D camera orbit position across saves — reopen a model and it's framed exactly how you left it, instead of resetting to a default view every time. v8.3.0 before it added `.blend` support via a local Blender install; v8.0.0–v8.2.0 added `.stl`/`.ply`/`.vox`/the whole USD family. Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
 
 <table>
 <tr>
@@ -181,7 +181,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 8.3.0.exe` and `dist/Kanvaz 8.3.0.exe`
+Output: `dist/Kanvaz Setup 8.4.0.exe` and `dist/Kanvaz 8.4.0.exe`
 
 **macOS:**
 ```bash
@@ -251,7 +251,7 @@ Files saved by 4.0.1 and earlier (plain JSON, base64 media) still open exactly a
 - Autosave writes to a recovery file only. "Unsaved changes" in the status bar clears only on explicit Save (Ctrl+S). The recovery file is cleared on every clean close, so the "Recover unsaved board?" prompt only appears after an actual crash.
 - The base installer bundles zero plugins by design (see [SECURITY.md](SECURITY.md)'s Plugin System section). Theme Creator, MCP Bridge, and Template Maker & Manager all install separately, the same way any third-party plugin does.
 - `registerPropertyFieldType` (custom Properties panel field types via a plugin) is still unimplemented.
-- 3D model cards embed the file (like image/video/audio) rather than pointing at it. A `.gltf` that references external `.bin`/texture files by relative path won't fully resolve (only a self-contained `.gltf` or a `.glb` is guaranteed to render everything); `.fbx` support is best-effort, since it's the most complex and least standardized of the four formats. Camera orbit position isn't saved, so every load starts from the same framed default view. Custom user-swappable textures aren't supported yet (planned as a future plugin).
+- 3D model cards embed the file (like image/video/audio) rather than pointing at it. A `.gltf` that references external `.bin`/texture files by relative path won't fully resolve (only a self-contained `.gltf` or a `.glb` is guaranteed to render everything); `.fbx` support is best-effort, since it's the most complex and least standardized of the four formats. Custom user-swappable textures aren't supported yet (planned as a future plugin).
 - Per-profile plugin *storage* is isolated, but installed plugin code is still shared across all profiles on one machine, since installing a plugin is treated as a machine-level action, not a per-profile one.
 
 ---

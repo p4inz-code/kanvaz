@@ -3714,6 +3714,24 @@ var KanvazCards = (function() {
         if (!isPlaying) renderFrame();
       });
 
+      /* v8.x polish item: persist camera orbit position across saves/
+         reloads — previously deliberate v7.4.0 scope ("every load
+         reframes to a default view"), revisited now that 3D is this
+         line's flagship identity rather than a launch-scope footnote.
+         Saved on OrbitControls' own 'end' event (fires once per
+         orbit/pan/zoom gesture, not per mousemove frame like 'change'
+         does) — same one-history-entry-per-gesture convention
+         setRenderMode/setBgColor above already use, not a new pattern.
+         Plain objects, not THREE.Vector3 instances, since card state
+         has to survive a full JSON serialise/deserialise round-trip
+         through the .kanvaz save format. */
+      controls.addEventListener('end', function() {
+        card.cameraPosition = { x: camera.position.x, y: camera.position.y, z: camera.position.z };
+        card.cameraTarget   = { x: controls.target.x, y: controls.target.y, z: controls.target.z };
+        KanvazApp.markDirty();
+        KanvazHistory.push();
+      });
+
       var resizeObserver = new ResizeObserver(function() {
         sizeToCard();
         renderFrame();
@@ -3933,7 +3951,21 @@ var KanvazCards = (function() {
         applyRenderMode(THREE, root, card.renderMode || 'normal', matcapTex);
         setActiveModeButton(card.renderMode || 'normal');
         sizeToCard();
-        frameModel3DCamera(THREE, root, camera, controls);
+        /* Restore a saved camera position/target if this card has one
+           (see the OrbitControls 'end' listener above) — only on first
+           load, never overriding a fresh frameModel3DCamera() call that
+           a real geometry change (a relink, a format-changed reload)
+           should still get. "Reset view" (resetCamera(), below) always
+           re-frames regardless of what's saved, by design — this is
+           the only place the saved position is ever actually restored. */
+        if (card.cameraPosition && card.cameraTarget) {
+          camera.position.set(card.cameraPosition.x, card.cameraPosition.y, card.cameraPosition.z);
+          controls.target.set(card.cameraTarget.x, card.cameraTarget.y, card.cameraTarget.z);
+          camera.updateProjectionMatrix();
+          controls.update();
+        } else {
+          frameModel3DCamera(THREE, root, camera, controls);
+        }
 
         if (animations && animations.length) {
           /* Disclosed limitation (audit finding, v1 scope): only the
@@ -5234,14 +5266,19 @@ var KanvazCards = (function() {
       pdfZoom:      c.pdfZoom      || null,
       /* v7.x — 3D model preview display preferences (embedded model
          card, dataUrl holds the actual .glb/.gltf/.obj/.fbx bytes like
-         any other media type). Camera orbit state is deliberately NOT
-         persisted — every load resets to a framed default view, same
-         disclosed simplicity trade-off as not persisting canvas zoom
-         for annotation. */
+         any other media type). */
       modelFormat:      c.modelFormat      || null,
       renderMode:       c.renderMode       || null,
       bgColor:          c.bgColor          || null,
       animationPlaying: c.animationPlaying || false,
+      /* v8.x — camera orbit position, now persisted (was deliberately
+         NOT saved through v7.4.0-v8.2.0: "every load resets to a framed
+         default view"). Revisited once 3D became this line's flagship
+         identity rather than a launch-scope footnote. Plain {x,y,z}
+         objects (not THREE.Vector3 instances) so this round-trips
+         through JSON like every other card field. */
+      cameraPosition:   c.cameraPosition   || null,
+      cameraTarget:     c.cameraTarget     || null,
       /* v7.x — non-destructive image/video adjustments (setAdjustment,
          applied as a CSS filter, never touching dataUrl). Same
          "missing -> default" fallback as objectFit etc. above. */
@@ -5396,6 +5433,8 @@ var KanvazCards = (function() {
         if (!c.renderMode)  c.renderMode  = 'normal';
         if (!c.bgColor)     c.bgColor     = null;
         if (c.animationPlaying === undefined) c.animationPlaying = false;
+        if (!c.cameraPosition) c.cameraPosition = null;
+        if (!c.cameraTarget)   c.cameraTarget   = null;
         if (c.sharedId === undefined) c.sharedId = null;
 
         cards[c.id] = c;
