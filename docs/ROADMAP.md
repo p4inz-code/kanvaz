@@ -264,6 +264,12 @@ This does not touch the v7.x line's own standing constraints (100% offline core,
 - Timeline expectation for the professional-tester email round — is there a target date, or does it depend entirely on when this batch is ready?
 - Website: custom domain or stay on the default `github.io` subdomain? Plain HTML/CSS/JS or a static-site generator? Does it become the actual sales point for the paid pack/enterprise support, or just link out?
 
+## README audit findings — collect now, fix in one pass at the end of this run
+
+The user asked to keep flagging README mistakes as they're found during this planning run, then do one full rewrite for v8 at the end, rather than patching piecemeal. Findings so far:
+
+1. **"Prebuilt installers are Windows only" is factually wrong today, not just outdated wording.** Verified 2026-09-15 against the actual `v7.26.0` GitHub Release assets: CI already builds and publishes a real macOS installer (`Kanvaz-7.26.0-arm64.dmg`) and a real Linux one (`Kanvaz-7.26.0.AppImage`) on every single release, automatically, via the existing 3-platform build matrix in `.github/workflows/build.yml`. The README's "Download for Windows, it's free" CTA and its own note directly under it ("macOS and Linux users build from source") both undersell what already ships — this isn't a v8-only concern, it's actively wrong right now and has presumably been wrong across multiple past releases. Given the v8 line's audience (VFX studios in particular run Linux heavily in-pipeline), this also undercuts the exact cross-platform credibility this line is trying to build. Fix in the rewrite: CTA and installer section should reflect that Windows/macOS/Linux installers all already exist; "build from source" framing should be reserved for whatever genuinely still requires it (if anything).
+
 ## Standing constraints carried forward (v8.x)
 
 Same discipline as every prior line: no native dependencies without a real audit first (a WASM module is not exempt from scrutiny just because it isn't a native N-API addon — verify its actual build provenance and maintenance status before vendoring, same bar Three.js and pdf.js were held to). 100% offline core stays non-negotiable regardless of monetization changes — a paid pack's distribution/licensing mechanism must not introduce a silent network dependency into the core app. Every release still gets CHANGELOG.md/docs/HANDOFF.md/SECURITY.md updated, and real live verification via CDP before calling anything done.
