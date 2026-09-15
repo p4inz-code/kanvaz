@@ -5321,6 +5321,69 @@ var KanvazCards = (function() {
     return cards;
   }
 
+  /* Real board thumbnails (replacing the Home Screen's gradient-banner
+     placeholder) — a small offscreen canvas with one colored rectangle
+     per card, same type-color scheme and "fit everything, 30% padding"
+     framing as ui.js's own minimap (drawMinimap/computeWorld), kept as
+     an independent copy rather than a shared dependency since a
+     thumbnail is generated once at save time (boards.js's
+     writeSerialisedBoardTo) and has no live viewport indicator or
+     click-to-pan behavior to share with the minimap's own render loop.
+     JPEG at modest quality, not PNG — this can run on every save, and
+     a lossless PNG of even a simple rectangle collage is needlessly
+     large for something that's just a small preview thumbnail. */
+  function generateThumbnail() {
+    var THUMB_W = 320, THUMB_H = 200;
+    var ids = getAllIds();
+    if (!ids.length) return null;
+
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (var i = 0; i < ids.length; i++) {
+      var c = cards[ids[i]];
+      if (c.x < minX) minX = c.x;
+      if (c.y < minY) minY = c.y;
+      if (c.x + c.w > maxX) maxX = c.x + c.w;
+      if (c.y + c.h > maxY) maxY = c.y + c.h;
+    }
+    var boardW = Math.max(maxX - minX, 1) * 1.15;
+    var boardH = Math.max(maxY - minY, 1) * 1.15;
+    var midX = (minX + maxX) / 2;
+    var midY = (minY + maxY) / 2;
+    var scale = Math.min(THUMB_W / boardW, THUMB_H / boardH);
+
+    var canvas = document.createElement('canvas');
+    canvas.width = THUMB_W;
+    canvas.height = THUMB_H;
+    var ctx = canvas.getContext('2d');
+    /* Read the theme's real surface color rather than hardcoding dark —
+       same technique drawMinimap() (ui.js) already uses for its own
+       viewport-indicator color, so a light theme gets a light-toned
+       thumbnail background instead of a dark one baked in regardless. */
+    var bg = getComputedStyle(document.documentElement).getPropertyValue('--color-surface').trim() || '#0E0E10';
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, THUMB_W, THUMB_H);
+
+    for (var j = 0; j < ids.length; j++) {
+      var card = cards[ids[j]];
+      var color = card.type === 'note'  ? '#4CAF82'
+                : card.type === 'video' ? '#F0A500'
+                : card.type === 'gif'   ? '#4A9EFF'
+                : card.type === 'audio' ? '#9D7FFF'
+                : card.type === 'color' ? (card.color || '#DCDCE8')
+                : '#DCDCE8';
+      var rx = (THUMB_W / 2) + (card.x - midX) * scale;
+      var ry = (THUMB_H / 2) + (card.y - midY) * scale;
+      var rw = Math.max(2, card.w * scale);
+      var rh = Math.max(2, card.h * scale);
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.85;
+      ctx.fillRect(rx, ry, rw, rh);
+    }
+    ctx.globalAlpha = 1;
+
+    return canvas.toDataURL('image/jpeg', 0.6);
+  }
+
   /* ── Nudge (arrow keys) ── */
 
   var nudgeTimer = null;
@@ -5997,6 +6060,7 @@ var KanvazCards = (function() {
     clearAll:          clearAll,
     resetSessionState: resetSessionState,
     getAll:            getAll,
+    generateThumbnail: generateThumbnail,
     getSelected:       function() { return selectedId; },
     getSelectedIds:    getSelectedIds,
     getModel3DControls: getModel3DControls

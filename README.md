@@ -37,7 +37,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## Latest release
 
-**v7.23.0** adds double-click-to-rename in the Layers panel, and fixes a real bug caught only by manually clicking: a double-click did nothing, because the row's own click handler was rebuilding the list on the first of the two clicks and destroying the target before the browser's `dblclick` event could fire. v7.22.0 before it fixed a real process bug, not a feature: 8 releases in a row (v7.14.0–v7.21.0) had shipped with no Windows/macOS/Linux installers at all, only plugin zips, because of a broken release-publishing sequence — full root cause in [CHANGELOG.md](CHANGELOG.md). Recent versions worth knowing about: a Layers panel (v7.20.0), card grouping and Isolate View (v7.19.0, v7.17.0), non-destructive Brightness/Contrast/Saturation on image and video cards (v7.18.0), and Tidy Up / Distribute Evenly / numbered view bookmarks for arranging a busy board fast (v7.14.0–v7.16.0). Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
+**v7.24.0** adds real board thumbnails on the Home Screen's Recent tiles (generated at save time from the actual card layout, replacing the generic gradient banner). v7.23.0 before it added double-click-to-rename in the Layers panel, and fixed a real bug caught only by manually clicking: a double-click did nothing, because the row's own click handler was rebuilding the list on the first of the two clicks and destroying the target before the browser's `dblclick` event could fire. v7.22.0 fixed a real process bug, not a feature: 8 releases in a row (v7.14.0–v7.21.0) had shipped with no Windows/macOS/Linux installers at all, only plugin zips, because of a broken release-publishing sequence — full root cause in [CHANGELOG.md](CHANGELOG.md). Recent versions worth knowing about: a Layers panel (v7.20.0), card grouping and Isolate View (v7.19.0, v7.17.0), non-destructive Brightness/Contrast/Saturation on image and video cards (v7.18.0), and Tidy Up / Distribute Evenly / numbered view bookmarks for arranging a busy board fast (v7.14.0–v7.16.0). Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
 
 <p align="center">
   <img src="assets/screenshot-home-v7.22.0.png" alt="Kanvaz Home Screen — Quick Start, template previews, and a What's New section reading live off the changelog" width="720">
@@ -84,6 +84,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 **Canvas & organization**
 - Infinite pan/zoom canvas (8%–500%), multiple boards per file
+- Real board thumbnails on the Home Screen (generated from the actual card layout at save time)
 - Image, GIF, video, and audio cards with full playback controls and a real volume slider
 - 3D model cards (`.glb`/`.gltf`/`.obj`/`.fbx`, up to 150MB): orbit with the mouse, Normal/Wireframe/Matcap shading, animation playback with a scrub bar, background color picker
 - Note, text, color, URL, and file-reference card types. A file reference pointing at a `.pdf` or image gets a real inline preview inside the resizable card
@@ -153,7 +154,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 7.23.0.exe` and `dist/Kanvaz 7.23.0.exe`
+Output: `dist/Kanvaz Setup 7.24.0.exe` and `dist/Kanvaz 7.24.0.exe`
 
 **macOS:**
 ```bash

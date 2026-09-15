@@ -2,6 +2,33 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [7.24.0] — Real board thumbnails
+
+### Added
+- **Real board thumbnails** on the Home Screen's "Recent" tiles,
+  replacing the generic gradient-banner placeholder. A small offscreen
+  canvas draws one colored rectangle per card (same type-color scheme
+  and fit-everything framing as the existing minimap), exported as a
+  compact JPEG and generated at save time — `writeSerialisedBoardTo`
+  (the one chokepoint every save path already funnels through) calls
+  `KanvazCards.generateThumbnail()` and hands it to a new
+  `board-thumbnail-save` IPC call. Stored in its own small
+  `thumbnails.json` map (`{absolutePath: jpegDataUrl}`), deliberately
+  NOT inside the `.kanvaz` board files themselves — the Home Screen's
+  recent-boards list only ever needed one cheap `fs.statSync()` per
+  entry before this, and reading every recent board's full JSON just
+  to pull one field out would defeat that, especially for a board with
+  embedded video or 3D data. Capped at 50 entries so the map can't grow
+  unbounded across a long-running profile. Older boards saved before
+  this feature, or an empty board, fall back to the original gradient
+  placeholder. A lint warning caught a hardcoded dark background color
+  in the canvas draw before it shipped — fixed to read the theme's real
+  surface color instead, matching the minimap's own convention.
+  Verified live end-to-end: generated a thumbnail from two real note
+  cards, saved a board via `saveBoardToPath`, confirmed the `recent-get`
+  IPC response carried the matching thumbnail, and confirmed the Home
+  Screen tile actually renders it as a background image.
+
 ## [7.23.0] — Double-click to rename in the Layers panel
 
 ### Added

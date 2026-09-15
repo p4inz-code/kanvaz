@@ -7,7 +7,7 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '7.23.0';
+  var VERSION       = '7.24.0';
 
   /* ── Shared cards (v6.4.0) — "same card, no duplicate, edit once
      updates everywhere" (Are.na-style), across boards in ONE .kanvaz
@@ -1080,6 +1080,17 @@ var KanvazBoards = (function() {
         KanvazBridge.clearRecovery();
         KanvazUI.toast('Board saved', 'success');
         emitBoardEvent('boardSave');
+        /* Real Home Screen thumbnail instead of the gradient-banner
+           placeholder — generated here (the one place every save path
+           funnels through) rather than at Home Screen render time, so
+           opening the Home Screen never has to wait on rendering N
+           boards' worth of thumbnails; it just reads whatever's already
+           on disk. Best-effort: an empty board returns null (nothing
+           to draw), and this never blocks or fails the save itself. */
+        if (typeof KanvazCards !== 'undefined' && KanvazCards.generateThumbnail) {
+          var thumb = KanvazCards.generateThumbnail();
+          if (thumb) KanvazBridge.saveThumbnail(p, thumb);
+        }
         if (onDone) onDone(true);
       } else {
         KanvazUI.toast('Save failed: ' + result.error, 'error');
@@ -1905,9 +1916,19 @@ var KanvazBoards = (function() {
             for (var h = 0; h < fname.length; h++) hash = (hash * 31 + fname.charCodeAt(h)) | 0;
             var hue = Math.abs(hash) % 360;
 
+            /* Real board thumbnail when one exists (boards.js's own
+               writeSerialisedBoardTo saves one via KanvazCards.
+               generateThumbnail() on every save) — falls back to the
+               same gradient-plus-icon placeholder for older boards
+               saved before thumbnails existed, or a board with zero
+               cards (generateThumbnail() returns null for those). */
             var banner = document.createElement('div');
-            banner.style.cssText = 'height:64px;background:linear-gradient(135deg, hsl(' + hue + ',55%,42%), hsl(' + ((hue + 40) % 360) + ',55%,30%));display:flex;align-items:center;justify-content:center;flex-shrink:0;';
-            banner.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 15l4.5-4.5a2 2 0 0 1 2.8 0L15 15"/><circle cx="15.5" cy="8.5" r="1.5"/></svg>';
+            if (entry.thumbnailDataUrl) {
+              banner.style.cssText = 'height:64px;background-image:url(' + entry.thumbnailDataUrl + ');background-size:cover;background-position:center;flex-shrink:0;';
+            } else {
+              banner.style.cssText = 'height:64px;background:linear-gradient(135deg, hsl(' + hue + ',55%,42%), hsl(' + ((hue + 40) % 360) + ',55%,30%));display:flex;align-items:center;justify-content:center;flex-shrink:0;';
+              banner.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 15l4.5-4.5a2 2 0 0 1 2.8 0L15 15"/><circle cx="15.5" cy="8.5" r="1.5"/></svg>';
+            }
             tile.appendChild(banner);
 
             var textCol = document.createElement('div');

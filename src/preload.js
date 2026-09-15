@@ -45,6 +45,7 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
   /* Recent files */
   getRecent:       function() { return ipcRenderer.invoke('recent-get'); },
   addRecent:       function(p) { return ipcRenderer.invoke('recent-add', p); },
+  saveThumbnail:   function(p, dataUrl) { return ipcRenderer.invoke('board-thumbnail-save', p, dataUrl); },
   removeRecent:    function(p) { return ipcRenderer.invoke('recent-remove', p); },
 
   /* Recovery */

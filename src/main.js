@@ -45,6 +45,18 @@ function getRecoveryDir() {
 function getRecentFilesPath() {
   return path.join(kanvazProfiles.getActiveProfileDir(app.getPath('userData')), 'recent.json');
 }
+/* Board thumbnails (Home Screen "Recent" tiles) — a small separate
+   {absolutePath: jpegDataUrl} map, deliberately NOT stored inside the
+   .kanvaz board files themselves: the Home Screen's recent-boards list
+   only ever needs a cheap fs.statSync() per entry today (see
+   recent-get below), and reading every recent board's full JSON just
+   to pull out one field would defeat that — a board file can embed
+   sizeable video/3D data. This map is small (one JPEG per board,
+   capped by MAX_THUMBNAILS below) and quick to read whole. */
+function getThumbnailsPath() {
+  return path.join(kanvazProfiles.getActiveProfileDir(app.getPath('userData')), 'thumbnails.json');
+}
+var MAX_THUMBNAILS = 50;
 var MAX_RECENT = 8;
 var LARGE_FILE_WARN_MB = 200;
 var MAX_FILE_SIZE_MB   = 500;
@@ -971,6 +983,11 @@ function registerIPC() {
      path that would fail when clicked. */
   ipcMain.handle('recent-get', function() {
     var p = getRecentFilesPath();
+    var thumbs = {};
+    try {
+      var tp = getThumbnailsPath();
+      if (fs.existsSync(tp)) thumbs = JSON.parse(fs.readFileSync(tp, 'utf8')) || {};
+    } catch (e) { /* thumbnails.json missing/corrupt — tiles just fall back to the gradient banner */ }
     try {
       if (!fs.existsSync(p)) return [];
       var paths = JSON.parse(fs.readFileSync(p, 'utf8'));
@@ -978,12 +995,40 @@ function registerIPC() {
       for (var i = 0; i < paths.length; i++) {
         try {
           var stat = fs.statSync(paths[i]);
-          out.push({ path: paths[i], mtimeMs: stat.mtimeMs });
+          out.push({ path: paths[i], mtimeMs: stat.mtimeMs, thumbnailDataUrl: thumbs[paths[i]] || null });
         } catch (e) { /* file moved/deleted since it was added — drop it */ }
       }
       return out;
     } catch (e) {
       return [];
+    }
+  });
+
+  /* Called right after a successful board save (boards.js's
+     writeSerialisedBoardTo) with a JPEG dataUrl already rendered in the
+     renderer (KanvazCards.generateThumbnail()) — this handler only
+     persists it. Capped at MAX_THUMBNAILS entries, oldest (by insertion
+     order) dropped first, so this file can't grow without bound across
+     a long-running profile that's saved hundreds of different boards. */
+  ipcMain.handle('board-thumbnail-save', function(event, filePath, dataUrl) {
+    if (!filePath || !dataUrl) return { ok: false };
+    var tp = getThumbnailsPath();
+    var map = {};
+    try {
+      if (fs.existsSync(tp)) map = JSON.parse(fs.readFileSync(tp, 'utf8')) || {};
+    } catch (e) { map = {}; }
+    delete map[filePath];
+    map[filePath] = dataUrl;
+    var keys = Object.keys(map);
+    if (keys.length > MAX_THUMBNAILS) {
+      var toDrop = keys.slice(0, keys.length - MAX_THUMBNAILS);
+      for (var i = 0; i < toDrop.length; i++) delete map[toDrop[i]];
+    }
+    try {
+      fs.writeFileSync(tp, JSON.stringify(map), 'utf8');
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: e.message };
     }
   });
 
