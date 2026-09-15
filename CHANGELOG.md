@@ -2,6 +2,35 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [7.23.0] — Double-click to rename in the Layers panel
+
+### Added
+- **Double-click a Layers row's name to rename it inline**, planned as
+  follow-up work after the panel's first pass (v7.20.0), built now.
+  Writes through `updateCardData(id, {name: val})` — the same single
+  path the on-canvas card-bar rename already uses, not a second
+  parallel mechanism — so a commit fires the exact same `cardUpdate`
+  event and the panel redraws with the new name for free. Enter
+  commits, Escape or an empty/unchanged value cancels, matching the
+  on-canvas rename's own behavior exactly.
+
+### Fixed
+- **A real double-click did nothing** — caught live when manually
+  tested, not by an automated check. The row's own click handler
+  rebuilt the entire Layers list (to update the selection highlight)
+  on every single click, including the first of the two clicks that
+  make up a native double-click — destroying the original name
+  element before the browser's `dblclick` event ever got a chance to
+  fire on it. Fixed by checking `event.detail` (the browser's own
+  click-count for the current sequence) and skipping the rebuild when
+  it's greater than 1, so the second click's target — which the
+  browser resolves fresh, at the same visual spot — survives long
+  enough for `dblclick` to fire correctly. Verified live by manually
+  sequencing real `mousedown`/`mouseup`/`click`/`dblclick` events with
+  the correct `detail` values end to end: create the input, type a
+  name, commit with Enter, and confirm the new name survives a
+  `serialise()` round trip.
+
 ## [7.22.0] — Layers panel terminology/icon audit, broken release fix
 
 ### Fixed

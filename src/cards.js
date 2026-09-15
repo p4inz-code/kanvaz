@@ -1735,7 +1735,24 @@ var KanvazCards = (function() {
           (selectedSet[id] ? 'background:var(--color-accent-bg);color:var(--color-text);' : 'color:var(--color-text-2);');
         row.onmouseenter = function() { if (!selectedSet[id]) row.style.background = 'var(--color-surface-2)'; };
         row.onmouseleave = function() { if (!selectedSet[id]) row.style.background = 'transparent'; };
-        row.onclick = function() { selectCard(id); bringToFront(id); renderLayersInto(container); };
+        /* Real bug caught live (manual double-click did nothing): every
+           click here rebuilds the whole list via renderLayersInto,
+           including the FIRST of the two clicks that make up a native
+           double-click. That destroys the original name span before
+           the browser ever gets to fire its 'dblclick' event on it, so
+           the rename handler below always found a detached element and
+           silently bailed. e.detail is the browser's own click-count
+           for this sequence (1 for a lone click, 2 for the second click
+           of a double-click within the OS's double-click interval) —
+           skipping the rebuild on detail > 1 leaves that second click's
+           target (which the browser resolves fresh, same visual spot)
+           intact for 'dblclick' to fire on right after. */
+        row.onclick = function(e) {
+          if (e.detail > 1) return;
+          selectCard(id);
+          bringToFront(id);
+          renderLayersInto(container);
+        };
 
         var nameEl = document.createElement('span');
         nameEl.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
@@ -1746,6 +1763,11 @@ var KanvazCards = (function() {
            getCardTypeLabel()/CARD_TYPE_LABELS above, just not reused
            here. */
         nameEl.textContent = (card.name && card.name.trim()) ? card.name : getCardTypeLabel(card);
+        nameEl.title = 'Double-click to rename';
+        nameEl.ondblclick = function(e) {
+          e.stopPropagation();
+          startLayerRowRename(id, nameEl, container);
+        };
         row.appendChild(nameEl);
 
         /* Labeled "Pin"/"Unpin", not "Lock"/"Unlock" — this is the exact
@@ -1789,6 +1811,58 @@ var KanvazCards = (function() {
     }
 
     container.appendChild(list);
+  }
+
+  /* Double-click a Layers row's name to rename inline — planned as
+     follow-up work after the panel's first pass (v7.20.0), built now.
+     Writes through updateCardData(id, {name: val}), the same single
+     path startRenameCard() (the on-canvas card-bar rename) already
+     uses — not a second, parallel rename mechanism — so a commit here
+     fires the exact same 'cardUpdate' event and refreshLayersIfOpen()
+     redraws the whole list with the new name for free. Mirrors
+     startRenameCard()'s own event-guarding exactly (stop mousedown/
+     click/dblclick/keydown from bubbling into the row's onclick, which
+     would otherwise re-select/re-render mid-edit; Enter commits,
+     Escape or an empty/unchanged value cancels). */
+  function startLayerRowRename(id, nameEl, container) {
+    var card = cards[id];
+    if (!card || !nameEl.parentNode) return;
+    var parent = nameEl.parentNode;
+
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.value = card.name || '';
+    input.style.cssText = 'flex:1;min-width:0;background:var(--color-surface-2);border:1px solid var(--color-accent);border-radius:4px;color:var(--color-text);font-family:var(--font-ui);font-size:12px;padding:2px 6px;';
+
+    parent.replaceChild(input, nameEl);
+    input.focus();
+    input.select();
+
+    var done = false;
+    function finish(commit) {
+      if (done) return;
+      done = true;
+      var val = input.value.trim();
+      if (commit && val && val !== card.name) {
+        updateCardData(id, { name: val });
+        return;
+      }
+      /* Cancelled, empty, or unchanged — updateCardData never ran (so
+         refreshLayersIfOpen() never fired), and the input is still
+         sitting in the live DOM. Just redraw the whole panel to put
+         the plain name label back. */
+      renderLayersInto(container);
+    }
+
+    input.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+    input.addEventListener('click',     function(e) { e.stopPropagation(); });
+    input.addEventListener('dblclick',  function(e) { e.stopPropagation(); });
+    input.addEventListener('keydown', function(e) {
+      e.stopPropagation();
+      if (e.key === 'Enter')  { e.preventDefault(); finish(true); }
+      if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+    });
+    input.addEventListener('blur', function() { finish(true); });
   }
 
   function refreshLayersIfOpen() {
