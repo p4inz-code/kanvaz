@@ -1690,13 +1690,16 @@ var KanvazCards = (function() {
 
   /* ── Layers panel ── Sidebar tab (icon rail, sidepanel.js) listing
      every card in top-to-bottom z-order — closest thing this app has
-     to Photoshop/Figma's Layers panel. Deliberately "basic" for a first
-     pass: click a row to select that card, an eye icon toggles
-     `hidden` (a real persisted property), a lock icon reuses the
-     existing `pinned` concept (a locked layer already means "can't be
-     dragged" in this app, no need to invent a second flag that means
-     the same thing). No drag-to-reorder yet — reordering happens via
-     the existing Bring To Front/Send To Back actions elsewhere. */
+     to Photoshop/Figma's Layers panel. Click a row to select that card
+     (selecting no longer bumps z-order on its own — see below), an eye
+     icon toggles `hidden` (a real persisted property), a lock icon
+     reuses the existing `pinned` concept (a locked layer already means
+     "can't be dragged" in this app, no need to invent a second flag
+     that means the same thing). Rows are drag-to-reorder (see
+     `reorderLayers`) and right-click-able (same context menu as an
+     on-canvas card). */
+  var draggedLayerId = null;
+
   function renderLayersInto(container) {
     container.innerHTML = '';
 
@@ -1750,7 +1753,61 @@ var KanvazCards = (function() {
         row.onclick = function(e) {
           if (e.detail > 1) return;
           selectCard(id);
-          bringToFront(id);
+          renderLayersInto(container);
+        };
+
+        /* Right-click a layer row for the same context menu the canvas
+           card itself uses (Rename, Pin, Bring to front/Send to back,
+           Delete, etc.) — previously the row had no contextmenu handler
+           at all, so right-clicking it did nothing. */
+        row.oncontextmenu = function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          selectCard(id);
+          renderLayersInto(container);
+          if (typeof KanvazUI !== 'undefined') {
+            KanvazUI.showCardContextMenu(e.clientX, e.clientY, card);
+          }
+        };
+
+        /* Drag-to-reorder: dragging a row above/below another changes
+           that card's z-order directly, mirroring Photoshop/Figma's own
+           layers-list behavior. Selecting a row no longer bumps it to
+           the front on its own (see the plain click handler above) —
+           that was fighting this exact workflow, since clicking a card
+           to inspect it before reordering would silently move it to the
+           top first. */
+        row.draggable = true;
+        row.ondragstart = function(e) {
+          draggedLayerId = id;
+          e.dataTransfer.effectAllowed = 'move';
+          row.style.opacity = '0.4';
+        };
+        row.ondragend = function() {
+          row.style.opacity = '';
+          draggedLayerId = null;
+        };
+        row.ondragover = function(e) {
+          if (!draggedLayerId || draggedLayerId === id) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          row.style.borderTop = '2px solid var(--color-accent)';
+        };
+        row.ondragleave = function() {
+          row.style.borderTop = '';
+        };
+        row.ondrop = function(e) {
+          e.preventDefault();
+          row.style.borderTop = '';
+          if (!draggedLayerId || draggedLayerId === id) return;
+          var order = allIds.slice();
+          var fromIdx = order.indexOf(draggedLayerId);
+          if (fromIdx === -1) return;
+          order.splice(fromIdx, 1);
+          var toIdx = order.indexOf(id);
+          if (toIdx === -1) return;
+          order.splice(toIdx, 0, draggedLayerId);
+          reorderLayers(order);
           renderLayersInto(container);
         };
 
@@ -4347,6 +4404,31 @@ var KanvazCards = (function() {
     if (el) el.style.zIndex = card.z;
   }
 
+  /* ── Layers panel drag-to-reorder ──
+     orderedIdsTopToBottom is the FULL new top-to-bottom order (as drawn
+     in the Layers list) after a drag-drop. Reassigns z so that order is
+     preserved exactly, without touching any card's z relative to
+     something outside this list (there is nothing outside this list —
+     getAllIds() is every card) and without colliding with zCounter's
+     next value, so a subsequent bringToFront() still lands above
+     everything. Unlike bringToFront (a lightweight, non-undoable
+     selection-adjacent nudge), this is a real structural change users
+     will expect to persist and undo, so it marks dirty and pushes
+     history like sendToBack does. */
+  function reorderLayers(orderedIdsTopToBottom) {
+    var n = orderedIdsTopToBottom.length;
+    for (var i = 0; i < n; i++) {
+      var card = cards[orderedIdsTopToBottom[i]];
+      if (!card) continue;
+      card.z = zCounter + (n - i);
+      var el = document.getElementById(card.id);
+      if (el) el.style.zIndex = card.z;
+    }
+    zCounter += n;
+    KanvazApp.markDirty();
+    KanvazHistory.push();
+  }
+
   /* ── Delete ── */
 
   function deleteCard(id) {
@@ -6173,6 +6255,7 @@ var KanvazCards = (function() {
     getGroupMembers:   getGroupMembers,
     toggleCardVisibility: toggleCardVisibility,
     renderLayersInto:  renderLayersInto,
+    reorderLayers:     reorderLayers,
     showOpacityPicker: showOpacityPicker,
     toggleObjectFit:   toggleObjectFit,
     setAdjustment:     setAdjustment,

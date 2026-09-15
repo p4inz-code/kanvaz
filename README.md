@@ -37,7 +37,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## Latest release
 
-**v7.25.0** adds exporting the board or a selection as a real PNG image (canvas/card right-click menus), drawing each card's actual content instead of a placeholder: real pixels for image/video/GIF, wrapped text for notes, real fills for color cards. v7.24.0 before it added real board thumbnails on the Home Screen's Recent tiles, generated at save time from the actual card layout. v7.23.0 added double-click-to-rename in the Layers panel. Recent versions worth knowing about: a Layers panel (v7.20.0), card grouping and Isolate View (v7.19.0, v7.17.0), non-destructive Brightness/Contrast/Saturation on image and video cards (v7.18.0), and Tidy Up / Distribute Evenly / numbered view bookmarks for arranging a busy board fast (v7.14.0–v7.16.0). Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
+**v7.26.0** fixes real Layers panel bugs caught by manual testing, not code review: right-clicking a layer row did nothing (no context menu was ever wired up), and selecting a row silently bumped it to the front, fighting any attempt to manually reorder layers. Right-click now shows the same context menu as an on-canvas card, selecting a row no longer touches z-order, and rows are now drag-to-reorder, same as Photoshop or Figma's own layers list. v7.25.0 before it added exporting the board or a selection as a real PNG image (canvas/card right-click menus), drawing each card's actual content instead of a placeholder: real pixels for image/video/GIF, wrapped text for notes, real fills for color cards. v7.24.0 added real board thumbnails on the Home Screen's Recent tiles, generated at save time from the actual card layout. Recent versions worth knowing about: a Layers panel (v7.20.0), card grouping and Isolate View (v7.19.0, v7.17.0), non-destructive Brightness/Contrast/Saturation on image and video cards (v7.18.0), and Tidy Up / Distribute Evenly / numbered view bookmarks for arranging a busy board fast (v7.14.0–v7.16.0). Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
 
 <p align="center">
   <img src="assets/screenshot-home-v7.22.0.png" alt="Kanvaz Home Screen — Quick Start, template previews, and a What's New section reading live off the changelog" width="720">
@@ -98,7 +98,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 **Card design & templates**
 - Every card shows an always-visible name and at-a-glance metadata (resolution, duration, character count) plus one clean type badge
 - Photoshop/Illustrator-style Properties panel: Transform (X/Y/W/H), opacity, layer order, multi-select alignment, distribute-evenly, and Tidy Up, non-destructive Brightness/Contrast/Saturation for image/GIF/video, and Media info
-- A Layers panel (its own side-panel tab): every card in z-order, click to select, eye icon to hide/show, lock icon
+- A Layers panel (its own side-panel tab): every card in z-order, click to select, drag to reorder, right-click for the full card menu, eye icon to hide/show, lock icon
 - 13 board templates spanning VFX (three skill tiers), Game Dev, Music, Animation, Photography, Architecture, UI/UX, and Branding, plus the option to save your own board as a template
 
 **Offline profiles**
@@ -154,7 +154,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 7.25.0.exe` and `dist/Kanvaz 7.25.0.exe`
+Output: `dist/Kanvaz Setup 7.26.0.exe` and `dist/Kanvaz 7.26.0.exe`
 
 **macOS:**
 ```bash

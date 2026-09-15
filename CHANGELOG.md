@@ -2,6 +2,37 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [7.26.0] — Layers panel: right-click menu, drag-to-reorder
+
+### Fixed
+- **Right-click on a Layers panel row did nothing.** Every other card
+  surface in the app (the canvas card itself, a Smart Folder chip) had
+  a `contextmenu` handler; the Layers panel row never got one when the
+  panel was first built. Right-clicking a row now shows the exact same
+  context menu (Rename, Pin, Bring to front/Send to back, Delete, etc.)
+  as right-clicking the card on canvas.
+- **Selecting a layer silently bumped it to the front.** The row's
+  click handler called `bringToFront()` on every select — meant as a
+  convenience ("jump to what I clicked"), but it actively fights the
+  one thing a layers list exists for: reordering without moving
+  through z-order first. Selecting a row now only selects it.
+
+### Added
+- **Drag-to-reorder in the Layers panel.** Rows are draggable; dropping
+  one above or below another reassigns real z-order via a new
+  `KanvazCards.reorderLayers()`, persisted and undo-reversible like any
+  other structural change (`markDirty()` + `KanvazHistory.push()`), the
+  same way Photoshop or Figma's own layers list works.
+
+Both bugs were caught by direct user feedback from manual testing
+("right click doesn't work"), not by the static suite or code review —
+a `contextmenu` handler is a DOM wiring gap `node test/validate.js`
+has no way to see. Verified live via CDP against a real running
+instance: right-clicked a layer row (context menu appeared, same item
+count as the on-canvas menu), then simulated a drag from the top row
+to the bottom and confirmed both the panel's row order and the actual
+canvas cards' `z`/`zIndex` updated to match.
+
 ## [7.25.0] — Export board/selection as image
 
 ### Added
