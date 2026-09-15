@@ -166,5 +166,29 @@
     "h": 170,
     "z": 14,
     "pinned": false
+  },
+  {
+    "id": "tpl-15",
+    "type": "text",
+    "name": "Section",
+    "text": "COMPETITOR & MOOD REFERENCE",
+    "x": 1060,
+    "y": 40,
+    "w": 300,
+    "h": 50,
+    "z": 15,
+    "pinned": false
+  },
+  {
+    "id": "tpl-16",
+    "type": "note",
+    "name": "Note",
+    "text": "Drop competitor logos/branding screenshots and mood images here as the identity direction takes shape — this is the landscape the logo/typography exploration is reacting to.",
+    "x": 1060,
+    "y": 100,
+    "w": 300,
+    "h": 220,
+    "z": 16,
+    "pinned": false
   }
 ]

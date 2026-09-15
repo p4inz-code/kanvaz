@@ -190,5 +190,29 @@
     "h": 190,
     "z": 16,
     "pinned": false
+  },
+  {
+    "id": "tpl-17",
+    "type": "text",
+    "name": "Section",
+    "text": "CONCEPT ART & 3D BLOCKOUT",
+    "x": 1060,
+    "y": 40,
+    "w": 300,
+    "h": 50,
+    "z": 17,
+    "pinned": false
+  },
+  {
+    "id": "tpl-18",
+    "type": "note",
+    "name": "Note",
+    "text": "Drop concept art (image cards) and the actual greybox/blockout (a .glb/.fbx/.obj 3D model card) here as they land — this column is what \"greybox before final art\" from the sections on the left is actually tracking against.",
+    "x": 1060,
+    "y": 100,
+    "w": 300,
+    "h": 220,
+    "z": 18,
+    "pinned": false
   }
 ]

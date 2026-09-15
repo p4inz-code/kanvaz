@@ -142,5 +142,29 @@
     "h": 170,
     "z": 12,
     "pinned": false
+  },
+  {
+    "id": "tpl-13",
+    "type": "text",
+    "name": "Section",
+    "text": "MOOD & LIGHTING REFERENCE",
+    "x": 1060,
+    "y": 40,
+    "w": 300,
+    "h": 50,
+    "z": 13,
+    "pinned": false
+  },
+  {
+    "id": "tpl-14",
+    "type": "note",
+    "name": "Note",
+    "text": "Drop mood photos, lighting diagrams, and location scout shots (image or video cards) here — the composition notes to the left only mean something next to the actual references they’re describing.",
+    "x": 1060,
+    "y": 100,
+    "w": 300,
+    "h": 220,
+    "z": 14,
+    "pinned": false
   }
 ]

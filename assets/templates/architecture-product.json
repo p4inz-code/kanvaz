@@ -142,5 +142,29 @@
     "h": 170,
     "z": 12,
     "pinned": false
+  },
+  {
+    "id": "tpl-13",
+    "type": "text",
+    "name": "Section",
+    "text": "MATERIAL & FORM REFERENCE",
+    "x": 1060,
+    "y": 40,
+    "w": 300,
+    "h": 50,
+    "z": 13,
+    "pinned": false
+  },
+  {
+    "id": "tpl-14",
+    "type": "note",
+    "name": "Note",
+    "text": "Drop material photos, precedent-building/product photos, and a 3D massing or CAD-export model (.obj/.fbx/.stl) here as the form study develops.",
+    "x": 1060,
+    "y": 100,
+    "w": 300,
+    "h": 220,
+    "z": 14,
+    "pinned": false
   }
 ]

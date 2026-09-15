@@ -190,5 +190,29 @@
     "h": 190,
     "z": 16,
     "pinned": false
+  },
+  {
+    "id": "tpl-17",
+    "type": "text",
+    "name": "Section",
+    "text": "PLATES & CLIENT REFERENCE",
+    "x": 1060,
+    "y": 40,
+    "w": 300,
+    "h": 50,
+    "z": 17,
+    "pinned": false
+  },
+  {
+    "id": "tpl-18",
+    "type": "note",
+    "name": "Note",
+    "text": "Drop shot plates, client-supplied reference (video or images), and any 3D pre-vis/blocking (a .glb/.fbx/.usd card) the client approved before work started. This is what every shot-status note to the left should be judged against.",
+    "x": 1060,
+    "y": 100,
+    "w": 300,
+    "h": 220,
+    "z": 18,
+    "pinned": false
   }
 ]

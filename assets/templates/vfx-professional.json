@@ -214,5 +214,29 @@
     "h": 190,
     "z": 18,
     "pinned": false
+  },
+  {
+    "id": "tpl-19",
+    "type": "text",
+    "name": "Section",
+    "text": "PLATES, LIDAR & LOOKDEV REFS",
+    "x": 1060,
+    "y": 40,
+    "w": 300,
+    "h": 50,
+    "z": 19,
+    "pinned": false
+  },
+  {
+    "id": "tpl-20",
+    "type": "note",
+    "name": "Note",
+    "text": "Drop shot plates, on-set HDRI/lighting reference, LIDAR/photogrammetry scan previews, and lookdev turntable renders (image, video, or a real 3D model card — .usd/.usdz is the industry-standard interchange for exactly this). Hero-asset reference belongs here, not buried in a note.",
+    "x": 1060,
+    "y": 100,
+    "w": 300,
+    "h": 220,
+    "z": 20,
+    "pinned": false
   }
 ]

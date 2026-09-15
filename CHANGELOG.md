@@ -2,6 +2,58 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [8.8.0] — Templates actually reference something now
+
+*The one piece of "verify everything, improve the templates, improve
+the restore dialog and all dialogues and notifications" left undone
+across v8.6.0/v8.6.1/v8.7.0. Real research this time: read every
+bundled template file directly rather than assuming.*
+
+### Fixed
+- **All 14 bundled templates were text/note/color only — zero image,
+  video, 3D, URL, or file cards anywhere, across ~200 cards total.**
+  Found by a script auditing every template's actual card types, not
+  a guess. The written pipeline content (asset review stages, shot
+  tracking, delivery checklists) was genuinely good, but a reference
+  board with nowhere to put actual references, on an app whose whole
+  identity is reference media, is a real gap — a new user opens one of
+  these and finds a checklist, not a start on their actual board.
+  - Every production-pipeline template (both VFX tiers plus
+    Professional, Game Dev, Character Design, Architecture & Product,
+    Animation Pipeline, Photography/Concept Art, Game Art, Filmmaking,
+    Music Production, UI/UX Design, Branding & Identity, and Mood
+    Board) now has its own "drop your references here" section: a
+    text header plus a note naming exactly what real media belongs
+    there for that domain — plates, concept art, lookdev turntables,
+    a real 3D model card (`.glb`/`.fbx`/`.usd` — the format each
+    domain would actually use, not a generic mention), reference
+    audio, competitor screenshots, and so on, tailored per template
+    rather than one copy-pasted line.
+  - Added as a genuinely new column/section beyond each template's
+    existing bounding box, verified by script (dupe-id check, overlap
+    check, bounding-box recompute) against every one of the 14 files
+    both before and after — zero overlaps, zero id collisions.
+  - **Self-audit catch mid-implementation**: the first pass computed
+    each new card's id by parsing the numeric suffix off the file's
+    last existing id (`tpl-N` → `N+1`) — three templates
+    (`filmmaking.json`/`mood-board.json`/`game-art.json`) use a
+    per-template id prefix (`tpl-fm-N`/`tpl-mb-N`/`tpl-ga-N`) instead
+    of the plain `tpl-N` every other template uses, which the parser
+    didn't account for, producing two literal `"tpl-NaN"` ids in each
+    of those three files. Caught by re-running the same dupe-id audit
+    script immediately after generation (not by assuming it worked) —
+    fixed by re-deriving each file's own real prefix before shipping.
+  - Verified compatible with how a template is actually loaded
+    (`template-load` IPC handler in `main.js` returns the raw card
+    array unmodified; `KanvazBoards.useTemplate()` passes it straight
+    into `KanvazCards.deserialise()` — the exact same function real
+    `.kanvaz` file loading uses) rather than assumed; the new cards
+    use the identical plain `text`/`note` shape every sibling card in
+    the same file already used successfully.
+- **README's "13 board templates" was stale — it's 14, and didn't
+  name Character Design, Filmmaking, Game Art, or Mood Board at all.**
+  Fixed to the real count with every template named.
+
 ## [8.7.0] — Top Mode is back
 
 *Direct request. Removed entirely in v6.0.0 on the reasoning that

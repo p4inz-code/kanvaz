@@ -190,5 +190,29 @@
     "h": 190,
     "z": 16,
     "pinned": false
+  },
+  {
+    "id": "tpl-17",
+    "type": "text",
+    "name": "Section",
+    "text": "SCREENSHOTS & USER RESEARCH",
+    "x": 1060,
+    "y": 40,
+    "w": 300,
+    "h": 50,
+    "z": 17,
+    "pinned": false
+  },
+  {
+    "id": "tpl-18",
+    "type": "note",
+    "name": "Note",
+    "text": "Drop competitor screenshots, user-research clips (video), and interview notes (image or file cards) here — \"research before you design the screen\" only works if the research is actually on the board.",
+    "x": 1060,
+    "y": 100,
+    "w": 300,
+    "h": 220,
+    "z": 18,
+    "pinned": false
   }
 ]

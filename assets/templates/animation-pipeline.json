@@ -190,5 +190,29 @@
     "h": 190,
     "z": 16,
     "pinned": false
+  },
+  {
+    "id": "tpl-17",
+    "type": "text",
+    "name": "Section",
+    "text": "BOARDS, ANIMATIC & MODELS",
+    "x": 1060,
+    "y": 40,
+    "w": 300,
+    "h": 50,
+    "z": 17,
+    "pinned": false
+  },
+  {
+    "id": "tpl-18",
+    "type": "note",
+    "name": "Note",
+    "text": "Drop storyboard panels, the animatic (a video card), and any 3D character/prop models (.glb/.fbx/.usd) here as each production stage locks — this is the \"before you proceed\" evidence the gates on the left are checking for.",
+    "x": 1060,
+    "y": 100,
+    "w": 300,
+    "h": 220,
+    "z": 18,
+    "pinned": false
   }
 ]

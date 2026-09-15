@@ -166,5 +166,29 @@
     "h": 170,
     "z": 14,
     "pinned": false
+  },
+  {
+    "id": "tpl-15",
+    "type": "text",
+    "name": "Section",
+    "text": "REFERENCE TRACKS & MOOD",
+    "x": 1060,
+    "y": 40,
+    "w": 300,
+    "h": 50,
+    "z": 15,
+    "pinned": false
+  },
+  {
+    "id": "tpl-16",
+    "type": "note",
+    "name": "Note",
+    "text": "Drop reference-track audio cards, mood images, and any artwork direction here — the arrangement/mix notes to the left are easiest to apply next to the actual sound and look you’re chasing.",
+    "x": 1060,
+    "y": 100,
+    "w": 300,
+    "h": 220,
+    "z": 16,
+    "pinned": false
   }
 ]

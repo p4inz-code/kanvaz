@@ -166,5 +166,29 @@
     "h": 190,
     "z": 14,
     "pinned": false
+  },
+  {
+    "id": "tpl-15",
+    "type": "text",
+    "name": "Section",
+    "text": "SILHOUETTE & TURNAROUND REFS",
+    "x": 1060,
+    "y": 40,
+    "w": 300,
+    "h": 50,
+    "z": 15,
+    "pinned": false
+  },
+  {
+    "id": "tpl-16",
+    "type": "note",
+    "name": "Note",
+    "text": "Drop silhouette studies, photo reference for anatomy/costume, and the final turnaround sheet (image cards, or a real 3D model card once the character is blocked out) here — this is what a rigger or 3D artist actually opens first.",
+    "x": 1060,
+    "y": 100,
+    "w": 300,
+    "h": 220,
+    "z": 16,
+    "pinned": false
   }
 ]
