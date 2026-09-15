@@ -232,6 +232,13 @@ var KanvazCommands = (function() {
       label: 'Toggle Always on Top',
       run: function() { if (typeof KanvazApp !== 'undefined') KanvazApp.toggleAlwaysOnTop(); }
     });
+    /* v8.7.0: Top Mode's own dedicated key (Ctrl+Shift+T) — same
+       "also reachable via the palette" pattern as every other real key
+       binding in this file, not just the ones without one. */
+    registerCommand('core.toggleTopMode', {
+      label: 'Toggle Top Mode', shortcut: 'Ctrl+Shift+T',
+      run: function() { if (typeof KanvazApp !== 'undefined') KanvazApp.toggleTopMode(); }
+    });
     registerCommand('core.openSettings', {
       label: 'Open Settings', shortcut: 'S',
       run: function() { if (typeof KanvazSidePanel !== 'undefined') KanvazSidePanel.toggle('settings'); }
