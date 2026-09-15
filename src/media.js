@@ -7,6 +7,14 @@ var KanvazMedia = (function() {
   var VIDEO_EXTS = ['mp4', 'webm', 'mov', 'mkv', 'avi'];
   var AUDIO_EXTS = ['mp3', 'wav', 'ogg', 'm4a'];
   var MODEL_EXTS = ['glb', 'gltf', 'obj', 'fbx', 'stl', 'ply', 'vox', 'usd', 'usda', 'usdc', 'usdz'];
+  /* v8.x Tier 3 — formats with no viable pure-JS/WASM parser (.blend
+     researched and rejected twice, see docs/ROADMAP.md item 1), routed
+     through an optional external DCC tool (Blender only, this round)
+     instead of the direct model-load embed path MODEL_EXTS above uses.
+     Deliberately its own list, not folded into MODEL_EXTS, since these
+     need a conversion round-trip first and can fail (tool not
+     installed) in a way the direct formats never do. */
+  var EXTERNAL_CONVERT_EXTS = ['blend'];
 
   var MAX_DROP_WIDTH = 600;
   var AUDIO_CARD_W   = 280;
@@ -203,6 +211,33 @@ var KanvazMedia = (function() {
     });
   }
 
+  /* ── Load a .blend (etc.) via the optional external DCC tool ──
+     Same result shape as loadModelFromPath on success (a real model3d
+     card, rendered through the ordinary Three.js pipeline once
+     converted to .glb). On failure, callback's error is one of the
+     EXTERNAL_TOOL_* codes main.js's model-convert-external handler
+     returns — the caller (app.js's drop handler) is expected to treat
+     EXTERNAL_TOOL_NOT_FOUND as "fall back to a plain file-reference
+     card" rather than a hard error toast, since "Blender isn't
+     installed" is an expected, common outcome, not a bug. */
+  function loadExternalModelFromPath(filePath, callback) {
+    KanvazBridge.convertExternalModel(filePath).then(function(result) {
+      if (!result.ok) {
+        callback(null, result.error, result);
+        return;
+      }
+      result.type = 'model3d';
+      result.naturalW = MODEL_CARD_W;
+      result.naturalH = MODEL_CARD_H;
+      result.displayW = MODEL_CARD_W;
+      result.displayH = MODEL_CARD_H;
+      callback(result, null);
+    }).catch(function(e) {
+      console.warn('[Kanvaz] convertExternalModel IPC failed:', e);
+      callback(null, 'IPC_FAIL', null);
+    });
+  }
+
   /* ── Load from File object (drag-drop) ── */
 
   function loadFromFile(file, callback) {
@@ -213,6 +248,10 @@ var KanvazMedia = (function() {
     var ext = file.path.split('.').pop().toLowerCase();
     if (MODEL_EXTS.indexOf(ext) !== -1) {
       loadModelFromPath(file.path, callback);
+      return;
+    }
+    if (EXTERNAL_CONVERT_EXTS.indexOf(ext) !== -1) {
+      loadExternalModelFromPath(file.path, callback);
       return;
     }
     loadFromPath(file.path, callback);
@@ -292,12 +331,14 @@ var KanvazMedia = (function() {
     capSize:          capSize,
     loadFromPath:     loadFromPath,
     loadModelFromPath: loadModelFromPath,
+    loadExternalModelFromPath: loadExternalModelFromPath,
     loadFromFile:     loadFromFile,
     loadFromDataUrl:  loadFromDataUrl,
     formatSize:       formatSize,
     formatTime:       formatTime,
     MAX_DROP_WIDTH:   MAX_DROP_WIDTH,
-    MODEL_EXTS:       MODEL_EXTS
+    MODEL_EXTS:       MODEL_EXTS,
+    EXTERNAL_CONVERT_EXTS: EXTERNAL_CONVERT_EXTS
   };
 
 })();

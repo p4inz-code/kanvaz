@@ -318,14 +318,27 @@ var KanvazApp = (function() {
           return;
         }
         var isModelFile = KanvazMedia.MODEL_EXTS.indexOf(file.path.split('.').pop().toLowerCase()) !== -1;
+        var isExternalConvertFile = KanvazMedia.EXTERNAL_CONVERT_EXTS.indexOf(file.path.split('.').pop().toLowerCase()) !== -1;
         KanvazMedia.loadFromFile(file, function(result, err) {
           if (err) {
             if (err === 'FILE_TOO_LARGE') {
-              KanvazUI.toast(isModelFile
+              KanvazUI.toast((isModelFile || isExternalConvertFile)
                 ? 'Model too large for Kanvaz (max 150MB). Try a decimated/compressed export.'
                 : 'File too large for Kanvaz (max 500MB). Use a smaller preview or proxy file.', 'error');
             } else if (err === 'FILE_TYPE_INVALID') {
-              KanvazUI.toast('"' + file.name + '" is not supported. Supported: JPG, PNG, GIF, BMP, WEBP, MP4, WEBM, MOV, MP3, WAV, OGG, M4A, GLB, GLTF, OBJ, FBX', 'error');
+              KanvazUI.toast('"' + file.name + '" is not supported. Supported: JPG, PNG, GIF, BMP, WEBP, MP4, WEBM, MOV, MP3, WAV, OGG, M4A, GLB, GLTF, OBJ, FBX, STL, PLY, VOX, USD, USDZ, BLEND', 'error');
+            } else if (err === 'EXTERNAL_TOOL_NOT_FOUND') {
+              /* Blender genuinely not installed is the expected, common
+                 case for most users, not a bug — fall back to a plain
+                 file-reference card (same pattern PDF/unsupported-type
+                 cards already use) instead of a hard error, and say
+                 plainly why, since "could not load" alone would look
+                 like Kanvaz is broken rather than a missing optional
+                 tool. */
+              KanvazCards.createFileRefCardAtPath(pos.x, pos.y, file.path);
+              KanvazUI.toast('Install Blender to preview .blend files live — added "' + file.name + '" as a file reference instead.', 'warning');
+            } else if (err === 'EXTERNAL_TOOL_FAILED') {
+              KanvazUI.toast('Blender could not convert "' + file.name + '" — the file may be corrupt or use features this conversion can\'t handle.', 'error');
             } else {
               KanvazUI.toast('Could not load "' + file.name + '"', 'error');
             }

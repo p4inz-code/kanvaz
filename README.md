@@ -37,7 +37,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## Latest release
 
-**v8.2.0** adds the whole USD family (`.usd`/`.usda`/`.usdc`/`.usdz`) — Pixar's industry-standard 3D interchange format, backed by the Alliance for OpenUSD (Apple, Adobe, Autodesk, NVIDIA). Following v8.1.0's `.vox` and v8.0.0's `.stl`/`.ply`, that's four new 3D formats in the v8.x line's first three releases. v7.26.0 before that fixed real Layers panel bugs. Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
+**v8.3.0** adds `.blend` support — if you have Blender installed, Kanvaz converts and previews it live, right on the board; if not, it becomes a plain file reference instead of failing. The first release in the v8.x line to reach into a real DCC tool rather than just add another in-app parser. v8.2.0 before it added the whole USD family, v8.1.0 added `.vox`, v8.0.0 added `.stl`/`.ply` — five new 3D formats in the v8.x line's first four releases. Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
 
 <table>
 <tr>
@@ -84,7 +84,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 Most reference boards stop at "put images on a canvas." Kanvaz goes further, and these are the ones worth trying first:
 
-- **Real 3D model preview, not a static thumbnail.** Drop in a `.glb`/`.gltf`/`.obj`/`.fbx`/`.stl`/`.ply`/`.vox`/`.usd`/`.usdz` and orbit it live, right on the board — Normal/Wireframe/Matcap shading, animation playback with a scrub bar. No other offline reference tool does this.
+- **Real 3D model preview, not a static thumbnail.** Drop in a `.glb`/`.gltf`/`.obj`/`.fbx`/`.stl`/`.ply`/`.vox`/`.usd`/`.usdz` and orbit it live, right on the board — Normal/Wireframe/Matcap shading, animation playback with a scrub bar. No other offline reference tool does this. `.blend` files preview too, if you have Blender installed — Kanvaz converts and renders them the same way; without Blender, they become a plain file reference instead of failing.
 - **One card, many boards, zero duplication.** Share a reference across a Character board and a Lighting board — edit it once, and it updates everywhere it's used. Most tools make you choose between duplicating a file or losing track of where it lives.
 - **An AI can read and edit your board locally, with your permission.** The MCP Bridge plugin lets Claude Desktop or Claude Code query and modify the active board over local IPC, never the network — every change is undo-reversible like anything else you'd do by hand.
 - **Typed connections, visualized as a real graph.** Not just arrows — 7 relationship kinds (Inspired By, Derived From, Alternative To, and more), viewable as a node-editor-style Map View when you want to see the whole web of ideas at once.
@@ -113,7 +113,7 @@ Most reference boards stop at "put images on a canvas." Kanvaz goes further, and
 - Infinite pan/zoom canvas (8%–500%), multiple boards per file
 - Real board thumbnails on the Home Screen (generated from the actual card layout at save time)
 - Image, GIF, video, and audio cards with full playback controls and a real volume slider
-- 3D model cards (`.glb`/`.gltf`/`.obj`/`.fbx`/`.stl`/`.ply`/`.vox`/`.usd`/`.usdz`, up to 150MB): orbit with the mouse, Normal/Wireframe/Matcap shading, animation playback with a scrub bar, background color picker
+- 3D model cards (`.glb`/`.gltf`/`.obj`/`.fbx`/`.stl`/`.ply`/`.vox`/`.usd`/`.usdz`, up to 150MB, plus `.blend` if Blender is installed): orbit with the mouse, Normal/Wireframe/Matcap shading, animation playback with a scrub bar, background color picker
 - Note, text, color, URL, and file-reference card types. A file reference pointing at a `.pdf` or image gets a real inline preview inside the resizable card
 - Shared cards across boards: same content, no duplication, edit anywhere
 - Tag editing, live search/filter (`/`), and Smart Folders (saved searches that re-run themselves)
@@ -181,7 +181,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 8.2.0.exe` and `dist/Kanvaz 8.2.0.exe`
+Output: `dist/Kanvaz Setup 8.3.0.exe` and `dist/Kanvaz 8.3.0.exe`
 
 **macOS:**
 ```bash
@@ -245,6 +245,7 @@ Files saved by 4.0.1 and earlier (plain JSON, base64 media) still open exactly a
 
 - Custom key-value properties are text values only, no dropdown/date/number field types yet.
 - MKV and AVI video files may not play (a Chromium codec limitation). MP4 (H.264) and WebM are recommended. Kanvaz tells you plainly when this is why a video card failed, instead of a generic "missing media" message.
+- `.blend` preview requires a local Blender install (checked at a few common install locations, or on your system `PATH`) — Kanvaz has no `.blend` parser of its own, since none exists that's safe to bundle. Without Blender found, a dropped `.blend` file becomes a plain file-reference card instead of failing outright. Maya (`.mb`/`.ma`) and Houdini formats aren't supported yet — planned as the same kind of optional-external-tool conversion, not yet built.
 - PDF preview only covers viewing (scroll/zoom/page nav). There's no text selection, search-within-PDF, or annotation on top of a PDF page yet.
 - Cross-board connections between two independent cards aren't possible from the UI (only one board's cards load at a time, so the "Connect to" picker only offers cards on the board you're on). As of 6.4.0, sharing the *same* card across boards is possible and covers most of what people actually want this for.
 - Autosave writes to a recovery file only. "Unsaved changes" in the status bar clears only on explicit Save (Ctrl+S). The recovery file is cleared on every clean close, so the "Recover unsaved board?" prompt only appears after an actual crash.

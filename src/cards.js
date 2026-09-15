@@ -1544,7 +1544,8 @@ var KanvazCards = (function() {
     KanvazBridge.openMediaDialog().then(function(p) {
       if (!p) return;
       var ext = p.split('.').pop().toLowerCase();
-      var loader = KanvazMedia.MODEL_EXTS.indexOf(ext) !== -1 ? KanvazMedia.loadModelFromPath : KanvazMedia.loadFromPath;
+      var loader = KanvazMedia.MODEL_EXTS.indexOf(ext) !== -1 ? KanvazMedia.loadModelFromPath :
+        (KanvazMedia.EXTERNAL_CONVERT_EXTS.indexOf(ext) !== -1 ? KanvazMedia.loadExternalModelFromPath : KanvazMedia.loadFromPath);
       loader(p, function(result, err) {
         if (err || !result) {
           KanvazUI.toast('Could not load replacement file', 'error');
