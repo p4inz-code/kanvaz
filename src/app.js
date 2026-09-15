@@ -1318,7 +1318,7 @@ var KanvazApp = (function() {
       setTimeout(function() { input.focus(); input.select(); }, 0);
     }
 
-    function showCardContextMenu(x, y, card) {
+    function showCardContextMenu(x, y, card, renameOverride) {
       var menu = document.getElementById('context-menu');
       if (!menu) return;
       menu.innerHTML = '';
@@ -1337,8 +1337,12 @@ var KanvazApp = (function() {
       }
 
       items.push({
+          /* From the Layers panel, Rename edits inline in that row
+             (renameOverride) instead of jumping to the on-canvas card's
+             own rename input — right-clicking a row and choosing Rename
+             should rename in place, not pull focus onto the board. */
           label: 'Rename',
-          action: function() { KanvazCards.startRenameCard(card.id); }
+          action: renameOverride || function() { KanvazCards.startRenameCard(card.id); }
         },
         {
           label: 'Connections',

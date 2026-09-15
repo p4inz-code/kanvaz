@@ -1759,14 +1759,25 @@ var KanvazCards = (function() {
         /* Right-click a layer row for the same context menu the canvas
            card itself uses (Rename, Pin, Bring to front/Send to back,
            Delete, etc.) — previously the row had no contextmenu handler
-           at all, so right-clicking it did nothing. */
+           at all, so right-clicking it did nothing.
+           selectCard() below triggers emitSelectionChange() ->
+           refreshLayersIfOpen(), which calls renderLayersInto() and
+           rebuilds every row SYNCHRONOUSLY before this function even
+           gets to the menu call — the exact same "rebuilt out from
+           under me" hazard the double-click fix above exists for. Any
+           `nameEl` captured in this closure is stale by then, so the
+           Rename override looks its row's name span up fresh, by id,
+           at click time instead of relying on one. */
         row.oncontextmenu = function(e) {
           e.preventDefault();
           e.stopPropagation();
           selectCard(id);
-          renderLayersInto(container);
           if (typeof KanvazUI !== 'undefined') {
-            KanvazUI.showCardContextMenu(e.clientX, e.clientY, card);
+            KanvazUI.showCardContextMenu(e.clientX, e.clientY, card, function() {
+              var freshContainer = document.getElementById('side-panel-content') || container;
+              var freshNameEl = freshContainer.querySelector('[data-layer-name-for="' + id + '"]');
+              if (freshNameEl) startLayerRowRename(id, freshNameEl, freshContainer);
+            });
           }
         };
 
@@ -1821,6 +1832,7 @@ var KanvazCards = (function() {
            here. */
         nameEl.textContent = (card.name && card.name.trim()) ? card.name : getCardTypeLabel(card);
         nameEl.title = 'Double-click to rename';
+        nameEl.dataset.layerNameFor = id;
         nameEl.ondblclick = function(e) {
           e.stopPropagation();
           startLayerRowRename(id, nameEl, container);
