@@ -44,7 +44,12 @@ var KanvazPluginAPI = (function() {
      becomes unreachable for that type, with no signal to the plugin
      author about why. Warn at registration time instead of leaving them
      to discover it by trial and error. */
-  var BUILTIN_CARD_TYPES = { image: true, gif: true, video: true, audio: true, note: true, text: true, color: true, url: true, file: true };
+  /* v8.x fix: 'model3d' was missing here too — same "forgot to update
+     when 3D shipped in v7.4.0" oversight already found and fixed in
+     reference-types.js's TYPES registry. A plugin could have registered
+     'model3d' as its own id with no collision warning ever firing,
+     even though it genuinely is a built-in type that always wins. */
+  var BUILTIN_CARD_TYPES = { image: true, gif: true, video: true, audio: true, note: true, text: true, color: true, url: true, file: true, model3d: true };
 
   function registerCardType(id, def) {
     if (!id || typeof id !== 'string') {

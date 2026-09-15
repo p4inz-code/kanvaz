@@ -26,7 +26,14 @@ var KanvazRefTypes = (function() {
     text:    { label: 'Text',    icon: '\uD83C\uDFF7\uFE0F', category: 'abstract', hasMedia: false, fields: [] },
     url:     { label: 'URL',     icon: '\uD83D\uDD17',       category: 'link',     hasMedia: false, fields: ['url'] },
     color:   { label: 'Color',   icon: '\uD83C\uDFA8',       category: 'abstract', hasMedia: false, fields: ['color'] },
-    file:    { label: 'File',    icon: '\uD83D\uDCC1',       category: 'link',     hasMedia: false, fields: ['fileSize', 'mimeType'] }
+    file:    { label: 'File',    icon: '\uD83D\uDCC1',       category: 'link',     hasMedia: false, fields: ['fileSize', 'mimeType'] },
+    /* v8.x fix: 'model3d' was never added here when 3D model support
+       shipped in v7.4.0 \u2014 every getIcon('model3d') call (Map View nodes,
+       Connections Inspector) has been silently falling back to the
+       generic \u2753 ever since, on the exact card type this whole v8.x line
+       is meant to make the flagship identity. Found while auditing Map
+       View's node rendering for weak UI spots, not a hypothetical. */
+    model3d: { label: '3D Model', icon: '\uD83E\uDDCA',      category: 'media',    hasMedia: true,  fields: [] }
     /* 'outcome' removed (v4.0.2) \u2014 was registered with an icon and no
        defined fields, no creation UI, and no spec for what it was meant
        to do differently from a Note. Rather than leave a permanent ghost

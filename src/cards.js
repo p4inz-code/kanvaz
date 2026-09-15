@@ -624,6 +624,11 @@ var KanvazCards = (function() {
      underlying idea (stacked/overlaid frames). */
   var ONION_SKIN_ICON     = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>';
   var LOOP_ICON  = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8a6 6 0 0 1 10.5-4"/><path d="M14 8a6 6 0 0 1-10.5 4"/><path d="M12 1.2v3.5H8.5"/><path d="M4 14.8v-3.5H7.5"/></svg>';
+  /* v8.x polish item — video/audio "expand" affordance, flagged as
+     missing since v7.0.0's own control-polish pass and never built.
+     Feather Icons' "maximize" glyph, same convention as every other
+     icon here. */
+  var EXPAND_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>';
   var COPY_ICON  = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8.5" height="8.5" rx="1.5"/><path d="M10.5 5.5V3.5A1.5 1.5 0 0 0 9 2H3.5A1.5 1.5 0 0 0 2 3.5V9a1.5 1.5 0 0 0 1.5 1.5h2"/></svg>';
 
   /* ── Color format helpers (hex ↔ rgb ↔ hsl) ── */
@@ -2190,6 +2195,23 @@ var KanvazCards = (function() {
 
     var volumeSlider = buildVolumeSlider(vid, card);
 
+    /* v8.x polish — expand to real browser fullscreen. requestFullscreen()
+       on the <video> element itself (not the card) gives native
+       fullscreen video chrome (play/pause/volume/seek) for free, rather
+       than simulating a fullscreen view with custom CSS — the simpler,
+       more robust choice, and consistent with how every other browser-
+       based video player already does this. */
+    var expandBtn = document.createElement('button');
+    expandBtn.className = 'media-play-btn';
+    expandBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-text-2);padding:0;display:flex;align-items:center;';
+    expandBtn.innerHTML = EXPAND_ICON;
+    expandBtn.title = 'Fullscreen';
+    expandBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (vid.requestFullscreen) vid.requestFullscreen();
+    });
+    expandBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+
     scrub.appendChild(playBtn);
     scrub.appendChild(frameBackBtn);
     scrub.appendChild(frameForwardBtn);
@@ -2198,6 +2220,7 @@ var KanvazCards = (function() {
     scrub.appendChild(timeEl);
     scrub.appendChild(muteBtn);
     scrub.appendChild(volumeSlider);
+    scrub.appendChild(expandBtn);
     el.appendChild(scrub);
 
     /* Update scrub on timeupdate — intrinsic to this video element,
@@ -3644,6 +3667,16 @@ var KanvazCards = (function() {
        delegated handler and start a card drag. */
     toolbar.addEventListener('mousedown', function(e) { e.stopPropagation(); });
     el.appendChild(toolbar);
+
+    /* v8.x fix: found while auditing card UI for weak spots — every
+       other annotatable card type (image/gif, video, audio) gets this
+       "N annotations" badge; 3D model cards never did, an oversight
+       from v7.4.0. Annotating a 3D card already worked regardless
+       (KanvazAnnotate.activate() lazily attaches its own overlay by
+       card id, not dependent on this badge existing) — this only adds
+       the missing visual indicator, synchronously like the other card
+       types do, not gated on the model finishing its async load. */
+    buildAnnotationDot(el, card);
 
     loadThreeJs().then(function(three) {
       if (!document.body.contains(el)) return; /* card deleted while loading */

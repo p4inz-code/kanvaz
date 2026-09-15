@@ -2,6 +2,57 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [8.5.0] — Video card fullscreen, real 3D icons/colors in Map View
+
+*A dedicated audit pass on video/audio cards and Map View node styling,
+per direct request — not new format work.*
+
+### Added
+- **Video cards: a real fullscreen button.** Flagged as missing since
+  v7.0.0's own control-polish pass, never built until now. Calls
+  `requestFullscreen()` on the `<video>` element itself (not a custom
+  CSS-simulated fullscreen), giving native browser fullscreen video
+  chrome for free — the same pattern any browser-based video player
+  already uses, not a new mechanism invented for this. New Feather-
+  style `EXPAND_ICON` matching the rest of the scrub bar's icon set.
+- **Audio cards reviewed, no changes needed.** Checked the waveform
+  rendering, icon area, control-collapse thresholds at small card
+  sizes, and the play/mute/loop/volume control set specifically for
+  weak spots — found the existing implementation (real waveform from
+  decoded audio, pulse animation while playing, proper `clamp()`/
+  container-query responsive sizing already shared with video's own
+  scrub bar) already solid. Documented as "checked and fine," not
+  silently skipped.
+
+### Fixed
+- **Three real gaps, all the same root cause: `model3d` was never
+  added to a few type registries when 3D support shipped in v7.4.0.**
+  Found while auditing Map View's node rendering for weak UI spots,
+  not hypothetical:
+  - `reference-types.js`'s `TYPES` registry had no `model3d` entry —
+    every `KanvazRefTypes.getIcon('model3d')` call (Map View node
+    thumbnails, the Connections Inspector's title/connection rows) has
+    been silently showing a generic ❓ instead of a real icon, on
+    exactly the card type this v8.x line is meant to make the
+    flagship identity. Added a real entry.
+  - `plugin-api.js`'s `BUILTIN_CARD_TYPES` collision list was also
+    missing `model3d` — a plugin could have registered `model3d` as
+    its own id with the built-in-collision warning never firing, even
+    though it genuinely is a built-in type that always wins. Added.
+  - `map-view.js`'s `NODE_TYPE_COLORS` was missing `model3d` too —
+    every 3D model node fell through to the plain neutral border-color
+    fallback instead of getting its own accent like every other type,
+    reading as visually undefined at a glance. Added a real, distinct
+    teal (`#2FB8A8`).
+- **3D model cards never got the "N annotations" count badge** every
+  other annotatable card type (image/gif, video, audio) already has —
+  a v7.4.0 oversight, not a functional bug (annotating a 3D card
+  already worked regardless, since `KanvazAnnotate.activate()` lazily
+  attaches its own overlay by card id, independent of this badge).
+  Added the same `buildAnnotationDot()` call the other types make,
+  synchronously at card-build time, not gated on the model's async
+  load finishing.
+
 ## [8.4.0] — 3D camera position persistence
 
 ### Added

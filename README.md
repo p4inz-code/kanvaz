@@ -37,7 +37,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## Latest release
 
-**v8.4.0** persists 3D camera orbit position across saves — reopen a model and it's framed exactly how you left it, instead of resetting to a default view every time. v8.3.0 before it added `.blend` support via a local Blender install; v8.0.0–v8.2.0 added `.stl`/`.ply`/`.vox`/the whole USD family. Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
+**v8.5.0** adds a real fullscreen button to video cards, and fixes a handful of real 3D-model gaps found while auditing this release for weak spots: 3D models showed a generic "❓" instead of a real icon in Map View and the Connections Inspector, had no distinct accent color in Map View, and never got the annotation-count badge every other card type has. v8.4.0 before it persisted 3D camera position across saves. Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
 
 <table>
 <tr>
@@ -181,7 +181,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 8.4.0.exe` and `dist/Kanvaz 8.4.0.exe`
+Output: `dist/Kanvaz Setup 8.5.0.exe` and `dist/Kanvaz 8.5.0.exe`
 
 **macOS:**
 ```bash

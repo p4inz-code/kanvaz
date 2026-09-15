@@ -87,7 +87,15 @@ var KanvazMapView = (function() {
      between "by tag" and "by type" modes. */
   var NODE_TYPE_COLORS = {
     image: '#5FA8E0', gif: '#F0A500', video: '#FF5A5A', audio: '#4CAF82',
-    note: '#9D7FFF', text: '#9D7FFF', url: '#5FA8E0', color: '#F0A500', file: '#8F8FC2'
+    note: '#9D7FFF', text: '#9D7FFF', url: '#5FA8E0', color: '#F0A500', file: '#8F8FC2',
+    /* v8.x fix: 'model3d' was missing here too — same "forgot to update
+       when 3D shipped in v7.4.0" gap already found in reference-types.js
+       and plugin-api.js. Every 3D model node fell through to the plain
+       'var(--color-border-2)' fallback below, reading as visually
+       undefined/neutral instead of getting its own accent like every
+       other type does — a real, visible gap on exactly the card type
+       this v8.x line is meant to make the flagship identity. */
+    model3d: '#2FB8A8'
   };
 
   function hashColor(str) {
