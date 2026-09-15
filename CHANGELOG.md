@@ -2,6 +2,49 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [8.2.0] — 3D format support: the USD family
+
+### Added
+- **`.usd`/`.usda`/`.usdc`/`.usdz` support** — Pixar's Universal Scene
+  Description, the industry-standard 3D interchange format backed by the
+  Alliance for OpenUSD (Apple, Adobe, Autodesk, NVIDIA, Pixar). Vendored
+  Three.js's own `USDLoader` (r186) and its full dependency chain into
+  `src/vendor/three/loaders/` and `src/vendor/three/loaders/usd/`:
+  `USDAParser.js` (ASCII USD text), `USDCParser.js` (binary "crate" USD),
+  `USDComposer.js` (builds the actual Three.js scene graph from either
+  parser's output), and `fflate.module.js` for `.usdz`'s zip decompression
+  — this one, it turns out, was already silently sitting in
+  `src/vendor/three/libs/` since v7.4.0's original Three.js vendoring
+  (undocumented until now, presumably pulled in as part of copying
+  Three's own `examples/jsm/` tree wholesale). Newly put to actual use
+  here, and given its own real `THIRD_PARTY_NOTICES.md` entry to close
+  that prior gap — it's a separate, standalone MIT-licensed project
+  Three.js bundles rather than owns, and should have had its own
+  attribution line from the start.
+  - **This turned out to be a much bigger vendoring job than the v8.x
+    plan originally assumed — corrected here, not glossed over.** The
+    plan's own wording was "evaluate whether vendoring USDLoader.js
+    ... is sufficient" as a hoped-for cheap alternative to a custom
+    WASM build. Checking the actual source before writing any
+    integration code found ~10,100 lines across 5 files, not a
+    single-file loader like STL/PLY/VOX. Still the right call to make
+    (it's official, actively-maintained Three.js code, not a
+    fringe dependency, and avoids a custom WASM toolchain entirely) —
+    just not the "collapses into Tier-1 cost" outcome originally hoped
+    for. `docs/ROADMAP.md`'s Tier 2 entry updated with the real cost.
+  - `USDLoader.parse()` is callback-based, unlike every other 3D loader
+    already in this codebase (which parse synchronously) — it awaits
+    per-texture load promises before firing `onLoad`, since a `.usdz`'s
+    textures may need decompressing first. `loadModelIntoScene()`
+    (`cards.js`) passes its own `onLoad`/`onError` straight through
+    rather than wrapping them, since the shapes already match.
+  - The loader content-sniffs the actual bytes (a zip's `PK` magic,
+    USDC's `PXR-USDC` crate header, else assumes ASCII USDA text)
+    rather than trusting the file extension — one code path correctly
+    handles all four extensions.
+  - No animation-clip extraction path is exposed by USDLoader today;
+    matches OBJLoader's existing no-animation contract, not a new gap.
+
 ## [8.1.0] — 3D format support: VOX (MagicaVoxel)
 
 ### Added

@@ -6,7 +6,7 @@ var KanvazMedia = (function() {
   var GIF_EXTS   = ['gif'];
   var VIDEO_EXTS = ['mp4', 'webm', 'mov', 'mkv', 'avi'];
   var AUDIO_EXTS = ['mp3', 'wav', 'ogg', 'm4a'];
-  var MODEL_EXTS = ['glb', 'gltf', 'obj', 'fbx', 'stl', 'ply', 'vox'];
+  var MODEL_EXTS = ['glb', 'gltf', 'obj', 'fbx', 'stl', 'ply', 'vox', 'usd', 'usda', 'usdc', 'usdz'];
 
   var MAX_DROP_WIDTH = 600;
   var AUDIO_CARD_W   = 280;

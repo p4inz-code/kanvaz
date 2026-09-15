@@ -3315,6 +3315,7 @@ var KanvazCards = (function() {
         import('./vendor/three/loaders/STLLoader.js'),
         import('./vendor/three/loaders/PLYLoader.js'),
         import('./vendor/three/loaders/VOXLoader.js'),
+        import('./vendor/three/loaders/USDLoader.js'),
         import('./vendor/three/controls/OrbitControls.js')
       ]).then(function(mods) {
         return {
@@ -3326,7 +3327,8 @@ var KanvazCards = (function() {
           PLYLoader:      mods[5].PLYLoader,
           VOXLoader:      mods[6].VOXLoader,
           buildVoxMesh:   mods[6].buildMesh,
-          OrbitControls:  mods[7].OrbitControls
+          USDLoader:      mods[7].USDLoader,
+          OrbitControls:  mods[8].OrbitControls
         };
       });
     }
@@ -3404,6 +3406,23 @@ var KanvazCards = (function() {
         if (!chunks || !chunks.length) { onError(new Error('Empty or unreadable .vox file')); return; }
         var voxMesh = three.buildVoxMesh(chunks[0]);
         onLoad(voxMesh, []);
+      } else if (format === 'usd' || format === 'usda' || format === 'usdc' || format === 'usdz') {
+        /* Unlike every other loader here, USDLoader.parse() is itself
+           callback-based (onLoad/onError passed straight through, not
+           called synchronously) — it awaits per-texture load promises
+           internally before firing onLoad, since a USD scene's textures
+           may live inside a .usdz zip archive it has to decompress
+           first. It also content-sniffs the actual bytes (a zip's PK
+           magic, USDC's "PXR-USDC" crate header, else assumes ASCII
+           USDA text) rather than trusting the file extension, so the
+           same call handles all four extensions without a branch per
+           sub-format. No animation extraction path is exposed by this
+           loader today — matches OBJLoader's own no-animation contract
+           above, not a gap specific to USD. */
+        var usdLoader = new three.USDLoader();
+        usdLoader.parse(model3dDataToArrayBuffer(card.dataUrl), '', function(group) {
+          onLoad(group, []);
+        }, onError);
       } else {
         onError(new Error('Unknown 3D model format: ' + format));
       }
