@@ -37,7 +37,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## Latest release
 
-**v8.6.0** rewrites the recovery dialog to actually tell you what it's offering to restore (board/card counts, when it was saved) instead of a blind "Restore or discard?", makes Enter safely confirm dialogs by defaulting focus to the non-destructive button (never the delete/remove one), and fixes video cards' scrub bar and tag bar rendering as flat, theme-colored slabs stamped over the video frame — they're now a translucent blurred glass overlay, like every real video player uses, regardless of light/dark theme. v8.5.0 before it added a fullscreen button to video cards and fixed 3D models' missing icon/color/badge in Map View. Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
+**v8.6.1** closes two dialog-safety gaps a full codebase re-grep found after v8.6.0 shipped (Delete Profile, Clear Annotations — both now default Enter to Cancel, not the destructive option), verifies profile export/import end-to-end, and adds a "Workflows by domain" section to this README with concrete VFX/3D/game-dev pipelines. v8.6.0 rewrote the recovery dialog to report real board/card counts instead of a blind "Restore or discard?", made Enter safely confirm dialogs by defaulting focus to the non-destructive button, and fixed video cards' scrub/tag bars rendering as flat slabs over the video frame — now a translucent blurred glass overlay. Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
 
 <table>
 <tr>
@@ -159,6 +159,33 @@ Most reference boards stop at "put images on a canvas." Kanvaz goes further, and
 
 ---
 
+## Workflows by domain
+
+Same canvas, three example pipelines — start from whichever is closest to your own work.
+
+**VFX / previz**
+1. New Board → pick one of the three VFX templates as a starting layout.
+2. Drop reference plates and 3D blocking (`.glb`/`.obj`/`.fbx`/`.usd`/`.usdz`, or `.blend` directly if Blender is installed) straight onto the canvas.
+3. Tag by shot (`SEQ010`, `approved`) and save that search as a Smart Folder — it re-runs itself as new references land.
+4. Connect a plate to its matching 3D blockout with a "Derived From" link, then open Map View to see the whole shot's reference graph at once.
+5. Annotate on top of a frame (pixel-measure, eyedropper) instead of switching to a separate markup tool.
+6. Once the layout settles, save the board as a template so the next shot starts from the same structure.
+
+**3D / look-dev**
+1. Drop a model onto the canvas and orbit it, switch Normal/Wireframe/Matcap shading, and scrub any embedded animation without leaving the board. Camera framing is remembered per card between sessions.
+2. Place reference photos, HDRIs, or material swatches next to the model for direct side-by-side comparison during look-dev.
+3. Use "Alternative To" connections between competing material passes so a reviewer sees every option tried, not just the final pick.
+4. Share the same model card across a lighting board and a modeling board — editing it on either one updates both, no duplicate files.
+
+**Game dev**
+1. Start from the Game Dev template; drop concept art and exported asset previews (images or 3D models) onto one board.
+2. Track status with tags (`blockout`, `in-progress`, `approved`) — a live filter or Smart Folder shows what's still outstanding at a glance.
+3. Use Map View as a lightweight dependency graph: "Used In" connections from a shared prop/model to every level or scene that references it.
+4. Export the board as a `.kanvaztemplate` and hand it to teammates so a new asset or level starts from the same layout.
+
+**Handing a pipeline to a team**
+Board layout and app setup travel as two separate portable files, no account or server on either end: **Save current board as template** (Template Maker & Manager plugin) exports a `.kanvaztemplate`; **Settings → Manage Profiles → Export** on any profile produces a `.kanvazprofile` carrying that profile's settings, recent-boards list, and plugin enable-state. Send both however your team already shares files — the other person imports the template from the Template Maker & Manager plugin's **Import Template…** button and the profile via **Manage Profiles → Import Profile…**, and starts from an identical setup.
+
 ## Requirements
 
 - Node.js 18+ ([nodejs.org](https://nodejs.org))
@@ -181,7 +208,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 8.6.0.exe` and `dist/Kanvaz 8.6.0.exe`
+Output: `dist/Kanvaz Setup 8.6.1.exe` and `dist/Kanvaz 8.6.1.exe`
 
 **macOS:**
 ```bash

@@ -459,7 +459,11 @@ var KanvazSidePanel = (function() {
                         rebuild();
                       });
                     } },
-                    { label: 'Cancel', cls: '', action: function() {} }
+                    /* Missed in the v8.6.0 dialog-safety sweep (that pass
+                       only grepped boards.js/cards.js/map-view.js/ui.js) —
+                       Cancel marked primary so Enter defaults to the safe
+                       choice here too, not "Delete." */
+                    { label: 'Cancel', cls: 'primary', action: function() {} }
                   ]
                 );
               }

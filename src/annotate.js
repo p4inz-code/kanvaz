@@ -907,7 +907,7 @@ var KanvazAnnotate = (function() {
             KanvazUI.toast('Annotations cleared');
           }
         },
-        { label: 'Cancel', cls: '', action: function() {} }
+        { label: 'Cancel', cls: 'primary', action: function() {} }
       ]
     );
   }

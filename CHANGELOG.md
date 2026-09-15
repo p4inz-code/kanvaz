@@ -2,6 +2,37 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [8.6.1] — Two more dialog-safety gaps, domain workflow docs
+
+### Fixed
+- **Two `showDialog()` call sites missed by v8.6.0's Cancel-safe-default
+  sweep**, found by re-grepping the WHOLE codebase for `showDialog(`
+  instead of just the four files checked last time: `sidepanel.js`'s
+  "Delete profile" dialog (`[Delete(danger), Cancel]`, nothing marked
+  primary — the exact risky shape v8.6.0 was hunting for) and
+  `annotate.js`'s "Clear annotations?" dialog (same shape). Both now
+  mark Cancel `cls: 'primary'`, matching every other delete/destructive
+  dialog in the app.
+- **Verified profile export/import end-to-end while auditing the
+  request that led to this.** `main.js`'s `profiles-export`/
+  `profiles-import` IPC handlers (zip-slip path guard, declared- and
+  actual-decompressed-size caps matching the plugin-install path,
+  partial-import cleanup on failure) are real and correctly wired
+  through `preload.js` to `sidepanel.js`'s Manage Profiles dialog — no
+  dead code, no gap found.
+
+### Added
+- **README: a "Workflows by domain" section** — concrete, numbered
+  pipelines for VFX/previz, 3D/look-dev, and game dev, plus a
+  "Handing a pipeline to a team" note tying together board templates
+  (`.kanvaztemplate`) and profile export (`.kanvazprofile`) as the two
+  portable files a team already has for sharing a pipeline setup
+  without an account or server. Every button/menu name referenced was
+  checked against the actual source, not assumed (the template-import
+  button lives in the Template Maker & Manager plugin's own Settings
+  panel, not a "New Board screen" as an earlier draft of this section
+  incorrectly assumed).
+
 ## [8.6.0] — Recovery dialog, dialog safety, video scrim polish
 
 *Follow-up to a direct "verify everything, improve the templates, improve
