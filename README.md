@@ -18,7 +18,7 @@
 
 Stop tabbing between fifty browser windows and a messy Explore folder. Kanvaz is a free, open-source, **100% offline** infinite canvas built for VFX artists, 3D artists, and anyone whose real workflow is collecting references, connecting ideas, and actually finding them again later.
 
-Drop in images, video, audio, 3D models, PureRef boards, and files. Wire references together with typed connections. Share the same card across boards with zero duplication. Extend it with plugins, or write your own and sell it.
+Drop in 3D models, images, video, audio, PureRef boards, and files. Wire references together with typed connections. Share the same card across boards with zero duplication. Extend it with plugins, or write your own and sell it.
 
 No account. No cloud. No subscription. Just a canvas that's actually yours.
 
@@ -97,7 +97,7 @@ Most reference boards stop at "put images on a canvas." Kanvaz goes further, and
 
 | | |
 |---|---|
-| 🖼️ **One canvas for everything** | Images, GIFs, video, audio, 3D models, notes, colors, URLs, and file pointers. Drop it in, arrange it freely, annotate on top. Multiple boards per file, each with its own view state. |
+| 🖼️ **One canvas for everything** | 3D models, images, GIFs, video, audio, notes, colors, URLs, and file pointers. Drop it in, arrange it freely, annotate on top. Multiple boards per file, each with its own view state. |
 | 🔗 **Shared cards across boards** | The same card can live on more than one board with zero duplication. Edit it on either one, and the change is there next time you open the other. |
 | 🧠 **Smart Search** | On-device, lemmatized/fuzzy search ("cars" finds "car"). Fully offline, off by default, about 4.5MB, zero native dependencies. |
 | ✏️ **Real annotation tools** | Pen, arrow, rectangle, pixel-measure, and an eyedropper that samples actual pixel color, right on top of your reference. |
@@ -112,8 +112,8 @@ Most reference boards stop at "put images on a canvas." Kanvaz goes further, and
 **Canvas & organization**
 - Infinite pan/zoom canvas (8%–500%), multiple boards per file
 - Real board thumbnails on the Home Screen (generated from the actual card layout at save time)
-- Image, GIF, video, and audio cards with full playback controls and a real volume slider
 - 3D model cards (`.glb`/`.gltf`/`.obj`/`.fbx`/`.stl`/`.ply`/`.vox`/`.usd`/`.usdz`, up to 150MB, plus `.blend` if Blender is installed): orbit with the mouse, Normal/Wireframe/Matcap shading, animation playback with a scrub bar, background color picker
+- Image, GIF, video, and audio cards with full playback controls and a real volume slider
 - Note, text, color, URL, and file-reference card types. A file reference pointing at a `.pdf` or image gets a real inline preview inside the resizable card
 - Shared cards across boards: same content, no duplication, edit anywhere
 - Tag editing, live search/filter (`/`), and Smart Folders (saved searches that re-run themselves)
