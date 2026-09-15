@@ -2,6 +2,28 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [7.25.0] — Export board/selection as image
+
+### Added
+- **Export board or selection as a PNG image.** "Export board as image"
+  in the canvas right-click menu (every card); "Export selection as
+  image" in a card's own right-click menu once 2+ are selected. Unlike
+  the Home Screen thumbnail (v7.24.0, deliberately simplified colored
+  rectangles for speed since it runs on every save), this draws each
+  card's REAL content: actual image/video/GIF pixels via `drawImage`,
+  a note's actual text with manual word-wrapping (canvas has no built-
+  in text-wrap), a color card's actual fill. Card types with no single
+  obvious "real content" (URL/file/3D model/audio/plugin/unknown) get a
+  plain labeled rectangle instead — still useful as a layout reference,
+  just not pixel-faithful. Capped at 4096px on the long edge so a
+  sprawling board doesn't produce an unreasonably large canvas. Same
+  main-process split as every other export in this app: the renderer
+  renders the PNG, `export-image-save` only handles the save dialog and
+  file write. Verified live: exported a mix of a note (real wrapped
+  text), an image (real pixels via `drawImage`), and a color card (real
+  fill) to a single PNG and visually confirmed all three rendered
+  correctly.
+
 ## [7.24.0] — Real board thumbnails
 
 ### Added

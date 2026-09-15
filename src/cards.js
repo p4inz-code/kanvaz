@@ -5384,6 +5384,131 @@ var KanvazCards = (function() {
     return canvas.toDataURL('image/jpeg', 0.6);
   }
 
+  /* Export board/selection as PNG — unlike generateThumbnail() above
+     (deliberately simplified colored rectangles, tiny and fast, run on
+     every save), this draws each card's REAL content: the actual
+     image/video/gif pixels via drawImage, a note's actual text
+     (manually wrapped — canvas has no built-in text-wrap), a color
+     card's actual fill. Capped to MAX_EXPORT_DIM on the long edge so a
+     sprawling board doesn't produce a multi-hundred-megapixel canvas
+     (Chromium has real per-canvas pixel limits, and nothing needs a
+     print-resolution export of a reference board). Falls back to a
+     plain labeled rectangle for card types with no single obvious
+     "real content" to rasterize (url/file/model3d/audio/unknown) —
+     still useful as a layout reference, just not pixel-faithful. */
+  var MAX_EXPORT_DIM = 4096;
+  var EXPORT_PADDING = 40;
+
+  function wrapText(ctx, text, maxWidth) {
+    var words = (text || '').split(/\s+/);
+    var lines = [];
+    var line = '';
+    for (var i = 0; i < words.length; i++) {
+      var test = line ? line + ' ' + words[i] : words[i];
+      if (ctx.measureText(test).width > maxWidth && line) {
+        lines.push(line);
+        line = words[i];
+      } else {
+        line = test;
+      }
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
+
+  function generateExportCanvas(ids) {
+    var relevant = [];
+    for (var i = 0; i < ids.length; i++) {
+      var c = cards[ids[i]];
+      if (c) relevant.push(c);
+    }
+    if (!relevant.length) return null;
+
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (var j = 0; j < relevant.length; j++) {
+      var card = relevant[j];
+      if (card.x < minX) minX = card.x;
+      if (card.y < minY) minY = card.y;
+      if (card.x + card.w > maxX) maxX = card.x + card.w;
+      if (card.y + card.h > maxY) maxY = card.y + card.h;
+    }
+    var boardW = (maxX - minX) + EXPORT_PADDING * 2;
+    var boardH = (maxY - minY) + EXPORT_PADDING * 2;
+    var scale = Math.min(1, MAX_EXPORT_DIM / Math.max(boardW, boardH));
+
+    var canvas = document.createElement('canvas');
+    canvas.width = Math.round(boardW * scale);
+    canvas.height = Math.round(boardH * scale);
+    var ctx = canvas.getContext('2d');
+    var bg = getComputedStyle(document.documentElement).getPropertyValue('--color-surface').trim() || '#1A1A22';
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    /* Reading order (top-to-bottom, left-to-right) so overlapping cards
+       stack the same way they visually do on the real board (z-order
+       isn't captured here — this is a flat export, not a live scene). */
+    relevant.sort(function(a, b) { return (a.z || 0) - (b.z || 0); });
+
+    for (var k = 0; k < relevant.length; k++) {
+      var card2 = relevant[k];
+      var rx = (card2.x - minX + EXPORT_PADDING) * scale;
+      var ry = (card2.y - minY + EXPORT_PADDING) * scale;
+      var rw = card2.w * scale;
+      var rh = card2.h * scale;
+      var el = document.getElementById(card2.id);
+      var mediaEl = el ? el.querySelector('img, video') : null;
+
+      if ((card2.type === 'image' || card2.type === 'gif') && mediaEl && mediaEl.tagName === 'IMG' && mediaEl.complete) {
+        try { ctx.drawImage(mediaEl, rx, ry, rw, rh); } catch (e) { /* tainted/broken image — fall through to placeholder below */ }
+      } else if (card2.type === 'video' && mediaEl && mediaEl.tagName === 'VIDEO' && mediaEl.readyState >= 2) {
+        try { ctx.drawImage(mediaEl, rx, ry, rw, rh); } catch (e) { /* same fallback */ }
+      } else if (card2.type === 'color') {
+        ctx.fillStyle = card2.color || '#888888';
+        ctx.fillRect(rx, ry, rw, rh);
+      } else if (card2.type === 'note' || card2.type === 'text') {
+        ctx.fillStyle = card2.type === 'note' ? 'rgba(157,127,255,0.12)' : 'rgba(0,0,0,0)';
+        if (card2.type === 'note') ctx.fillRect(rx, ry, rw, rh);
+        ctx.fillStyle = '#E8E8F0';
+        var fontSize = Math.max(10, Math.round(14 * scale));
+        ctx.font = fontSize + 'px sans-serif';
+        var lines = wrapText(ctx, card2.text || '', rw - 16 * scale);
+        for (var li = 0; li < lines.length && li * (fontSize * 1.3) < rh - 16 * scale; li++) {
+          ctx.fillText(lines[li], rx + 8 * scale, ry + 8 * scale + (li + 1) * fontSize * 1.3);
+        }
+      } else {
+        /* Placeholder for url/file/model3d/audio/unknown/plugin types. */
+        ctx.fillStyle = 'rgba(220,220,232,0.08)';
+        ctx.fillRect(rx, ry, rw, rh);
+        ctx.strokeStyle = 'rgba(220,220,232,0.3)';
+        ctx.strokeRect(rx, ry, rw, rh);
+        ctx.fillStyle = '#9A9AA8';
+        ctx.font = Math.max(9, Math.round(11 * scale)) + 'px sans-serif';
+        ctx.fillText(getCardTypeLabel(card2), rx + 8 * scale, ry + 20 * scale);
+      }
+    }
+
+    return canvas;
+  }
+
+  function exportAsImage(ids) {
+    var canvas = generateExportCanvas(ids);
+    if (!canvas) {
+      if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Nothing to export', 'error');
+      return;
+    }
+    var dataUrl = canvas.toDataURL('image/png');
+    var name = (ids.length === 1 && cards[ids[0]] && cards[ids[0]].name) || 'board';
+    if (typeof KanvazBridge === 'undefined' || !KanvazBridge.exportImageSave) return;
+    KanvazBridge.exportImageSave(name, dataUrl).then(function(res) {
+      if (!res || res.cancelled) return;
+      if (!res.ok) {
+        if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Export failed — ' + (res.error || 'unknown error'), 'error');
+        return;
+      }
+      if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Exported as image');
+    });
+  }
+
   /* ── Nudge (arrow keys) ── */
 
   var nudgeTimer = null;
@@ -6061,6 +6186,8 @@ var KanvazCards = (function() {
     resetSessionState: resetSessionState,
     getAll:            getAll,
     generateThumbnail: generateThumbnail,
+    generateExportCanvas: generateExportCanvas,
+    exportAsImage:     exportAsImage,
     getSelected:       function() { return selectedId; },
     getSelectedIds:    getSelectedIds,
     getModel3DControls: getModel3DControls

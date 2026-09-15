@@ -1393,6 +1393,12 @@ var KanvazApp = (function() {
           action: function() { KanvazCards.ungroupCards([card.id]); }
         });
       }
+      if (selIds.length > 1) {
+        items.push({
+          label: 'Export selection as image',
+          action: function() { KanvazCards.exportAsImage(selIds); }
+        });
+      }
 
       /* Media-only items: flip, reset size */
       if (card.type !== 'note' && card.type !== 'color' && card.type !== 'audio' && card.type !== 'url' && card.type !== 'file' && card.type !== 'text') {
@@ -1597,6 +1603,10 @@ var KanvazApp = (function() {
           { label: 'Tidy up board', action: function() {
             if (typeof KanvazCards === 'undefined') return;
             KanvazCards.tidyUp(KanvazCards.getAllIds());
+          }},
+          { label: 'Export board as image', action: function() {
+            if (typeof KanvazCards === 'undefined') return;
+            KanvazCards.exportAsImage(KanvazCards.getAllIds());
           }},
           { sep: true },
           { label: 'Reset zoom', shortcut: '0', action: function() { KanvazCanvas.zoomReset(); }},

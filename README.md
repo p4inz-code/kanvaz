@@ -37,7 +37,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## Latest release
 
-**v7.24.0** adds real board thumbnails on the Home Screen's Recent tiles (generated at save time from the actual card layout, replacing the generic gradient banner). v7.23.0 before it added double-click-to-rename in the Layers panel, and fixed a real bug caught only by manually clicking: a double-click did nothing, because the row's own click handler was rebuilding the list on the first of the two clicks and destroying the target before the browser's `dblclick` event could fire. v7.22.0 fixed a real process bug, not a feature: 8 releases in a row (v7.14.0–v7.21.0) had shipped with no Windows/macOS/Linux installers at all, only plugin zips, because of a broken release-publishing sequence — full root cause in [CHANGELOG.md](CHANGELOG.md). Recent versions worth knowing about: a Layers panel (v7.20.0), card grouping and Isolate View (v7.19.0, v7.17.0), non-destructive Brightness/Contrast/Saturation on image and video cards (v7.18.0), and Tidy Up / Distribute Evenly / numbered view bookmarks for arranging a busy board fast (v7.14.0–v7.16.0). Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
+**v7.25.0** adds exporting the board or a selection as a real PNG image (canvas/card right-click menus), drawing each card's actual content instead of a placeholder: real pixels for image/video/GIF, wrapped text for notes, real fills for color cards. v7.24.0 before it added real board thumbnails on the Home Screen's Recent tiles, generated at save time from the actual card layout. v7.23.0 added double-click-to-rename in the Layers panel. Recent versions worth knowing about: a Layers panel (v7.20.0), card grouping and Isolate View (v7.19.0, v7.17.0), non-destructive Brightness/Contrast/Saturation on image and video cards (v7.18.0), and Tidy Up / Distribute Evenly / numbered view bookmarks for arranging a busy board fast (v7.14.0–v7.16.0). Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
 
 <p align="center">
   <img src="assets/screenshot-home-v7.22.0.png" alt="Kanvaz Home Screen — Quick Start, template previews, and a What's New section reading live off the changelog" width="720">
@@ -154,7 +154,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 7.24.0.exe` and `dist/Kanvaz 7.24.0.exe`
+Output: `dist/Kanvaz Setup 7.25.0.exe` and `dist/Kanvaz 7.25.0.exe`
 
 **macOS:**
 ```bash

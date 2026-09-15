@@ -1839,6 +1839,30 @@ function registerIPC() {
     });
   });
 
+  /* Export board/selection as PNG — takes a dataUrl already rendered in
+     the renderer (KanvazCards.renderExportCanvas) and just writes the
+     raw bytes to a user-chosen path. Same "renderer renders, main
+     process only handles the filesystem/dialog side" split every other
+     export in this app already uses. */
+  ipcMain.handle('export-image-save', function(event, defaultName, dataUrl) {
+    if (!dataUrl || dataUrl.indexOf('data:image/png;base64,') !== 0) {
+      return Promise.resolve({ ok: false, error: 'nothing to export' });
+    }
+    var savePath = dialog.showSaveDialogSync(mainWindow, {
+      title: 'Export as Image',
+      defaultPath: (defaultName || 'board').replace(/[\\/:*?"<>|]/g, '_') + '.png',
+      filters: [{ name: 'PNG Image', extensions: ['png'] }]
+    });
+    if (!savePath) return Promise.resolve({ ok: false, error: null, cancelled: true });
+
+    var base64 = dataUrl.slice('data:image/png;base64,'.length);
+    return fs.promises.writeFile(savePath, Buffer.from(base64, 'base64')).then(function() {
+      return { ok: true, path: savePath };
+    }).catch(function(e) {
+      return { ok: false, error: e.message };
+    });
+  });
+
   ipcMain.handle('templates-import-file', function() {
     var openPath = dialog.showOpenDialogSync(mainWindow, {
       title: 'Import Template',
