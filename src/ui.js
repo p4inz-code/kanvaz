@@ -502,7 +502,7 @@ var KanvazUI_Extended = (function() {
       [
         { label: 'Reset', cls: 'danger', action: function() { doResetAppData(false); } },
         { label: 'Reset & Clear Caches', cls: 'danger', action: function() { doResetAppData(true); } },
-        { label: 'Cancel', cls: '', action: function() {} }
+        { label: 'Cancel', cls: 'primary', action: function() {} }
       ]
     );
   }
@@ -1060,7 +1060,7 @@ var KanvazUI_Extended = (function() {
         'Remove plugin?',
         'Remove "' + plugin.manifest.name + '"? This deletes its folder from disk.',
         [
-          { label: 'Cancel', cls: '' },
+          { label: 'Cancel', cls: 'primary' },
           { label: 'Remove', cls: 'danger', action: function() {
             KanvazBridge.removePlugin(plugin.folder, plugin.manifest.id).then(function() {
               refreshPluginsList(listContainer);

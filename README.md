@@ -37,7 +37,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## Latest release
 
-**v8.5.0** adds a real fullscreen button to video cards, and fixes a handful of real 3D-model gaps found while auditing this release for weak spots: 3D models showed a generic "❓" instead of a real icon in Map View and the Connections Inspector, had no distinct accent color in Map View, and never got the annotation-count badge every other card type has. v8.4.0 before it persisted 3D camera position across saves. Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
+**v8.6.0** rewrites the recovery dialog to actually tell you what it's offering to restore (board/card counts, when it was saved) instead of a blind "Restore or discard?", makes Enter safely confirm dialogs by defaulting focus to the non-destructive button (never the delete/remove one), and fixes video cards' scrub bar and tag bar rendering as flat, theme-colored slabs stamped over the video frame — they're now a translucent blurred glass overlay, like every real video player uses, regardless of light/dark theme. v8.5.0 before it added a fullscreen button to video cards and fixed 3D models' missing icon/color/badge in Map View. Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
 
 <table>
 <tr>
@@ -181,7 +181,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 8.5.0.exe` and `dist/Kanvaz 8.5.0.exe`
+Output: `dist/Kanvaz Setup 8.6.0.exe` and `dist/Kanvaz 8.6.0.exe`
 
 **macOS:**
 ```bash

@@ -2029,7 +2029,7 @@ var KanvazMapView = (function() {
             render();
             KanvazUI.toast(n + ' card' + (n === 1 ? '' : 's') + ' deleted');
           }},
-          { label: 'Cancel', cls: '' }
+          { label: 'Cancel', cls: 'primary' }
         ]
       );
     }));

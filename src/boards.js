@@ -7,7 +7,7 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '8.5.0';
+  var VERSION       = '8.6.0';
 
   /* ── Shared cards (v6.4.0) — "same card, no duplicate, edit once
      updates everywhere" (Are.na-style), across boards in ONE .kanvaz
@@ -874,7 +874,14 @@ var KanvazBoards = (function() {
             KanvazApp.markDirty();
           }
         },
-        { label: 'Cancel', cls: '', action: function() {} }
+        /* v8.x dialog-polish: cls:'primary' here isn't about visual
+           prominence for its own sake — it's what makes showDialog()'s
+           new Enter-to-confirm focus land on the SAFE choice for a
+           destructive dialog, not the "Delete" button next to it.
+           Matches how well-designed delete confirmations elsewhere
+           (macOS's own, for one) default focus to Cancel specifically
+           so Enter-mashing can't trigger the destructive path. */
+        { label: 'Cancel', cls: 'primary', action: function() {} }
       ]
     );
   }
@@ -2123,6 +2130,7 @@ var KanvazBoards = (function() {
     showHomeScreen: function() { showStartupScreen(true); },
     toggleHomeScreen: toggleHomeScreen,
     saveBoard:    saveBoard,
+    formatRelativeTime: formatRelativeTime,
     saveBoardAs:  saveBoardAs,
     loadFromJSON: loadFromJSON,
     serialise:    serialise,

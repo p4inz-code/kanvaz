@@ -2,6 +2,56 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [8.6.0] — Recovery dialog, dialog safety, video scrim polish
+
+*Follow-up to a direct "verify everything, improve the templates, improve
+the restore dialog and all dialogs and notifications" request. Templates
+research is still pending; this release covers the dialog/notification and
+video-card-usability portions.*
+
+### Changed
+- **Recovery dialog now tells you what it's actually offering to
+  restore.** Previously a blind "An unsaved board was found. Restore
+  it?" with zero information to decide on. Now reads the recovery file
+  first, parses it, and reports real numbers: how many boards, how
+  many cards total, and when it was last saved (`formatRelativeTime()`,
+  promoted from a `boards.js`-private helper to a shared export for
+  this). If the file is corrupt or unrecognized, skips the dialog
+  entirely and clears it with an explanatory toast instead of
+  presenting Restore/Discard buttons for something there's nothing
+  meaningful to restore.
+- **Dialogs now default Enter to the safe choice, not whichever button
+  happened to be last.** `KanvazUI.showDialog()` now auto-focuses a
+  button only when it's explicitly marked `cls: 'primary'`, so pressing
+  Enter without touching the mouse confirms deliberately, not by
+  accident. Applied to every delete/reset/remove-style confirmation
+  dialog in the app (board delete, card delete — both single and
+  multi-select, Map View card delete, Reset Kanvaz, Remove plugin) by
+  marking their **Cancel** button primary — matching how macOS and
+  other well-designed apps default focus to the non-destructive option
+  in a destructive-action dialog.
+  - Caught during this work: an early draft of the auto-focus logic
+    used a `primaryBtnEl || btnsEl.lastElementChild` fallback. Auditing
+    every `showDialog()` call site turned up "Remove plugin?"
+    (`[Cancel, Remove(danger)]`, Remove last, no primary marked) —
+    that fallback would have made Enter delete a plugin by default.
+    Removed the fallback before it ever shipped; auto-focus now only
+    ever happens on an explicit `primary` button.
+- **Video cards' scrub bar and tag bar are no longer flat opaque slabs
+  stamped over the video frame.** Both used a plain themed background
+  color (`var(--color-chrome)` / `var(--color-surface)`) — fine for
+  audio, which sits on a themed icon-area background, but wrong for
+  video: the pixels underneath are unpredictable, and in light theme
+  specifically a near-white bar clamped over a video frame on hover
+  reads like a rendering glitch, not a control surface. Both now use a
+  translucent, blurred dark scrim (`rgba(10,10,16,0.6)` +
+  `backdrop-filter: blur(8px)`) — the same fixed-dark-glass treatment
+  every real video player's control bar uses regardless of the host
+  page's own theme — with icon/text colors switched to a matching
+  fixed light tone so contrast holds in both app themes. Audio's own
+  scrub/tag styling is untouched; this is scoped to video only via
+  `:has(.video-scrub)`.
+
 ## [8.5.0] — Video card fullscreen, real 3D icons/colors in Map View
 
 *A dedicated audit pass on video/audio cards and Map View node styling,

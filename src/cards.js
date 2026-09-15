@@ -4583,7 +4583,11 @@ var KanvazCards = (function() {
         'Remove "' + card.name + '" from the canvas?',
         [
           { label: 'Delete', cls: 'danger', action: function() { doDelete(id); } },
-          { label: 'Cancel', cls: '',       action: function() {} }
+          /* v8.x dialog-polish: 'primary' here drives showDialog()'s
+             Enter-to-confirm focus onto the safe choice, not a visual
+             preference — see the identical note on boards.js's own
+             "Delete board?" dialog for the full reasoning. */
+          { label: 'Cancel', cls: 'primary', action: function() {} }
         ]
       );
     } else {
@@ -4727,7 +4731,7 @@ var KanvazCards = (function() {
         'Remove ' + ids.length + ' selected cards from the canvas?',
         [
           { label: 'Delete', cls: 'danger', action: function() { deleteMultiple(ids); } },
-          { label: 'Cancel', cls: '',       action: function() {} }
+          { label: 'Cancel', cls: 'primary', action: function() {} }
         ]
       );
     } else {

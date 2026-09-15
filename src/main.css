@@ -1281,6 +1281,23 @@ html, body {
   bottom: calc(52px + clamp(28px, 11cqw, 50px));
 }
 
+/* Usability audit: on video cards specifically, the tag bar and the
+   scrub bar both sit as flat, fully-opaque rectangles directly on top
+   of the actual video frame — unlike audio, whose scrub row sits on a
+   themed icon-area background, a video's underlying pixels are
+   unpredictable (bright, dark, colorful), so a solid var(--color-*)
+   slab reads as a jarring UI patch stuck over the footage rather than
+   a control overlay. Give the video-specific tag bar the same
+   translucent, blurred "glass" treatment as .video-scrub below —
+   scoped to video only via :has() so audio's already-reviewed,
+   theme-background scrub/tag styling is untouched. */
+.card:has(.video-scrub) .tag-bar {
+  background: rgba(10, 10, 16, 0.6);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 .tag-chip {
   display: inline-flex;
   align-items: center;
@@ -2212,7 +2229,22 @@ html, body {
   align-items: center;
   padding: 0 clamp(6px, 2.5cqw, 14px);
   gap: clamp(4px, 2cqw, 10px);
-  background: var(--color-chrome);
+  /* Usability audit: was a flat var(--color-chrome) — in light theme
+     that's a near-white bar clamped over live video frames, which
+     often reads as a rendering glitch rather than a control surface.
+     A dark translucent scrim + blur (the same treatment every video
+     player's control bar uses, regardless of the host page's own
+     theme) reads correctly against any footage and matches the tag
+     bar treatment right above it. */
+  background: rgba(10, 10, 16, 0.6);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  /* The scrim is a fixed dark glass regardless of app theme (see above),
+     so its icons/text need a fixed light color too — inherited by the
+     play/mute buttons below, which have no color rule of their own.
+     Without this, light theme's normal dark icon/text color (meant for
+     the old light var(--color-chrome) bar) goes near-invisible here. */
+  color: #fff;
   opacity: 0;
   transition: opacity 0.15s;
   z-index: 3;
@@ -2580,6 +2612,14 @@ html, body {
   max-width: 60px;
   opacity: 1;
   transition: max-width 0.15s ease, opacity 0.15s ease, margin-left 0.15s ease;
+}
+
+/* Video's own scrim is fixed-dark (see .video-scrub above); its time
+   label needs a light muted tone to match, overriding the shared rule
+   above which is tuned for audio's themed (light-in-light-mode)
+   background instead. */
+.video-scrub .scrub-time {
+  color: rgba(255, 255, 255, 0.75);
 }
 
 .media-mute-btn {

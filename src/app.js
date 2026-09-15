@@ -1104,52 +1104,75 @@ var KanvazApp = (function() {
     );
   }
 
-  /* ── Recovery dialog ── */
-
+  /* ── Recovery dialog ──
+     v8.x polish: this used to show the exact same generic "Kanvaz
+     found an unsaved board... do you want to restore it?" regardless
+     of what was actually in the recovery file — the user had to click
+     Restore just to find out whether it was even the board they
+     wanted, with no clean way to back out if it wasn't (Discard, at
+     that point, throws away something already loaded). Now reads and
+     parses the recovery file FIRST, so the dialog's own message can
+     say specifically what it found (board count, total card count,
+     how long ago) — an actually informed decision, not a blind one.
+     "Restore" below reuses this already-parsed `data` rather than
+     reading the file a second time. */
   function showRecoveryDialog() {
-    KanvazUI.showDialog(
-      'Recover unsaved board?',
-      'Kanvaz found an unsaved board from a previous session. Do you want to restore it?',
-      [
-        {
-          label: 'Restore',
-          cls: 'primary',
-          action: function() {
-            KanvazBridge.readRecovery().then(function(result) {
-              if (!result || !result.ok || !result.data) {
-                KanvazUI.toast('Backup file not found — nothing to restore.', 'error');
-                return;
-              }
+    KanvazBridge.readRecovery().then(function(result) {
+      if (!result || !result.ok || !result.data) return; /* nothing real to recover — no dialog at all */
 
-              var data;
-              try {
-                data = JSON.parse(result.data);
-              } catch (e) {
-                KanvazUI.toast('Backup file is corrupted and could not be restored.', 'error');
-                return;
-              }
+      var data;
+      try {
+        data = JSON.parse(result.data);
+      } catch (e) {
+        /* Corrupt recovery file — still worth telling the user rather
+           than silently discarding it, but there's genuinely nothing
+           to restore, so no Restore/Discard choice makes sense either. */
+        KanvazUI.toast('Found a backup from a previous session, but it was corrupted and could not be restored.', 'error');
+        KanvazBridge.clearRecovery();
+        return;
+      }
+      if (!data || !Array.isArray(data.boards)) {
+        KanvazUI.toast('Found a backup from a previous session, but its format wasn\'t recognised.', 'error');
+        KanvazBridge.clearRecovery();
+        return;
+      }
 
-              if (!data || !Array.isArray(data.boards)) {
-                KanvazUI.toast('Backup file format not recognised.', 'error');
-                return;
-              }
+      var boardCount = data.boards.length;
+      var cardCount = 0;
+      for (var i = 0; i < data.boards.length; i++) {
+        if (data.boards[i] && Array.isArray(data.boards[i].cards)) cardCount += data.boards[i].cards.length;
+      }
+      var whenText = (result.mtimeMs && typeof KanvazBoards.formatRelativeTime === 'function')
+        ? KanvazBoards.formatRelativeTime(result.mtimeMs) : 'an earlier session';
+      var boardWord = boardCount === 1 ? 'board' : 'boards';
+      var cardWord  = cardCount === 1 ? 'card' : 'cards';
+      var message = 'Kanvaz found an unsaved board from ' + whenText + ' — ' +
+        boardCount + ' ' + boardWord + ', ' + cardCount + ' ' + cardWord + ' total. Restore it?';
 
+      KanvazUI.showDialog(
+        'Recover unsaved board?',
+        message,
+        [
+          {
+            label: 'Restore',
+            cls: 'primary',
+            action: function() {
               KanvazBoards.loadFromJSON(data);
               KanvazBridge.clearRecovery();
               KanvazUI.toast('Board restored', 'success');
               setTimeout(function() { KanvazCanvas.zoomFit(); }, 100);
-            }).catch(function(e) { console.warn('[Kanvaz] readRecovery IPC failed:', e); });
+            }
+          },
+          {
+            label: 'Discard',
+            cls: 'danger',
+            action: function() {
+              KanvazBridge.clearRecovery();
+            }
           }
-        },
-        {
-          label: 'Discard',
-          cls: 'danger',
-          action: function() {
-            KanvazBridge.clearRecovery();
-          }
-        }
-      ]
-    );
+        ]
+      );
+    }).catch(function(e) { console.warn('[Kanvaz] readRecovery IPC failed:', e); });
   }
 
   /* ── Large file warning ── */
@@ -1259,6 +1282,7 @@ var KanvazApp = (function() {
       msgEl.textContent   = message;
       btnsEl.innerHTML    = '';
 
+      var primaryBtnEl = null;
       for (var i = 0; i < buttons.length; i++) {
         (function(btn) {
           var el = document.createElement('button');
@@ -1269,10 +1293,32 @@ var KanvazApp = (function() {
             if (btn.action) btn.action();
           };
           btnsEl.appendChild(el);
+          if (btn.cls === 'primary') primaryBtnEl = el;
         })(buttons[i]);
       }
 
       overlay.classList.add('visible');
+
+      /* v8.x polish: every dialog through this function used to be
+         mouse-only for confirming — Escape-to-cancel already worked
+         (shortcuts.js's global handler calls closeDialog()), but
+         nothing focused a button, so Enter did nothing at all, unlike
+         the near-universal "Enter = default action" convention every
+         native OS dialog follows. Native <button> elements already
+         respond to Enter when focused — no custom keydown handler
+         needed, just actually focus the primary one.
+         Deliberately ONLY when a button is explicitly marked
+         cls:'primary' — checked every existing showDialog() call site
+         in this codebase before adding this, and button ordering is
+         NOT a safe proxy for "which one is safe to default to": at
+         least one real dialog (ui.js's "Remove plugin?") puts its
+         destructive button LAST with no primary marking, which a
+         naive "focus the last button" fallback would have silently
+         made Enter trigger. No primary means no auto-focus at all —
+         same as before this change, not a guess. Deferred one frame
+         since the overlay's own display transition can otherwise
+         swallow a focus call made in the same tick. */
+      if (primaryBtnEl) setTimeout(function() { primaryBtnEl.focus(); }, 0);
     }
 
     function closeDialog() {

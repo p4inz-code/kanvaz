@@ -1223,7 +1223,12 @@ function registerIPC() {
       var recovPath = path.join(getRecoveryDir(), 'autosave.kanvaz.tmp');
       if (!fs.existsSync(recovPath)) return { ok: false };
       var data = fs.readFileSync(recovPath, 'utf8');
-      return { ok: true, data: data };
+      /* v8.x dialog-polish addition: mtimeMs lets the recovery dialog
+         say "from 12 min ago" instead of a generic "an unsaved board" —
+         additive field, doesn't change the existing {ok, data} contract
+         any caller already relies on. */
+      var stats = fs.statSync(recovPath);
+      return { ok: true, data: data, mtimeMs: stats.mtimeMs };
     } catch (e) {
       return { ok: false, error: e.message };
     }
