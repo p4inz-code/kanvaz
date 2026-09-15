@@ -44,12 +44,22 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 </p>
 
 <details>
-<summary><b>More screenshots</b> — Layers panel, multi-select Align/Distribute/Tidy Up, classic card design</summary>
+<summary><b>More screenshots</b> — light/dark theme, Layers panel, multi-select Align/Distribute/Tidy Up, classic card design</summary>
 <br>
 
 <p align="center">
+  <img src="assets/screenshot-showcase-dark-v7.26.0.png" alt="Kanvaz reference board in dark theme — image, note, color, and URL cards with a Related To connection" width="720">
+  <br><i>Dark theme: a real mood/reference board — image, note, color, and URL cards, wired together with a typed connection.</i>
+</p>
+
+<p align="center">
+  <img src="assets/screenshot-showcase-light-v7.26.0.png" alt="The same Kanvaz reference board in light theme" width="720">
+  <br><i>Same board, light theme — one keypress (L) away, no restart needed.</i>
+</p>
+
+<p align="center">
   <img src="assets/screenshot-layers-v7.22.0.png" alt="Kanvaz Layers panel — every card in z-order, pin and hide icons, a pinned card highlighted on the board" width="720">
-  <br><i>Layers panel: every card in z-order, click to select, pin/hide icons.</i>
+  <br><i>Layers panel: every card in z-order, click to select, drag to reorder, pin/hide icons.</i>
 </p>
 
 <p align="center">
@@ -63,6 +73,19 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 </p>
 
 </details>
+
+---
+
+## What makes Kanvaz different
+
+Most reference boards stop at "put images on a canvas." Kanvaz goes further, and these are the ones worth trying first:
+
+- **Real 3D model preview, not a static thumbnail.** Drop in a `.glb`/`.gltf`/`.obj`/`.fbx` and orbit it live, right on the board — Normal/Wireframe/Matcap shading, animation playback with a scrub bar. No other offline reference tool does this.
+- **One card, many boards, zero duplication.** Share a reference across a Character board and a Lighting board — edit it once, and it updates everywhere it's used. Most tools make you choose between duplicating a file or losing track of where it lives.
+- **An AI can read and edit your board locally, with your permission.** The MCP Bridge plugin lets Claude Desktop or Claude Code query and modify the active board over local IPC, never the network — every change is undo-reversible like anything else you'd do by hand.
+- **Typed connections, visualized as a real graph.** Not just arrows — 7 relationship kinds (Inspired By, Derived From, Alternative To, and more), viewable as a node-editor-style Map View when you want to see the whole web of ideas at once.
+- **Sell your own plugin. Kanvaz never takes a cut.** Register card types, commands, or full themes through a real runtime API — there's no in-app marketplace standing between you and the people who'd pay for your plugin.
+- **100% offline, and it stays that way.** No account to lose access to, no subscription that stops working, no telemetry phoning home. The only network calls anywhere in the app are ones you click yourself.
 
 ---
 
