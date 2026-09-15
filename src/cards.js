@@ -3312,6 +3312,8 @@ var KanvazCards = (function() {
         import('./vendor/three/loaders/GLTFLoader.js'),
         import('./vendor/three/loaders/OBJLoader.js'),
         import('./vendor/three/loaders/FBXLoader.js'),
+        import('./vendor/three/loaders/STLLoader.js'),
+        import('./vendor/three/loaders/PLYLoader.js'),
         import('./vendor/three/controls/OrbitControls.js')
       ]).then(function(mods) {
         return {
@@ -3319,7 +3321,9 @@ var KanvazCards = (function() {
           GLTFLoader:     mods[1].GLTFLoader,
           OBJLoader:      mods[2].OBJLoader,
           FBXLoader:      mods[3].FBXLoader,
-          OrbitControls:  mods[4].OrbitControls
+          STLLoader:      mods[4].STLLoader,
+          PLYLoader:      mods[5].PLYLoader,
+          OrbitControls:  mods[6].OrbitControls
         };
       });
     }
@@ -3365,6 +3369,24 @@ var KanvazCards = (function() {
         var fbxLoader = new three.FBXLoader();
         var fbx = fbxLoader.parse(model3dDataToArrayBuffer(card.dataUrl), '');
         onLoad(fbx, fbx.animations || []);
+      } else if (format === 'stl' || format === 'ply') {
+        /* STLLoader/PLYLoader.parse() return a bare BufferGeometry, not
+           an Object3D tree like the other three loaders — wrap it in a
+           Mesh so applyRenderMode()'s root.traverse() + node.isMesh
+           check (built for GLTF/OBJ/FBX's own Object3D output) works on
+           it unchanged, no special-casing needed anywhere else in the
+           3D pipeline. Neither format carries a material, so every STL/
+           PLY card gets the same flat default — camera/lighting-side
+           make it read as it should, no per-format material story to
+           design. computeVertexNormals() only runs when normals are
+           actually missing (STL files always ship them; PLY does not
+           always) — matches Three.js's own loader examples' guidance
+           for these two formats specifically. */
+        var stlOrPlyLoader = (format === 'stl') ? new three.STLLoader() : new three.PLYLoader();
+        var geometry = stlOrPlyLoader.parse(model3dDataToArrayBuffer(card.dataUrl));
+        if (!geometry.attributes.normal) geometry.computeVertexNormals();
+        var mesh = new three.THREE.Mesh(geometry, new three.THREE.MeshStandardMaterial({ color: 0xb0b0b0, metalness: 0.1, roughness: 0.7 }));
+        onLoad(mesh, []);
       } else {
         onError(new Error('Unknown 3D model format: ' + format));
       }

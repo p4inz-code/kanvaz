@@ -2,7 +2,33 @@
 
 All notable changes to Kanvaz are documented here.
 
-## [7.26.0] — Layers panel: right-click menu, drag-to-reorder
+## [8.0.0] — 3D format support: STL and PLY
+
+*First release of the v8.x line — see `docs/ROADMAP.md`'s "The v8.x line" for
+the full plan. Per that plan's own build sequencing, this and the releases
+that follow it are real, official versions but not yet "the" industry-grade
+v8 milestone — that distinction is earned at the end of a 3-session audit
+gate, not by a version number alone.*
+
+### Added
+- **`.stl` and `.ply` 3D model support**, alongside the existing `.glb`/
+  `.gltf`/`.obj`/`.fbx`. Tier 1 of the v8.x format plan — vendored Three.js's
+  own `STLLoader`/`PLYLoader` (r186, matching the already-vendored Three.js
+  version) into `src/vendor/three/loaders/`, same pattern already used for
+  `OBJLoader`/`FBXLoader`/`GLTFLoader`: real source files, zero native
+  dependencies, no new architecture. Unlike those three loaders, `STLLoader`/
+  `PLYLoader.parse()` return a bare `BufferGeometry`, not an `Object3D` tree —
+  wrapped in a `THREE.Mesh` with a flat default `MeshStandardMaterial` (both
+  formats carry no material of their own) so the existing render-mode/
+  wireframe/matcap pipeline (built around `root.traverse()` + `node.isMesh`)
+  needed zero changes to support them. `computeVertexNormals()` runs only
+  when a file doesn't already ship normals (STL always does; PLY doesn't
+  always).
+  - Updated everywhere a 3D-format extension list already existed rather
+    than adding a new one: `model-load`'s IPC allowlist and MIME map,
+    every file-dialog filter (`dialog-open-media`/`dialog-import-media`),
+    the drop-handler's `DROP_MEDIA_EXTS`, and the renderer's own
+    `KanvazMedia.MODEL_EXTS` type-detection list.
 
 ### Fixed
 - **Right-click on a Layers panel row did nothing.** Every other card

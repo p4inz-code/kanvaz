@@ -741,11 +741,11 @@ function registerIPC() {
     var result = dialog.showOpenDialogSync(mainWindow, {
       title: 'Relink Media',
       filters: [
-        { name: 'All Supported Media', extensions: ['jpg','jpeg','png','gif','bmp','webp','mp4','webm','mov','mkv','avi','mp3','wav','ogg','m4a','glb','gltf','obj','fbx'] },
+        { name: 'All Supported Media', extensions: ['jpg','jpeg','png','gif','bmp','webp','mp4','webm','mov','mkv','avi','mp3','wav','ogg','m4a','glb','gltf','obj','fbx','stl','ply'] },
         { name: 'Images', extensions: ['jpg','jpeg','png','gif','bmp','webp'] },
         { name: 'Video', extensions: ['mp4','webm','mov','mkv','avi'] },
         { name: 'Audio', extensions: ['mp3','wav','ogg','m4a'] },
-        { name: '3D Models', extensions: ['glb','gltf','obj','fbx'] }
+        { name: '3D Models', extensions: ['glb','gltf','obj','fbx','stl','ply'] }
       ],
       properties: ['openFile']
     });
@@ -769,11 +769,11 @@ function registerIPC() {
     var result = dialog.showOpenDialogSync(mainWindow, {
       title: 'Import Files',
       filters: [
-        { name: 'All Supported Media', extensions: ['jpg','jpeg','png','gif','bmp','webp','mp4','webm','mov','mkv','avi','mp3','wav','ogg','m4a','glb','gltf','obj','fbx'] },
+        { name: 'All Supported Media', extensions: ['jpg','jpeg','png','gif','bmp','webp','mp4','webm','mov','mkv','avi','mp3','wav','ogg','m4a','glb','gltf','obj','fbx','stl','ply'] },
         { name: 'Images', extensions: ['jpg','jpeg','png','gif','bmp','webp'] },
         { name: 'Video', extensions: ['mp4','webm','mov','mkv','avi'] },
         { name: 'Audio', extensions: ['mp3','wav','ogg','m4a'] },
-        { name: '3D Models', extensions: ['glb','gltf','obj','fbx'] }
+        { name: '3D Models', extensions: ['glb','gltf','obj','fbx','stl','ply'] }
       ],
       properties: ['openFile', 'multiSelections']
     });
@@ -947,7 +947,7 @@ function registerIPC() {
       }
 
       var ext = path.extname(filePath).toLowerCase().replace('.', '');
-      var allowed = ['glb', 'gltf', 'obj', 'fbx'];
+      var allowed = ['glb', 'gltf', 'obj', 'fbx', 'stl', 'ply'];
       if (allowed.indexOf(ext) === -1) {
         return { ok: false, error: 'FILE_TYPE_INVALID', ext: ext };
       }
@@ -956,7 +956,8 @@ function registerIPC() {
         var b64 = data.toString('base64');
         var mimeMap = {
           glb: 'model/gltf-binary', gltf: 'model/gltf+json',
-          obj: 'text/plain', fbx: 'application/octet-stream'
+          obj: 'text/plain', fbx: 'application/octet-stream',
+          stl: 'model/stl', ply: 'application/octet-stream'
         };
         return {
           ok: true,
@@ -1122,7 +1123,7 @@ function registerIPC() {
      classic-script renderer file, not something this main-process
      module can require(). Non-recursive on purpose: "a folder of loose
      images," not an arbitrary directory tree walk. */
-  var DROP_MEDIA_EXTS = ['jpg', 'jpeg', 'png', 'bmp', 'webp', 'gif', 'mp4', 'webm', 'mov', 'mkv', 'avi', 'mp3', 'wav', 'ogg', 'm4a', 'glb', 'gltf', 'obj', 'fbx'];
+  var DROP_MEDIA_EXTS = ['jpg', 'jpeg', 'png', 'bmp', 'webp', 'gif', 'mp4', 'webm', 'mov', 'mkv', 'avi', 'mp3', 'wav', 'ogg', 'm4a', 'glb', 'gltf', 'obj', 'fbx', 'stl', 'ply'];
 
   /* Bug-bounty fix (v5.3.0): this used to be a synchronous statSync/
      readdirSync loop — one blocking syscall per top-level path, plus one
