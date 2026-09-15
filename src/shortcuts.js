@@ -120,6 +120,18 @@ var KanvazShortcuts = (function() {
       return;
     }
 
+    /* Top Mode toggle — Ctrl+Shift+T, unclaimed by anything else here
+       (bare 'a' is already Annotate, so this reintroduction deliberately
+       doesn't reuse it). No native textarea meaning to fight, same as
+       Ctrl+S/Ctrl+Shift+S/Ctrl+O/Ctrl+F/Ctrl+H above — "always fire" so
+       it's reachable even mid-typing in a note, same reasoning as Ctrl+H
+       just above it. Works in both Board and Map view. */
+    if (ctrl && shift && keyLower === 't') {
+      e.preventDefault();
+      if (typeof KanvazApp !== 'undefined' && KanvazApp.toggleTopMode) KanvazApp.toggleTopMode();
+      return;
+    }
+
     /* ── Skip text inputs below this line ──
        Ctrl+Z/Ctrl+Y/Ctrl+Shift+Z/Ctrl+A have native meanings inside a
        textarea (undo typing, redo, select all text) — they must NOT be

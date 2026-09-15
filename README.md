@@ -37,7 +37,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## Latest release
 
-**v8.6.1** closes two dialog-safety gaps a full codebase re-grep found after v8.6.0 shipped (Delete Profile, Clear Annotations — both now default Enter to Cancel, not the destructive option), verifies profile export/import end-to-end, and adds a "Workflows by domain" section to this README with concrete VFX/3D/game-dev pipelines. v8.6.0 rewrote the recovery dialog to report real board/card counts instead of a blind "Restore or discard?", made Enter safely confirm dialogs by defaulting focus to the non-destructive button, and fixed video cards' scrub/tag bars rendering as flat slabs over the video frame — now a translucent blurred glass overlay. Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
+**v8.7.0** brings back Top Mode, by direct request — `Ctrl+Shift+T` forces always-on-top, hides the toolbar chrome, and closes the side panel for a genuine floating-reference view, then restores everything exactly as it was on a second press. Session-only, nothing written to Settings. v8.6.1 before it closed two dialog-safety gaps a full codebase re-grep found (Delete Profile, Clear Annotations), verified profile export/import end-to-end, and added a "Workflows by domain" section to this README. v8.6.0 rewrote the recovery dialog to report real board/card counts instead of a blind "Restore or discard?" and fixed video cards' scrub/tag bars rendering as flat slabs over the video frame. Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
 
 <table>
 <tr>
@@ -121,6 +121,7 @@ Most reference boards stop at "put images on a canvas." Kanvaz goes further, and
 - `.pur` file import via a toolbar button or drag-drop, both preserve position and scale
 - Undo/redo up to 50 steps, autosave crash recovery, crash-safe atomic save
 - Always-on-top by default (toggleable in Settings)
+- Top Mode (`Ctrl+Shift+T`): one keystroke forces always-on-top, hides the toolbar chrome, and closes the side panel for a genuine floating-reference view — press it again to restore everything exactly as it was. Session-only, nothing is written to Settings
 
 **Card design & templates**
 - Every card shows an always-visible name and at-a-glance metadata (resolution, duration, character count) plus one clean type badge
@@ -208,7 +209,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 8.6.1.exe` and `dist/Kanvaz 8.6.1.exe`
+Output: `dist/Kanvaz Setup 8.7.0.exe` and `dist/Kanvaz 8.7.0.exe`
 
 **macOS:**
 ```bash
@@ -253,6 +254,7 @@ npm run build:linux
 | Shift (while resizing) | Lock aspect ratio |
 | S | Settings (toggle open/close) |
 | I | About (toggle open/close) |
+| Ctrl+Shift+T | Top Mode — force always-on-top, hide chrome, close the side panel (session only, toggle) |
 | ? | Shortcuts overlay (toggle open/close) |
 | Esc | Deselect / close panels / cancel wire |
 

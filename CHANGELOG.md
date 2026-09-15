@@ -2,6 +2,47 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [8.7.0] — Top Mode is back
+
+*Direct request. Removed entirely in v6.0.0 on the reasoning that
+always-on-top + auto-hide chrome had become the app's own persistent
+default, making a dedicated mode for the same two things feel
+redundant — see that entry below for the original removal reasoning.*
+
+### Added
+- **Top Mode — `Ctrl+Shift+T`, a clean, previously-unclaimed binding.**
+  One keystroke: forces the window always-on-top, forces the toolbar
+  auto-hide behavior on, and closes the side panel — a genuine
+  floating-reference view with everything but the canvas out of the
+  way. Press it again (or trigger it from `KanvazApp.toggleTopMode()`)
+  to restore always-on-top, auto-hide, and the side panel to exactly
+  whatever they were before, whether that was on/off/open/closed.
+  - **Deliberately session-only** — nothing is ever written to
+    `settings.json`. Entering/exiting goes through the exact same
+    functions the Settings checkboxes themselves call
+    (`KanvazApp.syncAlwaysOnTop()`, `KanvazUI.setChromeAutoHide()`),
+    neither of which persists on its own — so the user's real,
+    persisted preferences are untouched by Top Mode either way.
+  - A small, low-opacity, non-interactive badge stays on screen the
+    entire time ("Top Mode — Ctrl+Shift+T to exit"), plus a thin
+    accent-colored inset border around the whole window — two
+    independent cues, so it's never a "wait, why is my window
+    stuck?" moment.
+  - **Self-audit catch before shipping**: an early draft's exit path
+    blindly called `KanvazSidePanel.toggle()` to reopen the panel if
+    it had been open before Top Mode. If the user manually reopened
+    the panel WHILE Top Mode was active (clicking a rail icon),
+    `toggle()`'s own "already open on this section" branch would then
+    close it right back out — fighting the user's own action on exit.
+    Fixed to check `isOpen()` again at exit time and only reopen it if
+    it's still actually closed.
+  - Bound as an "always fire" shortcut (same section as Ctrl+S/Ctrl+F/
+    Ctrl+H) since it has no native textarea meaning to fight — reachable
+    even mid-typing in a note, and works identically in both Board and
+    Map view.
+  - Added to the in-app Shortcuts overlay (`?`) and this README's
+    shortcut table.
+
 ## [8.6.1] — Two more dialog-safety gaps, domain workflow docs
 
 ### Fixed

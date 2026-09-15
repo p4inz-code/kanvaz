@@ -1022,6 +1022,100 @@ var KanvazApp = (function() {
     KanvazBridge.setAlwaysOnTop(alwaysOnTop);
   }
 
+  /* ── Top Mode (reintroduced, v8.7.0, per direct request) ──
+     Removed entirely in v6.0.0 on the reasoning that "float on top +
+     hide the chrome" had become the app's own persistent default, so a
+     separate mode toggling the same two things felt redundant. That
+     default only ever covered always-on-top + the auto-hide toolbar,
+     though — it never touched the side panel, which stays open (or
+     closed, whatever it was) regardless. "Get everything but the
+     canvas out of the way, right now, then back to exactly how it
+     was" is a real, distinct ask from the standing defaults, which is
+     why this is back as its own toggle rather than just pointing the
+     shortcut at the existing Settings checkboxes.
+
+     Deliberately session-only — never written to settings.json. A
+     momentary "floating reference, minimal chrome" working state is
+     not a standing preference, the same reasoning already applied to
+     Isolate View and view bookmarks. Entering it temporarily overrides
+     always-on-top and the auto-hide-chrome setting via the same
+     functions their own Settings checkboxes call (syncAlwaysOnTop /
+     KanvazUI.setChromeAutoHide) — neither persists on its own, so the
+     real persisted settings are untouched and exiting restores them
+     exactly, whether or not the user also flips either checkbox while
+     Top Mode happens to be on. */
+  var topModeActive  = false;
+  var topModeRestore = null;
+
+  function toggleTopMode() {
+    if (topModeActive) exitTopMode(); else enterTopMode();
+  }
+
+  function enterTopMode() {
+    if (topModeActive) return;
+    topModeActive = true;
+
+    var settings = (typeof KanvazUI_Extended !== 'undefined' && KanvazUI_Extended.getSettings)
+      ? KanvazUI_Extended.getSettings() : null;
+    var sidePanelWasOpen = (typeof KanvazSidePanel !== 'undefined' && KanvazSidePanel.isOpen && KanvazSidePanel.isOpen());
+
+    topModeRestore = {
+      alwaysOnTop:      alwaysOnTop,
+      autoHideChrome:   settings ? !!settings.autoHideChrome : false,
+      sidePanelWasOpen: sidePanelWasOpen
+    };
+
+    syncAlwaysOnTop(true);
+    if (typeof KanvazUI !== 'undefined' && KanvazUI.setChromeAutoHide) KanvazUI.setChromeAutoHide(true);
+    if (sidePanelWasOpen) KanvazSidePanel.close();
+
+    var appEl = document.getElementById('app');
+    if (appEl) appEl.classList.add('top-mode-active');
+    showTopModeBadge();
+
+    KanvazUI.toast('Top Mode on — Ctrl+Shift+T to exit');
+  }
+
+  function exitTopMode() {
+    if (!topModeActive) return;
+    topModeActive = false;
+
+    var r = topModeRestore || { alwaysOnTop: alwaysOnTop, autoHideChrome: false, sidePanelWasOpen: false };
+    topModeRestore = null;
+
+    syncAlwaysOnTop(!!r.alwaysOnTop);
+    if (typeof KanvazUI !== 'undefined' && KanvazUI.setChromeAutoHide) KanvazUI.setChromeAutoHide(!!r.autoHideChrome);
+    /* Self-audit catch: re-check isOpen() here rather than blindly
+       toggling back open. If the user manually reopened the side panel
+       WHILE Top Mode was active (clicked a rail icon), it's already
+       open — toggle() would then hit its "open on this section already"
+       branch and close it right back, fighting the user's own action.
+       Only reopen it here if it's still closed. */
+    if (r.sidePanelWasOpen && typeof KanvazSidePanel !== 'undefined' && KanvazSidePanel.toggle
+        && !(KanvazSidePanel.isOpen && KanvazSidePanel.isOpen())) {
+      KanvazSidePanel.toggle();
+    }
+
+    var appEl = document.getElementById('app');
+    if (appEl) appEl.classList.remove('top-mode-active');
+    hideTopModeBadge();
+
+    KanvazUI.toast('Top Mode off');
+  }
+
+  function showTopModeBadge() {
+    if (document.getElementById('top-mode-badge')) return;
+    var badge = document.createElement('div');
+    badge.id = 'top-mode-badge';
+    badge.textContent = 'Top Mode — Ctrl+Shift+T to exit';
+    document.body.appendChild(badge);
+  }
+
+  function hideTopModeBadge() {
+    var badge = document.getElementById('top-mode-badge');
+    if (badge) badge.remove();
+  }
+
   /* ── Save status ── */
 
   function updateSaveStatus(state) {
@@ -2223,6 +2317,7 @@ var KanvazApp = (function() {
   return {
     toggleAlwaysOnTop: toggleAlwaysOnTop,
     syncAlwaysOnTop:   syncAlwaysOnTop,
+    toggleTopMode:     toggleTopMode,
     /* Exposed for the side panel's "Quick drop" zone (boards.js) —
        exact same file-drop handling path the main canvas drop target
        already uses, just reached from a different DOM element. */

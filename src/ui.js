@@ -1556,6 +1556,7 @@ var KanvazUI_Extended = (function() {
           ['L',           'Light \u2194 Dark theme'],
           ['S',           'Settings'],
           ['I',           'About'],
+          ['Ctrl+Shift+T', 'Top Mode \u2014 force always-on-top, auto-hide chrome, and close the side panel (session only)'],
           ['?',           'This screen'],
           ['Esc',         'Deselect / close']
         ]
