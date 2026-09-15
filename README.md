@@ -37,7 +37,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## Latest release
 
-**v8.0.0** opens the v8.x line — adds `.stl` and `.ply` 3D model support alongside the existing `.glb`/`.gltf`/`.obj`/`.fbx`, the first step of a larger push toward deeper 3D format coverage for VFX/game dev/animation pre-production. v7.26.0 before it fixed real Layers panel bugs (right-click context menu, drag-to-reorder). Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
+**v8.1.0** adds `.vox` (MagicaVoxel) support, following v8.0.0's `.stl`/`.ply` — three new 3D formats in the v8.x line's first two releases, part of a larger push toward deeper 3D format coverage for VFX/game dev/animation pre-production. v7.26.0 before that fixed real Layers panel bugs (right-click context menu, drag-to-reorder). Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
 
 <table>
 <tr>
@@ -84,7 +84,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 Most reference boards stop at "put images on a canvas." Kanvaz goes further, and these are the ones worth trying first:
 
-- **Real 3D model preview, not a static thumbnail.** Drop in a `.glb`/`.gltf`/`.obj`/`.fbx`/`.stl`/`.ply` and orbit it live, right on the board — Normal/Wireframe/Matcap shading, animation playback with a scrub bar. No other offline reference tool does this.
+- **Real 3D model preview, not a static thumbnail.** Drop in a `.glb`/`.gltf`/`.obj`/`.fbx`/`.stl`/`.ply`/`.vox` and orbit it live, right on the board — Normal/Wireframe/Matcap shading, animation playback with a scrub bar. No other offline reference tool does this.
 - **One card, many boards, zero duplication.** Share a reference across a Character board and a Lighting board — edit it once, and it updates everywhere it's used. Most tools make you choose between duplicating a file or losing track of where it lives.
 - **An AI can read and edit your board locally, with your permission.** The MCP Bridge plugin lets Claude Desktop or Claude Code query and modify the active board over local IPC, never the network — every change is undo-reversible like anything else you'd do by hand.
 - **Typed connections, visualized as a real graph.** Not just arrows — 7 relationship kinds (Inspired By, Derived From, Alternative To, and more), viewable as a node-editor-style Map View when you want to see the whole web of ideas at once.
@@ -113,7 +113,7 @@ Most reference boards stop at "put images on a canvas." Kanvaz goes further, and
 - Infinite pan/zoom canvas (8%–500%), multiple boards per file
 - Real board thumbnails on the Home Screen (generated from the actual card layout at save time)
 - Image, GIF, video, and audio cards with full playback controls and a real volume slider
-- 3D model cards (`.glb`/`.gltf`/`.obj`/`.fbx`/`.stl`/`.ply`, up to 150MB): orbit with the mouse, Normal/Wireframe/Matcap shading, animation playback with a scrub bar, background color picker
+- 3D model cards (`.glb`/`.gltf`/`.obj`/`.fbx`/`.stl`/`.ply`/`.vox`, up to 150MB): orbit with the mouse, Normal/Wireframe/Matcap shading, animation playback with a scrub bar, background color picker
 - Note, text, color, URL, and file-reference card types. A file reference pointing at a `.pdf` or image gets a real inline preview inside the resizable card
 - Shared cards across boards: same content, no duplication, edit anywhere
 - Tag editing, live search/filter (`/`), and Smart Folders (saved searches that re-run themselves)
@@ -181,7 +181,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 8.0.0.exe` and `dist/Kanvaz 8.0.0.exe`
+Output: `dist/Kanvaz Setup 8.1.0.exe` and `dist/Kanvaz 8.1.0.exe`
 
 **macOS:**
 ```bash

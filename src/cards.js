@@ -3314,6 +3314,7 @@ var KanvazCards = (function() {
         import('./vendor/three/loaders/FBXLoader.js'),
         import('./vendor/three/loaders/STLLoader.js'),
         import('./vendor/three/loaders/PLYLoader.js'),
+        import('./vendor/three/loaders/VOXLoader.js'),
         import('./vendor/three/controls/OrbitControls.js')
       ]).then(function(mods) {
         return {
@@ -3323,7 +3324,9 @@ var KanvazCards = (function() {
           FBXLoader:      mods[3].FBXLoader,
           STLLoader:      mods[4].STLLoader,
           PLYLoader:      mods[5].PLYLoader,
-          OrbitControls:  mods[6].OrbitControls
+          VOXLoader:      mods[6].VOXLoader,
+          buildVoxMesh:   mods[6].buildMesh,
+          OrbitControls:  mods[7].OrbitControls
         };
       });
     }
@@ -3387,6 +3390,20 @@ var KanvazCards = (function() {
         if (!geometry.attributes.normal) geometry.computeVertexNormals();
         var mesh = new three.THREE.Mesh(geometry, new three.THREE.MeshStandardMaterial({ color: 0xb0b0b0, metalness: 0.1, roughness: 0.7 }));
         onLoad(mesh, []);
+      } else if (format === 'vox') {
+        /* VOXLoader.parse() returns an array of chunks — one per model
+           in a multi-model .vox file — each turned into a real, fully
+           colored/textured Mesh by the vendored buildMesh() helper
+           (greedy-meshed voxel geometry + a MeshStandardMaterial reading
+           a baked palette texture, not a placeholder). Only the FIRST
+           model renders if the file has more than one — same "first
+           only" scope decision already made for multi-clip GLTF
+           animations elsewhere in this function, not a new precedent. */
+        var voxLoader = new three.VOXLoader();
+        var chunks = voxLoader.parse(model3dDataToArrayBuffer(card.dataUrl));
+        if (!chunks || !chunks.length) { onError(new Error('Empty or unreadable .vox file')); return; }
+        var voxMesh = three.buildVoxMesh(chunks[0]);
+        onLoad(voxMesh, []);
       } else {
         onError(new Error('Unknown 3D model format: ' + format));
       }

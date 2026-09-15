@@ -2,6 +2,32 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [8.1.0] — 3D format support: VOX (MagicaVoxel)
+
+### Added
+- **`.vox` (MagicaVoxel) 3D model support.** Vendored Three.js's own
+  `VOXLoader` (r186) into `src/vendor/three/loaders/` — self-contained,
+  single file, same cost class as `.stl`/`.ply` from v8.0.0.
+  `VOXLoader.parse()` returns an array of chunks (one per model in a
+  multi-model `.vox` file); only the first renders if there's more than
+  one, same "first only" scope decision already made for multi-clip
+  GLTF animations elsewhere in this card type. The vendored `buildMesh()`
+  helper turns a chunk into a real, fully colored `THREE.Mesh` (greedy-
+  meshed voxel geometry + a palette-texture material), not a placeholder
+  — fits the existing render-mode pipeline unchanged, same as STL/PLY.
+  Extension lists updated everywhere the other 3D formats already were:
+  `model-load`'s allowlist/MIME map, both file-dialog filters,
+  `DROP_MEDIA_EXTS`, `KanvazMedia.MODEL_EXTS`.
+- **Investigated and deliberately deferred: `.dae` (Collada).** The v8.x
+  plan originally assumed this was "same cost class" as STL/PLY/VOX —
+  checking Three.js's actual r186 source proved that wrong before any
+  code was written: `ColladaLoader.js` is a thin wrapper around a
+  ~2000-line parser and a ~3000-line composer, plus a `TGALoader`
+  dependency — roughly 5,700 lines of real COLLADA-XML scene-graph
+  parsing across 4 files, nothing like the other three formats'
+  single self-contained loader. See `docs/ROADMAP.md`'s Tier 1 entry
+  for the corrected cost assessment; not shipped this round.
+
 ## [8.0.0] — 3D format support: STL and PLY
 
 *First release of the v8.x line — see `docs/ROADMAP.md`'s "The v8.x line" for
