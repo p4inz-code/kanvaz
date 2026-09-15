@@ -39,11 +39,19 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 **v7.26.0** fixes real Layers panel bugs caught by manual testing: right-click on a row now works (it did nothing before), and selecting a row no longer bumps it to the front, so rows are properly drag-to-reorder like Photoshop or Figma's own layers list. v7.25.0 added exporting the board or a selection as a real PNG image, and v7.24.0 added real board thumbnails on the Home Screen. Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
 
-<p align="center">
-  <img src="assets/screenshot-showcase-dark-v7.26.0.png" alt="Kanvaz reference board in dark theme — image, note, color, and URL cards with a Related To connection" width="49%">
-  <img src="assets/screenshot-showcase-light-v7.26.0.png" alt="The same Kanvaz reference board in light theme" width="49%">
-  <br><i>Dark and light theme, same board — L toggles it, no restart needed.</i>
-</p>
+<table>
+<tr>
+<td width="50%" align="center">
+<b>🌙 Dark theme</b><br><br>
+<img src="assets/screenshot-showcase-dark-v7.26.0.png" alt="Kanvaz reference board in dark theme — image, note, color, and URL cards with a Related To connection" width="100%">
+</td>
+<td width="50%" align="center">
+<b>☀️ Light theme</b><br><br>
+<img src="assets/screenshot-showcase-light-v7.26.0.png" alt="The same Kanvaz reference board in light theme" width="100%">
+</td>
+</tr>
+</table>
+<p align="center"><i>Same board, either theme — press <code>L</code> to switch, no restart needed.</i></p>
 
 <p align="center">
   <img src="assets/screenshot-home-v7.22.0.png" alt="Kanvaz Home Screen — Quick Start, template previews, and a What's New section reading live off the changelog" width="720">
