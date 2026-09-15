@@ -246,6 +246,15 @@ This does not touch the v7.x line's own standing constraints (100% offline core,
    - **A separate, adjacent category exists: AI-assisted previs** (mStudio and similar), for 3D shot-blocking/camera planning specifically — distinct from moodboard/reference-board tools, not a direct Kanvaz competitor, but shows real budget and attention flowing into pre-production tooling broadly. Worth knowing about for positioning language ("pre-production platform") even though it's not the same product category.
    - **Not yet done**: this pass didn't dig into how creative directors and producers *specifically* (as opposed to individual artists) currently evaluate or adopt pre-production tooling at the studio level — budget-holder-side research, procurement patterns, what makes a tool "the standard" a whole department defaults to. That's the harder, more valuable research still open, and probably needs a different search strategy (industry publications, actual practitioner interviews/forums) rather than product-comparison articles.
 
+6. **Post-v8: a real Kanvaz website, GitHub Pages, plus a creative live-stats display — decided 2026-09-15, explicitly scoped as AFTER v8 ships, not part of it.** This is the same website idea flagged and deliberately deferred multiple times before (see "Not a version, flagged so it doesn't get lost," below — that note previously called it "unscoped future work if the user chooses to pursue it"; this supersedes that with an actual decision and a trigger condition).
+   - **Trigger:** only starts once v8 has shipped — not in parallel, not before. Sequenced deliberately after the "full pack of tools and raw power" work, same discipline as the rest of this line's sequencing decision above.
+   - **Hosting:** GitHub Pages, giving Kanvaz its own dedicated page/domain (`p4inz-code.github.io/kanvaz` at minimum, or a custom domain if one gets attached later — not yet decided). Static hosting only, no server — consistent with the project's whole "no infrastructure to maintain" posture (same reason "Browse Official Plugins" fetches a static committed JSON instead of running a real catalog server).
+   - **Purpose, stated explicitly by the user:** also goes into the user's own portfolio — this is a public-facing showcase piece, not just a landing page, and should be designed with that in mind (visual polish matters here more than it does for, say, an internal doc).
+   - **Live download tracker, "in a more creative way" than what's in the README today.** The README currently uses flat shields.io badges (release/downloads/stars/license/platform/offline) — functional but generic, same badges any repo could have. Options worth considering when this actually gets designed (not decided yet, just scoped as the space to explore):
+     - A custom-designed stats widget/card (GitHub-README-Stats-style) instead of a row of flat badges — same underlying data (release version, total downloads, stars), presented with actual visual identity instead of a generic badge service.
+     - **A real technical constraint to design around, flagged now so it isn't discovered late:** GitHub's public API is rate-limited for unauthenticated requests (60/hour) — a live counter that every website visitor's browser queries directly against the GitHub API client-side risks hitting that limit under any real traffic. The safer pattern: a scheduled GitHub Action (e.g. every few hours) that fetches the real numbers server-side and bakes them into a static JSON/SVG asset committed to the repo or a `gh-pages` branch, which the website then just reads as a static file — "live" in the sense of regularly refreshed, not literally real-time per page load. This is the same shape of decision already made for `official-plugins/catalog.json` (a committed static file, not a live server) — worth reusing that precedent rather than inventing a new pattern.
+   - **Not yet decided:** exact tech stack for the site itself (plain HTML/CSS/JS to match the main app's own dependency-light philosophy, vs. a static-site generator); whether it also serves as the distribution point for the future paid pack/enterprise-support offerings (item 4, above) or stays purely informational with links out to wherever those actually get sold.
+
 ## Open questions (not yet answered)
 
 - What's actually IN the first-party paid pack? (Which plugins, which templates, how many, at what price.)
@@ -253,6 +262,7 @@ This does not touch the v7.x line's own standing constraints (100% offline core,
 - Alembic (Tier 4): who does the research, and does it block the rest of the format work or ship independently once resolved?
 - Exact 3D-first reordering: does this also change onboarding copy, the Home Screen, and marketing language (README, banner), or just the empty-canvas drop zone?
 - Timeline expectation for the professional-tester email round — is there a target date, or does it depend entirely on when this batch is ready?
+- Website: custom domain or stay on the default `github.io` subdomain? Plain HTML/CSS/JS or a static-site generator? Does it become the actual sales point for the paid pack/enterprise support, or just link out?
 
 ## Standing constraints carried forward (v8.x)
 
@@ -268,7 +278,7 @@ Same discipline as the whole v6.x arc: no native dependencies without a real aud
 
 ## Not a version, flagged so it doesn't get lost
 
-The website update has been explicitly held off multiple times — release/CHANGELOG work first, website is a separate deliberate joint step. With development now closed out at v5.3.0, this is unscoped future work if the user chooses to pursue it — not part of the app's own release cadence.
+~~The website update has been explicitly held off multiple times — release/CHANGELOG work first, website is a separate deliberate joint step. With development now closed out at v5.3.0, this is unscoped future work if the user chooses to pursue it — not part of the app's own release cadence.~~ **Superseded 2026-09-15** — see the v8.x line's item 6, above: a real GitHub Pages website is now a decided (though not started) post-v8 deliverable, not indefinitely unscoped.
 
 Full per-plugin process isolation remains explicitly declined (multi-week rearchitect, not worth it against the current plugin ecosystem size) — logged as deliberate future work in `SECURITY.md`, not a gap anyone missed. With development closed out, this stays declined; it isn't something a GitHub issue against this repo should expect to reopen.
 
