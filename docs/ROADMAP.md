@@ -195,7 +195,49 @@ Build order is safest/most-isolated first:
 
 7. **General UI polish** — explicitly "not blocking but great to have" per the user's own framing. No fixed scope yet; revisit after the items above land, the same way v6.6.0's polish pass happened after its pillars were functionally complete rather than alongside them.
 
-## Standing constraints carried forward
+---
+
+# The v8.x line — industry-grade pre-production platform (planning, not started)
+
+*Opened 2026-09-15. Not yet approved for execution — the user's own words: "no execution until i explicitly says go to execute." Everything below is a proposed plan for review, not a commitment. Written the same day the decision was made, per the user's explicit ask for a same-day roadmap doc.*
+
+## Framing
+
+A deliberate pivot from "ongoing side project, whatever feedback comes in" (the v7.x line's framing) to a targeted push: make Kanvaz the pre-production standard for three specific professional groups — VFX artists, game developers, and animators — specifically the mid-to-senior, experienced end of each, not hobbyists. The user's own framing: these are the people who "need proper pre-production," and pre-production tooling is where creative directors and producers spend real budget and attention. Success bar, as stated: "every or most of these groups will use Kanvaz for pre-production."
+
+This does not touch the v7.x line's own standing constraints (100% offline core, no accounts, no telemetry) — those carry forward unchanged. What changes is ambition and audience focus, not the app's fundamental privacy/offline posture.
+
+**Plan for getting there:** ship this batch as a real, audited release (or short sequence of releases), then the user personally emails working VFX/game dev/animation professionals to test it and give feedback — that feedback becomes the basis for the actual, final v8.x release. This roadmap section covers the pre-feedback build; the post-feedback iteration is explicitly out of scope until that feedback exists.
+
+## Decisions made so far (2026-09-15 planning session)
+
+1. **3D format support: `.usdz` via WASM, `.blend` via optional external Blender.** Two different technical approaches for two different problems — do not conflate them:
+   - **`.usdz`**: pursue a WASM-based parser (e.g. a TinyUSDZ-to-WASM build, following the precedent of tools like needle-tools' USDZ viewer). This is a materially different risk profile than the native N-API addons already rejected once for Smart Search (`onnxruntime-node`/`sharp`, reversed in v6.3.0) — a WASM module ships as a portable asset, no per-platform Electron-ABI rebuild, no `node-gyp`, no CI matrix burden. Scope v1 to static mesh + material preview; skip animation/skeletal data for the first pass.
+   - **`.blend`**: this was already researched once and rejected (see the v7.x line's item 5b, above) — the only community pure-JS parser (`js.blend`) is dormant and single-maintainer, failing the same bar that got the transformer-model dependency reversed. Nothing has changed that overturns that conclusion. Instead: treat a locally-installed Blender as an **optional external tool**, never a bundled dependency. If found on `PATH` (or pointed to once in Settings), shell out to `blender --background --python-expr "...export .glb..."` at import time, then render the resulting `.glb` through the **existing, unmodified** Three.js pipeline from v7.4.0. If Blender isn't found, fall back to file-reference-only (the same pattern `.pdf` cards already use) with a clear message pointing at the Settings path option. This covers the realistic case — the target audience almost universally already has Blender installed — without Kanvaz itself absorbing the format's undocumented, version-fragile binary layout.
+   - **Both are proposals, not yet approved for execution.**
+
+2. **3D-first reordering.** Change the app's default media ordering/messaging (starting with the empty-canvas drop-zone hint, currently "Drop images, GIFs or videos here" in `src/index.html`) to lead with 3D, then fill in every other supported type. Signals Kanvaz is now 3D-focused first, reference-board-generalist second. Full audit of every place media-type order appears (drop zone, New Card menu, Command Palette, docs, README) needed before execution — not yet done.
+
+3. **Monetization: first-party paid pack, MIT stays.** License stays MIT — this is not a relicensing decision. On top of that, Kanvaz itself (not just third-party plugin authors, who already have this right per `docs/PLUGIN_AUTHORING.md`'s "Selling your plugin" section) will sell an official pack of paid plugins and exclusive templates, one-time lifetime price, low dollar amount. Explicitly floated as "just an idea" by the user — needs real scoping (what's actually in the pack, pricing, distribution mechanism given the CSP constraint already disclosed in `docs/PLUGIN_AUTHORING.md` that rules out a phone-home license check) before this becomes a committed plan, not just a decision to eventually do *something* here.
+   - Open question this raises, not yet answered: does a paid official pack change the "Kanvaz never runs a marketplace, never takes a cut" promise already made publicly in the README and `docs/PLUGIN_AUTHORING.md`? That promise was about *other people's* plugins specifically — a first-party pack is a different claim and needs its own honest framing, not a quiet redefinition of the existing one.
+   - The user's senior(s) are pushing for broader monetization of Kanvaz itself; the user's own read is to keep the core app as-is (free, MIT) and monetize via this narrower official-pack idea instead, with other monetization directed at the user's other, unrelated apps. Recorded here as the user's stated position, not something this doc is taking a side on.
+
+4. **Market/competitor research: held until scope locks.** The user explicitly wants research toward "how Kanvaz becomes the industry standard for creative directors/producers in pre-production" — but wants it done *after* the product scope above is locked, not in parallel. Not started. When it starts, natural inputs: the v6.x arc's own prior market analysis (PureRef, Milanote, Are.na, Eagle, Kosmik, ArtDeck) is already on file and should be the starting point, not redone from zero — this pass should focus specifically on pre-production/creative-director-level workflows and budget-holder positioning, which the earlier analysis didn't specifically target.
+
+## Open questions (not yet answered)
+
+- What's actually IN the first-party paid pack? (Which plugins, which templates, how many, at what price.)
+- Does `.usdz` support get its own release or bundle with other v8 items?
+- Exact 3D-first reordering: does this also change onboarding copy, the Home Screen, and marketing language (README, banner), or just the empty-canvas drop zone?
+- Timeline expectation for the professional-tester email round — is there a target date, or does it depend entirely on when this batch is ready?
+
+## Standing constraints carried forward (v8.x)
+
+Same discipline as every prior line: no native dependencies without a real audit first (a WASM module is not exempt from scrutiny just because it isn't a native N-API addon — verify its actual build provenance and maintenance status before vendoring, same bar Three.js and pdf.js were held to). 100% offline core stays non-negotiable regardless of monetization changes — a paid pack's distribution/licensing mechanism must not introduce a silent network dependency into the core app. Every release still gets CHANGELOG.md/docs/HANDOFF.md/SECURITY.md updated, and real live verification via CDP before calling anything done.
+
+---
+
+# The v7.x line's own standing constraints (historical, unchanged)
 
 Same discipline as the whole v6.x arc: no native dependencies without a real audit first (`npm view <pkg> dependencies`, check for `.node` files) — Three.js and PDF.js both need this check confirmed at implementation time, not just assumed from their reputation as "pure JS" libraries. 100% offline core stays non-negotiable; none of the above touches the network. Every release still gets CHANGELOG.md/docs/HANDOFF.md/SECURITY.md updated, and real live verification (the CDP-driven technique from v6.6.1/6.6.2, not just a boot-test) before calling anything done — that lesson from this exact arc's own bugs stands as a hard requirement going forward, not a suggestion.
 
