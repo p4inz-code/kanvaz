@@ -16,9 +16,9 @@
 
 ### The Reference Operating System, for artists who think in images, not folders.
 
-Stop tabbing between fifty browser windows and a messy Explore folder. Kanvaz is a free, open-source, **100% offline** infinite canvas built for VFX artists, 3D artists, and anyone whose real workflow is collecting references, connecting ideas, and actually finding them again later.
+You've got fifty browser tabs open, a folder called "refs_final_v2," and no idea which image the client actually meant. Kanvaz is a free, open-source, **100% offline** infinite canvas for VFX artists, 3D artists, and anyone whose real workflow is collecting references, connecting ideas, and finding them again six months later.
 
-Drop in 3D models, images, video, audio, PureRef boards, and files. Wire references together with typed connections. Share the same card across boards with zero duplication. Extend it with plugins, or write your own and sell it.
+Drop in 3D models, images, video, audio, PureRef boards, and files. Wire references together with typed connections and see the whole web of them as a real graph. Share the same card across boards with zero duplication. Extend it with plugins, or write your own and sell it.
 
 No account. No cloud. No subscription. Just a canvas that's actually yours.
 
@@ -31,13 +31,14 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 > **Note:** Kanvaz isn't code-signed (certificates cost money; this app doesn't). Windows will likely show **"Windows protected your PC."** Click **"More info" → "Run anyway."** That's normal for unsigned indie software, not a red flag.
 > Prebuilt installers are Windows only. macOS and Linux users build from source, see [Build installers](#build-installers).
 
-<p align="center"><i>Built as an ongoing side project, no fixed roadmap, mostly driven by whatever feedback comes in. Found a bug or want a feature? <a href="https://github.com/p4inz-code/kanvaz/issues">Open an issue</a> or email <b>atharva.patil.cg@gmail.com</b>, both get read.</i></p>
+If you've used PureRef and wanted more than static images, or tried a cloud moodboard tool and didn't want an account standing between you and your own files, this is built for exactly that gap.
 
 ---
 
-## Latest release
-
-**v8.9.8** is a live-verification-only pass (no code changes): clicked the real Templates gallery "Use" button for VFX Professional and Game Art, confirmed both load with the exact right cards and connections, confirmed Map View renders the exact right number of connection cables with real bezier coordinates, and regression-checked Presentation Mode/Layers highlight/grid-style-cycle all still work correctly together. v8.9.7 finishes the template-connections pass: 6 more templates (Filmmaking, Branding & Identity, UI/UX Design, Architecture & Product Design, Photography/Concept Art, Music Production) get the same real pipeline-dependency connections as v8.9.6's 7 — 13 of 14 templates now demonstrate Kanvaz's own Connections/Map View feature on first open. Mood Board is the one deliberate holdout: it's meant to be freeform, so it stays that way. v8.9.6 gave 7 templates (VFX Professional/Intermediate/Beginner, Game Dev, Game Art, Animation Pipeline, Character Design) real typed Connections between their own cards — every template used to be a flat list of notes with no way to discover Kanvaz's own Connections/Map View feature; now the pipeline dependency flow (e.g. a technical budget constraining an asset list) is visible the moment you open one. Not yet done for the other 7 templates — a deliberate, disclosed scope decision, tracked in ROADMAP.md. v8.9.5 adds a read-only Presentation Mode for showing a board to someone else (a client or director review) — hides the toolbar and side panel completely, clears selection, and lets you step card-by-card with the arrow keys; every drag/delete/edit path is blocked at the source for as long as it's active, Escape restores everything exactly as it was. v8.9.4 is a design review of the three grid styles (Reference/3D-origin/Game-Dev tile) — verdict: keep all three, each is cheap and maps to a real target persona, no removal — plus the one real gap it found, a `Cycle Grid Style` Command Palette entry so switching doesn't require opening Settings. v8.9.3 gives Map View real preview thumbnails for video and 3D model cards instead of a generic icon — video decodes a real frame off-screen (10% into the clip, not the often-blank frame 0), 3D cards reuse the live board viewport's own already-rendered frame rather than standing up a second render pipeline. v8.9.2 rounds out the Layers panel per direct feedback: a star icon highlights any layer with its own accent border (kept separate from pin, since pin already means lock throughout this app), and grouped cards now show a small group indicator that selects every member in one click, surfacing the group data model (Ctrl+G, since v7.19.0) that this panel never visualized before. v8.9.1 added a real escape hatch for 3D cards: Alt+drag or Ctrl/Cmd+middle-mouse now pans the whole board even with the cursor over a 3D model's interactive viewport, so zooming into a 3D card no longer traps you there — plain middle-mouse still reaches the 3D viewport's own dolly/zoom, untouched. v8.9.0 moved tag editing out of each card's own cramped on-card tag bar into the Properties panel exclusively (direct request), gave the Board View titlebar a real profile avatar matching the Home Screen's own, and fixed the About/Shortcuts/Official-Plugins overlays being invisible whenever the Home Screen was open, a too-narrow Shortcuts layout, and Mac shortcut-label/Ctrl+Scroll gaps. Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
+<p align="center">
+  <img src="assets/demo-connections-v8.9.8.gif" alt="Kanvaz demo: a real Game Dev pipeline board, then switching to Map View to see every card's typed connections as a bezier graph" width="100%">
+</p>
+<p align="center"><i>A real board (one of the 13 bundled templates that ship with actual pipeline connections), switching to Map View to see how the pieces depend on each other.</i></p>
 
 <table>
 <tr>
@@ -53,13 +54,13 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 </table>
 <p align="center"><i>Same board, either theme — press <code>L</code> to switch, no restart needed.</i></p>
 
+<details>
+<summary><b>More screenshots</b> — Home Screen, Layers panel, multi-select Align/Distribute/Tidy Up, classic card design</summary>
+<br>
+
 <p align="center">
   <img src="assets/screenshot-home-v7.22.0.png" alt="Kanvaz Home Screen — Quick Start, template previews, and a What's New section reading live off the changelog" width="720">
 </p>
-
-<details>
-<summary><b>More screenshots</b> — Layers panel, multi-select Align/Distribute/Tidy Up, classic card design</summary>
-<br>
 
 <p align="center">
   <img src="assets/screenshot-layers-v7.22.0.png" alt="Kanvaz Layers panel — every card in z-order, pin and hide icons, a pinned card highlighted on the board" width="720">
@@ -82,12 +83,12 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## What makes Kanvaz different
 
-Most reference boards stop at "put images on a canvas." Kanvaz goes further, and these are the ones worth trying first:
+Most reference boards stop at "put images on a canvas." These are the ones worth trying first:
 
-- **Real 3D model preview, not a static thumbnail.** Drop in a `.glb`/`.gltf`/`.obj`/`.fbx`/`.stl`/`.ply`/`.vox`/`.usd`/`.usdz` and orbit it live, right on the board — Normal/Wireframe/Matcap shading, animation playback with a scrub bar. No other offline reference tool does this. `.blend` files preview too, if you have Blender installed — Kanvaz converts and renders them the same way; without Blender, they become a plain file reference instead of failing.
+- **Real 3D model preview, not a static thumbnail.** Drop in a `.glb`/`.gltf`/`.obj`/`.fbx`/`.stl`/`.ply`/`.vox`/`.usd`/`.usdz` and orbit it live, right on the board — Normal/Wireframe/Matcap shading, animation playback with a scrub bar. `.blend` files preview too, if you have Blender installed; without it, they become a plain file reference instead of failing outright.
+- **Typed connections, visualized as a real graph.** Not just arrows — 7 relationship kinds (Inspired By, Derived From, Used In, Supports, and more), viewable as a node-editor-style Map View when you want to see the whole web of ideas at once. Every bundled template except the freeform Mood Board ships with real connections already wired up, so you see the feature working the moment you open one.
 - **One card, many boards, zero duplication.** Share a reference across a Character board and a Lighting board — edit it once, and it updates everywhere it's used. Most tools make you choose between duplicating a file or losing track of where it lives.
 - **An AI can read and edit your board locally, with your permission.** The MCP Bridge plugin lets Claude Desktop or Claude Code query and modify the active board over local IPC, never the network — every change is undo-reversible like anything else you'd do by hand.
-- **Typed connections, visualized as a real graph.** Not just arrows — 7 relationship kinds (Inspired By, Derived From, Alternative To, and more), viewable as a node-editor-style Map View when you want to see the whole web of ideas at once.
 - **Sell your own plugin. Kanvaz never takes a cut.** Register card types, commands, or full themes through a real runtime API — there's no in-app marketplace standing between you and the people who'd pay for your plugin.
 - **100% offline, and it stays that way.** No account to lose access to, no subscription that stops working, no telemetry phoning home. The only network calls anywhere in the app are ones you click yourself.
 
@@ -104,6 +105,10 @@ Most reference boards stop at "put images on a canvas." Kanvaz goes further, and
 | 🕸️ **Connections + Map View** | Link any two references with typed, directional relationships. Visualize the whole web as a node-editor-style graph with bezier cables. |
 | 🧩 **A real plugin ecosystem** | Add card types, commands, themes, or full features without forking Kanvaz. Sell your own plugin if you want. Kanvaz never takes a cut and never runs a marketplace. |
 | 🔒 **100% offline, always** | No accounts, no telemetry, nothing phones home. The only network activity anywhere in the app is a button you click yourself (Check for Updates, Browse Plugins). Never automatic. |
+
+---
+
+Built as an ongoing side project, no fixed roadmap, mostly driven by whatever feedback comes in. Found a bug or want a feature? [Open an issue](https://github.com/p4inz-code/kanvaz/issues) or email **atharva.patil.cg@gmail.com**, both get read. Shipping updates most weeks — see the full [CHANGELOG.md](CHANGELOG.md) for the reasoning behind every one.
 
 ---
 
@@ -128,7 +133,7 @@ Most reference boards stop at "put images on a canvas." Kanvaz goes further, and
 - Every card shows an always-visible name and at-a-glance metadata (resolution, duration, character count) plus one clean type badge
 - Photoshop/Illustrator-style Properties panel: Transform (X/Y/W/H, drag the label to scrub the value live like Maya/Adobe/Figma — hold Shift for fine control), opacity, layer order, multi-select alignment, distribute-evenly, and Tidy Up, non-destructive Brightness/Contrast/Saturation for image/GIF/video, and Media info
 - A Layers panel (its own side-panel tab): every card in z-order, click to select, drag to reorder, right-click for the full card menu, eye icon to hide/show, lock icon, star icon to highlight a layer (an accent border, independent from pin/lock), and a group indicator on grouped cards that selects every member in one click
-- 14 board templates — VFX (three skill tiers: Beginner/Intermediate/Professional Pipeline), Game Dev, Game Art, Filmmaking, Music Production, Animation Pipeline, Photography/Concept Art, Architecture & Product Design, UI/UX Design, Branding & Identity, Character Design, and a freeform Mood Board — plus the option to save your own board (with its own Connections, if it has any) as a template. Every production-pipeline template now has its own "drop your references here" section pointing at exactly the media (plates, concept art, a real 3D model card, and so on) that template's own process notes assume you already have on the board. 13 of the 14 — every one except the deliberately freeform Mood Board — also ship with real typed Connections between their own cards, demonstrating the actual pipeline dependency flow (e.g. a technical budget constraining an asset list) instead of a flat, disconnected note list
+- 14 board templates — VFX (three skill tiers: Beginner/Intermediate/Professional Pipeline), Game Dev, Game Art, Filmmaking, Music Production, Animation Pipeline, Photography/Concept Art, Architecture & Product Design, UI/UX Design, Branding & Identity, Character Design, and a freeform Mood Board — plus the option to save your own board (with its own Connections, if it has any) as a template. Every production-pipeline template has its own "drop your references here" section pointing at exactly the media (plates, concept art, a real 3D model card, and so on) that template's own process notes assume you already have on the board. 13 of the 14 — every one except the deliberately freeform Mood Board — also ship with real typed Connections between their own cards, demonstrating the actual pipeline dependency flow (a technical budget constraining an asset list, for instance) instead of a flat, disconnected note list
 
 **Offline profiles**
 - Fully offline, no-login multi-profile system: switch, create, or add a guest profile, each with its own settings, recent boards, and recovery data
