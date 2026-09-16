@@ -1712,6 +1712,23 @@ var KanvazCards = (function() {
     refreshLayersIfOpen();
   }
 
+  /* Direct feedback: "layer labels? to highlight any layer if user
+     wants... since locking is diff pinning" — a purely visual "make
+     this one easy to spot in a long list" marker for the Layers panel,
+     deliberately named `highlighted` rather than reusing "pin" (the
+     existing `pinned` field already means lock throughout this app's
+     UI — see the lockBtn icon's own comment in renderLayersInto).
+     No visibility/lock side effects, same persist pattern as
+     toggleCardVisibility just above. */
+  function toggleHighlight(id) {
+    var card = cards[id];
+    if (!card) return;
+    card.highlighted = !card.highlighted;
+    KanvazApp.markDirty();
+    KanvazHistory.push();
+    refreshLayersIfOpen();
+  }
+
   /* ── Layers panel ── Sidebar tab (icon rail, sidepanel.js) listing
      every card in top-to-bottom z-order — closest thing this app has
      to Photoshop/Figma's Layers panel. Click a row to select that card
@@ -1758,7 +1775,12 @@ var KanvazCards = (function() {
         if (!card) return;
 
         var row = document.createElement('div');
-        row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:5px;cursor:pointer;font-family:var(--font-ui);font-size:12px;' +
+        row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 8px;padding-left:6px;border-radius:5px;cursor:pointer;font-family:var(--font-ui);font-size:12px;' +
+          /* Highlight star (below) uses a left accent border instead of
+             its own background, so it stacks visibly with the separate
+             selected-row background rather than one hiding the other —
+             a row can be both selected AND highlighted at once. */
+          'border-left:3px solid ' + (card.highlighted ? 'var(--color-amber)' : 'transparent') + ';' +
           (selectedSet[id] ? 'background:var(--color-accent-bg);color:var(--color-text);' : 'color:var(--color-text-2);');
         row.onmouseenter = function() { if (!selectedSet[id]) row.style.background = 'var(--color-surface-2)'; };
         row.onmouseleave = function() { if (!selectedSet[id]) row.style.background = 'transparent'; };
@@ -1846,6 +1868,31 @@ var KanvazCards = (function() {
           renderLayersInto(container);
         };
 
+        /* Direct feedback: "add grouping of layers like maya does" —
+           card grouping already exists at the data level (groupId,
+           Ctrl+G/Ctrl+Shift+G, v7.19.0), this panel just never showed
+           it. Full collapsible tree nesting (Maya Outliner's own model)
+           is a bigger UI commitment than this pass scopes to; a small
+           clickable group glyph that selects every member in one click
+           delivers the real, requested value (spot and grab a whole
+           group from the layer list) without it. Only shown for a
+           group of 2+ — a lone leftover member with no other cards
+           sharing its groupId (e.g. after the rest were deleted) isn't
+           meaningfully "a group" to indicate. */
+        var groupMembers = card.groupId ? getGroupMembers(card.groupId) : [];
+        if (groupMembers.length > 1) {
+          var groupBtn = document.createElement('span');
+          groupBtn.title = 'Part of a group (' + groupMembers.length + ') — click to select all';
+          groupBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><path d="M10 6.5h4a3.5 3.5 0 0 1 3.5 3.5v4"/></svg>';
+          groupBtn.style.cssText = 'cursor:pointer;line-height:0;color:var(--color-text-3);flex-shrink:0;';
+          groupBtn.onclick = function(e) {
+            e.stopPropagation();
+            setMultiSelection(groupMembers);
+            renderLayersInto(container);
+          };
+          row.appendChild(groupBtn);
+        }
+
         var nameEl = document.createElement('span');
         nameEl.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
         /* Terminology audit fix: this used to build its own fallback
@@ -1862,6 +1909,23 @@ var KanvazCards = (function() {
           startLayerRowRename(id, nameEl, container);
         };
         row.appendChild(nameEl);
+
+        /* "Highlight any layer" — named `highlighted`, not "pin", because
+           `pinned` already means lock throughout this app's UI (see the
+           comment on lockBtn just below). Reusing "pin" here would give
+           the same word two meanings in the same panel. */
+        var starBtn = document.createElement('span');
+        starBtn.title = card.highlighted ? 'Remove highlight' : 'Highlight';
+        starBtn.innerHTML = card.highlighted
+          ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'
+          : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+        starBtn.style.cssText = 'cursor:pointer;line-height:0;color:' + (card.highlighted ? 'var(--color-amber)' : 'var(--color-text-2)') + ';opacity:' + (card.highlighted ? '1' : '0.45') + ';';
+        starBtn.onclick = function(e) {
+          e.stopPropagation();
+          toggleHighlight(id);
+          renderLayersInto(container);
+        };
+        row.appendChild(starBtn);
 
         /* Labeled "Pin"/"Unpin", not "Lock"/"Unlock" — this is the exact
            same `pinned` property the rest of the app already has a name
@@ -5213,6 +5277,17 @@ var KanvazCards = (function() {
       /* v7.x — Layers panel visibility toggle (distinct from Isolate
          View's transient hide, which never touches this field). */
       hidden:       c.hidden       || false,
+      /* v8.9 — Layers panel "highlight" star, direct request: "since
+         locking is diff [from] pinning" — the existing `pinned` field
+         is already labeled "Pin" throughout the app's UI (right-click
+         menu, P shortcut, Shortcuts overlay) but actually means LOCK
+         (comment on the lockBtn icon in renderLayersInto explains why).
+         A second, unrelated "pin" meaning in the same panel would be
+         genuinely confusing, so this is named `highlighted` and shown
+         as a star, not another "pin" — a purely visual "make this one
+         easy to spot in a long list" marker, no locking/visibility
+         side effects of its own. */
+      highlighted:  c.highlighted  || false,
       /* v6.4.0 */
       sharedId:     c.sharedId     || null
     };
@@ -6299,6 +6374,7 @@ var KanvazCards = (function() {
     ungroupCards:      ungroupCards,
     getGroupMembers:   getGroupMembers,
     toggleCardVisibility: toggleCardVisibility,
+    toggleHighlight:   toggleHighlight,
     renderLayersInto:  renderLayersInto,
     reorderLayers:     reorderLayers,
     showOpacityPicker: showOpacityPicker,

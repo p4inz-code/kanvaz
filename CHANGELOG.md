@@ -2,6 +2,49 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [8.9.2] — Layers panel: highlight and grouping
+
+*Direct request, from live-testing feedback on the Layers panel: "layer
+labels? to highlight any layer if user wants? pin layers? since
+locking is diff pinning and then add grouping of layers like maya does
+and other softwares too."*
+
+### Added
+- **A star icon on every Layers row toggles a "highlight" state** — an
+  amber left-border accent on that row, independent of the pin/lock
+  icon next to it. Named `highlighted`, not "pin," on purpose: this
+  app's existing `pinned` field is already UI-labeled "Pin" everywhere
+  (right-click menu, the `P` shortcut, the Shortcuts overlay) but
+  actually means lock, documented in cards.js's own lockBtn comment.
+  Reusing "pin" for a new, different feature in the same panel would
+  give one word two meanings in one place. Persisted per card
+  (`card.highlighted`, defaults `false`) via `toggleHighlight(id)`,
+  mirroring the existing `toggleCardVisibility()` pattern exactly —
+  same markDirty/history-push/refresh sequence.
+- **Grouped cards now show a small group indicator in the Layers
+  panel, click it to select every member of that group.** Card
+  grouping (Ctrl+G/Ctrl+Shift+G, `card.groupId`, `getGroupMembers()`)
+  has existed at the data-model level since v7.19.0, but this panel
+  rendered a flat z-order list with zero group-awareness — the real
+  gap behind "add grouping of layers like maya does." A full
+  collapsible-tree Outliner is a much bigger UI commitment than a
+  feedback-driven pass like this scopes to; a clickable glyph that
+  selects the whole group in one action delivers the actual value
+  (spot and grab a group from the layer list) without it. Only shown
+  for 2+ members, since a lone leftover member with no one left
+  sharing its `groupId` isn't meaningfully "a group" to indicate.
+  - Live-verified via CDP: created 3 cards, grouped 2, highlighted the
+    third; confirmed the row DOM (border-accent, star fill/title, group
+    icon presence) matched `card.highlighted`/`card.groupId` exactly,
+    and that clicking the group icon calls `setMultiSelection()` with
+    precisely the 2 group member ids — screenshotted for a real visual
+    check, not just a DOM-property read.
+- Caught by the same live pass: `toggleHighlight` existed in cards.js
+  but was never added to the module's exported `KanvazCards` object —
+  harmless for the Layers panel's own internal click handler (same
+  closure), but would have silently broken for any future external
+  caller. Exported alongside `toggleCardVisibility`/`togglePin`.
+
 ## [8.9.1] — 3D cards no longer trap you inside their orbit controls
 
 *Direct request: "when in 3d mode if user has zoomed a lot how will he
