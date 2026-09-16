@@ -2,6 +2,54 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [8.9.5] — Presentation Mode
+
+*Backlog item: "Presentation/kiosk mode for presenting a board from
+inside the app."*
+
+### Added
+- **A new read-only Presentation Mode** (Command Palette → "Toggle
+  Presentation Mode", `core.togglePresentationMode`), distinct from Top
+  Mode: Top Mode is a working-session convenience (still fully
+  editable); this is for showing a board TO SOMEONE ELSE — a client or
+  director review — so it goes further. On entry: the toolbar and side
+  panel are hard-hidden (`display:none`, never revealed on hover the
+  way Top Mode's auto-hide-chrome is — a presenter's mouse will pass
+  near the top of the window, and the toolbar popping back in
+  mid-presentation would defeat the point), any active selection is
+  cleared, and the view zoom-fits every card on the board. Left/Right
+  arrow steps through every card one at a time (`KanvazCanvas.zoomFit`,
+  the same instant, non-animated framing every other zoom action in
+  this app already uses — no new animation system introduced), Escape
+  exits and restores the side panel to whatever it was before.
+  Mutually exclusive with Top Mode (entering one exits the other first)
+  since both compete for the same side-panel-restore bookkeeping.
+- **Read-only is enforced at two deliberately narrow choke points**
+  rather than threaded through every individual drag/resize/delete/
+  rename/duplicate/group call site across the codebase: `cards.js`'s
+  one delegated mousedown handler (already where every card mouse
+  interaction in this app funnels through, per this file's own
+  docblock) and its `contextmenu` handler both return immediately while
+  Presentation Mode is active. Keyboard shortcuts get their own single
+  guard, placed in `shortcuts.js` before even the "always fire
+  regardless of focus" section (Save/Open/Undo/Redo) — an allowlist of
+  exactly Escape and Left/Right, blocking everything else, rather than
+  auditing and gating every one of the ~30 individual shortcuts further
+  down that dispatcher one at a time. A card selected before entering
+  is also explicitly deselected on entry, closing the one gap neither
+  choke point alone would catch (a stray Delete/Ctrl+D keypress acting
+  on a pre-existing selection).
+  - Live-verified via CDP with real dispatched mouse/keyboard events
+    (not direct function calls standing in for user input): a
+    synthetic `mousedown` and `contextmenu` on a real card both
+    produced no selection and no menu while active; a dispatched
+    `Delete` keydown left the card count unchanged; four consecutive
+    `ArrowRight` keydowns stepped through 3 real cards' distinct
+    framed viewport positions and correctly wrapped back to the first;
+    `Escape` restored the toolbar, side panel, and pre-entry state
+    exactly; toggling Presentation Mode while Top Mode was active
+    correctly exited Top Mode first with no leftover body class.
+
 ## [8.9.4] — Grid style design review + a Command Palette toggle
 
 *Backlog item: "Grid style feature (Reference/3D-origin/Game-Dev tile)

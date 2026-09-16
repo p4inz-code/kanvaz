@@ -261,6 +261,14 @@ var KanvazCommands = (function() {
       label: 'Toggle Top Mode', shortcut: 'Ctrl+Shift+T',
       run: function() { if (typeof KanvazApp !== 'undefined') KanvazApp.toggleTopMode(); }
     });
+    /* Backlog item: "Presentation/kiosk mode for presenting a board from
+       inside the app." No dedicated key — this is a deliberate, rarer
+       action (showing a board to someone else), not a working-session
+       toggle like Top Mode above that earns its own binding. */
+    registerCommand('core.togglePresentationMode', {
+      label: 'Toggle Presentation Mode',
+      run: function() { if (typeof KanvazApp !== 'undefined') KanvazApp.togglePresentationMode(); }
+    });
     registerCommand('core.openSettings', {
       label: 'Open Settings', shortcut: 'S',
       run: function() { if (typeof KanvazSidePanel !== 'undefined') KanvazSidePanel.toggle('settings'); }

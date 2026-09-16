@@ -57,6 +57,25 @@ var KanvazShortcuts = (function() {
       return;
     }
 
+    /* Presentation Mode (app.js) is deliberately read-only. Placed here,
+       before even the "always fire" section below, rather than as a
+       check threaded through Undo/Redo/Save/every individual per-card
+       shortcut further down this ~400-line dispatcher — a single
+       allowlist (Escape to exit, Left/Right to step between cards) is
+       far easier to audit and trust than trying to enumerate every
+       mutating shortcut in this file and remembering to gate each one.
+       Blocking Ctrl+S/Ctrl+O/Undo/Redo/M/zoom too while presenting is a
+       deliberate, acceptable trade-off, not an oversight — none of them
+       are needed mid-presentation, and Escape always gets you back to
+       normal editing in one keypress if one of them is genuinely
+       wanted. */
+    if (typeof KanvazApp !== 'undefined' && KanvazApp.isPresentationModeActive && KanvazApp.isPresentationModeActive()) {
+      if (e.key === 'Escape')    { KanvazApp.togglePresentationMode(); return; }
+      if (e.key === 'ArrowLeft')  { e.preventDefault(); KanvazApp.presentationStep(-1); return; }
+      if (e.key === 'ArrowRight') { e.preventDefault(); KanvazApp.presentationStep(1);  return; }
+      return;
+    }
+
     /* ── Always fire regardless of focus ── */
 
     if (ctrl && shift && keyLower === 's') {

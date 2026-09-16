@@ -112,6 +112,15 @@ var KanvazCards = (function() {
     /* ── mousedown: resize handles, video controls, select+drag ── */
     world.addEventListener('mousedown', function(e) {
       if (e.button !== 0) return;
+      /* Presentation Mode (app.js) is deliberately read-only — a single
+         choke point here, rather than a check threaded through every
+         individual drag/resize/delete/rename call site below, since
+         this ONE delegated handler is already where every card mouse
+         interaction in this app funnels through (see this file's own
+         top-of-file docblock). Camera pan/zoom on the empty canvas
+         still works (canvas.js's own listeners are untouched) — only
+         card-level interaction is suppressed. */
+      if (typeof KanvazApp !== 'undefined' && KanvazApp.isPresentationModeActive && KanvazApp.isPresentationModeActive()) return;
       var target = e.target;
 
       /* Direct feedback: right-click a card for the context menu, then
@@ -258,6 +267,7 @@ var KanvazCards = (function() {
 
     /* ── right-click: card context menu ── */
     world.addEventListener('contextmenu', function(e) {
+      if (typeof KanvazApp !== 'undefined' && KanvazApp.isPresentationModeActive && KanvazApp.isPresentationModeActive()) return;
       var cardEl = e.target.closest('.card');
       if (!cardEl) return;
       var card = cards[cardEl.dataset.cardId];

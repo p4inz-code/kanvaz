@@ -1184,6 +1184,115 @@ var KanvazApp = (function() {
     if (badge) badge.remove();
   }
 
+  /* ── Presentation Mode ──
+     Backlog item: "Presentation/kiosk mode for presenting a board from
+     inside the app." Distinct from Top Mode above, which is a working-
+     session convenience (still fully editable) — this is for showing a
+     board TO SOMEONE ELSE (a client/director review), so it goes
+     further: toolbar AND side panel are hard-hidden (never revealed on
+     hover, unlike Top Mode's auto-hide-chrome), and the board becomes
+     read-only for as long as it's active. Read-only is enforced at a
+     single choke point (cards.js's one delegated mousedown handler
+     checks this mode first and returns immediately) rather than
+     threading a check through every individual drag/resize/delete/
+     rename call site — deliberately trades "click a card to select it
+     while presenting" for a much smaller, more confidently-correct
+     surface to get right and verify. Session-only, same scoping
+     decision as Top Mode and view bookmarks — nothing here is ever
+     written to the board file. Mutually exclusive with Top Mode (enter
+     ing this exits Top Mode first) since both fight over the side panel
+     -restore bookkeeping and showing two badges at once would be noise. */
+  var presentationModeActive = false;
+  var presentationRestore    = null;
+  var presentationCardIds    = [];
+  var presentationIndex      = -1;
+
+  function isPresentationModeActive() {
+    return presentationModeActive;
+  }
+
+  function togglePresentationMode() {
+    if (presentationModeActive) exitPresentationMode(); else enterPresentationMode();
+  }
+
+  function enterPresentationMode() {
+    if (presentationModeActive) return;
+    if (topModeActive) exitTopMode();
+    presentationModeActive = true;
+
+    var sidePanelWasOpen = (typeof KanvazSidePanel !== 'undefined' && KanvazSidePanel.isOpen && KanvazSidePanel.isOpen());
+    presentationRestore = { sidePanelWasOpen: sidePanelWasOpen };
+    if (sidePanelWasOpen) KanvazSidePanel.close();
+
+    var openMenu = document.getElementById('context-menu');
+    if (openMenu && typeof KanvazUI !== 'undefined' && KanvazUI.hideContextMenu) KanvazUI.hideContextMenu();
+
+    /* Closes a real gap the mousedown/contextmenu guards below can't:
+       a card selected BEFORE entering Presentation Mode is still a
+       valid target for a stray Delete/Ctrl+D/Ctrl+G keypress, which
+       route through shortcuts.js, not through cards.js's own mouse
+       handlers. Clearing selection on entry means every one of those
+       commands has nothing to act on (each already no-ops safely on an
+       empty selection, the same convention zoomToSelection's own
+       "nothing selected" fallback already relies on) — cheaper and
+       more certain than gating every individual keyboard shortcut. */
+    if (typeof KanvazCards !== 'undefined' && KanvazCards.deselectAll) KanvazCards.deselectAll();
+
+    presentationCardIds = (typeof KanvazCards !== 'undefined' && KanvazCards.getAllIds) ? KanvazCards.getAllIds() : [];
+    presentationIndex = -1;
+
+    document.body.classList.add('presentation-mode-active');
+    showPresentationBadge();
+
+    if (typeof KanvazCanvas !== 'undefined' && KanvazCanvas.zoomFit) KanvazCanvas.zoomFit();
+    KanvazUI.toast('Presentation Mode on — read-only, ←/→ to step through cards, Esc to exit');
+  }
+
+  function exitPresentationMode() {
+    if (!presentationModeActive) return;
+    presentationModeActive = false;
+
+    var r = presentationRestore || { sidePanelWasOpen: false };
+    presentationRestore = null;
+
+    if (r.sidePanelWasOpen && typeof KanvazSidePanel !== 'undefined' && KanvazSidePanel.toggle
+        && !(KanvazSidePanel.isOpen && KanvazSidePanel.isOpen())) {
+      KanvazSidePanel.toggle();
+    }
+
+    document.body.classList.remove('presentation-mode-active');
+    hidePresentationBadge();
+
+    KanvazUI.toast('Presentation Mode off');
+  }
+
+  /* dir is +1 (next) or -1 (previous), wraps around both ends.
+     zoomFit([id]) is the same instant (non-animated) framing every
+     other zoom action in this app already uses (recallViewBookmark,
+     zoomToSelection) — no new animation system introduced just for
+     this. */
+  function presentationStep(dir) {
+    if (!presentationModeActive || !presentationCardIds.length) return;
+    presentationIndex += dir;
+    if (presentationIndex < 0) presentationIndex = presentationCardIds.length - 1;
+    if (presentationIndex >= presentationCardIds.length) presentationIndex = 0;
+    var id = presentationCardIds[presentationIndex];
+    if (typeof KanvazCanvas !== 'undefined' && KanvazCanvas.zoomFit) KanvazCanvas.zoomFit([id]);
+  }
+
+  function showPresentationBadge() {
+    if (document.getElementById('presentation-mode-badge')) return;
+    var badge = document.createElement('div');
+    badge.id = 'presentation-mode-badge';
+    badge.textContent = 'Presentation Mode — ←/→ next/prev card, Esc to exit';
+    document.body.appendChild(badge);
+  }
+
+  function hidePresentationBadge() {
+    var badge = document.getElementById('presentation-mode-badge');
+    if (badge) badge.remove();
+  }
+
   /* ── Save status ── */
 
   function updateSaveStatus(state) {
@@ -2402,6 +2511,9 @@ var KanvazApp = (function() {
     toggleTopMode:     toggleTopMode,
     isTopModeActive:   isTopModeActive,
     noteSettingChangedDuringTopMode: noteSettingChangedDuringTopMode,
+    togglePresentationMode:  togglePresentationMode,
+    isPresentationModeActive: isPresentationModeActive,
+    presentationStep:  presentationStep,
     /* Exposed for the side panel's "Quick drop" zone (boards.js) —
        exact same file-drop handling path the main canvas drop target
        already uses, just reached from a different DOM element. */

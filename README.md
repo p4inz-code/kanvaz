@@ -37,7 +37,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## Latest release
 
-**v8.9.4** is a design review of the three grid styles (Reference/3D-origin/Game-Dev tile) — verdict: keep all three, each is cheap and maps to a real target persona, no removal — plus the one real gap it found, a `Cycle Grid Style` Command Palette entry so switching doesn't require opening Settings. v8.9.3 gives Map View real preview thumbnails for video and 3D model cards instead of a generic icon — video decodes a real frame off-screen (10% into the clip, not the often-blank frame 0), 3D cards reuse the live board viewport's own already-rendered frame rather than standing up a second render pipeline. v8.9.2 rounds out the Layers panel per direct feedback: a star icon highlights any layer with its own accent border (kept separate from pin, since pin already means lock throughout this app), and grouped cards now show a small group indicator that selects every member in one click, surfacing the group data model (Ctrl+G, since v7.19.0) that this panel never visualized before. v8.9.1 added a real escape hatch for 3D cards: Alt+drag or Ctrl/Cmd+middle-mouse now pans the whole board even with the cursor over a 3D model's interactive viewport, so zooming into a 3D card no longer traps you there — plain middle-mouse still reaches the 3D viewport's own dolly/zoom, untouched. v8.9.0 moved tag editing out of each card's own cramped on-card tag bar into the Properties panel exclusively (direct request), gave the Board View titlebar a real profile avatar matching the Home Screen's own, and fixed the About/Shortcuts/Official-Plugins overlays being invisible whenever the Home Screen was open, a too-narrow Shortcuts layout, and Mac shortcut-label/Ctrl+Scroll gaps. Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
+**v8.9.5** adds a read-only Presentation Mode for showing a board to someone else (a client or director review) — hides the toolbar and side panel completely, clears selection, and lets you step card-by-card with the arrow keys; every drag/delete/edit path is blocked at the source for as long as it's active, Escape restores everything exactly as it was. v8.9.4 is a design review of the three grid styles (Reference/3D-origin/Game-Dev tile) — verdict: keep all three, each is cheap and maps to a real target persona, no removal — plus the one real gap it found, a `Cycle Grid Style` Command Palette entry so switching doesn't require opening Settings. v8.9.3 gives Map View real preview thumbnails for video and 3D model cards instead of a generic icon — video decodes a real frame off-screen (10% into the clip, not the often-blank frame 0), 3D cards reuse the live board viewport's own already-rendered frame rather than standing up a second render pipeline. v8.9.2 rounds out the Layers panel per direct feedback: a star icon highlights any layer with its own accent border (kept separate from pin, since pin already means lock throughout this app), and grouped cards now show a small group indicator that selects every member in one click, surfacing the group data model (Ctrl+G, since v7.19.0) that this panel never visualized before. v8.9.1 added a real escape hatch for 3D cards: Alt+drag or Ctrl/Cmd+middle-mouse now pans the whole board even with the cursor over a 3D model's interactive viewport, so zooming into a 3D card no longer traps you there — plain middle-mouse still reaches the 3D viewport's own dolly/zoom, untouched. v8.9.0 moved tag editing out of each card's own cramped on-card tag bar into the Properties panel exclusively (direct request), gave the Board View titlebar a real profile avatar matching the Home Screen's own, and fixed the About/Shortcuts/Official-Plugins overlays being invisible whenever the Home Screen was open, a too-narrow Shortcuts layout, and Mac shortcut-label/Ctrl+Scroll gaps. Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
 
 <table>
 <tr>
@@ -122,6 +122,7 @@ Most reference boards stop at "put images on a canvas." Kanvaz goes further, and
 - Undo/redo up to 50 steps, autosave crash recovery, crash-safe atomic save
 - Always-on-top by default (toggleable in Settings)
 - Top Mode (`Ctrl+Shift+T`): one keystroke forces always-on-top, hides the toolbar chrome, and closes the side panel for a genuine floating-reference view — press it again to restore everything exactly as it was. Session-only, nothing is written to Settings
+- Presentation Mode (Command Palette): a read-only mode for showing a board to someone else — hides the toolbar and side panel, clears selection, steps card-by-card with the arrow keys, blocks every edit/drag/delete path while active. Escape restores everything exactly as it was
 
 **Card design & templates**
 - Every card shows an always-visible name and at-a-glance metadata (resolution, duration, character count) plus one clean type badge
@@ -209,7 +210,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 8.9.4.exe` and `dist/Kanvaz 8.9.4.exe`
+Output: `dist/Kanvaz Setup 8.9.5.exe` and `dist/Kanvaz 8.9.5.exe`
 
 **macOS:**
 ```bash
