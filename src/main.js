@@ -1912,7 +1912,20 @@ function registerIPC() {
       return fs.promises.readFile(path.join(dir, entry.file), 'utf8');
     }).then(function(raw) {
       try {
-        return { ok: true, cards: JSON.parse(raw) };
+        var parsed = JSON.parse(raw);
+        /* Backward-compatible with every template already on disk
+           (every built-in template before this pass, and every
+           existing user-saved one) — those are all a bare card array.
+           Only a template deliberately re-saved with connections (the
+           rebuilt built-ins below, or a future user save once the
+           renderer sends them) is the newer {cards, connections} shape.
+           Detecting by Array.isArray rather than a version field keeps
+           the common, connections-less case exactly as small on disk
+           as it always was. */
+        if (Array.isArray(parsed)) {
+          return { ok: true, cards: parsed, connections: [] };
+        }
+        return { ok: true, cards: parsed.cards || [], connections: parsed.connections || [] };
       } catch (e) {
         throw new Error('template file is not valid JSON');
       }
@@ -1927,7 +1940,7 @@ function registerIPC() {
      starter board, and a user saving their own board as one presumably
      wants everything on it, media included, same as opening the file
      normally would restore. */
-  ipcMain.handle('template-save', function(event, name, description, cards) {
+  ipcMain.handle('template-save', function(event, name, description, cards, connections) {
     try {
       if (!name || !name.trim()) return { ok: false, error: 'name cannot be empty' };
       if (!Array.isArray(cards)) return { ok: false, error: 'no cards to save' };
@@ -1936,8 +1949,16 @@ function registerIPC() {
     }
     var id = 'user-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
     var fileName = id + '.json';
+    /* Keep writing the plain bare-array shape for the common case (no
+       connections on the board being saved) — every reader of this file
+       format, old and new, already understands that shape, so there's
+       no reason to grow every connections-less user template by one
+       wrapping object. Only switch to {cards, connections} when there's
+       actually something to preserve. */
+    var hasConnections = Array.isArray(connections) && connections.length > 0;
+    var fileContent = hasConnections ? { cards: cards, connections: connections } : cards;
     return fs.promises.mkdir(USER_TEMPLATES_DIR, { recursive: true }).then(function() {
-      return fs.promises.writeFile(path.join(USER_TEMPLATES_DIR, fileName), JSON.stringify(cards), 'utf8');
+      return fs.promises.writeFile(path.join(USER_TEMPLATES_DIR, fileName), JSON.stringify(fileContent), 'utf8');
     }).then(function() {
       return readUserTemplateManifest();
     }).then(function(list) {

@@ -1,242 +1,316 @@
-[
-  {
-    "id": "tpl-1",
-    "type": "text",
-    "name": "Section",
-    "text": "BID / SHOT COUNT / SCHEDULE",
-    "x": 40,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 1,
-    "pinned": false
-  },
-  {
-    "id": "tpl-2",
-    "type": "note",
-    "name": "Note",
-    "text": "Total shot count by complexity tier, crew-days estimated per department, client-approved budget and delivery schedule. Every later decision on this board gets measured against THIS document — scope creep is invisible until someone checks back here.",
-    "x": 40,
-    "y": 100,
-    "w": 300,
-    "h": 190,
-    "z": 2,
-    "pinned": false
-  },
-  {
-    "id": "tpl-3",
-    "type": "text",
-    "name": "Section",
-    "text": "ASSET PIPELINE — MODELING",
-    "x": 380,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 3,
-    "pinned": false
-  },
-  {
-    "id": "tpl-4",
-    "type": "note",
-    "name": "Note",
-    "text": "Hero assets vs. background/set-dressing assets, topology and poly budget per asset class, reference photogrammetry or LIDAR scan data if available, and modeling review status (blocked / in review / approved) per asset.",
-    "x": 380,
-    "y": 100,
-    "w": 300,
-    "h": 190,
-    "z": 4,
-    "pinned": false
-  },
-  {
-    "id": "tpl-5",
-    "type": "text",
-    "name": "Section",
-    "text": "ASSET PIPELINE — TEXTURING / LOOKDEV",
-    "x": 720,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 5,
-    "pinned": false
-  },
-  {
-    "id": "tpl-6",
-    "type": "note",
-    "name": "Note",
-    "text": "Texture resolution standard (4K hero, 2K background is typical), material library references, lookdev turntables pending supervisor sign-off, and any client-provided brand or material spec sheets that hero assets must match exactly.",
-    "x": 720,
-    "y": 100,
-    "w": 300,
-    "h": 190,
-    "z": 6,
-    "pinned": false
-  },
-  {
-    "id": "tpl-7",
-    "type": "text",
-    "name": "Section",
-    "text": "ASSET PIPELINE — RIGGING / ANIMATION",
-    "x": 40,
-    "y": 310,
-    "w": 300,
-    "h": 50,
-    "z": 7,
-    "pinned": false
-  },
-  {
-    "id": "tpl-8",
-    "type": "note",
-    "name": "Note",
-    "text": "Rig complexity per hero asset (how many controls, any facial rig), mocap or reference video for animated performances, and animation-supervisor review notes per shot — animation is usually the pipeline's tightest bottleneck, track it closer than anything else.",
-    "x": 40,
-    "y": 370,
-    "w": 300,
-    "h": 190,
-    "z": 8,
-    "pinned": false
-  },
-  {
-    "id": "tpl-9",
-    "type": "text",
-    "name": "Section",
-    "text": "LIGHTING & RENDERING",
-    "x": 380,
-    "y": 310,
-    "w": 300,
-    "h": 50,
-    "z": 9,
-    "pinned": false
-  },
-  {
-    "id": "tpl-10",
-    "type": "note",
-    "name": "Note",
-    "text": "Render engine and per-sequence settings, on-set HDRI/lighting reference for CG-to-plate matching, render-farm turnaround estimates, and the current AOV/render-pass checklist (beauty, diffuse, specular, cryptomatte for later comp control).",
-    "x": 380,
-    "y": 370,
-    "w": 300,
-    "h": 190,
-    "z": 10,
-    "pinned": false
-  },
-  {
-    "id": "tpl-11",
-    "type": "text",
-    "name": "Section",
-    "text": "COMPOSITING & DAILIES",
-    "x": 720,
-    "y": 310,
-    "w": 300,
-    "h": 50,
-    "z": 11,
-    "pinned": false
-  },
-  {
-    "id": "tpl-12",
-    "type": "note",
-    "name": "Note",
-    "text": "Daily notes from the comp supervisor, the shot-status board (WIP/review/approved/final), and any note that applies across the WHOLE sequence — broadcast those once here instead of repeating them shot-by-shot in review notes.",
-    "x": 720,
-    "y": 370,
-    "w": 300,
-    "h": 190,
-    "z": 12,
-    "pinned": false
-  },
-  {
-    "id": "tpl-13",
-    "type": "text",
-    "name": "Section",
-    "text": "VERSION CONTROL / PIPELINE TOOLS",
-    "x": 40,
-    "y": 580,
-    "w": 300,
-    "h": 50,
-    "z": 13,
-    "pinned": false
-  },
-  {
-    "id": "tpl-14",
-    "type": "note",
-    "name": "Note",
-    "text": "Naming convention for shot versions (e.g. SH010_comp_v014), where WIP files live (Shotgun/ftrack/Perforce/a shared drive), and any custom pipeline scripts the crew relies on — document the ONE script that would break the whole pipeline if the person who wrote it left.",
-    "x": 40,
-    "y": 640,
-    "w": 300,
-    "h": 190,
-    "z": 14,
-    "pinned": false
-  },
-  {
-    "id": "tpl-15",
-    "type": "text",
-    "name": "Section",
-    "text": "FINAL DELIVERY SPECS",
-    "x": 380,
-    "y": 580,
-    "w": 300,
-    "h": 50,
-    "z": 15,
-    "pinned": false
-  },
-  {
-    "id": "tpl-16",
-    "type": "note",
-    "name": "Note",
-    "text": "Full delivery spec sheet: codec, container, color space, delivery LUT, audio requirements (if any), and the QC checklist run before a show goes out — black frames, drop frames, and audio sync are the three things that get missed under deadline pressure.",
-    "x": 380,
-    "y": 640,
-    "w": 300,
-    "h": 190,
-    "z": 16,
-    "pinned": false
-  },
-  {
-    "id": "tpl-17",
-    "type": "text",
-    "name": "Section",
-    "text": "POST-MORTEM NOTES",
-    "x": 720,
-    "y": 580,
-    "w": 300,
-    "h": 50,
-    "z": 17,
-    "pinned": false
-  },
-  {
-    "id": "tpl-18",
-    "type": "note",
-    "name": "Note",
-    "text": "What actually worked, what didn't, and what changes for next time — written down here while the show is still fresh, since \"we'll remember for next time\" never actually survives to the next show.",
-    "x": 720,
-    "y": 640,
-    "w": 300,
-    "h": 190,
-    "z": 18,
-    "pinned": false
-  },
-  {
-    "id": "tpl-19",
-    "type": "text",
-    "name": "Section",
-    "text": "PLATES, LIDAR & LOOKDEV REFS",
-    "x": 1060,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 19,
-    "pinned": false
-  },
-  {
-    "id": "tpl-20",
-    "type": "note",
-    "name": "Note",
-    "text": "Drop shot plates, on-set HDRI/lighting reference, LIDAR/photogrammetry scan previews, and lookdev turntable renders (image, video, or a real 3D model card — .usd/.usdz is the industry-standard interchange for exactly this). Hero-asset reference belongs here, not buried in a note.",
-    "x": 1060,
-    "y": 100,
-    "w": 300,
-    "h": 220,
-    "z": 20,
-    "pinned": false
-  }
-]
+{
+  "cards": [
+    {
+      "id": "tpl-1",
+      "type": "text",
+      "name": "Section",
+      "text": "BID / SHOT COUNT / SCHEDULE",
+      "x": 40,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 1,
+      "pinned": false
+    },
+    {
+      "id": "tpl-2",
+      "type": "note",
+      "name": "Note",
+      "text": "Total shot count by complexity tier, crew-days estimated per department, client-approved budget and delivery schedule. Every later decision on this board gets measured against THIS document — scope creep is invisible until someone checks back here.",
+      "x": 40,
+      "y": 100,
+      "w": 300,
+      "h": 190,
+      "z": 2,
+      "pinned": false
+    },
+    {
+      "id": "tpl-3",
+      "type": "text",
+      "name": "Section",
+      "text": "ASSET PIPELINE — MODELING",
+      "x": 380,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 3,
+      "pinned": false
+    },
+    {
+      "id": "tpl-4",
+      "type": "note",
+      "name": "Note",
+      "text": "Hero assets vs. background/set-dressing assets, topology and poly budget per asset class, reference photogrammetry or LIDAR scan data if available, and modeling review status (blocked / in review / approved) per asset.",
+      "x": 380,
+      "y": 100,
+      "w": 300,
+      "h": 190,
+      "z": 4,
+      "pinned": false
+    },
+    {
+      "id": "tpl-5",
+      "type": "text",
+      "name": "Section",
+      "text": "ASSET PIPELINE — TEXTURING / LOOKDEV",
+      "x": 720,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 5,
+      "pinned": false
+    },
+    {
+      "id": "tpl-6",
+      "type": "note",
+      "name": "Note",
+      "text": "Texture resolution standard (4K hero, 2K background is typical), material library references, lookdev turntables pending supervisor sign-off, and any client-provided brand or material spec sheets that hero assets must match exactly.",
+      "x": 720,
+      "y": 100,
+      "w": 300,
+      "h": 190,
+      "z": 6,
+      "pinned": false
+    },
+    {
+      "id": "tpl-7",
+      "type": "text",
+      "name": "Section",
+      "text": "ASSET PIPELINE — RIGGING / ANIMATION",
+      "x": 40,
+      "y": 310,
+      "w": 300,
+      "h": 50,
+      "z": 7,
+      "pinned": false
+    },
+    {
+      "id": "tpl-8",
+      "type": "note",
+      "name": "Note",
+      "text": "Rig complexity per hero asset (how many controls, any facial rig), mocap or reference video for animated performances, and animation-supervisor review notes per shot — animation is usually the pipeline's tightest bottleneck, track it closer than anything else.",
+      "x": 40,
+      "y": 370,
+      "w": 300,
+      "h": 190,
+      "z": 8,
+      "pinned": false
+    },
+    {
+      "id": "tpl-9",
+      "type": "text",
+      "name": "Section",
+      "text": "LIGHTING & RENDERING",
+      "x": 380,
+      "y": 310,
+      "w": 300,
+      "h": 50,
+      "z": 9,
+      "pinned": false
+    },
+    {
+      "id": "tpl-10",
+      "type": "note",
+      "name": "Note",
+      "text": "Render engine and per-sequence settings, on-set HDRI/lighting reference for CG-to-plate matching, render-farm turnaround estimates, and the current AOV/render-pass checklist (beauty, diffuse, specular, cryptomatte for later comp control).",
+      "x": 380,
+      "y": 370,
+      "w": 300,
+      "h": 190,
+      "z": 10,
+      "pinned": false
+    },
+    {
+      "id": "tpl-11",
+      "type": "text",
+      "name": "Section",
+      "text": "COMPOSITING & DAILIES",
+      "x": 720,
+      "y": 310,
+      "w": 300,
+      "h": 50,
+      "z": 11,
+      "pinned": false
+    },
+    {
+      "id": "tpl-12",
+      "type": "note",
+      "name": "Note",
+      "text": "Daily notes from the comp supervisor, the shot-status board (WIP/review/approved/final), and any note that applies across the WHOLE sequence — broadcast those once here instead of repeating them shot-by-shot in review notes.",
+      "x": 720,
+      "y": 370,
+      "w": 300,
+      "h": 190,
+      "z": 12,
+      "pinned": false
+    },
+    {
+      "id": "tpl-13",
+      "type": "text",
+      "name": "Section",
+      "text": "VERSION CONTROL / PIPELINE TOOLS",
+      "x": 40,
+      "y": 580,
+      "w": 300,
+      "h": 50,
+      "z": 13,
+      "pinned": false
+    },
+    {
+      "id": "tpl-14",
+      "type": "note",
+      "name": "Note",
+      "text": "Naming convention for shot versions (e.g. SH010_comp_v014), where WIP files live (Shotgun/ftrack/Perforce/a shared drive), and any custom pipeline scripts the crew relies on — document the ONE script that would break the whole pipeline if the person who wrote it left.",
+      "x": 40,
+      "y": 640,
+      "w": 300,
+      "h": 190,
+      "z": 14,
+      "pinned": false
+    },
+    {
+      "id": "tpl-15",
+      "type": "text",
+      "name": "Section",
+      "text": "FINAL DELIVERY SPECS",
+      "x": 380,
+      "y": 580,
+      "w": 300,
+      "h": 50,
+      "z": 15,
+      "pinned": false
+    },
+    {
+      "id": "tpl-16",
+      "type": "note",
+      "name": "Note",
+      "text": "Full delivery spec sheet: codec, container, color space, delivery LUT, audio requirements (if any), and the QC checklist run before a show goes out — black frames, drop frames, and audio sync are the three things that get missed under deadline pressure.",
+      "x": 380,
+      "y": 640,
+      "w": 300,
+      "h": 190,
+      "z": 16,
+      "pinned": false
+    },
+    {
+      "id": "tpl-17",
+      "type": "text",
+      "name": "Section",
+      "text": "POST-MORTEM NOTES",
+      "x": 720,
+      "y": 580,
+      "w": 300,
+      "h": 50,
+      "z": 17,
+      "pinned": false
+    },
+    {
+      "id": "tpl-18",
+      "type": "note",
+      "name": "Note",
+      "text": "What actually worked, what didn't, and what changes for next time — written down here while the show is still fresh, since \"we'll remember for next time\" never actually survives to the next show.",
+      "x": 720,
+      "y": 640,
+      "w": 300,
+      "h": 190,
+      "z": 18,
+      "pinned": false
+    },
+    {
+      "id": "tpl-19",
+      "type": "text",
+      "name": "Section",
+      "text": "PLATES, LIDAR & LOOKDEV REFS",
+      "x": 1060,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 19,
+      "pinned": false
+    },
+    {
+      "id": "tpl-20",
+      "type": "note",
+      "name": "Note",
+      "text": "Drop shot plates, on-set HDRI/lighting reference, LIDAR/photogrammetry scan previews, and lookdev turntable renders (image, video, or a real 3D model card — .usd/.usdz is the industry-standard interchange for exactly this). Hero-asset reference belongs here, not buried in a note.",
+      "x": 1060,
+      "y": 100,
+      "w": 300,
+      "h": 220,
+      "z": 20,
+      "pinned": false
+    }
+  ],
+  "connections": [
+    {
+      "id": "tpl-conn-1",
+      "fromRefId": "tpl-2",
+      "toRefId": "tpl-4",
+      "type": "UsedIn",
+      "note": "Approved bid/schedule sets the scope for modeling"
+    },
+    {
+      "id": "tpl-conn-2",
+      "fromRefId": "tpl-4",
+      "toRefId": "tpl-6",
+      "type": "UsedIn",
+      "note": "Modeled assets go into texturing/lookdev"
+    },
+    {
+      "id": "tpl-conn-3",
+      "fromRefId": "tpl-6",
+      "toRefId": "tpl-8",
+      "type": "UsedIn",
+      "note": "Textured assets go into rigging"
+    },
+    {
+      "id": "tpl-conn-4",
+      "fromRefId": "tpl-8",
+      "toRefId": "tpl-10",
+      "type": "UsedIn",
+      "note": "Rigged/animated assets go into lighting and rendering"
+    },
+    {
+      "id": "tpl-conn-5",
+      "fromRefId": "tpl-10",
+      "toRefId": "tpl-12",
+      "type": "UsedIn",
+      "note": "Rendered passes go into compositing"
+    },
+    {
+      "id": "tpl-conn-6",
+      "fromRefId": "tpl-12",
+      "toRefId": "tpl-16",
+      "type": "UsedIn",
+      "note": "Approved comps go to final delivery"
+    },
+    {
+      "id": "tpl-conn-7",
+      "fromRefId": "tpl-20",
+      "toRefId": "tpl-4",
+      "type": "References",
+      "note": "LIDAR/photogrammetry scans feed modeling directly"
+    },
+    {
+      "id": "tpl-conn-8",
+      "fromRefId": "tpl-20",
+      "toRefId": "tpl-10",
+      "type": "References",
+      "note": "On-set HDRI/lighting reference feeds lookdev and lighting"
+    },
+    {
+      "id": "tpl-conn-9",
+      "fromRefId": "tpl-14",
+      "toRefId": "tpl-12",
+      "type": "Supports",
+      "note": "Naming/versioning discipline underpins the highest-churn stage"
+    },
+    {
+      "id": "tpl-conn-10",
+      "fromRefId": "tpl-18",
+      "toRefId": "tpl-2",
+      "type": "RelatedTo",
+      "note": "Post-mortem findings feed the next bid’s estimates"
+    }
+  ]
+}

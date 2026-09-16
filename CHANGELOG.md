@@ -2,6 +2,65 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [8.9.6] — Templates carry real Connections, 7 rebuilt
+
+*Backlog item: "Templates are still text/note-only — correctly called
+out as not a real professional pre-production starting point. Needs
+real research and a full rebuild, not another patch."*
+
+### Changed
+- **Templates can now ship real typed Connections between their own
+  cards, not just a flat list of notes.** Surveyed the actual content
+  of all 14 bundled templates before touching anything: every single
+  one was already text/note (plus a few color swatches) with real,
+  accurately-named industry pipeline stages — the v8.8.0 content pass
+  had already fixed the "generic placeholder text" problem. The real
+  gap this pass found: zero connections anywhere, meaning no template
+  ever demonstrated Connections/Map View — Kanvaz's own actual
+  differentiator against every flat moodboard competitor (PureRef,
+  Milanote, Are.na, ArtDeck) — at all. A new user opening any template
+  had no way to discover the feature exists.
+- **7 templates most aligned with the v8 line's named personas
+  (3D/VFX, game dev, animation) rebuilt with real pipeline-dependency
+  connections**: `vfx-professional` (10), `vfx-intermediate` (8),
+  `vfx-beginner` (8), `game-dev` (9), `game-art` (5),
+  `animation-pipeline` (9), `character-design` (10) — each connection
+  reflects a real production dependency (e.g. game-dev's Technical
+  Budget `Supports` the Asset List — the exact cross-discipline
+  dependency-visibility gap named in this session's own positioning
+  research, made visible on first open rather than left implicit).
+  **The other 7 templates (filmmaking, branding-identity, ui-ux-design,
+  architecture-product, photography-concept, music-production,
+  mood-board) are unchanged this pass** — a deliberate scope decision,
+  not an oversight, given the size of doing this rigorously across all
+  14; flagged as a real follow-up in ROADMAP.md.
+- **New file format, fully backward compatible**: a template file can
+  now be `{cards, connections}` instead of a bare card array. Every
+  template on disk before this release (all 7 untouched built-ins, and
+  every existing user-saved template) stays a bare array and loads
+  exactly as before — `template-load`'s handler (`main.js`) detects the
+  shape with `Array.isArray()` rather than a version field, so the
+  common connections-less case never grows on disk. `template-save`
+  (Save-as-Template) now accepts and writes a real `connections` array
+  too, when there's one worth saving — so a user's own custom templates
+  can carry their own connections from now on, not just the bundled
+  ones. `KanvazBoards.newBoard()` gained an optional `initialConnections`
+  param; `useTemplate()` passes it through to `KanvazConnections.
+  deserialise()` instead of the previous unconditional `.clear()`.
+  - Verified: a Node script checked every rebuilt template's
+    connections reference real card ids that exist in that same file,
+    use only the 7 valid connection types, have no self-loops, and no
+    duplicate connection ids — zero problems found. Live-verified the
+    IPC boundary specifically via CDP: `KanvazBridge.loadTemplate(
+    'vfx-professional')` against the real running app returned the
+    correct `{ok, cards, connections}` shape with the exact connection
+    data expected. **Not yet live-clicked through the actual Templates
+    gallery UI end-to-end** (interrupted mid-session to avoid
+    interfering with the user's own concurrent use of the app) — the
+    `useTemplate()`/`newBoard()`/`deserialise()` code path was verified
+    by reading and tracing the source, not by a live click, and is
+    queued for a real click-through pass next session.
+
 ## [8.9.5] — Presentation Mode
 
 *Backlog item: "Presentation/kiosk mode for presenting a board from

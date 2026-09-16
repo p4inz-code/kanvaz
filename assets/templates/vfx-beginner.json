@@ -1,218 +1,278 @@
-[
-  {
-    "id": "tpl-1",
-    "type": "text",
-    "name": "Section",
-    "text": "PLATE PREP",
-    "x": 40,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 1,
-    "pinned": false
-  },
-  {
-    "id": "tpl-2",
-    "type": "note",
-    "name": "Note",
-    "text": "Before touching anything: check plate resolution, frame rate, and color space (log vs. Rec.709). Note lens info if given (focal length, distortion). A shaky handheld plate needs stabilizing BEFORE roto or tracking, not after — everything downstream inherits plate motion.",
-    "x": 40,
-    "y": 100,
-    "w": 300,
-    "h": 190,
-    "z": 2,
-    "pinned": false
-  },
-  {
-    "id": "tpl-3",
-    "type": "text",
-    "name": "Section",
-    "text": "ROTO / MASKING",
-    "x": 380,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 3,
-    "pinned": false
-  },
-  {
-    "id": "tpl-4",
-    "type": "note",
-    "name": "Note",
-    "text": "Roto the subject on 1s first for fast motion, every 3-5 frames for slow motion, then fill gaps. Use Bezier for hard edges, B-spline/roto brush for hair/fur/motion blur edges. Feather 1-2px minimum — a razor-sharp roto edge is the #1 beginner tell.",
-    "x": 380,
-    "y": 100,
-    "w": 300,
-    "h": 190,
-    "z": 4,
-    "pinned": false
-  },
-  {
-    "id": "tpl-5",
-    "type": "text",
-    "name": "Section",
-    "text": "TRACKING / MATCHMOVE",
-    "x": 720,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 5,
-    "pinned": false
-  },
-  {
-    "id": "tpl-6",
-    "type": "note",
-    "name": "Note",
-    "text": "Planar track for flat surfaces (screens, signs, walls). Point track + camera solve for 3D insert work. Always verify the track by parenting a test null/checker pattern to it and scrubbing the WHOLE shot, not just a few frames.",
-    "x": 720,
-    "y": 100,
-    "w": 300,
-    "h": 190,
-    "z": 6,
-    "pinned": false
-  },
-  {
-    "id": "tpl-7",
-    "type": "text",
-    "name": "Section",
-    "text": "KEYING (green/blue screen)",
-    "x": 40,
-    "y": 310,
-    "w": 300,
-    "h": 50,
-    "z": 7,
-    "pinned": false
-  },
-  {
-    "id": "tpl-8",
-    "type": "note",
-    "name": "Note",
-    "text": "Sample the key color from a flat, evenly-lit patch, never a shadowed corner. Check the alpha channel alone (not just the composite) for holes and noise before moving on. Spill-suppress after keying, not before — order matters.",
-    "x": 40,
-    "y": 370,
-    "w": 300,
-    "h": 190,
-    "z": 8,
-    "pinned": false
-  },
-  {
-    "id": "tpl-9",
-    "type": "text",
-    "name": "Section",
-    "text": "COMPOSITE ORDER",
-    "x": 380,
-    "y": 310,
-    "w": 300,
-    "h": 50,
-    "z": 9,
-    "pinned": false
-  },
-  {
-    "id": "tpl-10",
-    "type": "note",
-    "name": "Note",
-    "text": "1. Roto/key\n2. Color-match CG or foreground to plate (black levels, white balance, grain)\n3. Add light wrap where elements meet\n4. Match motion blur and depth of field\n5. Grain/noise pass last, applied to the WHOLE comp so it reads as one image",
-    "x": 380,
-    "y": 370,
-    "w": 300,
-    "h": 190,
-    "z": 10,
-    "pinned": false
-  },
-  {
-    "id": "tpl-11",
-    "type": "text",
-    "name": "Section",
-    "text": "THE 5 GIVEAWAY MISTAKES",
-    "x": 720,
-    "y": 310,
-    "w": 300,
-    "h": 50,
-    "z": 11,
-    "pinned": false
-  },
-  {
-    "id": "tpl-12",
-    "type": "note",
-    "name": "Note",
-    "text": "1. Mismatched black levels between plate and added element\n2. No motion blur on a fast-moving comped object\n3. Hard, unfeathered keying/roto edges\n4. Grain only on the plate, not on what you added\n5. Perfectly clean added element next to a noisy/grainy real plate",
-    "x": 720,
-    "y": 370,
-    "w": 300,
-    "h": 190,
-    "z": 12,
-    "pinned": false
-  },
-  {
-    "id": "tpl-13",
-    "type": "text",
-    "name": "Section",
-    "text": "SOFTWARE NOTES",
-    "x": 40,
-    "y": 580,
-    "w": 300,
-    "h": 50,
-    "z": 13,
-    "pinned": false
-  },
-  {
-    "id": "tpl-14",
-    "type": "note",
-    "name": "Note",
-    "text": "DaVinci Resolve Fusion — free, node-based, a genuinely good first real compositor. Blender — free, also handles 3D if you want to add CG elements later. Note here which one you're using and why, so tutorials/settings stay consistent.",
-    "x": 40,
-    "y": 640,
-    "w": 300,
-    "h": 190,
-    "z": 14,
-    "pinned": false
-  },
-  {
-    "id": "tpl-15",
-    "type": "text",
-    "name": "Section",
-    "text": "PRACTICE SHOT IDEAS",
-    "x": 380,
-    "y": 580,
-    "w": 300,
-    "h": 50,
-    "z": 15,
-    "pinned": false
-  },
-  {
-    "id": "tpl-16",
-    "type": "note",
-    "name": "Note",
-    "text": "A \"floating object\" shot (rig/wire removal + a believable idle motion). A day-to-night sky replacement with matching color temp shift on the foreground. A simple muzzle-flash or energy-beam effect added to a phone-shot video, with correct light interaction on nearby surfaces.",
-    "x": 380,
-    "y": 640,
-    "w": 300,
-    "h": 190,
-    "z": 16,
-    "pinned": false
-  },
-  {
-    "id": "tpl-17",
-    "type": "text",
-    "name": "Section",
-    "text": "PLATES & REFERENCE",
-    "x": 1060,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 17,
-    "pinned": false
-  },
-  {
-    "id": "tpl-18",
-    "type": "note",
-    "name": "Note",
-    "text": "Drop the actual shot plates here (image or video cards), plus any on-set reference photos and lens-grid/gray-ball/chrome-ball shots if you have them. Everything in the sections to the left refers back to whatever lands in this column.",
-    "x": 1060,
-    "y": 100,
-    "w": 300,
-    "h": 220,
-    "z": 18,
-    "pinned": false
-  }
-]
+{
+  "cards": [
+    {
+      "id": "tpl-1",
+      "type": "text",
+      "name": "Section",
+      "text": "PLATE PREP",
+      "x": 40,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 1,
+      "pinned": false
+    },
+    {
+      "id": "tpl-2",
+      "type": "note",
+      "name": "Note",
+      "text": "Before touching anything: check plate resolution, frame rate, and color space (log vs. Rec.709). Note lens info if given (focal length, distortion). A shaky handheld plate needs stabilizing BEFORE roto or tracking, not after — everything downstream inherits plate motion.",
+      "x": 40,
+      "y": 100,
+      "w": 300,
+      "h": 190,
+      "z": 2,
+      "pinned": false
+    },
+    {
+      "id": "tpl-3",
+      "type": "text",
+      "name": "Section",
+      "text": "ROTO / MASKING",
+      "x": 380,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 3,
+      "pinned": false
+    },
+    {
+      "id": "tpl-4",
+      "type": "note",
+      "name": "Note",
+      "text": "Roto the subject on 1s first for fast motion, every 3-5 frames for slow motion, then fill gaps. Use Bezier for hard edges, B-spline/roto brush for hair/fur/motion blur edges. Feather 1-2px minimum — a razor-sharp roto edge is the #1 beginner tell.",
+      "x": 380,
+      "y": 100,
+      "w": 300,
+      "h": 190,
+      "z": 4,
+      "pinned": false
+    },
+    {
+      "id": "tpl-5",
+      "type": "text",
+      "name": "Section",
+      "text": "TRACKING / MATCHMOVE",
+      "x": 720,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 5,
+      "pinned": false
+    },
+    {
+      "id": "tpl-6",
+      "type": "note",
+      "name": "Note",
+      "text": "Planar track for flat surfaces (screens, signs, walls). Point track + camera solve for 3D insert work. Always verify the track by parenting a test null/checker pattern to it and scrubbing the WHOLE shot, not just a few frames.",
+      "x": 720,
+      "y": 100,
+      "w": 300,
+      "h": 190,
+      "z": 6,
+      "pinned": false
+    },
+    {
+      "id": "tpl-7",
+      "type": "text",
+      "name": "Section",
+      "text": "KEYING (green/blue screen)",
+      "x": 40,
+      "y": 310,
+      "w": 300,
+      "h": 50,
+      "z": 7,
+      "pinned": false
+    },
+    {
+      "id": "tpl-8",
+      "type": "note",
+      "name": "Note",
+      "text": "Sample the key color from a flat, evenly-lit patch, never a shadowed corner. Check the alpha channel alone (not just the composite) for holes and noise before moving on. Spill-suppress after keying, not before — order matters.",
+      "x": 40,
+      "y": 370,
+      "w": 300,
+      "h": 190,
+      "z": 8,
+      "pinned": false
+    },
+    {
+      "id": "tpl-9",
+      "type": "text",
+      "name": "Section",
+      "text": "COMPOSITE ORDER",
+      "x": 380,
+      "y": 310,
+      "w": 300,
+      "h": 50,
+      "z": 9,
+      "pinned": false
+    },
+    {
+      "id": "tpl-10",
+      "type": "note",
+      "name": "Note",
+      "text": "1. Roto/key\n2. Color-match CG or foreground to plate (black levels, white balance, grain)\n3. Add light wrap where elements meet\n4. Match motion blur and depth of field\n5. Grain/noise pass last, applied to the WHOLE comp so it reads as one image",
+      "x": 380,
+      "y": 370,
+      "w": 300,
+      "h": 190,
+      "z": 10,
+      "pinned": false
+    },
+    {
+      "id": "tpl-11",
+      "type": "text",
+      "name": "Section",
+      "text": "THE 5 GIVEAWAY MISTAKES",
+      "x": 720,
+      "y": 310,
+      "w": 300,
+      "h": 50,
+      "z": 11,
+      "pinned": false
+    },
+    {
+      "id": "tpl-12",
+      "type": "note",
+      "name": "Note",
+      "text": "1. Mismatched black levels between plate and added element\n2. No motion blur on a fast-moving comped object\n3. Hard, unfeathered keying/roto edges\n4. Grain only on the plate, not on what you added\n5. Perfectly clean added element next to a noisy/grainy real plate",
+      "x": 720,
+      "y": 370,
+      "w": 300,
+      "h": 190,
+      "z": 12,
+      "pinned": false
+    },
+    {
+      "id": "tpl-13",
+      "type": "text",
+      "name": "Section",
+      "text": "SOFTWARE NOTES",
+      "x": 40,
+      "y": 580,
+      "w": 300,
+      "h": 50,
+      "z": 13,
+      "pinned": false
+    },
+    {
+      "id": "tpl-14",
+      "type": "note",
+      "name": "Note",
+      "text": "DaVinci Resolve Fusion — free, node-based, a genuinely good first real compositor. Blender — free, also handles 3D if you want to add CG elements later. Note here which one you're using and why, so tutorials/settings stay consistent.",
+      "x": 40,
+      "y": 640,
+      "w": 300,
+      "h": 190,
+      "z": 14,
+      "pinned": false
+    },
+    {
+      "id": "tpl-15",
+      "type": "text",
+      "name": "Section",
+      "text": "PRACTICE SHOT IDEAS",
+      "x": 380,
+      "y": 580,
+      "w": 300,
+      "h": 50,
+      "z": 15,
+      "pinned": false
+    },
+    {
+      "id": "tpl-16",
+      "type": "note",
+      "name": "Note",
+      "text": "A \"floating object\" shot (rig/wire removal + a believable idle motion). A day-to-night sky replacement with matching color temp shift on the foreground. A simple muzzle-flash or energy-beam effect added to a phone-shot video, with correct light interaction on nearby surfaces.",
+      "x": 380,
+      "y": 640,
+      "w": 300,
+      "h": 190,
+      "z": 16,
+      "pinned": false
+    },
+    {
+      "id": "tpl-17",
+      "type": "text",
+      "name": "Section",
+      "text": "PLATES & REFERENCE",
+      "x": 1060,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 17,
+      "pinned": false
+    },
+    {
+      "id": "tpl-18",
+      "type": "note",
+      "name": "Note",
+      "text": "Drop the actual shot plates here (image or video cards), plus any on-set reference photos and lens-grid/gray-ball/chrome-ball shots if you have them. Everything in the sections to the left refers back to whatever lands in this column.",
+      "x": 1060,
+      "y": 100,
+      "w": 300,
+      "h": 220,
+      "z": 18,
+      "pinned": false
+    }
+  ],
+  "connections": [
+    {
+      "id": "tpl-conn-1",
+      "fromRefId": "tpl-18",
+      "toRefId": "tpl-2",
+      "type": "References",
+      "note": "Raw plates feed plate prep"
+    },
+    {
+      "id": "tpl-conn-2",
+      "fromRefId": "tpl-2",
+      "toRefId": "tpl-4",
+      "type": "UsedIn",
+      "note": "Prepped plates go into roto/masking"
+    },
+    {
+      "id": "tpl-conn-3",
+      "fromRefId": "tpl-2",
+      "toRefId": "tpl-6",
+      "type": "UsedIn",
+      "note": "Prepped plates go into tracking/matchmove"
+    },
+    {
+      "id": "tpl-conn-4",
+      "fromRefId": "tpl-2",
+      "toRefId": "tpl-8",
+      "type": "UsedIn",
+      "note": "Prepped plates go into keying"
+    },
+    {
+      "id": "tpl-conn-5",
+      "fromRefId": "tpl-4",
+      "toRefId": "tpl-10",
+      "type": "UsedIn",
+      "note": "Roto feeds the final composite"
+    },
+    {
+      "id": "tpl-conn-6",
+      "fromRefId": "tpl-6",
+      "toRefId": "tpl-10",
+      "type": "UsedIn",
+      "note": "Tracking data feeds the final composite"
+    },
+    {
+      "id": "tpl-conn-7",
+      "fromRefId": "tpl-8",
+      "toRefId": "tpl-10",
+      "type": "UsedIn",
+      "note": "The key feeds the final composite"
+    },
+    {
+      "id": "tpl-conn-8",
+      "fromRefId": "tpl-10",
+      "toRefId": "tpl-12",
+      "type": "RelatedTo",
+      "note": "Check the finished comp against the mistakes checklist"
+    }
+  ]
+}

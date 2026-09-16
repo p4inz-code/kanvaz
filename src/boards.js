@@ -7,7 +7,7 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '8.9.5';
+  var VERSION       = '8.9.6';
 
   /* ── Shared cards (v6.4.0) — "same card, no duplicate, edit once
      updates everywhere" (Are.na-style), across boards in ONE .kanvaz
@@ -459,7 +459,8 @@ var KanvazBoards = (function() {
           reloadList();
           return;
         }
-        KanvazBridge.saveTemplate(name, descInput.value, cards).then(function(res) {
+        var connections = (typeof KanvazConnections !== 'undefined') ? KanvazConnections.serialise() : [];
+        KanvazBridge.saveTemplate(name, descInput.value, cards, connections).then(function(res) {
           if (!res || !res.ok) {
             KanvazUI.toast((res && res.error) || 'Could not save template', 'error');
             reloadList();
@@ -608,7 +609,7 @@ var KanvazBoards = (function() {
         if (onError) onError();
         return;
       }
-      newBoard(true, entry.name, res.cards);
+      newBoard(true, entry.name, res.cards, res.connections);
       KanvazApp.markDirty();
       KanvazHistory.push();
       KanvazUI.toast('Started board from "' + entry.name + '"');
@@ -619,7 +620,7 @@ var KanvazBoards = (function() {
     });
   }
 
-  function newBoard(silent, name, initialCards) {
+  function newBoard(silent, name, initialCards, initialConnections) {
     saveCurrentBoardState();
 
     var id = 'board-' + Date.now();
@@ -641,7 +642,18 @@ var KanvazBoards = (function() {
     } else {
       KanvazCards.clearAll();
     }
-    if (typeof KanvazConnections !== 'undefined') KanvazConnections.clear();
+    /* A template can now ship real typed Connections demonstrating its
+       own pipeline flow (the rebuilt built-in templates do) — restore
+       those the same way deserialise() restores cards, rather than
+       always clearing. A plain "New Board" (no initialConnections
+       argument at all) still clears, same as before. */
+    if (typeof KanvazConnections !== 'undefined') {
+      if (initialConnections && initialConnections.length) {
+        KanvazConnections.deserialise(initialConnections);
+      } else {
+        KanvazConnections.clear();
+      }
+    }
     KanvazCanvas.zoomReset();
     KanvazHistory.clear();
     emitBoardEvent('boardLoad');

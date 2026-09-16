@@ -1,218 +1,285 @@
-[
-  {
-    "id": "tpl-1",
-    "type": "text",
-    "name": "Section",
-    "text": "STORY / SCRIPT NOTES",
-    "x": 40,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 1,
-    "pinned": false
-  },
-  {
-    "id": "tpl-2",
-    "type": "note",
-    "name": "Note",
-    "text": "Beat sheet or script excerpt driving the short. Keep the core emotional beats visible on the board so every later stylistic decision stays in service of the story, not just \"looks cool.\"",
-    "x": 40,
-    "y": 100,
-    "w": 300,
-    "h": 190,
-    "z": 2,
-    "pinned": false
-  },
-  {
-    "id": "tpl-3",
-    "type": "text",
-    "name": "Section",
-    "text": "STORYBOARD / ANIMATIC",
-    "x": 380,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 3,
-    "pinned": false
-  },
-  {
-    "id": "tpl-4",
-    "type": "note",
-    "name": "Note",
-    "text": "Rough panel sequence with real timing (cut to the actual target frame count, not a guess). This is the single source of truth for shot count and pacing — LOCK it before final animation starts. An animatic that keeps changing during animation means redoing finished shots.",
-    "x": 380,
-    "y": 100,
-    "w": 300,
-    "h": 190,
-    "z": 4,
-    "pinned": false
-  },
-  {
-    "id": "tpl-5",
-    "type": "text",
-    "name": "Section",
-    "text": "CHARACTER DESIGN & MODEL SHEETS",
-    "x": 720,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 5,
-    "pinned": false
-  },
-  {
-    "id": "tpl-6",
-    "type": "note",
-    "name": "Note",
-    "text": "Turnarounds, expression sheets, and (for 3D) rig reference. Lock character design before animation begins — a mid-production redesign means every already-animated shot needs revisiting.",
-    "x": 720,
-    "y": 100,
-    "w": 300,
-    "h": 190,
-    "z": 6,
-    "pinned": false
-  },
-  {
-    "id": "tpl-7",
-    "type": "text",
-    "name": "Section",
-    "text": "BACKGROUND / ENVIRONMENT DESIGN",
-    "x": 40,
-    "y": 310,
-    "w": 300,
-    "h": 50,
-    "z": 7,
-    "pinned": false
-  },
-  {
-    "id": "tpl-8",
-    "type": "note",
-    "name": "Note",
-    "text": "Key background paintings or 3D environment blockouts, palette-keyed to each scene's mood. Match the color key to the storyboard's intended emotional beat for that scene, not just \"what looks nice.\"",
-    "x": 40,
-    "y": 370,
-    "w": 300,
-    "h": 190,
-    "z": 8,
-    "pinned": false
-  },
-  {
-    "id": "tpl-9",
-    "type": "text",
-    "name": "Section",
-    "text": "SHOT LIST",
-    "x": 380,
-    "y": 310,
-    "w": 300,
-    "h": 50,
-    "z": 9,
-    "pinned": false
-  },
-  {
-    "id": "tpl-10",
-    "type": "note",
-    "name": "Note",
-    "text": "Per-shot breakdown: shot number, duration, animator assigned, complexity (walk cycle vs. a hero acting performance), and status. Assign your best animator to the hardest ACTING shots, not the busiest-looking ones — acting is what audiences actually judge.",
-    "x": 380,
-    "y": 370,
-    "w": 300,
-    "h": 190,
-    "z": 10,
-    "pinned": false
-  },
-  {
-    "id": "tpl-11",
-    "type": "text",
-    "name": "Section",
-    "text": "REFERENCE FOOTAGE",
-    "x": 720,
-    "y": 310,
-    "w": 300,
-    "h": 50,
-    "z": 11,
-    "pinned": false
-  },
-  {
-    "id": "tpl-12",
-    "type": "note",
-    "name": "Note",
-    "text": "Live-action reference for tricky performance or motion beats — film yourself acting it out, or source reference of the specific action. Even rough phone-camera reference beats animating a performance from pure imagination.",
-    "x": 720,
-    "y": 370,
-    "w": 300,
-    "h": 190,
-    "z": 12,
-    "pinned": false
-  },
-  {
-    "id": "tpl-13",
-    "type": "text",
-    "name": "Section",
-    "text": "DAILIES / REVIEW NOTES",
-    "x": 40,
-    "y": 580,
-    "w": 300,
-    "h": 50,
-    "z": 13,
-    "pinned": false
-  },
-  {
-    "id": "tpl-14",
-    "type": "note",
-    "name": "Note",
-    "text": "Track review rounds per shot the same way a VFX studio does: what changed, what's still open, and what's approved. An animation short with no review-tracking discipline loses feedback the same way an untracked VFX shot does.",
-    "x": 40,
-    "y": 640,
-    "w": 300,
-    "h": 190,
-    "z": 14,
-    "pinned": false
-  },
-  {
-    "id": "tpl-15",
-    "type": "text",
-    "name": "Section",
-    "text": "RENDER / EXPORT SETTINGS",
-    "x": 380,
-    "y": 580,
-    "w": 300,
-    "h": 50,
-    "z": 15,
-    "pinned": false
-  },
-  {
-    "id": "tpl-16",
-    "type": "note",
-    "name": "Note",
-    "text": "Resolution, frame rate, and codec for both work-in-progress playblasts and the final render — decide this once, up front, so nothing needs re-exporting at delivery time because of a format mismatch nobody caught.",
-    "x": 380,
-    "y": 640,
-    "w": 300,
-    "h": 190,
-    "z": 16,
-    "pinned": false
-  },
-  {
-    "id": "tpl-17",
-    "type": "text",
-    "name": "Section",
-    "text": "BOARDS, ANIMATIC & MODELS",
-    "x": 1060,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 17,
-    "pinned": false
-  },
-  {
-    "id": "tpl-18",
-    "type": "note",
-    "name": "Note",
-    "text": "Drop storyboard panels, the animatic (a video card), and any 3D character/prop models (.glb/.fbx/.usd) here as each production stage locks — this is the \"before you proceed\" evidence the gates on the left are checking for.",
-    "x": 1060,
-    "y": 100,
-    "w": 300,
-    "h": 220,
-    "z": 18,
-    "pinned": false
-  }
-]
+{
+  "cards": [
+    {
+      "id": "tpl-1",
+      "type": "text",
+      "name": "Section",
+      "text": "STORY / SCRIPT NOTES",
+      "x": 40,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 1,
+      "pinned": false
+    },
+    {
+      "id": "tpl-2",
+      "type": "note",
+      "name": "Note",
+      "text": "Beat sheet or script excerpt driving the short. Keep the core emotional beats visible on the board so every later stylistic decision stays in service of the story, not just \"looks cool.\"",
+      "x": 40,
+      "y": 100,
+      "w": 300,
+      "h": 190,
+      "z": 2,
+      "pinned": false
+    },
+    {
+      "id": "tpl-3",
+      "type": "text",
+      "name": "Section",
+      "text": "STORYBOARD / ANIMATIC",
+      "x": 380,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 3,
+      "pinned": false
+    },
+    {
+      "id": "tpl-4",
+      "type": "note",
+      "name": "Note",
+      "text": "Rough panel sequence with real timing (cut to the actual target frame count, not a guess). This is the single source of truth for shot count and pacing — LOCK it before final animation starts. An animatic that keeps changing during animation means redoing finished shots.",
+      "x": 380,
+      "y": 100,
+      "w": 300,
+      "h": 190,
+      "z": 4,
+      "pinned": false
+    },
+    {
+      "id": "tpl-5",
+      "type": "text",
+      "name": "Section",
+      "text": "CHARACTER DESIGN & MODEL SHEETS",
+      "x": 720,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 5,
+      "pinned": false
+    },
+    {
+      "id": "tpl-6",
+      "type": "note",
+      "name": "Note",
+      "text": "Turnarounds, expression sheets, and (for 3D) rig reference. Lock character design before animation begins — a mid-production redesign means every already-animated shot needs revisiting.",
+      "x": 720,
+      "y": 100,
+      "w": 300,
+      "h": 190,
+      "z": 6,
+      "pinned": false
+    },
+    {
+      "id": "tpl-7",
+      "type": "text",
+      "name": "Section",
+      "text": "BACKGROUND / ENVIRONMENT DESIGN",
+      "x": 40,
+      "y": 310,
+      "w": 300,
+      "h": 50,
+      "z": 7,
+      "pinned": false
+    },
+    {
+      "id": "tpl-8",
+      "type": "note",
+      "name": "Note",
+      "text": "Key background paintings or 3D environment blockouts, palette-keyed to each scene's mood. Match the color key to the storyboard's intended emotional beat for that scene, not just \"what looks nice.\"",
+      "x": 40,
+      "y": 370,
+      "w": 300,
+      "h": 190,
+      "z": 8,
+      "pinned": false
+    },
+    {
+      "id": "tpl-9",
+      "type": "text",
+      "name": "Section",
+      "text": "SHOT LIST",
+      "x": 380,
+      "y": 310,
+      "w": 300,
+      "h": 50,
+      "z": 9,
+      "pinned": false
+    },
+    {
+      "id": "tpl-10",
+      "type": "note",
+      "name": "Note",
+      "text": "Per-shot breakdown: shot number, duration, animator assigned, complexity (walk cycle vs. a hero acting performance), and status. Assign your best animator to the hardest ACTING shots, not the busiest-looking ones — acting is what audiences actually judge.",
+      "x": 380,
+      "y": 370,
+      "w": 300,
+      "h": 190,
+      "z": 10,
+      "pinned": false
+    },
+    {
+      "id": "tpl-11",
+      "type": "text",
+      "name": "Section",
+      "text": "REFERENCE FOOTAGE",
+      "x": 720,
+      "y": 310,
+      "w": 300,
+      "h": 50,
+      "z": 11,
+      "pinned": false
+    },
+    {
+      "id": "tpl-12",
+      "type": "note",
+      "name": "Note",
+      "text": "Live-action reference for tricky performance or motion beats — film yourself acting it out, or source reference of the specific action. Even rough phone-camera reference beats animating a performance from pure imagination.",
+      "x": 720,
+      "y": 370,
+      "w": 300,
+      "h": 190,
+      "z": 12,
+      "pinned": false
+    },
+    {
+      "id": "tpl-13",
+      "type": "text",
+      "name": "Section",
+      "text": "DAILIES / REVIEW NOTES",
+      "x": 40,
+      "y": 580,
+      "w": 300,
+      "h": 50,
+      "z": 13,
+      "pinned": false
+    },
+    {
+      "id": "tpl-14",
+      "type": "note",
+      "name": "Note",
+      "text": "Track review rounds per shot the same way a VFX studio does: what changed, what's still open, and what's approved. An animation short with no review-tracking discipline loses feedback the same way an untracked VFX shot does.",
+      "x": 40,
+      "y": 640,
+      "w": 300,
+      "h": 190,
+      "z": 14,
+      "pinned": false
+    },
+    {
+      "id": "tpl-15",
+      "type": "text",
+      "name": "Section",
+      "text": "RENDER / EXPORT SETTINGS",
+      "x": 380,
+      "y": 580,
+      "w": 300,
+      "h": 50,
+      "z": 15,
+      "pinned": false
+    },
+    {
+      "id": "tpl-16",
+      "type": "note",
+      "name": "Note",
+      "text": "Resolution, frame rate, and codec for both work-in-progress playblasts and the final render — decide this once, up front, so nothing needs re-exporting at delivery time because of a format mismatch nobody caught.",
+      "x": 380,
+      "y": 640,
+      "w": 300,
+      "h": 190,
+      "z": 16,
+      "pinned": false
+    },
+    {
+      "id": "tpl-17",
+      "type": "text",
+      "name": "Section",
+      "text": "BOARDS, ANIMATIC & MODELS",
+      "x": 1060,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 17,
+      "pinned": false
+    },
+    {
+      "id": "tpl-18",
+      "type": "note",
+      "name": "Note",
+      "text": "Drop storyboard panels, the animatic (a video card), and any 3D character/prop models (.glb/.fbx/.usd) here as each production stage locks — this is the \"before you proceed\" evidence the gates on the left are checking for.",
+      "x": 1060,
+      "y": 100,
+      "w": 300,
+      "h": 220,
+      "z": 18,
+      "pinned": false
+    }
+  ],
+  "connections": [
+    {
+      "id": "tpl-conn-1",
+      "fromRefId": "tpl-2",
+      "toRefId": "tpl-4",
+      "type": "UsedIn",
+      "note": "Script/story notes go into the storyboard/animatic"
+    },
+    {
+      "id": "tpl-conn-2",
+      "fromRefId": "tpl-4",
+      "toRefId": "tpl-10",
+      "type": "UsedIn",
+      "note": "Storyboard/animatic drives the shot list"
+    },
+    {
+      "id": "tpl-conn-3",
+      "fromRefId": "tpl-6",
+      "toRefId": "tpl-10",
+      "type": "UsedIn",
+      "note": "Finished character designs are needed before shots can be listed"
+    },
+    {
+      "id": "tpl-conn-4",
+      "fromRefId": "tpl-8",
+      "toRefId": "tpl-10",
+      "type": "UsedIn",
+      "note": "Environment designs are needed before shots can be listed"
+    },
+    {
+      "id": "tpl-conn-5",
+      "fromRefId": "tpl-12",
+      "toRefId": "tpl-6",
+      "type": "References",
+      "note": "Reference footage feeds character design/model sheets"
+    },
+    {
+      "id": "tpl-conn-6",
+      "fromRefId": "tpl-12",
+      "toRefId": "tpl-4",
+      "type": "References",
+      "note": "Reference footage informs storyboard/animatic timing"
+    },
+    {
+      "id": "tpl-conn-7",
+      "fromRefId": "tpl-10",
+      "toRefId": "tpl-14",
+      "type": "UsedIn",
+      "note": "Shot list drives dailies/review"
+    },
+    {
+      "id": "tpl-conn-8",
+      "fromRefId": "tpl-14",
+      "toRefId": "tpl-16",
+      "type": "UsedIn",
+      "note": "Approved dailies go to render/export"
+    },
+    {
+      "id": "tpl-conn-9",
+      "fromRefId": "tpl-18",
+      "toRefId": "tpl-4",
+      "type": "References",
+      "note": "External boards/model references feed the storyboard"
+    }
+  ]
+}

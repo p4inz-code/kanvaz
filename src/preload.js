@@ -72,7 +72,7 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
   fetchUrlPreview: function(url) { return ipcRenderer.invoke('fetch-url-preview', url); },
   listTemplates:   function() { return ipcRenderer.invoke('templates-list'); },
   loadTemplate:    function(id) { return ipcRenderer.invoke('template-load', id); },
-  saveTemplate:    function(name, description, cards) { return ipcRenderer.invoke('template-save', name, description, cards); },
+  saveTemplate:    function(name, description, cards, connections) { return ipcRenderer.invoke('template-save', name, description, cards, connections); },
   deleteTemplate:  function(id) { return ipcRenderer.invoke('template-delete', id); },
   setSmartSearchEnabled: function(enabled) { return ipcRenderer.invoke('smart-search-set-enabled', enabled); },
   smartSearchIndex: function(cards) { return ipcRenderer.invoke('smart-search-index', cards); },

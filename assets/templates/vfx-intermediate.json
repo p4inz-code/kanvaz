@@ -1,218 +1,278 @@
-[
-  {
-    "id": "tpl-1",
-    "type": "text",
-    "name": "Section",
-    "text": "SHOT BREAKDOWN & BIDDING",
-    "x": 40,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 1,
-    "pinned": false
-  },
-  {
-    "id": "tpl-2",
-    "type": "note",
-    "name": "Note",
-    "text": "Per shot: shot ID (e.g. SH010), plate source, required work (roto/paint/CG/comp), complexity tier (easy/medium/hard), and estimated hours. Bid the HARDEST shot in a sequence first — it sets your real hourly rate, everything else is comparison.",
-    "x": 40,
-    "y": 100,
-    "w": 300,
-    "h": 190,
-    "z": 2,
-    "pinned": false
-  },
-  {
-    "id": "tpl-3",
-    "type": "text",
-    "name": "Section",
-    "text": "SHOT STATUS BOARD",
-    "x": 380,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 3,
-    "pinned": false
-  },
-  {
-    "id": "tpl-4",
-    "type": "note",
-    "name": "Note",
-    "text": "Columns: Not Started / WIP / Internal Review / Client Review / Approved / Final. Move a shot only after the actual gate is passed, not \"probably fine\" — a shot silently sitting at 90% forever is the most common freelance-pipeline failure.",
-    "x": 380,
-    "y": 100,
-    "w": 300,
-    "h": 190,
-    "z": 4,
-    "pinned": false
-  },
-  {
-    "id": "tpl-5",
-    "type": "text",
-    "name": "Section",
-    "text": "PREVIZ / LAYOUT REFERENCE",
-    "x": 720,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 5,
-    "pinned": false
-  },
-  {
-    "id": "tpl-6",
-    "type": "note",
-    "name": "Note",
-    "text": "Rough blocking, camera moves, and timing from the animatic or storyboard. This is the single source of truth for what a shot needs to ACCOMPLISH before final work starts — comping to a moving target wastes more hours than any technical mistake.",
-    "x": 720,
-    "y": 100,
-    "w": 300,
-    "h": 190,
-    "z": 6,
-    "pinned": false
-  },
-  {
-    "id": "tpl-7",
-    "type": "text",
-    "name": "Section",
-    "text": "TRACKING & MATCHMOVE NOTES",
-    "x": 40,
-    "y": 310,
-    "w": 300,
-    "h": 50,
-    "z": 7,
-    "pinned": false
-  },
-  {
-    "id": "tpl-8",
-    "type": "note",
-    "name": "Note",
-    "text": "Camera solve quality per shot (solve error in pixels — under 1px is good), lens distortion data, ground-plane/scale reference from set (a tracking marker, a known object size), and any witness-cam footage.",
-    "x": 40,
-    "y": 370,
-    "w": 300,
-    "h": 190,
-    "z": 8,
-    "pinned": false
-  },
-  {
-    "id": "tpl-9",
-    "type": "text",
-    "name": "Section",
-    "text": "COMP SCRIPT / TEMPLATE DISCIPLINE",
-    "x": 380,
-    "y": 310,
-    "w": 300,
-    "h": 50,
-    "z": 9,
-    "pinned": false
-  },
-  {
-    "id": "tpl-10",
-    "type": "note",
-    "name": "Note",
-    "text": "Build ONE template comp per shot type (green-screen interview, CG-over-plate, sky replacement) with your standard keying rig, grain-match node group, and holdout setup already wired. Screenshot or link to it here — copy-pasting a working template beats rebuilding logic per shot.",
-    "x": 380,
-    "y": 370,
-    "w": 300,
-    "h": 190,
-    "z": 10,
-    "pinned": false
-  },
-  {
-    "id": "tpl-11",
-    "type": "text",
-    "name": "Section",
-    "text": "CLIENT / DIRECTOR FEEDBACK LOG",
-    "x": 720,
-    "y": 310,
-    "w": 300,
-    "h": 50,
-    "z": 11,
-    "pinned": false
-  },
-  {
-    "id": "tpl-12",
-    "type": "note",
-    "name": "Note",
-    "text": "Dated, versioned: \"v1, 2026-03-04 — director wants the explosion bigger and warmer.\" Never overwrite old feedback — when a client asks to revert a change three rounds later, this log is the only way to know what \"before\" actually looked like.",
-    "x": 720,
-    "y": 370,
-    "w": 300,
-    "h": 190,
-    "z": 12,
-    "pinned": false
-  },
-  {
-    "id": "tpl-13",
-    "type": "text",
-    "name": "Section",
-    "text": "ASSET REFERENCES",
-    "x": 40,
-    "y": 580,
-    "w": 300,
-    "h": 50,
-    "z": 13,
-    "pinned": false
-  },
-  {
-    "id": "tpl-14",
-    "type": "note",
-    "name": "Note",
-    "text": "3D models, textures, or stock elements (explosions, sparks, smoke sims) sourced for this job, with license/usage terms noted next to each — a client asking \"can we reuse this in the sequel\" needs an answer you actually have on file.",
-    "x": 40,
-    "y": 640,
-    "w": 300,
-    "h": 190,
-    "z": 14,
-    "pinned": false
-  },
-  {
-    "id": "tpl-15",
-    "type": "text",
-    "name": "Section",
-    "text": "DELIVERY SPECS",
-    "x": 380,
-    "y": 580,
-    "w": 300,
-    "h": 50,
-    "z": 15,
-    "pinned": false
-  },
-  {
-    "id": "tpl-16",
-    "type": "note",
-    "name": "Note",
-    "text": "Resolution, frame rate, color space (Rec.709 vs. a client-supplied LUT), codec (ProRes 422 HQ is the safe default for review, H.264 for quick client previews), and the exact file-naming convention the client asked for — get this in writing before final render, not after.",
-    "x": 380,
-    "y": 640,
-    "w": 300,
-    "h": 190,
-    "z": 16,
-    "pinned": false
-  },
-  {
-    "id": "tpl-17",
-    "type": "text",
-    "name": "Section",
-    "text": "PLATES & CLIENT REFERENCE",
-    "x": 1060,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 17,
-    "pinned": false
-  },
-  {
-    "id": "tpl-18",
-    "type": "note",
-    "name": "Note",
-    "text": "Drop shot plates, client-supplied reference (video or images), and any 3D pre-vis/blocking (a .glb/.fbx/.usd card) the client approved before work started. This is what every shot-status note to the left should be judged against.",
-    "x": 1060,
-    "y": 100,
-    "w": 300,
-    "h": 220,
-    "z": 18,
-    "pinned": false
-  }
-]
+{
+  "cards": [
+    {
+      "id": "tpl-1",
+      "type": "text",
+      "name": "Section",
+      "text": "SHOT BREAKDOWN & BIDDING",
+      "x": 40,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 1,
+      "pinned": false
+    },
+    {
+      "id": "tpl-2",
+      "type": "note",
+      "name": "Note",
+      "text": "Per shot: shot ID (e.g. SH010), plate source, required work (roto/paint/CG/comp), complexity tier (easy/medium/hard), and estimated hours. Bid the HARDEST shot in a sequence first — it sets your real hourly rate, everything else is comparison.",
+      "x": 40,
+      "y": 100,
+      "w": 300,
+      "h": 190,
+      "z": 2,
+      "pinned": false
+    },
+    {
+      "id": "tpl-3",
+      "type": "text",
+      "name": "Section",
+      "text": "SHOT STATUS BOARD",
+      "x": 380,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 3,
+      "pinned": false
+    },
+    {
+      "id": "tpl-4",
+      "type": "note",
+      "name": "Note",
+      "text": "Columns: Not Started / WIP / Internal Review / Client Review / Approved / Final. Move a shot only after the actual gate is passed, not \"probably fine\" — a shot silently sitting at 90% forever is the most common freelance-pipeline failure.",
+      "x": 380,
+      "y": 100,
+      "w": 300,
+      "h": 190,
+      "z": 4,
+      "pinned": false
+    },
+    {
+      "id": "tpl-5",
+      "type": "text",
+      "name": "Section",
+      "text": "PREVIZ / LAYOUT REFERENCE",
+      "x": 720,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 5,
+      "pinned": false
+    },
+    {
+      "id": "tpl-6",
+      "type": "note",
+      "name": "Note",
+      "text": "Rough blocking, camera moves, and timing from the animatic or storyboard. This is the single source of truth for what a shot needs to ACCOMPLISH before final work starts — comping to a moving target wastes more hours than any technical mistake.",
+      "x": 720,
+      "y": 100,
+      "w": 300,
+      "h": 190,
+      "z": 6,
+      "pinned": false
+    },
+    {
+      "id": "tpl-7",
+      "type": "text",
+      "name": "Section",
+      "text": "TRACKING & MATCHMOVE NOTES",
+      "x": 40,
+      "y": 310,
+      "w": 300,
+      "h": 50,
+      "z": 7,
+      "pinned": false
+    },
+    {
+      "id": "tpl-8",
+      "type": "note",
+      "name": "Note",
+      "text": "Camera solve quality per shot (solve error in pixels — under 1px is good), lens distortion data, ground-plane/scale reference from set (a tracking marker, a known object size), and any witness-cam footage.",
+      "x": 40,
+      "y": 370,
+      "w": 300,
+      "h": 190,
+      "z": 8,
+      "pinned": false
+    },
+    {
+      "id": "tpl-9",
+      "type": "text",
+      "name": "Section",
+      "text": "COMP SCRIPT / TEMPLATE DISCIPLINE",
+      "x": 380,
+      "y": 310,
+      "w": 300,
+      "h": 50,
+      "z": 9,
+      "pinned": false
+    },
+    {
+      "id": "tpl-10",
+      "type": "note",
+      "name": "Note",
+      "text": "Build ONE template comp per shot type (green-screen interview, CG-over-plate, sky replacement) with your standard keying rig, grain-match node group, and holdout setup already wired. Screenshot or link to it here — copy-pasting a working template beats rebuilding logic per shot.",
+      "x": 380,
+      "y": 370,
+      "w": 300,
+      "h": 190,
+      "z": 10,
+      "pinned": false
+    },
+    {
+      "id": "tpl-11",
+      "type": "text",
+      "name": "Section",
+      "text": "CLIENT / DIRECTOR FEEDBACK LOG",
+      "x": 720,
+      "y": 310,
+      "w": 300,
+      "h": 50,
+      "z": 11,
+      "pinned": false
+    },
+    {
+      "id": "tpl-12",
+      "type": "note",
+      "name": "Note",
+      "text": "Dated, versioned: \"v1, 2026-03-04 — director wants the explosion bigger and warmer.\" Never overwrite old feedback — when a client asks to revert a change three rounds later, this log is the only way to know what \"before\" actually looked like.",
+      "x": 720,
+      "y": 370,
+      "w": 300,
+      "h": 190,
+      "z": 12,
+      "pinned": false
+    },
+    {
+      "id": "tpl-13",
+      "type": "text",
+      "name": "Section",
+      "text": "ASSET REFERENCES",
+      "x": 40,
+      "y": 580,
+      "w": 300,
+      "h": 50,
+      "z": 13,
+      "pinned": false
+    },
+    {
+      "id": "tpl-14",
+      "type": "note",
+      "name": "Note",
+      "text": "3D models, textures, or stock elements (explosions, sparks, smoke sims) sourced for this job, with license/usage terms noted next to each — a client asking \"can we reuse this in the sequel\" needs an answer you actually have on file.",
+      "x": 40,
+      "y": 640,
+      "w": 300,
+      "h": 190,
+      "z": 14,
+      "pinned": false
+    },
+    {
+      "id": "tpl-15",
+      "type": "text",
+      "name": "Section",
+      "text": "DELIVERY SPECS",
+      "x": 380,
+      "y": 580,
+      "w": 300,
+      "h": 50,
+      "z": 15,
+      "pinned": false
+    },
+    {
+      "id": "tpl-16",
+      "type": "note",
+      "name": "Note",
+      "text": "Resolution, frame rate, color space (Rec.709 vs. a client-supplied LUT), codec (ProRes 422 HQ is the safe default for review, H.264 for quick client previews), and the exact file-naming convention the client asked for — get this in writing before final render, not after.",
+      "x": 380,
+      "y": 640,
+      "w": 300,
+      "h": 190,
+      "z": 16,
+      "pinned": false
+    },
+    {
+      "id": "tpl-17",
+      "type": "text",
+      "name": "Section",
+      "text": "PLATES & CLIENT REFERENCE",
+      "x": 1060,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 17,
+      "pinned": false
+    },
+    {
+      "id": "tpl-18",
+      "type": "note",
+      "name": "Note",
+      "text": "Drop shot plates, client-supplied reference (video or images), and any 3D pre-vis/blocking (a .glb/.fbx/.usd card) the client approved before work started. This is what every shot-status note to the left should be judged against.",
+      "x": 1060,
+      "y": 100,
+      "w": 300,
+      "h": 220,
+      "z": 18,
+      "pinned": false
+    }
+  ],
+  "connections": [
+    {
+      "id": "tpl-conn-1",
+      "fromRefId": "tpl-2",
+      "toRefId": "tpl-4",
+      "type": "UsedIn",
+      "note": "The bid/breakdown sets up the shot status board"
+    },
+    {
+      "id": "tpl-conn-2",
+      "fromRefId": "tpl-18",
+      "toRefId": "tpl-6",
+      "type": "References",
+      "note": "Plates feed previz/layout reference"
+    },
+    {
+      "id": "tpl-conn-3",
+      "fromRefId": "tpl-18",
+      "toRefId": "tpl-8",
+      "type": "References",
+      "note": "Plates feed tracking/matchmove"
+    },
+    {
+      "id": "tpl-conn-4",
+      "fromRefId": "tpl-14",
+      "toRefId": "tpl-10",
+      "type": "References",
+      "note": "Asset references feed the comp script"
+    },
+    {
+      "id": "tpl-conn-5",
+      "fromRefId": "tpl-6",
+      "toRefId": "tpl-8",
+      "type": "UsedIn",
+      "note": "Previz/layout informs tracking"
+    },
+    {
+      "id": "tpl-conn-6",
+      "fromRefId": "tpl-8",
+      "toRefId": "tpl-10",
+      "type": "UsedIn",
+      "note": "Matchmove data feeds the comp"
+    },
+    {
+      "id": "tpl-conn-7",
+      "fromRefId": "tpl-10",
+      "toRefId": "tpl-16",
+      "type": "UsedIn",
+      "note": "Finished comps go to delivery"
+    },
+    {
+      "id": "tpl-conn-8",
+      "fromRefId": "tpl-12",
+      "toRefId": "tpl-10",
+      "type": "Supports",
+      "note": "Client/director feedback drives comp revisions"
+    }
+  ]
+}

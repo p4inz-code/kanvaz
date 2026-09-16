@@ -1,218 +1,285 @@
-[
-  {
-    "id": "tpl-1",
-    "type": "text",
-    "name": "Section",
-    "text": "CREATIVE PILLARS",
-    "x": 40,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 1,
-    "pinned": false
-  },
-  {
-    "id": "tpl-2",
-    "type": "note",
-    "name": "Note",
-    "text": "The 3-4 words that define this game and every decision gets checked against them (e.g. \"tense, tactical, readable at a glance\"). Written FIRST, before any art — a pillar you can't point to when reviewing an asset isn't actually guiding anything.",
-    "x": 40,
-    "y": 100,
-    "w": 300,
-    "h": 190,
-    "z": 2,
-    "pinned": false
-  },
-  {
-    "id": "tpl-3",
-    "type": "text",
-    "name": "Section",
-    "text": "CONCEPT ART",
-    "x": 380,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 3,
-    "pinned": false
-  },
-  {
-    "id": "tpl-4",
-    "type": "note",
-    "name": "Note",
-    "text": "Early exploration sketches and mood pieces for characters, environments, and key props. Mark clearly which concepts are approved vs. still exploratory — an unmarked \"maybe\" concept has a way of quietly becoming the final direction by accident.",
-    "x": 380,
-    "y": 100,
-    "w": 300,
-    "h": 190,
-    "z": 4,
-    "pinned": false
-  },
-  {
-    "id": "tpl-5",
-    "type": "text",
-    "name": "Section",
-    "text": "STYLE GUIDE / ART DIRECTION",
-    "x": 720,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 5,
-    "pinned": false
-  },
-  {
-    "id": "tpl-6",
-    "type": "note",
-    "name": "Note",
-    "text": "Visual pillars: color palette, silhouette language, stylization level vs. realism, and 2-3 reference games/films that define the target look — specific enough that a new artist joining mid-project can match it without guessing.",
-    "x": 720,
-    "y": 100,
-    "w": 300,
-    "h": 190,
-    "z": 6,
-    "pinned": false
-  },
-  {
-    "id": "tpl-7",
-    "type": "text",
-    "name": "Section",
-    "text": "GREYBOX / LEVEL LAYOUT",
-    "x": 40,
-    "y": 310,
-    "w": 300,
-    "h": 50,
-    "z": 7,
-    "pinned": false
-  },
-  {
-    "id": "tpl-8",
-    "type": "note",
-    "name": "Note",
-    "text": "Blockout the level in basic shapes BEFORE any final art — verify scale, sightlines, and pacing with a real playtest first. Real-world locations, other games' layouts, and pacing references (where players rest vs. where the action ramps up) belong here.",
-    "x": 40,
-    "y": 370,
-    "w": 300,
-    "h": 190,
-    "z": 8,
-    "pinned": false
-  },
-  {
-    "id": "tpl-9",
-    "type": "text",
-    "name": "Section",
-    "text": "CHARACTER DESIGN",
-    "x": 380,
-    "y": 310,
-    "w": 300,
-    "h": 50,
-    "z": 9,
-    "pinned": false
-  },
-  {
-    "id": "tpl-10",
-    "type": "note",
-    "name": "Note",
-    "text": "Silhouettes first (a character should read from a pure black shape alone), then turnarounds, expression sheets, and outfit/variant references. Mark which characters are player-facing hero assets vs. background NPCs — the budget for each is completely different.",
-    "x": 380,
-    "y": 370,
-    "w": 300,
-    "h": 190,
-    "z": 10,
-    "pinned": false
-  },
-  {
-    "id": "tpl-11",
-    "type": "text",
-    "name": "Section",
-    "text": "ASSET LIST & PRIORITY",
-    "x": 720,
-    "y": 310,
-    "w": 300,
-    "h": 50,
-    "z": 11,
-    "pinned": false
-  },
-  {
-    "id": "tpl-12",
-    "type": "note",
-    "name": "Note",
-    "text": "Master list of required assets (props, characters, environment kits) ordered by what BLOCKS other work vs. what can be polished last. A missing placeholder asset stalls a whole level; a rough-but-present hero character doesn't.",
-    "x": 720,
-    "y": 370,
-    "w": 300,
-    "h": 190,
-    "z": 12,
-    "pinned": false
-  },
-  {
-    "id": "tpl-13",
-    "type": "text",
-    "name": "Section",
-    "text": "TECHNICAL BUDGET",
-    "x": 40,
-    "y": 580,
-    "w": 300,
-    "h": 50,
-    "z": 13,
-    "pinned": false
-  },
-  {
-    "id": "tpl-14",
-    "type": "note",
-    "name": "Note",
-    "text": "Target platform(s), poly budget per asset type, texture resolution/atlas rules, draw-call budget, and engine-specific limits (Unity/Unreal shader constraints, mobile GPU limits). Set this BEFORE production art starts — redoing 200 assets to hit a budget found late is the most expensive mistake in game art.",
-    "x": 40,
-    "y": 640,
-    "w": 300,
-    "h": 190,
-    "z": 14,
-    "pinned": false
-  },
-  {
-    "id": "tpl-15",
-    "type": "text",
-    "name": "Section",
-    "text": "UI / UX REFERENCES",
-    "x": 380,
-    "y": 580,
-    "w": 300,
-    "h": 50,
-    "z": 15,
-    "pinned": false
-  },
-  {
-    "id": "tpl-16",
-    "type": "note",
-    "name": "Note",
-    "text": "HUD layout references, menu flow diagrams, and accessibility notes (colorblind modes, text scaling, control remapping) — UI is a first-class production discipline here, not an afterthought bolted on at the end.",
-    "x": 380,
-    "y": 640,
-    "w": 300,
-    "h": 190,
-    "z": 16,
-    "pinned": false
-  },
-  {
-    "id": "tpl-17",
-    "type": "text",
-    "name": "Section",
-    "text": "CONCEPT ART & 3D BLOCKOUT",
-    "x": 1060,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 17,
-    "pinned": false
-  },
-  {
-    "id": "tpl-18",
-    "type": "note",
-    "name": "Note",
-    "text": "Drop concept art (image cards) and the actual greybox/blockout (a .glb/.fbx/.obj 3D model card) here as they land — this column is what \"greybox before final art\" from the sections on the left is actually tracking against.",
-    "x": 1060,
-    "y": 100,
-    "w": 300,
-    "h": 220,
-    "z": 18,
-    "pinned": false
-  }
-]
+{
+  "cards": [
+    {
+      "id": "tpl-1",
+      "type": "text",
+      "name": "Section",
+      "text": "CREATIVE PILLARS",
+      "x": 40,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 1,
+      "pinned": false
+    },
+    {
+      "id": "tpl-2",
+      "type": "note",
+      "name": "Note",
+      "text": "The 3-4 words that define this game and every decision gets checked against them (e.g. \"tense, tactical, readable at a glance\"). Written FIRST, before any art — a pillar you can't point to when reviewing an asset isn't actually guiding anything.",
+      "x": 40,
+      "y": 100,
+      "w": 300,
+      "h": 190,
+      "z": 2,
+      "pinned": false
+    },
+    {
+      "id": "tpl-3",
+      "type": "text",
+      "name": "Section",
+      "text": "CONCEPT ART",
+      "x": 380,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 3,
+      "pinned": false
+    },
+    {
+      "id": "tpl-4",
+      "type": "note",
+      "name": "Note",
+      "text": "Early exploration sketches and mood pieces for characters, environments, and key props. Mark clearly which concepts are approved vs. still exploratory — an unmarked \"maybe\" concept has a way of quietly becoming the final direction by accident.",
+      "x": 380,
+      "y": 100,
+      "w": 300,
+      "h": 190,
+      "z": 4,
+      "pinned": false
+    },
+    {
+      "id": "tpl-5",
+      "type": "text",
+      "name": "Section",
+      "text": "STYLE GUIDE / ART DIRECTION",
+      "x": 720,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 5,
+      "pinned": false
+    },
+    {
+      "id": "tpl-6",
+      "type": "note",
+      "name": "Note",
+      "text": "Visual pillars: color palette, silhouette language, stylization level vs. realism, and 2-3 reference games/films that define the target look — specific enough that a new artist joining mid-project can match it without guessing.",
+      "x": 720,
+      "y": 100,
+      "w": 300,
+      "h": 190,
+      "z": 6,
+      "pinned": false
+    },
+    {
+      "id": "tpl-7",
+      "type": "text",
+      "name": "Section",
+      "text": "GREYBOX / LEVEL LAYOUT",
+      "x": 40,
+      "y": 310,
+      "w": 300,
+      "h": 50,
+      "z": 7,
+      "pinned": false
+    },
+    {
+      "id": "tpl-8",
+      "type": "note",
+      "name": "Note",
+      "text": "Blockout the level in basic shapes BEFORE any final art — verify scale, sightlines, and pacing with a real playtest first. Real-world locations, other games' layouts, and pacing references (where players rest vs. where the action ramps up) belong here.",
+      "x": 40,
+      "y": 370,
+      "w": 300,
+      "h": 190,
+      "z": 8,
+      "pinned": false
+    },
+    {
+      "id": "tpl-9",
+      "type": "text",
+      "name": "Section",
+      "text": "CHARACTER DESIGN",
+      "x": 380,
+      "y": 310,
+      "w": 300,
+      "h": 50,
+      "z": 9,
+      "pinned": false
+    },
+    {
+      "id": "tpl-10",
+      "type": "note",
+      "name": "Note",
+      "text": "Silhouettes first (a character should read from a pure black shape alone), then turnarounds, expression sheets, and outfit/variant references. Mark which characters are player-facing hero assets vs. background NPCs — the budget for each is completely different.",
+      "x": 380,
+      "y": 370,
+      "w": 300,
+      "h": 190,
+      "z": 10,
+      "pinned": false
+    },
+    {
+      "id": "tpl-11",
+      "type": "text",
+      "name": "Section",
+      "text": "ASSET LIST & PRIORITY",
+      "x": 720,
+      "y": 310,
+      "w": 300,
+      "h": 50,
+      "z": 11,
+      "pinned": false
+    },
+    {
+      "id": "tpl-12",
+      "type": "note",
+      "name": "Note",
+      "text": "Master list of required assets (props, characters, environment kits) ordered by what BLOCKS other work vs. what can be polished last. A missing placeholder asset stalls a whole level; a rough-but-present hero character doesn't.",
+      "x": 720,
+      "y": 370,
+      "w": 300,
+      "h": 190,
+      "z": 12,
+      "pinned": false
+    },
+    {
+      "id": "tpl-13",
+      "type": "text",
+      "name": "Section",
+      "text": "TECHNICAL BUDGET",
+      "x": 40,
+      "y": 580,
+      "w": 300,
+      "h": 50,
+      "z": 13,
+      "pinned": false
+    },
+    {
+      "id": "tpl-14",
+      "type": "note",
+      "name": "Note",
+      "text": "Target platform(s), poly budget per asset type, texture resolution/atlas rules, draw-call budget, and engine-specific limits (Unity/Unreal shader constraints, mobile GPU limits). Set this BEFORE production art starts — redoing 200 assets to hit a budget found late is the most expensive mistake in game art.",
+      "x": 40,
+      "y": 640,
+      "w": 300,
+      "h": 190,
+      "z": 14,
+      "pinned": false
+    },
+    {
+      "id": "tpl-15",
+      "type": "text",
+      "name": "Section",
+      "text": "UI / UX REFERENCES",
+      "x": 380,
+      "y": 580,
+      "w": 300,
+      "h": 50,
+      "z": 15,
+      "pinned": false
+    },
+    {
+      "id": "tpl-16",
+      "type": "note",
+      "name": "Note",
+      "text": "HUD layout references, menu flow diagrams, and accessibility notes (colorblind modes, text scaling, control remapping) — UI is a first-class production discipline here, not an afterthought bolted on at the end.",
+      "x": 380,
+      "y": 640,
+      "w": 300,
+      "h": 190,
+      "z": 16,
+      "pinned": false
+    },
+    {
+      "id": "tpl-17",
+      "type": "text",
+      "name": "Section",
+      "text": "CONCEPT ART & 3D BLOCKOUT",
+      "x": 1060,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 17,
+      "pinned": false
+    },
+    {
+      "id": "tpl-18",
+      "type": "note",
+      "name": "Note",
+      "text": "Drop concept art (image cards) and the actual greybox/blockout (a .glb/.fbx/.obj 3D model card) here as they land — this column is what \"greybox before final art\" from the sections on the left is actually tracking against.",
+      "x": 1060,
+      "y": 100,
+      "w": 300,
+      "h": 220,
+      "z": 18,
+      "pinned": false
+    }
+  ],
+  "connections": [
+    {
+      "id": "tpl-conn-1",
+      "fromRefId": "tpl-2",
+      "toRefId": "tpl-4",
+      "type": "UsedIn",
+      "note": "Creative pillars steer concept art direction"
+    },
+    {
+      "id": "tpl-conn-2",
+      "fromRefId": "tpl-2",
+      "toRefId": "tpl-6",
+      "type": "UsedIn",
+      "note": "Creative pillars steer the style guide"
+    },
+    {
+      "id": "tpl-conn-3",
+      "fromRefId": "tpl-4",
+      "toRefId": "tpl-6",
+      "type": "UsedIn",
+      "note": "Concept art informs the style guide"
+    },
+    {
+      "id": "tpl-conn-4",
+      "fromRefId": "tpl-6",
+      "toRefId": "tpl-10",
+      "type": "UsedIn",
+      "note": "Style guide constrains character design"
+    },
+    {
+      "id": "tpl-conn-5",
+      "fromRefId": "tpl-6",
+      "toRefId": "tpl-8",
+      "type": "UsedIn",
+      "note": "Style guide constrains greybox/level layout"
+    },
+    {
+      "id": "tpl-conn-6",
+      "fromRefId": "tpl-10",
+      "toRefId": "tpl-12",
+      "type": "UsedIn",
+      "note": "Character designs feed the asset list"
+    },
+    {
+      "id": "tpl-conn-7",
+      "fromRefId": "tpl-8",
+      "toRefId": "tpl-12",
+      "type": "UsedIn",
+      "note": "Greybox layout feeds the asset list"
+    },
+    {
+      "id": "tpl-conn-8",
+      "fromRefId": "tpl-14",
+      "toRefId": "tpl-12",
+      "type": "Supports",
+      "note": "Technical budget (poly/draw-call/memory limits) constrains what the asset list can actually ship — the exact cross-discipline dependency a flat moodboard can’t show"
+    },
+    {
+      "id": "tpl-conn-9",
+      "fromRefId": "tpl-18",
+      "toRefId": "tpl-4",
+      "type": "References",
+      "note": "3D blockout references feed concept art"
+    }
+  ]
+}
