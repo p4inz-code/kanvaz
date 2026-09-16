@@ -35,11 +35,6 @@ If you've used PureRef and wanted more than static images, or tried a cloud mood
 
 ---
 
-<p align="center">
-  <img src="assets/demo-connections-v8.9.8.gif" alt="Kanvaz demo: a real Game Dev pipeline board, then switching to Map View to see every card's typed connections as a bezier graph" width="100%">
-</p>
-<p align="center"><i>A real board (one of the 13 bundled templates that ship with actual pipeline connections), switching to Map View to see how the pieces depend on each other.</i></p>
-
 <table>
 <tr>
 <td width="50%" align="center">
