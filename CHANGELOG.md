@@ -2,6 +2,37 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [8.8.1] — Top Mode conflict fixes (found by self-review)
+
+*Found by a 4-agent multi-angle review run against the whole v8.6.0-
+v8.8.0 diff before calling it done for the night. Two real, concrete
+bugs, both the same root cause.*
+
+### Fixed
+- **Top Mode's forced always-on-top/auto-hide could be silently
+  defeated by an unrelated Settings change.** `ui.js`'s
+  `applySettings()` runs on every Settings-panel change, not just
+  those two checkboxes, and unconditionally re-applied the plain
+  persisted `alwaysOnTop`/`autoHideChrome` values — with no awareness
+  Top Mode existed. Toggling the theme, Smart Search, or anything else
+  in Settings while Top Mode was active would snap the window back to
+  its normal (non-forced) state while the Top Mode badge and accent
+  border stayed on screen claiming it was still active. Fixed: both
+  re-apply points now check `KanvazApp.isTopModeActive()` and, if
+  active, call a new `KanvazApp.noteSettingChangedDuringTopMode(key,
+  value)` instead of live-applying — keeps Top Mode's forced state in
+  effect, but still updates what `exitTopMode()` restores to, so the
+  user's latest real preference isn't discarded either.
+- **Toggling Always on Top from the Command Palette during Top Mode
+  could corrupt the persisted setting.** `toggleAlwaysOnTop()` (`core.
+  toggleAlwaysOnTop`) was reachable regardless of Top Mode and both
+  flipped the live window state and wrote straight to `settings.json`
+  — invoking it while Top Mode had forced always-on-top true would
+  write `false` to disk (Top Mode's own restore-on-exit would then
+  fight that stale write on the next Settings change or app restart).
+  Fixed: `toggleAlwaysOnTop()` now refuses to run while Top Mode is
+  active, with a toast pointing at the actual way out (`Ctrl+Shift+T`).
+
 ## [8.8.0] — Templates actually reference something now
 
 *The one piece of "verify everything, improve the templates, improve

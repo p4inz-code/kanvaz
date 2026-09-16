@@ -336,7 +336,20 @@ var KanvazUI_Extended = (function() {
        drift out of step with the real window state on the very first
        Settings-panel or startup application of this value, flipping
        the wrong direction the next time it's toggled. */
-    if (typeof KanvazApp !== 'undefined' && KanvazApp.syncAlwaysOnTop) {
+    /* Self-audit catch (v8.7.0 Top Mode review): applySettings() runs on
+       EVERY Settings-panel change, not just this checkbox — so without
+       this guard, flipping any unrelated toggle (theme, Smart Search,
+       whatever) while Top Mode has forced always-on-top ON would
+       silently re-apply the plain persisted value here and drop the
+       window out of always-on-top, even though the Top Mode badge and
+       accent border stay on screen claiming it's still active. Skip the
+       live re-apply while Top Mode owns this control — instead call
+       KanvazApp.noteSettingChangedDuringTopMode so it refreshes what
+       gets restored on exit, so the user's real new preference isn't
+       silently discarded when they eventually press Ctrl+Shift+T again. */
+    if (typeof KanvazApp !== 'undefined' && KanvazApp.isTopModeActive && KanvazApp.isTopModeActive()) {
+      if (KanvazApp.noteSettingChangedDuringTopMode) KanvazApp.noteSettingChangedDuringTopMode('alwaysOnTop', !!settings.alwaysOnTop);
+    } else if (typeof KanvazApp !== 'undefined' && KanvazApp.syncAlwaysOnTop) {
       KanvazApp.syncAlwaysOnTop(!!settings.alwaysOnTop);
     } else if (typeof KanvazBridge !== 'undefined' && KanvazBridge.setAlwaysOnTop) {
       KanvazBridge.setAlwaysOnTop(!!settings.alwaysOnTop);
@@ -355,7 +368,10 @@ var KanvazUI_Extended = (function() {
     /* Auto-hide toolbar — a persistent setting, independent of anything
        else, that hides toolbar/titlebar chrome until you hover the top
        edge. */
-    if (typeof KanvazUI !== 'undefined' && KanvazUI.setChromeAutoHide) {
+    /* Same Top-Mode guard as always-on-top above, for the same reason. */
+    if (typeof KanvazApp !== 'undefined' && KanvazApp.isTopModeActive && KanvazApp.isTopModeActive()) {
+      if (KanvazApp.noteSettingChangedDuringTopMode) KanvazApp.noteSettingChangedDuringTopMode('autoHideChrome', !!settings.autoHideChrome);
+    } else if (typeof KanvazUI !== 'undefined' && KanvazUI.setChromeAutoHide) {
       KanvazUI.setChromeAutoHide(!!settings.autoHideChrome);
     }
 

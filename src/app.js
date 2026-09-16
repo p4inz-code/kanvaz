@@ -997,6 +997,18 @@ var KanvazApp = (function() {
      ui.js's SETTINGS_DEFAULTS), reachable via Command Palette or the
      Settings checkbox for the minority who want it off. */
   function toggleAlwaysOnTop() {
+    /* Self-audit catch (Top Mode review): this is reachable via the
+       Command Palette regardless of Top Mode, and both flips the live
+       window state AND persists to settings.json. Invoking it while Top
+       Mode has forced always-on-top on would silently overwrite the
+       user's real, persisted preference with Top Mode's transient
+       state, then diverge further the moment Settings next re-applies
+       or the app restarts. Block it here and point at the actual way
+       out, same as any other "this needs Top Mode off first" case. */
+    if (topModeActive) {
+      KanvazUI.toast('Exit Top Mode first (Ctrl+Shift+T)', 'warning');
+      return;
+    }
     alwaysOnTop = !alwaysOnTop;
     KanvazBridge.setAlwaysOnTop(alwaysOnTop);
     /* Persist to settings so the value survives restart */
@@ -1042,10 +1054,40 @@ var KanvazApp = (function() {
      functions their own Settings checkboxes call (syncAlwaysOnTop /
      KanvazUI.setChromeAutoHide) — neither persists on its own, so the
      real persisted settings are untouched and exiting restores them
-     exactly, whether or not the user also flips either checkbox while
-     Top Mode happens to be on. */
+     exactly.
+
+     Self-audit catch after shipping: that "untouched" claim was only
+     true for the specific values captured AT ENTRY. Two other code
+     paths write these same two settings and didn't know Top Mode
+     existed: ui.js's applySettings() (runs on ANY Settings change, not
+     just these two, and would silently snap the live window back to
+     the plain persisted value out from under Top Mode's forced
+     override) and toggleAlwaysOnTop() (Command Palette — would persist
+     Top Mode's transient forced-true state as the user's real
+     preference). Fixed by guarding both: toggleAlwaysOnTop() refuses to
+     run while Top Mode is active (see above), and applySettings()
+     calls noteSettingChangedDuringTopMode() below instead of live-
+     applying — keeping Top Mode's forced state in effect while still
+     making sure exitTopMode() restores whatever the user's LATEST real
+     preference actually is, not a stale entry-time snapshot. */
   var topModeActive  = false;
   var topModeRestore = null;
+
+  function isTopModeActive() {
+    return topModeActive;
+  }
+
+  /* Called by ui.js's applySettings() instead of live-applying
+     alwaysOnTop/autoHideChrome while Top Mode owns them — updates what
+     exitTopMode() will restore to, without disturbing Top Mode's
+     current forced-on state. No-ops harmlessly if Top Mode isn't
+     active (nothing should call it then, but cheap to guard). */
+  function noteSettingChangedDuringTopMode(key, value) {
+    if (!topModeActive || !topModeRestore) return;
+    if (key === 'alwaysOnTop' || key === 'autoHideChrome') {
+      topModeRestore[key] = !!value;
+    }
+  }
 
   function toggleTopMode() {
     if (topModeActive) exitTopMode(); else enterTopMode();
@@ -2318,6 +2360,8 @@ var KanvazApp = (function() {
     toggleAlwaysOnTop: toggleAlwaysOnTop,
     syncAlwaysOnTop:   syncAlwaysOnTop,
     toggleTopMode:     toggleTopMode,
+    isTopModeActive:   isTopModeActive,
+    noteSettingChangedDuringTopMode: noteSettingChangedDuringTopMode,
     /* Exposed for the side panel's "Quick drop" zone (boards.js) —
        exact same file-drop handling path the main canvas drop target
        already uses, just reached from a different DOM element. */

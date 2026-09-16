@@ -37,7 +37,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## Latest release
 
-**v8.8.0** does the real "improve the templates" pass this whole run had been carrying forward: audited all 14 bundled templates (they were structurally clean — no dupe ids, no overlaps, no bad card types — but every single one was text/note/color only, zero image/video/3D/file cards anywhere, on an app whose entire identity is reference media) and gave every production-pipeline template its own "drop your references here" section naming exactly what belongs there for that domain, 3D model cards included where a real pipeline would use one. Also fixed the README's stale "13 templates" count (it's 14) and named all of them. v8.7.0 before it brought back Top Mode (`Ctrl+Shift+T`) by direct request. Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
+**v8.8.1** fixes a real conflict a multi-angle self-review caught in Top Mode: opening Settings and changing any unrelated toggle while Top Mode was active silently defeated its forced always-on-top/auto-hide state, and toggling Always on Top from the Command Palette during Top Mode could overwrite the real persisted preference with Top Mode's transient one. Both now correctly deferred until Top Mode exits. v8.8.0 did the real "improve the templates" pass this whole run had been carrying forward — audited all 14 bundled templates (structurally clean, but text/note/color only, zero reference-media cards anywhere) and gave every production-pipeline template its own "drop your references here" section. v8.7.0 brought back Top Mode (`Ctrl+Shift+T`) by direct request. Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
 
 <table>
 <tr>
@@ -209,7 +209,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 8.8.0.exe` and `dist/Kanvaz 8.8.0.exe`
+Output: `dist/Kanvaz Setup 8.8.1.exe` and `dist/Kanvaz 8.8.1.exe`
 
 **macOS:**
 ```bash
