@@ -1,218 +1,278 @@
-[
-  {
-    "id": "tpl-1",
-    "type": "text",
-    "name": "Section",
-    "text": "PROBLEM STATEMENT",
-    "x": 40,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 1,
-    "pinned": false
-  },
-  {
-    "id": "tpl-2",
-    "type": "note",
-    "name": "Note",
-    "text": "The specific user problem this design solves, in one sentence. If you can't state it in one sentence, the scope probably isn't settled yet — get that answer before wireframing anything.",
-    "x": 40,
-    "y": 100,
-    "w": 300,
-    "h": 190,
-    "z": 2,
-    "pinned": false
-  },
-  {
-    "id": "tpl-3",
-    "type": "text",
-    "name": "Section",
-    "text": "USER RESEARCH NOTES",
-    "x": 380,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 3,
-    "pinned": false
-  },
-  {
-    "id": "tpl-4",
-    "type": "note",
-    "name": "Note",
-    "text": "Key findings from user interviews/surveys — pain points and needs this design should actually address, not assumed ones. A quote from a real user carries more weight here than a design team's intuition.",
-    "x": 380,
-    "y": 100,
-    "w": 300,
-    "h": 190,
-    "z": 4,
-    "pinned": false
-  },
-  {
-    "id": "tpl-5",
-    "type": "text",
-    "name": "Section",
-    "text": "COMPETITIVE ANALYSIS",
-    "x": 720,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 5,
-    "pinned": false
-  },
-  {
-    "id": "tpl-6",
-    "type": "note",
-    "name": "Note",
-    "text": "Screenshots of competitor products with SPECIFIC notes on what works and what doesn't (not just \"theirs looks nice\") — what flow do they use, where do users likely get stuck, what would you copy vs. deliberately avoid.",
-    "x": 720,
-    "y": 100,
-    "w": 300,
-    "h": 190,
-    "z": 6,
-    "pinned": false
-  },
-  {
-    "id": "tpl-7",
-    "type": "text",
-    "name": "Section",
-    "text": "USER FLOW / INFORMATION ARCHITECTURE",
-    "x": 40,
-    "y": 310,
-    "w": 300,
-    "h": 50,
-    "z": 7,
-    "pinned": false
-  },
-  {
-    "id": "tpl-8",
-    "type": "note",
-    "name": "Note",
-    "text": "The core user flow(s) this design needs to support, start to finish, before any visual design begins. A beautiful screen that sits in the wrong place in the flow still fails the user.",
-    "x": 40,
-    "y": 370,
-    "w": 300,
-    "h": 190,
-    "z": 8,
-    "pinned": false
-  },
-  {
-    "id": "tpl-9",
-    "type": "text",
-    "name": "Section",
-    "text": "WIREFRAMES (LOW-FIDELITY)",
-    "x": 380,
-    "y": 310,
-    "w": 300,
-    "h": 50,
-    "z": 9,
-    "pinned": false
-  },
-  {
-    "id": "tpl-10",
-    "type": "note",
-    "name": "Note",
-    "text": "Rough layout and hierarchy only, no color or final type — verify the LAYOUT solves the flow before investing in visual polish. Changing a wireframe costs minutes; changing a finished high-fidelity screen costs hours.",
-    "x": 380,
-    "y": 370,
-    "w": 300,
-    "h": 190,
-    "z": 10,
-    "pinned": false
-  },
-  {
-    "id": "tpl-11",
-    "type": "text",
-    "name": "Section",
-    "text": "VISUAL / UI REFERENCES",
-    "x": 720,
-    "y": 310,
-    "w": 300,
-    "h": 50,
-    "z": 11,
-    "pinned": false
-  },
-  {
-    "id": "tpl-12",
-    "type": "note",
-    "name": "Note",
-    "text": "Interfaces whose visual language (component style, spacing, typography feel, not necessarily function) you want to draw from for the high-fidelity pass.",
-    "x": 720,
-    "y": 370,
-    "w": 300,
-    "h": 190,
-    "z": 12,
-    "pinned": false
-  },
-  {
-    "id": "tpl-13",
-    "type": "text",
-    "name": "Section",
-    "text": "DESIGN SYSTEM TOKENS",
-    "x": 40,
-    "y": 580,
-    "w": 300,
-    "h": 50,
-    "z": 13,
-    "pinned": false
-  },
-  {
-    "id": "tpl-14",
-    "type": "note",
-    "name": "Note",
-    "text": "Color palette, type scale, spacing units, and component states (default/hover/active/disabled/error) locked here as the single source of truth — every screen built after this references these tokens, never a one-off value.",
-    "x": 40,
-    "y": 640,
-    "w": 300,
-    "h": 190,
-    "z": 14,
-    "pinned": false
-  },
-  {
-    "id": "tpl-15",
-    "type": "text",
-    "name": "Section",
-    "text": "ACCESSIBILITY NOTES",
-    "x": 380,
-    "y": 580,
-    "w": 300,
-    "h": 50,
-    "z": 15,
-    "pinned": false
-  },
-  {
-    "id": "tpl-16",
-    "type": "note",
-    "name": "Note",
-    "text": "Contrast ratio targets (WCAG AA minimum: 4.5:1 for body text), keyboard-navigation requirements, and screen-reader considerations designed in from the start — retrofitting accessibility after launch costs far more than building it in from the wireframe stage.",
-    "x": 380,
-    "y": 640,
-    "w": 300,
-    "h": 190,
-    "z": 16,
-    "pinned": false
-  },
-  {
-    "id": "tpl-17",
-    "type": "text",
-    "name": "Section",
-    "text": "SCREENSHOTS & USER RESEARCH",
-    "x": 1060,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 17,
-    "pinned": false
-  },
-  {
-    "id": "tpl-18",
-    "type": "note",
-    "name": "Note",
-    "text": "Drop competitor screenshots, user-research clips (video), and interview notes (image or file cards) here — \"research before you design the screen\" only works if the research is actually on the board.",
-    "x": 1060,
-    "y": 100,
-    "w": 300,
-    "h": 220,
-    "z": 18,
-    "pinned": false
-  }
-]
+{
+  "cards": [
+    {
+      "id": "tpl-1",
+      "type": "text",
+      "name": "Section",
+      "text": "PROBLEM STATEMENT",
+      "x": 40,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 1,
+      "pinned": false
+    },
+    {
+      "id": "tpl-2",
+      "type": "note",
+      "name": "Note",
+      "text": "The specific user problem this design solves, in one sentence. If you can't state it in one sentence, the scope probably isn't settled yet — get that answer before wireframing anything.",
+      "x": 40,
+      "y": 100,
+      "w": 300,
+      "h": 190,
+      "z": 2,
+      "pinned": false
+    },
+    {
+      "id": "tpl-3",
+      "type": "text",
+      "name": "Section",
+      "text": "USER RESEARCH NOTES",
+      "x": 380,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 3,
+      "pinned": false
+    },
+    {
+      "id": "tpl-4",
+      "type": "note",
+      "name": "Note",
+      "text": "Key findings from user interviews/surveys — pain points and needs this design should actually address, not assumed ones. A quote from a real user carries more weight here than a design team's intuition.",
+      "x": 380,
+      "y": 100,
+      "w": 300,
+      "h": 190,
+      "z": 4,
+      "pinned": false
+    },
+    {
+      "id": "tpl-5",
+      "type": "text",
+      "name": "Section",
+      "text": "COMPETITIVE ANALYSIS",
+      "x": 720,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 5,
+      "pinned": false
+    },
+    {
+      "id": "tpl-6",
+      "type": "note",
+      "name": "Note",
+      "text": "Screenshots of competitor products with SPECIFIC notes on what works and what doesn't (not just \"theirs looks nice\") — what flow do they use, where do users likely get stuck, what would you copy vs. deliberately avoid.",
+      "x": 720,
+      "y": 100,
+      "w": 300,
+      "h": 190,
+      "z": 6,
+      "pinned": false
+    },
+    {
+      "id": "tpl-7",
+      "type": "text",
+      "name": "Section",
+      "text": "USER FLOW / INFORMATION ARCHITECTURE",
+      "x": 40,
+      "y": 310,
+      "w": 300,
+      "h": 50,
+      "z": 7,
+      "pinned": false
+    },
+    {
+      "id": "tpl-8",
+      "type": "note",
+      "name": "Note",
+      "text": "The core user flow(s) this design needs to support, start to finish, before any visual design begins. A beautiful screen that sits in the wrong place in the flow still fails the user.",
+      "x": 40,
+      "y": 370,
+      "w": 300,
+      "h": 190,
+      "z": 8,
+      "pinned": false
+    },
+    {
+      "id": "tpl-9",
+      "type": "text",
+      "name": "Section",
+      "text": "WIREFRAMES (LOW-FIDELITY)",
+      "x": 380,
+      "y": 310,
+      "w": 300,
+      "h": 50,
+      "z": 9,
+      "pinned": false
+    },
+    {
+      "id": "tpl-10",
+      "type": "note",
+      "name": "Note",
+      "text": "Rough layout and hierarchy only, no color or final type — verify the LAYOUT solves the flow before investing in visual polish. Changing a wireframe costs minutes; changing a finished high-fidelity screen costs hours.",
+      "x": 380,
+      "y": 370,
+      "w": 300,
+      "h": 190,
+      "z": 10,
+      "pinned": false
+    },
+    {
+      "id": "tpl-11",
+      "type": "text",
+      "name": "Section",
+      "text": "VISUAL / UI REFERENCES",
+      "x": 720,
+      "y": 310,
+      "w": 300,
+      "h": 50,
+      "z": 11,
+      "pinned": false
+    },
+    {
+      "id": "tpl-12",
+      "type": "note",
+      "name": "Note",
+      "text": "Interfaces whose visual language (component style, spacing, typography feel, not necessarily function) you want to draw from for the high-fidelity pass.",
+      "x": 720,
+      "y": 370,
+      "w": 300,
+      "h": 190,
+      "z": 12,
+      "pinned": false
+    },
+    {
+      "id": "tpl-13",
+      "type": "text",
+      "name": "Section",
+      "text": "DESIGN SYSTEM TOKENS",
+      "x": 40,
+      "y": 580,
+      "w": 300,
+      "h": 50,
+      "z": 13,
+      "pinned": false
+    },
+    {
+      "id": "tpl-14",
+      "type": "note",
+      "name": "Note",
+      "text": "Color palette, type scale, spacing units, and component states (default/hover/active/disabled/error) locked here as the single source of truth — every screen built after this references these tokens, never a one-off value.",
+      "x": 40,
+      "y": 640,
+      "w": 300,
+      "h": 190,
+      "z": 14,
+      "pinned": false
+    },
+    {
+      "id": "tpl-15",
+      "type": "text",
+      "name": "Section",
+      "text": "ACCESSIBILITY NOTES",
+      "x": 380,
+      "y": 580,
+      "w": 300,
+      "h": 50,
+      "z": 15,
+      "pinned": false
+    },
+    {
+      "id": "tpl-16",
+      "type": "note",
+      "name": "Note",
+      "text": "Contrast ratio targets (WCAG AA minimum: 4.5:1 for body text), keyboard-navigation requirements, and screen-reader considerations designed in from the start — retrofitting accessibility after launch costs far more than building it in from the wireframe stage.",
+      "x": 380,
+      "y": 640,
+      "w": 300,
+      "h": 190,
+      "z": 16,
+      "pinned": false
+    },
+    {
+      "id": "tpl-17",
+      "type": "text",
+      "name": "Section",
+      "text": "SCREENSHOTS & USER RESEARCH",
+      "x": 1060,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 17,
+      "pinned": false
+    },
+    {
+      "id": "tpl-18",
+      "type": "note",
+      "name": "Note",
+      "text": "Drop competitor screenshots, user-research clips (video), and interview notes (image or file cards) here — \"research before you design the screen\" only works if the research is actually on the board.",
+      "x": 1060,
+      "y": 100,
+      "w": 300,
+      "h": 220,
+      "z": 18,
+      "pinned": false
+    }
+  ],
+  "connections": [
+    {
+      "id": "tpl-conn-1",
+      "fromRefId": "tpl-2",
+      "toRefId": "tpl-4",
+      "type": "UsedIn",
+      "note": "The problem statement scopes the user research"
+    },
+    {
+      "id": "tpl-conn-2",
+      "fromRefId": "tpl-4",
+      "toRefId": "tpl-8",
+      "type": "UsedIn",
+      "note": "Research informs the user flow/information architecture"
+    },
+    {
+      "id": "tpl-conn-3",
+      "fromRefId": "tpl-6",
+      "toRefId": "tpl-8",
+      "type": "UsedIn",
+      "note": "Competitive analysis informs the user flow"
+    },
+    {
+      "id": "tpl-conn-4",
+      "fromRefId": "tpl-8",
+      "toRefId": "tpl-10",
+      "type": "UsedIn",
+      "note": "The flow/IA becomes the low-fidelity wireframes"
+    },
+    {
+      "id": "tpl-conn-5",
+      "fromRefId": "tpl-12",
+      "toRefId": "tpl-14",
+      "type": "UsedIn",
+      "note": "Visual/UI references inform the design system tokens"
+    },
+    {
+      "id": "tpl-conn-6",
+      "fromRefId": "tpl-16",
+      "toRefId": "tpl-10",
+      "type": "Supports",
+      "note": "Accessibility constraints shape the wireframes/flow — a real cross-cutting dependency, not an afterthought"
+    },
+    {
+      "id": "tpl-conn-7",
+      "fromRefId": "tpl-14",
+      "toRefId": "tpl-10",
+      "type": "Supports",
+      "note": "Design system tokens style the wireframe/flow implementation"
+    },
+    {
+      "id": "tpl-conn-8",
+      "fromRefId": "tpl-18",
+      "toRefId": "tpl-4",
+      "type": "References",
+      "note": "Screenshots and user research feed the research notes"
+    }
+  ]
+}

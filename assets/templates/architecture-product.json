@@ -1,170 +1,216 @@
-[
-  {
-    "id": "tpl-1",
-    "type": "text",
-    "name": "Section",
-    "text": "PRECEDENT STUDIES",
-    "x": 40,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 1,
-    "pinned": false
-  },
-  {
-    "id": "tpl-2",
-    "type": "note",
-    "name": "Note",
-    "text": "Existing buildings/products that inform this design — note specifically what you're borrowing from each (massing, materiality, a mechanism, a detail).",
-    "x": 40,
-    "y": 100,
-    "w": 300,
-    "h": 170,
-    "z": 2,
-    "pinned": false
-  },
-  {
-    "id": "tpl-3",
-    "type": "text",
-    "name": "Section",
-    "text": "MATERIAL REFERENCES",
-    "x": 380,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 3,
-    "pinned": false
-  },
-  {
-    "id": "tpl-4",
-    "type": "note",
-    "name": "Note",
-    "text": "Material palette with real-world samples/photos — texture, finish, and how it weathers or ages over time.",
-    "x": 380,
-    "y": 100,
-    "w": 300,
-    "h": 170,
-    "z": 4,
-    "pinned": false
-  },
-  {
-    "id": "tpl-5",
-    "type": "text",
-    "name": "Section",
-    "text": "FORM & MASSING STUDIES",
-    "x": 720,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 5,
-    "pinned": false
-  },
-  {
-    "id": "tpl-6",
-    "type": "note",
-    "name": "Note",
-    "text": "Early volumetric sketches or physical model photos exploring the basic shape before detail work begins.",
-    "x": 720,
-    "y": 100,
-    "w": 300,
-    "h": 170,
-    "z": 6,
-    "pinned": false
-  },
-  {
-    "id": "tpl-7",
-    "type": "text",
-    "name": "Section",
-    "text": "SITE / CONTEXT REFERENCES",
-    "x": 40,
-    "y": 290,
-    "w": 300,
-    "h": 50,
-    "z": 7,
-    "pinned": false
-  },
-  {
-    "id": "tpl-8",
-    "type": "note",
-    "name": "Note",
-    "text": "Photos of the site, surrounding context, climate data, or (for a product) the environment it will actually be used in.",
-    "x": 40,
-    "y": 350,
-    "w": 300,
-    "h": 170,
-    "z": 8,
-    "pinned": false
-  },
-  {
-    "id": "tpl-9",
-    "type": "text",
-    "name": "Section",
-    "text": "TECHNICAL CONSTRAINTS",
-    "x": 380,
-    "y": 290,
-    "w": 300,
-    "h": 50,
-    "z": 9,
-    "pinned": false
-  },
-  {
-    "id": "tpl-10",
-    "type": "note",
-    "name": "Note",
-    "text": "Structural/manufacturing constraints, budget ceiling, code/regulatory requirements, and any client-mandated must-haves.",
-    "x": 380,
-    "y": 350,
-    "w": 300,
-    "h": 170,
-    "z": 10,
-    "pinned": false
-  },
-  {
-    "id": "tpl-11",
-    "type": "text",
-    "name": "Section",
-    "text": "CLIENT FEEDBACK",
-    "x": 720,
-    "y": 290,
-    "w": 300,
-    "h": 50,
-    "z": 11,
-    "pinned": false
-  },
-  {
-    "id": "tpl-12",
-    "type": "note",
-    "name": "Note",
-    "text": "Dated rounds of client feedback, kept in sequence so the design rationale for later decisions stays traceable.",
-    "x": 720,
-    "y": 350,
-    "w": 300,
-    "h": 170,
-    "z": 12,
-    "pinned": false
-  },
-  {
-    "id": "tpl-13",
-    "type": "text",
-    "name": "Section",
-    "text": "MATERIAL & FORM REFERENCE",
-    "x": 1060,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 13,
-    "pinned": false
-  },
-  {
-    "id": "tpl-14",
-    "type": "note",
-    "name": "Note",
-    "text": "Drop material photos, precedent-building/product photos, and a 3D massing or CAD-export model (.obj/.fbx/.stl) here as the form study develops.",
-    "x": 1060,
-    "y": 100,
-    "w": 300,
-    "h": 220,
-    "z": 14,
-    "pinned": false
-  }
-]
+{
+  "cards": [
+    {
+      "id": "tpl-1",
+      "type": "text",
+      "name": "Section",
+      "text": "PRECEDENT STUDIES",
+      "x": 40,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 1,
+      "pinned": false
+    },
+    {
+      "id": "tpl-2",
+      "type": "note",
+      "name": "Note",
+      "text": "Existing buildings/products that inform this design — note specifically what you're borrowing from each (massing, materiality, a mechanism, a detail).",
+      "x": 40,
+      "y": 100,
+      "w": 300,
+      "h": 170,
+      "z": 2,
+      "pinned": false
+    },
+    {
+      "id": "tpl-3",
+      "type": "text",
+      "name": "Section",
+      "text": "MATERIAL REFERENCES",
+      "x": 380,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 3,
+      "pinned": false
+    },
+    {
+      "id": "tpl-4",
+      "type": "note",
+      "name": "Note",
+      "text": "Material palette with real-world samples/photos — texture, finish, and how it weathers or ages over time.",
+      "x": 380,
+      "y": 100,
+      "w": 300,
+      "h": 170,
+      "z": 4,
+      "pinned": false
+    },
+    {
+      "id": "tpl-5",
+      "type": "text",
+      "name": "Section",
+      "text": "FORM & MASSING STUDIES",
+      "x": 720,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 5,
+      "pinned": false
+    },
+    {
+      "id": "tpl-6",
+      "type": "note",
+      "name": "Note",
+      "text": "Early volumetric sketches or physical model photos exploring the basic shape before detail work begins.",
+      "x": 720,
+      "y": 100,
+      "w": 300,
+      "h": 170,
+      "z": 6,
+      "pinned": false
+    },
+    {
+      "id": "tpl-7",
+      "type": "text",
+      "name": "Section",
+      "text": "SITE / CONTEXT REFERENCES",
+      "x": 40,
+      "y": 290,
+      "w": 300,
+      "h": 50,
+      "z": 7,
+      "pinned": false
+    },
+    {
+      "id": "tpl-8",
+      "type": "note",
+      "name": "Note",
+      "text": "Photos of the site, surrounding context, climate data, or (for a product) the environment it will actually be used in.",
+      "x": 40,
+      "y": 350,
+      "w": 300,
+      "h": 170,
+      "z": 8,
+      "pinned": false
+    },
+    {
+      "id": "tpl-9",
+      "type": "text",
+      "name": "Section",
+      "text": "TECHNICAL CONSTRAINTS",
+      "x": 380,
+      "y": 290,
+      "w": 300,
+      "h": 50,
+      "z": 9,
+      "pinned": false
+    },
+    {
+      "id": "tpl-10",
+      "type": "note",
+      "name": "Note",
+      "text": "Structural/manufacturing constraints, budget ceiling, code/regulatory requirements, and any client-mandated must-haves.",
+      "x": 380,
+      "y": 350,
+      "w": 300,
+      "h": 170,
+      "z": 10,
+      "pinned": false
+    },
+    {
+      "id": "tpl-11",
+      "type": "text",
+      "name": "Section",
+      "text": "CLIENT FEEDBACK",
+      "x": 720,
+      "y": 290,
+      "w": 300,
+      "h": 50,
+      "z": 11,
+      "pinned": false
+    },
+    {
+      "id": "tpl-12",
+      "type": "note",
+      "name": "Note",
+      "text": "Dated rounds of client feedback, kept in sequence so the design rationale for later decisions stays traceable.",
+      "x": 720,
+      "y": 350,
+      "w": 300,
+      "h": 170,
+      "z": 12,
+      "pinned": false
+    },
+    {
+      "id": "tpl-13",
+      "type": "text",
+      "name": "Section",
+      "text": "MATERIAL & FORM REFERENCE",
+      "x": 1060,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 13,
+      "pinned": false
+    },
+    {
+      "id": "tpl-14",
+      "type": "note",
+      "name": "Note",
+      "text": "Drop material photos, precedent-building/product photos, and a 3D massing or CAD-export model (.obj/.fbx/.stl) here as the form study develops.",
+      "x": 1060,
+      "y": 100,
+      "w": 300,
+      "h": 220,
+      "z": 14,
+      "pinned": false
+    }
+  ],
+  "connections": [
+    {
+      "id": "tpl-conn-1",
+      "fromRefId": "tpl-2",
+      "toRefId": "tpl-6",
+      "type": "UsedIn",
+      "note": "Precedent studies inform the form/massing studies"
+    },
+    {
+      "id": "tpl-conn-2",
+      "fromRefId": "tpl-8",
+      "toRefId": "tpl-6",
+      "type": "UsedIn",
+      "note": "Site/context references inform the form/massing studies"
+    },
+    {
+      "id": "tpl-conn-3",
+      "fromRefId": "tpl-4",
+      "toRefId": "tpl-6",
+      "type": "UsedIn",
+      "note": "Material references inform the form/massing choices"
+    },
+    {
+      "id": "tpl-conn-4",
+      "fromRefId": "tpl-10",
+      "toRefId": "tpl-6",
+      "type": "Supports",
+      "note": "Technical constraints shape what form/massing can actually be built"
+    },
+    {
+      "id": "tpl-conn-5",
+      "fromRefId": "tpl-12",
+      "toRefId": "tpl-6",
+      "type": "Supports",
+      "note": "Client feedback loops back into form/massing revisions"
+    },
+    {
+      "id": "tpl-conn-6",
+      "fromRefId": "tpl-14",
+      "toRefId": "tpl-4",
+      "type": "References",
+      "note": "External material/form references feed the material references section"
+    }
+  ]
+}

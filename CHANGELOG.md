@@ -2,6 +2,33 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [8.9.7] — Templates rebuild finished: 13 of 14
+
+*Direct continuation of 8.9.6 — closing out the remaining 7 templates
+rather than leaving the rebuild half-done.*
+
+### Changed
+- **The remaining 6 non-freeform templates now carry the same real
+  pipeline-dependency connections as the 7 shipped in 8.9.6**:
+  `filmmaking` (3), `branding-identity` (8), `ui-ux-design` (8),
+  `architecture-product` (6), `photography-concept` (6),
+  `music-production` (7) — same methodology, same validation (every
+  connection checked to reference a real card id in that file, use a
+  valid connection type, no self-loops, no duplicate ids).
+- **`mood-board` deliberately left untouched, not an oversight**: its
+  own manifest description is "a loose, freeform layout for general
+  inspiration gathering" — imposing a forced pipeline-dependency
+  structure on a template whose entire point is having none would be a
+  real design mistake, not a completeness win. 13 of 14 templates now
+  demonstrate Connections/Map View; the one holdout holds out on
+  purpose.
+- Same disclosed verification scope as 8.9.6: connections validated
+  structurally by script, the IPC load path verified live via CDP in
+  the previous release — this pass only added more of the same
+  already-proven pattern, so no new live-verification category was
+  needed. The Templates gallery UI click-through is still the one
+  queued live check, unchanged from 8.9.6's own note.
+
 ## [8.9.6] — Templates carry real Connections, 7 rebuilt
 
 *Backlog item: "Templates are still text/note-only — correctly called

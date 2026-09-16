@@ -1,194 +1,247 @@
-[
-  {
-    "id": "tpl-1",
-    "type": "text",
-    "name": "Section",
-    "text": "MOOD & GENRE REFERENCES",
-    "x": 40,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 1,
-    "pinned": false
-  },
-  {
-    "id": "tpl-2",
-    "type": "note",
-    "name": "Note",
-    "text": "Reference tracks that capture the feel you're going for — tempo, energy, instrumentation style. Note WHY each one is a reference, not just that it sounds good.",
-    "x": 40,
-    "y": 100,
-    "w": 300,
-    "h": 170,
-    "z": 2,
-    "pinned": false
-  },
-  {
-    "id": "tpl-3",
-    "type": "text",
-    "name": "Section",
-    "text": "INSTRUMENTATION NOTES",
-    "x": 380,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 3,
-    "pinned": false
-  },
-  {
-    "id": "tpl-4",
-    "type": "note",
-    "name": "Note",
-    "text": "Planned instruments/synths per section (intro, verse, chorus, bridge, outro). VST/plugin names and preset notes so a session is reproducible later.",
-    "x": 380,
-    "y": 100,
-    "w": 300,
-    "h": 170,
-    "z": 4,
-    "pinned": false
-  },
-  {
-    "id": "tpl-5",
-    "type": "text",
-    "name": "Section",
-    "text": "ARRANGEMENT STRUCTURE",
-    "x": 720,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 5,
-    "pinned": false
-  },
-  {
-    "id": "tpl-6",
-    "type": "note",
-    "name": "Note",
-    "text": "Section-by-section map: Intro (0:00–0:15) — sparse, filtered pad. Verse (0:15–0:45) — drums + bass enter. Build clear transitions between sections before adding detail.",
-    "x": 720,
-    "y": 100,
-    "w": 300,
-    "h": 170,
-    "z": 6,
-    "pinned": false
-  },
-  {
-    "id": "tpl-7",
-    "type": "text",
-    "name": "Section",
-    "text": "LYRICS / TOPLINE NOTES",
-    "x": 40,
-    "y": 290,
-    "w": 300,
-    "h": 50,
-    "z": 7,
-    "pinned": false
-  },
-  {
-    "id": "tpl-8",
-    "type": "note",
-    "name": "Note",
-    "text": "Lyric drafts, melody hums/voice-memo references, and theme/story notes if the track has vocals.",
-    "x": 40,
-    "y": 350,
-    "w": 300,
-    "h": 170,
-    "z": 8,
-    "pinned": false
-  },
-  {
-    "id": "tpl-9",
-    "type": "text",
-    "name": "Section",
-    "text": "MIX REFERENCE TRACKS",
-    "x": 380,
-    "y": 290,
-    "w": 300,
-    "h": 50,
-    "z": 9,
-    "pinned": false
-  },
-  {
-    "id": "tpl-10",
-    "type": "note",
-    "name": "Note",
-    "text": "Professionally mixed/mastered tracks in the same genre, used as a loudness and tonal-balance reference during mixing.",
-    "x": 380,
-    "y": 350,
-    "w": 300,
-    "h": 170,
-    "z": 10,
-    "pinned": false
-  },
-  {
-    "id": "tpl-11",
-    "type": "text",
-    "name": "Section",
-    "text": "MIX CHECKLIST",
-    "x": 720,
-    "y": 290,
-    "w": 300,
-    "h": 50,
-    "z": 11,
-    "pinned": false
-  },
-  {
-    "id": "tpl-12",
-    "type": "note",
-    "name": "Note",
-    "text": "1. Levels balanced before any processing\n2. High-pass non-bass elements\n3. Check mix in mono\n4. Reference against mix-reference tracks\n5. Automate key transitions\n6. Leave headroom for mastering (~-6dB peak)",
-    "x": 720,
-    "y": 350,
-    "w": 300,
-    "h": 170,
-    "z": 12,
-    "pinned": false
-  },
-  {
-    "id": "tpl-13",
-    "type": "text",
-    "name": "Section",
-    "text": "MASTERING / DELIVERY",
-    "x": 40,
-    "y": 540,
-    "w": 300,
-    "h": 50,
-    "z": 13,
-    "pinned": false
-  },
-  {
-    "id": "tpl-14",
-    "type": "note",
-    "name": "Note",
-    "text": "Target loudness (LUFS) per platform (streaming vs. club vs. broadcast), file format/sample rate required, and metadata (ISRC, credits, artwork) needed for release.",
-    "x": 40,
-    "y": 600,
-    "w": 300,
-    "h": 170,
-    "z": 14,
-    "pinned": false
-  },
-  {
-    "id": "tpl-15",
-    "type": "text",
-    "name": "Section",
-    "text": "REFERENCE TRACKS & MOOD",
-    "x": 1060,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 15,
-    "pinned": false
-  },
-  {
-    "id": "tpl-16",
-    "type": "note",
-    "name": "Note",
-    "text": "Drop reference-track audio cards, mood images, and any artwork direction here — the arrangement/mix notes to the left are easiest to apply next to the actual sound and look you’re chasing.",
-    "x": 1060,
-    "y": 100,
-    "w": 300,
-    "h": 220,
-    "z": 16,
-    "pinned": false
-  }
-]
+{
+  "cards": [
+    {
+      "id": "tpl-1",
+      "type": "text",
+      "name": "Section",
+      "text": "MOOD & GENRE REFERENCES",
+      "x": 40,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 1,
+      "pinned": false
+    },
+    {
+      "id": "tpl-2",
+      "type": "note",
+      "name": "Note",
+      "text": "Reference tracks that capture the feel you're going for — tempo, energy, instrumentation style. Note WHY each one is a reference, not just that it sounds good.",
+      "x": 40,
+      "y": 100,
+      "w": 300,
+      "h": 170,
+      "z": 2,
+      "pinned": false
+    },
+    {
+      "id": "tpl-3",
+      "type": "text",
+      "name": "Section",
+      "text": "INSTRUMENTATION NOTES",
+      "x": 380,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 3,
+      "pinned": false
+    },
+    {
+      "id": "tpl-4",
+      "type": "note",
+      "name": "Note",
+      "text": "Planned instruments/synths per section (intro, verse, chorus, bridge, outro). VST/plugin names and preset notes so a session is reproducible later.",
+      "x": 380,
+      "y": 100,
+      "w": 300,
+      "h": 170,
+      "z": 4,
+      "pinned": false
+    },
+    {
+      "id": "tpl-5",
+      "type": "text",
+      "name": "Section",
+      "text": "ARRANGEMENT STRUCTURE",
+      "x": 720,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 5,
+      "pinned": false
+    },
+    {
+      "id": "tpl-6",
+      "type": "note",
+      "name": "Note",
+      "text": "Section-by-section map: Intro (0:00–0:15) — sparse, filtered pad. Verse (0:15–0:45) — drums + bass enter. Build clear transitions between sections before adding detail.",
+      "x": 720,
+      "y": 100,
+      "w": 300,
+      "h": 170,
+      "z": 6,
+      "pinned": false
+    },
+    {
+      "id": "tpl-7",
+      "type": "text",
+      "name": "Section",
+      "text": "LYRICS / TOPLINE NOTES",
+      "x": 40,
+      "y": 290,
+      "w": 300,
+      "h": 50,
+      "z": 7,
+      "pinned": false
+    },
+    {
+      "id": "tpl-8",
+      "type": "note",
+      "name": "Note",
+      "text": "Lyric drafts, melody hums/voice-memo references, and theme/story notes if the track has vocals.",
+      "x": 40,
+      "y": 350,
+      "w": 300,
+      "h": 170,
+      "z": 8,
+      "pinned": false
+    },
+    {
+      "id": "tpl-9",
+      "type": "text",
+      "name": "Section",
+      "text": "MIX REFERENCE TRACKS",
+      "x": 380,
+      "y": 290,
+      "w": 300,
+      "h": 50,
+      "z": 9,
+      "pinned": false
+    },
+    {
+      "id": "tpl-10",
+      "type": "note",
+      "name": "Note",
+      "text": "Professionally mixed/mastered tracks in the same genre, used as a loudness and tonal-balance reference during mixing.",
+      "x": 380,
+      "y": 350,
+      "w": 300,
+      "h": 170,
+      "z": 10,
+      "pinned": false
+    },
+    {
+      "id": "tpl-11",
+      "type": "text",
+      "name": "Section",
+      "text": "MIX CHECKLIST",
+      "x": 720,
+      "y": 290,
+      "w": 300,
+      "h": 50,
+      "z": 11,
+      "pinned": false
+    },
+    {
+      "id": "tpl-12",
+      "type": "note",
+      "name": "Note",
+      "text": "1. Levels balanced before any processing\n2. High-pass non-bass elements\n3. Check mix in mono\n4. Reference against mix-reference tracks\n5. Automate key transitions\n6. Leave headroom for mastering (~-6dB peak)",
+      "x": 720,
+      "y": 350,
+      "w": 300,
+      "h": 170,
+      "z": 12,
+      "pinned": false
+    },
+    {
+      "id": "tpl-13",
+      "type": "text",
+      "name": "Section",
+      "text": "MASTERING / DELIVERY",
+      "x": 40,
+      "y": 540,
+      "w": 300,
+      "h": 50,
+      "z": 13,
+      "pinned": false
+    },
+    {
+      "id": "tpl-14",
+      "type": "note",
+      "name": "Note",
+      "text": "Target loudness (LUFS) per platform (streaming vs. club vs. broadcast), file format/sample rate required, and metadata (ISRC, credits, artwork) needed for release.",
+      "x": 40,
+      "y": 600,
+      "w": 300,
+      "h": 170,
+      "z": 14,
+      "pinned": false
+    },
+    {
+      "id": "tpl-15",
+      "type": "text",
+      "name": "Section",
+      "text": "REFERENCE TRACKS & MOOD",
+      "x": 1060,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 15,
+      "pinned": false
+    },
+    {
+      "id": "tpl-16",
+      "type": "note",
+      "name": "Note",
+      "text": "Drop reference-track audio cards, mood images, and any artwork direction here — the arrangement/mix notes to the left are easiest to apply next to the actual sound and look you’re chasing.",
+      "x": 1060,
+      "y": 100,
+      "w": 300,
+      "h": 220,
+      "z": 16,
+      "pinned": false
+    }
+  ],
+  "connections": [
+    {
+      "id": "tpl-conn-1",
+      "fromRefId": "tpl-2",
+      "toRefId": "tpl-4",
+      "type": "UsedIn",
+      "note": "Mood/genre informs instrumentation choices"
+    },
+    {
+      "id": "tpl-conn-2",
+      "fromRefId": "tpl-2",
+      "toRefId": "tpl-6",
+      "type": "UsedIn",
+      "note": "Mood/genre informs the arrangement structure"
+    },
+    {
+      "id": "tpl-conn-3",
+      "fromRefId": "tpl-4",
+      "toRefId": "tpl-6",
+      "type": "UsedIn",
+      "note": "Instrumentation feeds the arrangement"
+    },
+    {
+      "id": "tpl-conn-4",
+      "fromRefId": "tpl-8",
+      "toRefId": "tpl-6",
+      "type": "UsedIn",
+      "note": "Lyrics/topline structure feeds the arrangement"
+    },
+    {
+      "id": "tpl-conn-5",
+      "fromRefId": "tpl-10",
+      "toRefId": "tpl-12",
+      "type": "UsedIn",
+      "note": "Mix reference tracks inform the mix checklist"
+    },
+    {
+      "id": "tpl-conn-6",
+      "fromRefId": "tpl-12",
+      "toRefId": "tpl-14",
+      "type": "UsedIn",
+      "note": "An approved mix goes to mastering/delivery"
+    },
+    {
+      "id": "tpl-conn-7",
+      "fromRefId": "tpl-16",
+      "toRefId": "tpl-10",
+      "type": "References",
+      "note": "External reference tracks feed the mix-reference section"
+    }
+  ]
+}

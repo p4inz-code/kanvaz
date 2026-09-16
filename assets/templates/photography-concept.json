@@ -1,170 +1,216 @@
-[
-  {
-    "id": "tpl-1",
-    "type": "text",
-    "name": "Section",
-    "text": "MOOD & TONE",
-    "x": 40,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 1,
-    "pinned": false
-  },
-  {
-    "id": "tpl-2",
-    "type": "note",
-    "name": "Note",
-    "text": "The overall feeling this shoot/piece should evoke — words and reference images both. Tone drives every other decision below.",
-    "x": 40,
-    "y": 100,
-    "w": 300,
-    "h": 170,
-    "z": 2,
-    "pinned": false
-  },
-  {
-    "id": "tpl-3",
-    "type": "text",
-    "name": "Section",
-    "text": "LIGHTING REFERENCES",
-    "x": 380,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 3,
-    "pinned": false
-  },
-  {
-    "id": "tpl-4",
-    "type": "note",
-    "name": "Note",
-    "text": "Direction, hardness, and color of light in your references. Note time-of-day for natural light, or lighting-setup diagrams for studio work.",
-    "x": 380,
-    "y": 100,
-    "w": 300,
-    "h": 170,
-    "z": 4,
-    "pinned": false
-  },
-  {
-    "id": "tpl-5",
-    "type": "text",
-    "name": "Section",
-    "text": "COMPOSITION REFERENCES",
-    "x": 720,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 5,
-    "pinned": false
-  },
-  {
-    "id": "tpl-6",
-    "type": "note",
-    "name": "Note",
-    "text": "Framing, rule-of-thirds vs. centered, negative space usage — pieces whose composition you want to study or emulate, not necessarily their subject.",
-    "x": 720,
-    "y": 100,
-    "w": 300,
-    "h": 170,
-    "z": 6,
-    "pinned": false
-  },
-  {
-    "id": "tpl-7",
-    "type": "text",
-    "name": "Section",
-    "text": "COLOR PALETTE",
-    "x": 40,
-    "y": 290,
-    "w": 300,
-    "h": 50,
-    "z": 7,
-    "pinned": false
-  },
-  {
-    "id": "tpl-8",
-    "type": "note",
-    "name": "Note",
-    "text": "A locked palette pulled from your references, so grading/color choices stay consistent across a whole series or shoot.",
-    "x": 40,
-    "y": 350,
-    "w": 300,
-    "h": 170,
-    "z": 8,
-    "pinned": false
-  },
-  {
-    "id": "tpl-9",
-    "type": "text",
-    "name": "Section",
-    "text": "WARDROBE / PROP / SET REFERENCES",
-    "x": 380,
-    "y": 290,
-    "w": 300,
-    "h": 50,
-    "z": 9,
-    "pinned": false
-  },
-  {
-    "id": "tpl-10",
-    "type": "note",
-    "name": "Note",
-    "text": "Specific items, textures, or set-dressing pieces needed — with sourcing notes (own it, rent it, build it).",
-    "x": 380,
-    "y": 350,
-    "w": 300,
-    "h": 170,
-    "z": 10,
-    "pinned": false
-  },
-  {
-    "id": "tpl-11",
-    "type": "text",
-    "name": "Section",
-    "text": "SHOT LIST",
-    "x": 720,
-    "y": 290,
-    "w": 300,
-    "h": 50,
-    "z": 11,
-    "pinned": false
-  },
-  {
-    "id": "tpl-12",
-    "type": "note",
-    "name": "Note",
-    "text": "Planned shots for the session: subject, angle, lens choice, and the specific reference each shot is chasing.",
-    "x": 720,
-    "y": 350,
-    "w": 300,
-    "h": 170,
-    "z": 12,
-    "pinned": false
-  },
-  {
-    "id": "tpl-13",
-    "type": "text",
-    "name": "Section",
-    "text": "MOOD & LIGHTING REFERENCE",
-    "x": 1060,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 13,
-    "pinned": false
-  },
-  {
-    "id": "tpl-14",
-    "type": "note",
-    "name": "Note",
-    "text": "Drop mood photos, lighting diagrams, and location scout shots (image or video cards) here — the composition notes to the left only mean something next to the actual references they’re describing.",
-    "x": 1060,
-    "y": 100,
-    "w": 300,
-    "h": 220,
-    "z": 14,
-    "pinned": false
-  }
-]
+{
+  "cards": [
+    {
+      "id": "tpl-1",
+      "type": "text",
+      "name": "Section",
+      "text": "MOOD & TONE",
+      "x": 40,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 1,
+      "pinned": false
+    },
+    {
+      "id": "tpl-2",
+      "type": "note",
+      "name": "Note",
+      "text": "The overall feeling this shoot/piece should evoke — words and reference images both. Tone drives every other decision below.",
+      "x": 40,
+      "y": 100,
+      "w": 300,
+      "h": 170,
+      "z": 2,
+      "pinned": false
+    },
+    {
+      "id": "tpl-3",
+      "type": "text",
+      "name": "Section",
+      "text": "LIGHTING REFERENCES",
+      "x": 380,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 3,
+      "pinned": false
+    },
+    {
+      "id": "tpl-4",
+      "type": "note",
+      "name": "Note",
+      "text": "Direction, hardness, and color of light in your references. Note time-of-day for natural light, or lighting-setup diagrams for studio work.",
+      "x": 380,
+      "y": 100,
+      "w": 300,
+      "h": 170,
+      "z": 4,
+      "pinned": false
+    },
+    {
+      "id": "tpl-5",
+      "type": "text",
+      "name": "Section",
+      "text": "COMPOSITION REFERENCES",
+      "x": 720,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 5,
+      "pinned": false
+    },
+    {
+      "id": "tpl-6",
+      "type": "note",
+      "name": "Note",
+      "text": "Framing, rule-of-thirds vs. centered, negative space usage — pieces whose composition you want to study or emulate, not necessarily their subject.",
+      "x": 720,
+      "y": 100,
+      "w": 300,
+      "h": 170,
+      "z": 6,
+      "pinned": false
+    },
+    {
+      "id": "tpl-7",
+      "type": "text",
+      "name": "Section",
+      "text": "COLOR PALETTE",
+      "x": 40,
+      "y": 290,
+      "w": 300,
+      "h": 50,
+      "z": 7,
+      "pinned": false
+    },
+    {
+      "id": "tpl-8",
+      "type": "note",
+      "name": "Note",
+      "text": "A locked palette pulled from your references, so grading/color choices stay consistent across a whole series or shoot.",
+      "x": 40,
+      "y": 350,
+      "w": 300,
+      "h": 170,
+      "z": 8,
+      "pinned": false
+    },
+    {
+      "id": "tpl-9",
+      "type": "text",
+      "name": "Section",
+      "text": "WARDROBE / PROP / SET REFERENCES",
+      "x": 380,
+      "y": 290,
+      "w": 300,
+      "h": 50,
+      "z": 9,
+      "pinned": false
+    },
+    {
+      "id": "tpl-10",
+      "type": "note",
+      "name": "Note",
+      "text": "Specific items, textures, or set-dressing pieces needed — with sourcing notes (own it, rent it, build it).",
+      "x": 380,
+      "y": 350,
+      "w": 300,
+      "h": 170,
+      "z": 10,
+      "pinned": false
+    },
+    {
+      "id": "tpl-11",
+      "type": "text",
+      "name": "Section",
+      "text": "SHOT LIST",
+      "x": 720,
+      "y": 290,
+      "w": 300,
+      "h": 50,
+      "z": 11,
+      "pinned": false
+    },
+    {
+      "id": "tpl-12",
+      "type": "note",
+      "name": "Note",
+      "text": "Planned shots for the session: subject, angle, lens choice, and the specific reference each shot is chasing.",
+      "x": 720,
+      "y": 350,
+      "w": 300,
+      "h": 170,
+      "z": 12,
+      "pinned": false
+    },
+    {
+      "id": "tpl-13",
+      "type": "text",
+      "name": "Section",
+      "text": "MOOD & LIGHTING REFERENCE",
+      "x": 1060,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 13,
+      "pinned": false
+    },
+    {
+      "id": "tpl-14",
+      "type": "note",
+      "name": "Note",
+      "text": "Drop mood photos, lighting diagrams, and location scout shots (image or video cards) here — the composition notes to the left only mean something next to the actual references they’re describing.",
+      "x": 1060,
+      "y": 100,
+      "w": 300,
+      "h": 220,
+      "z": 14,
+      "pinned": false
+    }
+  ],
+  "connections": [
+    {
+      "id": "tpl-conn-1",
+      "fromRefId": "tpl-2",
+      "toRefId": "tpl-4",
+      "type": "UsedIn",
+      "note": "Mood/tone informs the lighting plan"
+    },
+    {
+      "id": "tpl-conn-2",
+      "fromRefId": "tpl-2",
+      "toRefId": "tpl-8",
+      "type": "UsedIn",
+      "note": "Mood/tone informs the color palette"
+    },
+    {
+      "id": "tpl-conn-3",
+      "fromRefId": "tpl-4",
+      "toRefId": "tpl-12",
+      "type": "UsedIn",
+      "note": "The lighting plan feeds the shot list"
+    },
+    {
+      "id": "tpl-conn-4",
+      "fromRefId": "tpl-6",
+      "toRefId": "tpl-12",
+      "type": "UsedIn",
+      "note": "The composition plan feeds the shot list"
+    },
+    {
+      "id": "tpl-conn-5",
+      "fromRefId": "tpl-10",
+      "toRefId": "tpl-12",
+      "type": "UsedIn",
+      "note": "Wardrobe/prop/set choices feed the shot list"
+    },
+    {
+      "id": "tpl-conn-6",
+      "fromRefId": "tpl-14",
+      "toRefId": "tpl-4",
+      "type": "References",
+      "note": "External mood/lighting references feed the lighting section"
+    }
+  ]
+}

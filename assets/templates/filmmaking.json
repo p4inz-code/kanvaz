@@ -1,125 +1,150 @@
-[
-  {
-    "id": "tpl-fm-1",
-    "type": "text",
-    "name": "Section",
-    "text": "SHOT REFERENCES",
-    "x": 40,
-    "y": 40,
-    "w": 260,
-    "h": 60,
-    "z": 1,
-    "pinned": false
-  },
-  {
-    "id": "tpl-fm-2",
-    "type": "note",
-    "name": "Note",
-    "text": "Drop frame grabs or reference stills here — one per shot.",
-    "x": 40,
-    "y": 120,
-    "w": 260,
-    "h": 160,
-    "z": 2,
-    "pinned": false
-  },
-  {
-    "id": "tpl-fm-3",
-    "type": "text",
-    "name": "Section",
-    "text": "MOOD",
-    "x": 340,
-    "y": 40,
-    "w": 260,
-    "h": 60,
-    "z": 3,
-    "pinned": false
-  },
-  {
-    "id": "tpl-fm-4",
-    "type": "note",
-    "name": "Note",
-    "text": "Tone, lighting, pacing — what should this feel like?",
-    "x": 340,
-    "y": 120,
-    "w": 260,
-    "h": 160,
-    "z": 4,
-    "pinned": false
-  },
-  {
-    "id": "tpl-fm-5",
-    "type": "text",
-    "name": "Section",
-    "text": "COLOR PALETTE",
-    "x": 40,
-    "y": 320,
-    "w": 260,
-    "h": 60,
-    "z": 5,
-    "pinned": false
-  },
-  {
-    "id": "tpl-fm-6",
-    "type": "color",
-    "name": "Palette 1",
-    "color": "#2B2438",
-    "colorFormat": "hex",
-    "x": 40,
-    "y": 400,
-    "w": 120,
-    "h": 120,
-    "z": 6,
-    "pinned": false
-  },
-  {
-    "id": "tpl-fm-7",
-    "type": "color",
-    "name": "Palette 2",
-    "color": "#8C5E58",
-    "colorFormat": "hex",
-    "x": 180,
-    "y": 400,
-    "w": 120,
-    "h": 120,
-    "z": 7,
-    "pinned": false
-  },
-  {
-    "id": "tpl-fm-8",
-    "type": "color",
-    "name": "Palette 3",
-    "color": "#D9B08C",
-    "colorFormat": "hex",
-    "x": 320,
-    "y": 400,
-    "w": 120,
-    "h": 120,
-    "z": 8,
-    "pinned": false
-  },
-  {
-    "id": "tpl-fm-9",
-    "type": "text",
-    "name": "Section",
-    "text": "SHOT & LOCATION REFERENCE",
-    "x": 640,
-    "y": 40,
-    "w": 300,
-    "h": 50,
-    "z": 9,
-    "pinned": false
-  },
-  {
-    "id": "tpl-fm-10",
-    "type": "note",
-    "name": "Note",
-    "text": "Drop shot references, location scout photos, and mood video clips here — this is the visual target the rest of the board is planning around.",
-    "x": 640,
-    "y": 100,
-    "w": 300,
-    "h": 220,
-    "z": 10,
-    "pinned": false
-  }
-]
+{
+  "cards": [
+    {
+      "id": "tpl-fm-1",
+      "type": "text",
+      "name": "Section",
+      "text": "SHOT REFERENCES",
+      "x": 40,
+      "y": 40,
+      "w": 260,
+      "h": 60,
+      "z": 1,
+      "pinned": false
+    },
+    {
+      "id": "tpl-fm-2",
+      "type": "note",
+      "name": "Note",
+      "text": "Drop frame grabs or reference stills here — one per shot.",
+      "x": 40,
+      "y": 120,
+      "w": 260,
+      "h": 160,
+      "z": 2,
+      "pinned": false
+    },
+    {
+      "id": "tpl-fm-3",
+      "type": "text",
+      "name": "Section",
+      "text": "MOOD",
+      "x": 340,
+      "y": 40,
+      "w": 260,
+      "h": 60,
+      "z": 3,
+      "pinned": false
+    },
+    {
+      "id": "tpl-fm-4",
+      "type": "note",
+      "name": "Note",
+      "text": "Tone, lighting, pacing — what should this feel like?",
+      "x": 340,
+      "y": 120,
+      "w": 260,
+      "h": 160,
+      "z": 4,
+      "pinned": false
+    },
+    {
+      "id": "tpl-fm-5",
+      "type": "text",
+      "name": "Section",
+      "text": "COLOR PALETTE",
+      "x": 40,
+      "y": 320,
+      "w": 260,
+      "h": 60,
+      "z": 5,
+      "pinned": false
+    },
+    {
+      "id": "tpl-fm-6",
+      "type": "color",
+      "name": "Palette 1",
+      "color": "#2B2438",
+      "colorFormat": "hex",
+      "x": 40,
+      "y": 400,
+      "w": 120,
+      "h": 120,
+      "z": 6,
+      "pinned": false
+    },
+    {
+      "id": "tpl-fm-7",
+      "type": "color",
+      "name": "Palette 2",
+      "color": "#8C5E58",
+      "colorFormat": "hex",
+      "x": 180,
+      "y": 400,
+      "w": 120,
+      "h": 120,
+      "z": 7,
+      "pinned": false
+    },
+    {
+      "id": "tpl-fm-8",
+      "type": "color",
+      "name": "Palette 3",
+      "color": "#D9B08C",
+      "colorFormat": "hex",
+      "x": 320,
+      "y": 400,
+      "w": 120,
+      "h": 120,
+      "z": 8,
+      "pinned": false
+    },
+    {
+      "id": "tpl-fm-9",
+      "type": "text",
+      "name": "Section",
+      "text": "SHOT & LOCATION REFERENCE",
+      "x": 640,
+      "y": 40,
+      "w": 300,
+      "h": 50,
+      "z": 9,
+      "pinned": false
+    },
+    {
+      "id": "tpl-fm-10",
+      "type": "note",
+      "name": "Note",
+      "text": "Drop shot references, location scout photos, and mood video clips here — this is the visual target the rest of the board is planning around.",
+      "x": 640,
+      "y": 100,
+      "w": 300,
+      "h": 220,
+      "z": 10,
+      "pinned": false
+    }
+  ],
+  "connections": [
+    {
+      "id": "tpl-conn-1",
+      "fromRefId": "tpl-fm-4",
+      "toRefId": "tpl-fm-2",
+      "type": "UsedIn",
+      "note": "Mood informs which shot references get picked"
+    },
+    {
+      "id": "tpl-conn-2",
+      "fromRefId": "tpl-fm-6",
+      "toRefId": "tpl-fm-4",
+      "type": "RelatedTo",
+      "note": "Palette anchors the mood"
+    },
+    {
+      "id": "tpl-conn-3",
+      "fromRefId": "tpl-fm-10",
+      "toRefId": "tpl-fm-2",
+      "type": "References",
+      "note": "Shot/location references feed the shot-reference section"
+    }
+  ]
+}
