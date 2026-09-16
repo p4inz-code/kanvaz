@@ -559,9 +559,22 @@ html, body {
 /* Subtle whole-viewport cue, independent of the badge (below) which can
    go unnoticed in the corner of a screen recording or a busy monitor
    setup — a thin accent inset so "you're in Top Mode" is visible no
-   matter where you're looking on screen. */
-#app.top-mode-active {
+   matter where you're looking on screen.
+
+   Live-CDP-audit catch: originally `#app.top-mode-active`, but #app
+   sits behind #startup-screen (Home Screen, position:fixed, opaque,
+   z-index 99998) in paint order — confirmed via a real screenshot that
+   the border was completely invisible with the Home Screen open. A
+   ::after on body, fixed and z-indexed above every full-screen overlay
+   this app has, paints correctly regardless of which screen is
+   showing — body is an ancestor of #startup-screen too, unlike #app. */
+body.top-mode-active::after {
+  content: '';
+  position: fixed;
+  inset: 0;
   box-shadow: inset 0 0 0 2px var(--color-accent);
+  z-index: 99999;
+  pointer-events: none;
 }
 
 /* ── Top Mode badge (reintroduced, v8.7.0) ──
@@ -569,12 +582,33 @@ html, body {
    it's on or how to get out" reasoning this had before its v6.0.0
    removal. Bottom-left, clear of the side panel rail's own 44px, so it
    never competes with #moodlock-hover-zone/#top-chrome's own reveal at
-   the top edge. */
+   the top edge.
+
+   Live-CDP-audit catch: z-index 950 put this BEHIND #startup-screen
+   (the Home Screen, z-index 99998, position:fixed, opaque) — verified
+   with a real screenshot that toggling Top Mode from the Home Screen
+   showed the toast but neither the badge nor #app's accent border, so
+   the only visible sign Top Mode was active vanished the moment you
+   weren't looking at an open board. Raised above every full-screen
+   overlay this app has except toasts/dialogs (which should always win
+   regardless) — 99999 ties those two by value, but they occupy
+   different screen regions (top-left FPS overlay, bottom-center
+   toasts) so there's no actual visual collision with this badge's
+   bottom-left corner.
+
+   Second live-CDP-audit catch, same session: raising z-index above
+   #startup-screen (above) exposed a NEW collision that never showed
+   before — the Home Screen's own sidebar has a "Kanvaz vX.Y.Z" footer
+   label at its bottom-left, in the same corner this badge occupies,
+   confirmed by screenshot. `bottom: 36px` clears a single line of that
+   footer text on every screen this badge can appear on; board/Map view
+   have nothing in that corner to begin with, so raising it costs
+   nothing there. */
 #top-mode-badge {
   position: fixed;
-  bottom: 10px;
+  bottom: 36px;
   left: 54px;
-  z-index: 950;
+  z-index: 99999;
   background: var(--color-accent);
   color: #fff;
   font-family: var(--font-ui);

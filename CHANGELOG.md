@@ -2,6 +2,41 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [8.8.2] — Two more Top Mode bugs, found by live CDP verification
+
+*The first release this line actually verified against a real running
+instance (`docs/FULL_AUDIT_SUITE.md`'s CDP procedure — launch with
+`--remote-debugging-port`, drive it with raw CDP messages, screenshot
+the result) rather than static review alone. Found real bugs static
+review, including the 4-agent v8.8.1 review, both missed.*
+
+### Fixed
+- **Top Mode's badge and accent-border indicator were completely
+  invisible whenever the Home Screen was open.** Both were scoped to
+  `#app` / a `z-index: 950` fixed element, but `#startup-screen` (the
+  Home Screen) is `position: fixed`, opaque, and `z-index: 99998` —
+  above both. Confirmed with an actual screenshot: toggling Top Mode
+  from the Home Screen showed the toast, but neither cue appeared, so
+  the only visible sign Top Mode was active vanished the moment you
+  weren't looking at an open board. Fixed: the badge's `z-index` raised
+  to `99999` (above every full-screen overlay this app has except
+  toasts/dialogs, which should always win regardless); the border moved
+  from `#app.top-mode-active`'s `box-shadow` to a `body.top-mode-active
+  ::after` pseudo-element, since `body` is an ancestor of every overlay
+  including `#startup-screen`, unlike `#app`.
+- **Follow-on catch from the same screenshot**: raising the badge's
+  z-index exposed a second, previously-hidden collision — the Home
+  Screen's own "Kanvaz vX.Y.Z" footer label sits in the same
+  bottom-left corner. `bottom: 10px` → `36px` clears it on every screen
+  this badge can appear on.
+
+Verified live: toggled Top Mode on a fresh, real running instance,
+confirmed `document.body.classList`/`getComputedStyle` values and two
+before/after screenshots, then loaded the actual v8.8.0 template
+content (`vfx-professional.json`) onto a real board and screenshotted
+the result — the new "drop your references" section renders exactly as
+written, no overlap, no console exceptions.
+
 ## [8.8.1] — Top Mode conflict fixes (found by self-review)
 
 *Found by a 4-agent multi-angle review run against the whole v8.6.0-

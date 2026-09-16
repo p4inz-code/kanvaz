@@ -1111,8 +1111,15 @@ var KanvazApp = (function() {
     if (typeof KanvazUI !== 'undefined' && KanvazUI.setChromeAutoHide) KanvazUI.setChromeAutoHide(true);
     if (sidePanelWasOpen) KanvazSidePanel.close();
 
-    var appEl = document.getElementById('app');
-    if (appEl) appEl.classList.add('top-mode-active');
+    /* Live-CDP-audit catch: this used to target #app, but #app sits
+       BEHIND #startup-screen (the Home Screen, position:fixed, opaque,
+       z-index 99998) in paint order — the accent border was completely
+       invisible any time the Home Screen was open, verified with a
+       real screenshot. document.body is an ancestor of every one of
+       this app's full-screen overlays (#startup-screen included), so a
+       ::after pseudo-element on it (see main.css) paints correctly
+       regardless of which screen is showing underneath. */
+    document.body.classList.add('top-mode-active');
     showTopModeBadge();
 
     KanvazUI.toast('Top Mode on — Ctrl+Shift+T to exit');
@@ -1138,8 +1145,7 @@ var KanvazApp = (function() {
       KanvazSidePanel.toggle();
     }
 
-    var appEl = document.getElementById('app');
-    if (appEl) appEl.classList.remove('top-mode-active');
+    document.body.classList.remove('top-mode-active');
     hideTopModeBadge();
 
     KanvazUI.toast('Top Mode off');
