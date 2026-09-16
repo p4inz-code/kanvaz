@@ -37,7 +37,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## Latest release
 
-**v8.9.2** rounds out the Layers panel per direct feedback: a star icon highlights any layer with its own accent border (kept separate from pin, since pin already means lock throughout this app), and grouped cards now show a small group indicator that selects every member in one click, surfacing the group data model (Ctrl+G, since v7.19.0) that this panel never visualized before. v8.9.1 added a real escape hatch for 3D cards: Alt+drag or Ctrl/Cmd+middle-mouse now pans the whole board even with the cursor over a 3D model's interactive viewport, so zooming into a 3D card no longer traps you there — plain middle-mouse still reaches the 3D viewport's own dolly/zoom, untouched. v8.9.0 moved tag editing out of each card's own cramped on-card tag bar into the Properties panel exclusively (direct request), gave the Board View titlebar a real profile avatar matching the Home Screen's own, and fixed the About/Shortcuts/Official-Plugins overlays being invisible whenever the Home Screen was open, a too-narrow Shortcuts layout, and Mac shortcut-label/Ctrl+Scroll gaps. Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
+**v8.9.3** gives Map View real preview thumbnails for video and 3D model cards instead of a generic icon — video decodes a real frame off-screen (10% into the clip, not the often-blank frame 0), 3D cards reuse the live board viewport's own already-rendered frame rather than standing up a second render pipeline. v8.9.2 rounds out the Layers panel per direct feedback: a star icon highlights any layer with its own accent border (kept separate from pin, since pin already means lock throughout this app), and grouped cards now show a small group indicator that selects every member in one click, surfacing the group data model (Ctrl+G, since v7.19.0) that this panel never visualized before. v8.9.1 added a real escape hatch for 3D cards: Alt+drag or Ctrl/Cmd+middle-mouse now pans the whole board even with the cursor over a 3D model's interactive viewport, so zooming into a 3D card no longer traps you there — plain middle-mouse still reaches the 3D viewport's own dolly/zoom, untouched. v8.9.0 moved tag editing out of each card's own cramped on-card tag bar into the Properties panel exclusively (direct request), gave the Board View titlebar a real profile avatar matching the Home Screen's own, and fixed the About/Shortcuts/Official-Plugins overlays being invisible whenever the Home Screen was open, a too-narrow Shortcuts layout, and Mac shortcut-label/Ctrl+Scroll gaps. Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
 
 <table>
 <tr>
@@ -142,7 +142,7 @@ Most reference boards stop at "put images on a canvas." Kanvaz goes further, and
 
 **Connections**
 - 7 typed relationship kinds (Related To, Inspired By, Derived From, Alternative To, Supports, Used In, References)
-- Map View: node-editor-style graph, bezier tube connections, independent pan/zoom
+- Map View: node-editor-style graph, bezier tube connections, independent pan/zoom, real decoded-frame thumbnails on video and 3D model nodes (not a generic icon)
 - Connection Inspector panel (C): view, create, edit, delete from a side panel
 
 **Plugin ecosystem**
@@ -209,7 +209,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 8.9.2.exe` and `dist/Kanvaz 8.9.2.exe`
+Output: `dist/Kanvaz Setup 8.9.3.exe` and `dist/Kanvaz 8.9.3.exe`
 
 **macOS:**
 ```bash

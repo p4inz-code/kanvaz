@@ -9,6 +9,17 @@ var KanvazCards = (function() {
 
   var cards = {};        /* id → card object (single source of truth) */
   var cardCount = 0;
+  /* Map View / Home Screen thumbnail cache for 3D model cards (id →
+     small JPEG data URL) — session-only, never persisted to the .kanvaz
+     file. A dedicated offscreen render pipeline just for thumbnails
+     would duplicate loadModelIntoScene()'s whole loader/material/lighting
+     setup for a static image nobody's editing; instead this piggybacks
+     on the live board viewport's own already-correctly-framed first
+     render, captured to a small downsized canvas right after it renders.
+     Only populated once a model3d card has actually been viewed in Board
+     view this session — callers (map-view.js) must fall back to the
+     plain type icon when a card isn't in here yet. */
+  var model3DThumbCache = {};
   var selectedId = null;      /* "primary" selection — the one card that
                                   single-target features (Annotate, Connections,
                                   Properties) act on. Always the last id in
@@ -4138,6 +4149,21 @@ var KanvazCards = (function() {
         el.classList.remove('card-model3d-loading');
         clearLoadingState(el);
         renderFrame();
+
+        /* Capture a thumbnail for Map View right after this first real
+           frame — camera is already correctly framed (restored or
+           frameModel3DCamera()'d above) and render() just ran
+           synchronously, so the WebGL drawing buffer still holds this
+           frame even without preserveDrawingBuffer (only safe because
+           this read happens in the same task, before any clear/swap). */
+        try {
+          var thumbCanvas = document.createElement('canvas');
+          thumbCanvas.width = 160;
+          thumbCanvas.height = 120;
+          var thumbCtx = thumbCanvas.getContext('2d');
+          thumbCtx.drawImage(renderer.domElement, 0, 0, renderer.domElement.width, renderer.domElement.height, 0, 0, 160, 120);
+          model3DThumbCache[card.id] = thumbCanvas.toDataURL('image/jpeg', 0.72);
+        } catch (thumbErr) { /* best-effort only — a lost/tainted WebGL context shouldn't break the card itself */ }
       }, function(err) {
         console.warn('[Kanvaz] 3D model load failed:', err);
         clearLoadingState(el);
@@ -6394,7 +6420,8 @@ var KanvazCards = (function() {
     exportAsImage:     exportAsImage,
     getSelected:       function() { return selectedId; },
     getSelectedIds:    getSelectedIds,
-    getModel3DControls: getModel3DControls
+    getModel3DControls: getModel3DControls,
+    getModel3DThumbnail: function(id) { return model3DThumbCache[id] || null; }
   };
 
 })();

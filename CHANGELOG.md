@@ -2,6 +2,44 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [8.9.3] — Real Map View thumbnails for video and 3D cards
+
+*Backlog item, from live-testing feedback: "Map View node cards and
+3D-model/video thumbnails need real preview/visual work, not
+placeholder icons."*
+
+### Added
+- **Video cards now show a real decoded frame in Map View**, not the
+  generic type glyph every non-image/GIF card fell back to before.
+  `map-view.js` decodes one frame off-screen (a `<video>` element never
+  attached to the DOM, seeked to 10% into the clip — not frame 0, which
+  is very often a black fade-in on real footage), draws it to a small
+  160×120 canvas, and caches the result per card id for the rest of the
+  session. Fully self-contained: doesn't depend on the card ever having
+  been opened in Board view.
+- **3D model cards now show a real rendered thumbnail too**, captured
+  from the live board viewport itself rather than a second render
+  pipeline. The 3D card's own WebGL canvas already renders one correctly
+  -framed frame as soon as a model finishes loading (`buildModel3DCard`,
+  `cards.js`) — right after that `renderFrame()` call, the same drawing
+  buffer is read into a small canvas and cached (`KanvazCards.
+  getModel3DThumbnail(id)`), while it's still valid and before the next
+  clear/swap (safe without `preserveDrawingBuffer` only because the read
+  happens synchronously in the same task as the render call). Building a
+  dedicated offscreen Three.js renderer just for a static preview would
+  have duplicated the entire loader/material/lighting setup
+  `loadModelIntoScene()` already does — this reuses it instead of
+  re-implementing it. **Real, disclosed trade-off**: a model3d card that
+  has never been opened in Board view this session has no frame to
+  borrow yet, and falls back to the plain type icon until it has been.
+  - Live-verified via CDP, not just DOM-property checks: generated a
+    real synthetic test video (ffmpeg, red frame with a blue square) and
+    a minimal valid `.glb` triangle mesh, loaded both as real cards,
+    decoded the resulting cached thumbnail data URLs to actual JPEG
+    files and visually confirmed pixel content in both cases — the
+    video thumbnail shows the real red/blue frame, the 3D thumbnail
+    shows the real rendered triangle, not a blank or generic image.
+
 ## [8.9.2] — Layers panel: highlight and grouping
 
 *Direct request, from live-testing feedback on the Layers panel: "layer

@@ -61,6 +61,15 @@ var KanvazMapView = (function() {
   var wirePreview  = null;   /* live SVG path element */
   var hasRenderedOnce = false;
 
+  /* Video thumbnail cache (id -> small JPEG data URL), session-only,
+     never persisted. Unlike 3D model cards (which piggyback on the
+     Board view's own live viewport — see cards.js's model3DThumbCache),
+     video cards have no equivalent always-available render surface in
+     Map View to borrow from, so this decodes one frame itself via an
+     offscreen <video> element, entirely independent of whether the card
+     has ever been opened in Board view. */
+  var videoThumbCache = {};
+
   /* ── Node sizing ── */
   var NODE_W      = 176;   /* border-box width (global * reset forces box-sizing:border-box) */
   var NODE_H      = 52;    /* content-box height */
@@ -1339,6 +1348,40 @@ var KanvazMapView = (function() {
     animateCameraTo(targetTx, targetTy, newScale, 480);
   }
 
+  /* Decodes one frame of a video card off-screen for use as a Map View
+     thumbnail. Returns the cached data URL synchronously if already
+     decoded; otherwise kicks off a decode and calls onReady once, later,
+     with the result — callers must already handle "no thumbnail yet,
+     show the fallback icon" for that first call. Seeks to 10% into the
+     clip (capped at 1s) rather than frame 0, since an opening frame is
+     very often a black/blank fade-in on real footage. */
+  function getVideoThumbnail(card, onReady) {
+    if (videoThumbCache[card.id]) return videoThumbCache[card.id];
+    if (!card.dataUrl) return null;
+    var v = document.createElement('video');
+    v.muted = true;
+    v.preload = 'auto';
+    v.src = card.dataUrl;
+    v.addEventListener('loadeddata', function() {
+      try {
+        v.currentTime = Math.min(1, (v.duration || 2) * 0.1);
+      } catch (seekErr) { /* malformed stream — leave the fallback icon in place */ }
+    });
+    v.addEventListener('seeked', function() {
+      try {
+        var c = document.createElement('canvas');
+        c.width = 160;
+        c.height = 120;
+        c.getContext('2d').drawImage(v, 0, 0, 160, 120);
+        videoThumbCache[card.id] = c.toDataURL('image/jpeg', 0.72);
+        if (onReady) onReady(videoThumbCache[card.id]);
+      } catch (drawErr) { /* best-effort only */ }
+      v.src = ''; /* release the decoder now that we have the one frame we need */
+    });
+    v.load();
+    return null;
+  }
+
   /* ══════════════════════════════════════════
      NODE BUILDER — with ports
      ══════════════════════════════════════════ */
@@ -1452,6 +1495,41 @@ var KanvazMapView = (function() {
       img.src = card.dataUrl;
       img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
       thumb.appendChild(img);
+    } else if (card.type === 'video' && card.dataUrl) {
+      var cachedVideoThumb = getVideoThumbnail(card, function(dataUrl) {
+        /* Best-effort in-place swap once the async decode finishes \u2014 if
+           `thumb` was already torn down by a full re-render in the
+           meantime, this just writes to a detached element and does
+           nothing; the NEXT render() picks up the now-populated cache
+           via the synchronous branch above instead. */
+        thumb.innerHTML = '';
+        var lateImg = document.createElement('img');
+        lateImg.src = dataUrl;
+        lateImg.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+        thumb.appendChild(lateImg);
+      });
+      if (cachedVideoThumb) {
+        var vImg = document.createElement('img');
+        vImg.src = cachedVideoThumb;
+        vImg.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+        thumb.appendChild(vImg);
+      } else {
+        thumb.textContent = (typeof KanvazRefTypes !== 'undefined') ? KanvazRefTypes.getIcon(card.type) : '\u2753';
+      }
+    } else if (card.type === 'model3d' && typeof KanvazCards !== 'undefined' && KanvazCards.getModel3DThumbnail) {
+      var modelThumb = KanvazCards.getModel3DThumbnail(card.id);
+      if (modelThumb) {
+        var mImg = document.createElement('img');
+        mImg.src = modelThumb;
+        mImg.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+        thumb.appendChild(mImg);
+      } else {
+        /* Never been opened in Board view this session, so cards.js has
+           no rendered frame to hand back yet \u2014 falls back to the plain
+           type icon rather than spinning up a whole second Three.js
+           render pipeline just for a static Map View thumbnail. */
+        thumb.textContent = (typeof KanvazRefTypes !== 'undefined') ? KanvazRefTypes.getIcon(card.type) : '\u2753';
+      }
     } else {
       var icon = (typeof KanvazRefTypes !== 'undefined') ? KanvazRefTypes.getIcon(card.type) : '\u2753';
       thumb.textContent = icon;
