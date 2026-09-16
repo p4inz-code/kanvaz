@@ -2,6 +2,55 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [8.9.8] — Live verification: templates confirmed working end-to-end
+
+*No code changes — closes out the one queued live check disclosed in
+8.9.6/8.9.7's own entries, once the user was free for the app to be
+relaunched for testing.*
+
+### Verified
+- **Clicked the real "Use" button in the Templates gallery, not a
+  console shortcut** — `KanvazBoards.useTemplate()` isn't exported for
+  direct calling, so this genuinely exercised the same click path an
+  actual user takes: Home Screen → Templates nav → gallery row → "Use"
+  button, located and clicked via its real bounding-rect coordinates
+  with a full `mousedown`/`mouseup`/`click` sequence, not a bare
+  synthetic `click` event on an arbitrary element.
+- **VFX — Professional Pipeline**: loaded a real board named after the
+  template with the correct 20 cards and all 10 connections seeded
+  into `KanvazConnections` — confirmed by reading the live connection
+  data back out, not just checking a card count. Switched to Map View
+  and confirmed exactly 10 `.conn-line` SVG paths (plus 20 `.conn-glow`
+  paths, 2 per connection — the wire's own glow effect), a precise
+  count match against the template's 10 connections, not just "some
+  paths exist." Read one line's actual `d` attribute and confirmed real
+  bezier coordinates connecting two visibly distinct node positions on
+  screen, not degenerate/zero-length data.
+- **Game Art** (a second template, deliberately chosen for its
+  different `tpl-ga-`-prefixed card ids rather than re-testing the same
+  `tpl-N` shape): loaded through the same real UI path, correct 12
+  cards and all 5 connections present with the right endpoints — the
+  id-prefix variation was a real edge case worth checking, not
+  redundant coverage.
+- Regression-checked the rest of this session's shipped features
+  weren't disturbed by the templates work stacked on top of them:
+  normal card selection still works outside Presentation Mode (its
+  cards.js mousedown guard doesn't leak into normal use), the Layers
+  panel's highlight star toggles and persists correctly, the Cycle
+  Grid Style command still cycles and round-trips back to its starting
+  value, and Presentation Mode's full entry → arrow-step → Escape exit
+  lifecycle still works end-to-end.
+- **Not checked**: a real screenshot. `Page.captureScreenshot` hangs
+  indefinitely against this Electron instance in this sandbox
+  specifically — confirmed via a raw CDP call with full message
+  logging, unrelated to anything in this session's own code (the same
+  hang occurred both with and without `Page.enable` first, and while
+  the renderer itself stayed fully responsive to `Runtime.evaluate`
+  throughout). Structural DOM/SVG verification (exact element counts,
+  real coordinate data, live data read-back) stood in for the visual
+  check this time; a real screenshot is still worth getting next time
+  screenshot capture works in this environment.
+
 ## [8.9.7] — Templates rebuild finished: 13 of 14
 
 *Direct continuation of 8.9.6 — closing out the remaining 7 templates
