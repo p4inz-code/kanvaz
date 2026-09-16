@@ -338,7 +338,20 @@ var KanvazApp = (function() {
               KanvazCards.createFileRefCardAtPath(pos.x, pos.y, file.path);
               KanvazUI.toast('Install Blender to preview .blend files live — added "' + file.name + '" as a file reference instead.', 'warning');
             } else if (err === 'EXTERNAL_TOOL_FAILED') {
-              KanvazUI.toast('Blender could not convert "' + file.name + '" — the file may be corrupt or use features this conversion can\'t handle.', 'error');
+              /* Direct feedback: "the .blend dropped but error came...
+                 didn't add to list" — this branch showed the error but,
+                 unlike EXTERNAL_TOOL_NOT_FOUND right above it, never
+                 fell back to a file-reference card, leaving nothing on
+                 the board at all. Blender being installed but failing
+                 to convert THIS specific file (corrupt, or using a
+                 feature the conversion script can't handle) is no
+                 different from Blender not being installed at all from
+                 the user's perspective — either way, live 3D preview
+                 isn't happening, but the file itself is still real and
+                 worth keeping a reference to. Same fallback, same
+                 "something is better than nothing" reasoning. */
+              KanvazCards.createFileRefCardAtPath(pos.x, pos.y, file.path);
+              KanvazUI.toast('Blender could not convert "' + file.name + '" — the file may be corrupt or use features this conversion can\'t handle. Added it as a file reference instead.', 'error');
             } else {
               KanvazUI.toast('Could not load "' + file.name + '"', 'error');
             }

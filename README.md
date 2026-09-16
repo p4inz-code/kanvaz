@@ -37,7 +37,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## Latest release
 
-**v8.8.4** adds Maya/Adobe/Figma-style drag-to-scrub on the Properties panel's Transform fields (drag the X/Y/W/H label left/right to change the value live, hold Shift for fine control — one undo step per drag, not one per pixel), fixes the right-click context menu getting stuck open when you click a card right after (an accessibility bug — it silently ate the click meant to close it), and moves the dev FPS overlay off the Kanvaz logo it was sitting on top of. v8.8.3 fixed Escape not closing the Shortcuts overlay. v8.8.2 was the first release verified with a real running instance via CDP (`docs/FULL_AUDIT_SUITE.md`), and found Top Mode's badge/accent-border were invisible on the Home Screen. v8.8.1 fixed a Settings/Command-Palette conflict with Top Mode. v8.8.0 gave every template its own "drop your references here" section. v8.7.0 brought back Top Mode (`Ctrl+Shift+T`). Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
+**v8.8.5** fixes a real, confirmed-live bug: the Properties panel would silently stop updating on card selection — showing "Select a card..." even with a card visibly selected — whenever it was opened any way other than pressing `E` (clicking its rail icon directly, or its section being restored on launch). Also fixes `.blend` files that fail to convert (Blender installed, but the file is corrupt or uses an unsupported feature) leaving nothing on the board at all — now falls back to a file-reference card, same as when Blender isn't installed. v8.8.4 added Maya/Adobe/Figma-style drag-to-scrub on the Transform panel's X/Y/W/H fields, fixed a stuck right-click context menu, and repositioned the dev FPS overlay off the Kanvaz logo. v8.8.3 fixed Escape not closing the Shortcuts overlay. v8.8.2 found Top Mode's badge/accent-border were invisible on the Home Screen via this line's first real CDP-driven verification. v8.8.1 fixed a Settings/Command-Palette conflict with Top Mode. v8.8.0 gave every template its own "drop your references here" section. v8.7.0 brought back Top Mode (`Ctrl+Shift+T`). Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
 
 <table>
 <tr>
@@ -209,7 +209,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 8.8.4.exe` and `dist/Kanvaz 8.8.4.exe`
+Output: `dist/Kanvaz Setup 8.8.5.exe` and `dist/Kanvaz 8.8.5.exe`
 
 **macOS:**
 ```bash

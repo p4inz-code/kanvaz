@@ -921,7 +921,19 @@ var KanvazCards = (function() {
      the RIGHT card would otherwise discard an in-progress, unsaved
      key/value the user hasn't clicked Add on yet. */
   function refreshPropertiesIfOpen(forCard) {
-    if (typeof KanvazProperties === 'undefined' || !KanvazProperties.isOpen || !KanvazProperties.isOpen() || !KanvazProperties.refresh) return;
+    /* Live-confirmed bug fix: gates on isSectionVisible() now, not
+       isOpen() — isOpen() requires KanvazProperties' own internal
+       activeId to already be set, which never happens if the panel
+       became visible any way OTHER than properties.js's own open()
+       (clicking the Properties rail icon directly, or the side panel
+       restoring "properties" as its persisted last-open section on
+       boot). In that state isOpen() stayed false forever, so this
+       function silently never refreshed the panel on selection change
+       — confirmed live via screenshot: a card selected with visible
+       handles, Properties tab open, panel still showing "Select a
+       card...". See properties.js's isSectionVisible() for the full
+       writeup. */
+    if (typeof KanvazProperties === 'undefined' || !KanvazProperties.isSectionVisible || !KanvazProperties.isSectionVisible() || !KanvazProperties.refresh) return;
     if (forCard && forCard.id !== selectedId) return;
     if (document.querySelector('.prop-add-form')) return;
     KanvazProperties.refresh();

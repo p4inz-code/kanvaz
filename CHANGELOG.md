@@ -2,6 +2,44 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [8.8.5] — Properties panel refresh bug, .blend conversion-failure fallback
+
+*More direct hands-on testing, plus a live screenshot that caught the
+Properties panel bug in the exact act of happening.*
+
+### Fixed
+- **The Properties panel silently stopped updating on card selection**
+  — confirmed live via a screenshot showing a card selected with
+  visible handles on canvas while the panel still read "Select a card
+  to see its properties." Root cause: `isOpen()` (properties.js) gated
+  on its own internal `activeId`, which only ever gets set by this
+  module's own `open(refId)` — but the Properties SECTION can become
+  visible without ever going through that function (clicking its rail
+  icon directly calls `KanvazSidePanel.showSection('properties')`
+  straight away; the side panel can also restore "properties" as its
+  persisted last-open section on launch). In either case `activeId`
+  stayed `null` forever, so `refresh()`/`refreshPropertiesIfOpen()` —
+  both gated on `isOpen()` — silently no-op'd on every subsequent
+  selection change, exactly matching the reported "I have to refresh
+  it" behavior. Fixed with a new `isSectionVisible()` that asks the
+  real question ("is the Properties section the one currently showing")
+  with no `activeId` dependency; `refresh()` and
+  `refreshPropertiesIfOpen()` now gate on that instead.
+  `isOpen()` itself is untouched — `app.js`'s `closeAll()` still uses
+  its original, narrower meaning correctly.
+- **A `.blend` file that fails to convert (Blender installed, but the
+  file is corrupt or uses a feature the conversion script can't
+  handle) added nothing to the board at all** — just an error toast.
+  The sibling case one branch up (Blender not installed at all)
+  already correctly fell back to a plain file-reference card; this
+  case never got the same treatment. Now it does, with an adjusted
+  toast explaining why.
+- **Extended the Blender version-detection candidate list** from 5
+  entries (4.3-3.6) to 14 (5.0 down through 3.0), covering the default
+  install-path pattern for every stable Blender release in that range
+  — on top of, not instead of, the existing bare-`blender`-on-PATH
+  fallback that already covered anything this list doesn't guess.
+
 ## [8.8.4] — Drag-to-scrub, and two more real bugs from live testing
 
 *Direct user testing of v8.8.3, launched and driven by hand. Two real,

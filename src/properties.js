@@ -94,6 +94,27 @@ var KanvazProperties = (function() {
     return activeId !== null && typeof KanvazSidePanel !== 'undefined' && KanvazSidePanel.isSectionOpen('properties');
   }
 
+  /* Distinct from isOpen() above, and the fix for a real bug confirmed
+     live (screenshot: a card visibly selected with handles on canvas,
+     Properties tab open, panel still showing "Select a card..."):
+     isOpen()'s activeId !== null check only ever becomes true once
+     open(refId) has run — but the Properties SECTION can become
+     visible without ever going through open(refId) at all, e.g.
+     clicking the Properties rail icon directly (sidepanel.js calls
+     showSection('properties') straight away, bypassing this module's
+     open() entirely), or the side panel restoring "properties" as its
+     persisted last-open section on boot. In that state activeId stays
+     null forever, so refresh()/refreshPropertiesIfOpen() — both gated
+     on isOpen() — silently no-op on every subsequent selection change,
+     and the panel never updates until a manual close/reopen (which
+     goes through open() and sets activeId for the first time) "fixes"
+     it — exactly the reported "I have to refresh it" behavior. This
+     asks the real question for refresh purposes — "is the Properties
+     section the one currently visible" — with no activeId dependency. */
+  function isSectionVisible() {
+    return typeof KanvazSidePanel !== 'undefined' && KanvazSidePanel.isSectionOpen('properties');
+  }
+
   /* Bug fix: "when i'm in properties tab and i click any card it shows
      nothing but when i open tab again then it does" + "loop on/off is
      not in sync with the card" — cards.js now calls this (via
@@ -104,9 +125,11 @@ var KanvazProperties = (function() {
      (the loop/mute toggle icons, playback speed picker, tag removal,
      …). renderInto() itself already re-reads the live selection every
      time it runs — this just gives outside code a way to ask it to run
-     again. */
+     again. Gates on isSectionVisible(), not isOpen() — see that
+     function's own comment for why the activeId-based check silently
+     broke this exact refresh path. */
   function refresh() {
-    if (panelEl && panelEl.isConnected && isOpen()) renderInto(panelEl);
+    if (panelEl && panelEl.isConnected && isSectionVisible()) renderInto(panelEl);
   }
 
   /* ── Render into the side panel's content pane ──
@@ -1203,7 +1226,8 @@ var KanvazProperties = (function() {
   return {
     open:       open,
     close:      close,
-    isOpen:     isOpen,
+    isOpen:            isOpen,
+    isSectionVisible:  isSectionVisible,
     refresh:    refresh,
     renderInto: renderInto
   };

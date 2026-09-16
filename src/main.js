@@ -997,13 +997,32 @@ function registerIPC() {
      v8.x plan's 3-session audit gate, not a generic look-over. */
   function findBlenderExecutable() {
     var candidates;
+    /* Direct feedback: "make it support 3+ or 4+ versions" — extended
+       from 5 candidates (4.3-3.6) to cover the full 3.x/4.x/5.x range
+       Blender's own default installer uses (a version-numbered folder
+       under "Blender Foundation"). This is on top of, not instead of,
+       the bare "blender" PATH fallback below, which already covers any
+       version this list doesn't guess (a portable install, a version
+       newer than whatever's hardcoded here, or a non-default install
+       location) — this list only ever helps the common case of "not
+       on PATH but installed at the default location" resolve faster/
+       without requiring PATH setup at all. */
     if (process.platform === 'win32') {
       candidates = [
+        'C:\\Program Files\\Blender Foundation\\Blender 5.0\\blender.exe',
+        'C:\\Program Files\\Blender Foundation\\Blender 4.5\\blender.exe',
+        'C:\\Program Files\\Blender Foundation\\Blender 4.4\\blender.exe',
         'C:\\Program Files\\Blender Foundation\\Blender 4.3\\blender.exe',
         'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe',
         'C:\\Program Files\\Blender Foundation\\Blender 4.1\\blender.exe',
         'C:\\Program Files\\Blender Foundation\\Blender 4.0\\blender.exe',
-        'C:\\Program Files\\Blender Foundation\\Blender 3.6\\blender.exe'
+        'C:\\Program Files\\Blender Foundation\\Blender 3.6\\blender.exe',
+        'C:\\Program Files\\Blender Foundation\\Blender 3.5\\blender.exe',
+        'C:\\Program Files\\Blender Foundation\\Blender 3.4\\blender.exe',
+        'C:\\Program Files\\Blender Foundation\\Blender 3.3\\blender.exe',
+        'C:\\Program Files\\Blender Foundation\\Blender 3.2\\blender.exe',
+        'C:\\Program Files\\Blender Foundation\\Blender 3.1\\blender.exe',
+        'C:\\Program Files\\Blender Foundation\\Blender 3.0\\blender.exe'
       ];
     } else if (process.platform === 'darwin') {
       candidates = ['/Applications/Blender.app/Contents/MacOS/Blender'];
