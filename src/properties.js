@@ -273,11 +273,25 @@ var KanvazProperties = (function() {
     var grid = document.createElement('div');
     grid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;';
 
-    function field(label, value, onCommit, disabled) {
+    /* Direct feedback: "when we hover and drag in Maya, Adobe, Figma
+       these values change — apply that to every box containing
+       numbers." Drag-to-scrub on the LABEL specifically (not the input
+       itself, which still needs to support normal click-to-place-
+       cursor/select-and-type editing) — the same split Figma/Maya use.
+       Live-updates the real card on every tick (via setTransform's new
+       persist:false — see its own comment in cards.js) so the card
+       visibly moves/resizes on the canvas as you drag, exactly like
+       scrubbing there does, then commits once for real (one undo step)
+       on mouseup — same "debounce the history, not the visual" pattern
+       nudge() already established for arrow-key movement. Shift held
+       while dragging = fine control (0.2 units/px) for precise nudges,
+       matching the same modifier's role in every one of those apps. */
+    function field(label, key, value, onCommit, disabled) {
       var wrap = document.createElement('div');
       var lbl = document.createElement('div');
       lbl.style.cssText = LABEL_CSS + ';margin-bottom:3px;';
       lbl.textContent = label;
+      if (!disabled) lbl.style.cursor = 'ew-resize';
       wrap.appendChild(lbl);
 
       var input = document.createElement('input');
@@ -297,13 +311,44 @@ var KanvazProperties = (function() {
       });
       wrap.appendChild(input);
       grid.appendChild(wrap);
+
+      if (disabled) return;
+
+      lbl.addEventListener('mousedown', function(e) {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        var startX = e.clientX;
+        var startVal = parseFloat(input.value) || 0;
+        var moved = false;
+
+        function onMove(ev) {
+          var delta = ev.clientX - startX;
+          if (Math.abs(delta) > 1) moved = true;
+          var sensitivity = ev.shiftKey ? 0.2 : 1;
+          var n = Math.round(startVal + delta * sensitivity);
+          input.value = n;
+          var patch = {};
+          patch[key] = n;
+          KanvazCards.setTransform(cardId, patch, false);
+        }
+        function onUp() {
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+          if (moved) {
+            var n = parseFloat(input.value);
+            if (isFinite(n)) onCommit(n);
+          }
+        }
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
     }
 
     var locked = !!card.pinned;
-    field('X', card.x, function(n) { KanvazCards.setTransform(cardId, { x: n }); }, locked);
-    field('Y', card.y, function(n) { KanvazCards.setTransform(cardId, { y: n }); }, locked);
-    field('W', card.w, function(n) { KanvazCards.setTransform(cardId, { w: n }); });
-    field('H', card.h, function(n) { KanvazCards.setTransform(cardId, { h: n }); });
+    field('X', 'x', card.x, function(n) { KanvazCards.setTransform(cardId, { x: n }); }, locked);
+    field('Y', 'y', card.y, function(n) { KanvazCards.setTransform(cardId, { y: n }); }, locked);
+    field('W', 'w', card.w, function(n) { KanvazCards.setTransform(cardId, { w: n }); });
+    field('H', 'h', card.h, function(n) { KanvazCards.setTransform(cardId, { h: n }); });
 
     body.appendChild(grid);
   }

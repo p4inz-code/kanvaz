@@ -103,6 +103,22 @@ var KanvazCards = (function() {
       if (e.button !== 0) return;
       var target = e.target;
 
+      /* Direct feedback: right-click a card for the context menu, then
+         left-click any card afterward — the menu stayed on screen while
+         the card underneath still selected/dragged, an accessibility
+         bug (the menu becomes unreachable/unusable clutter, not just
+         cosmetic). Root cause: app.js's own "close context menu on
+         outside click" listener sits on `document`, but every branch
+         below this point calls e.stopPropagation() before the event
+         ever bubbles that far — a plain card click never reached it.
+         Closing it directly here, before any of those branches run,
+         fixes every one of them at once instead of patching each
+         stopPropagation() call site individually. */
+      var openMenu = document.getElementById('context-menu');
+      if (openMenu && openMenu.className.indexOf('visible') !== -1 && typeof KanvazUI !== 'undefined' && KanvazUI.hideContextMenu) {
+        KanvazUI.hideContextMenu();
+      }
+
       /* Direct feedback: "add pan control like alt + drag left mb, take
          reference from maya" — Maya's Alt+drag always means "navigate
          the camera," regardless of what's under the cursor (a resize
@@ -6094,7 +6110,7 @@ var KanvazCards = (function() {
      resetSize — an annotation layer sized for the OLD dimensions would
      otherwise misalign the moment the card resizes), markDirty + push
      history once for the whole patch rather than per-field. */
-  function setTransform(id, patch) {
+  function setTransform(id, patch, persist) {
     var card = cards[id];
     if (!card || !patch) return;
     var el = document.getElementById(id);
@@ -6122,6 +6138,16 @@ var KanvazCards = (function() {
     if (sizeChanged && typeof KanvazAnnotate !== 'undefined') {
       KanvazAnnotate.resize(id, card.w, card.h);
     }
+
+    /* persist:false (drag-to-scrub Properties panel fields — see
+       properties.js) applies the live value every tick, same as any
+       other caller, but skips markDirty/history/emitCardEvent on every
+       single pixel of mouse movement — same reasoning as nudge()'s own
+       debounce just above: recording 60 history entries for one drag
+       gesture would flood undo. The scrub handler calls this once more
+       with persist left at its default (true) on mouseup for the real
+       commit. */
+    if (persist === false) return;
 
     KanvazApp.markDirty();
     KanvazHistory.push();

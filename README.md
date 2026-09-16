@@ -37,7 +37,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## Latest release
 
-**v8.8.3** fixes a real, previously-unknown bug found by a live persona pass (a new user pressing `?` for help, then Escape to leave): the Shortcuts overlay never closed on Escape, and Escape's other side effects (deselecting your cards) still silently ran anyway. v8.8.2 was the first release verified with a real running instance via CDP (`docs/FULL_AUDIT_SUITE.md`'s live-verification procedure) rather than static review alone, and found Top Mode's badge/accent-border were invisible whenever the Home Screen was open. v8.8.1 fixed a Settings/Command-Palette conflict that could silently defeat or corrupt Top Mode's forced state. v8.8.0 gave every production-pipeline template its own "drop your references here" section. v8.7.0 brought back Top Mode (`Ctrl+Shift+T`) by direct request. Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
+**v8.8.4** adds Maya/Adobe/Figma-style drag-to-scrub on the Properties panel's Transform fields (drag the X/Y/W/H label left/right to change the value live, hold Shift for fine control — one undo step per drag, not one per pixel), fixes the right-click context menu getting stuck open when you click a card right after (an accessibility bug — it silently ate the click meant to close it), and moves the dev FPS overlay off the Kanvaz logo it was sitting on top of. v8.8.3 fixed Escape not closing the Shortcuts overlay. v8.8.2 was the first release verified with a real running instance via CDP (`docs/FULL_AUDIT_SUITE.md`), and found Top Mode's badge/accent-border were invisible on the Home Screen. v8.8.1 fixed a Settings/Command-Palette conflict with Top Mode. v8.8.0 gave every template its own "drop your references here" section. v8.7.0 brought back Top Mode (`Ctrl+Shift+T`). Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
 
 <table>
 <tr>
@@ -125,7 +125,7 @@ Most reference boards stop at "put images on a canvas." Kanvaz goes further, and
 
 **Card design & templates**
 - Every card shows an always-visible name and at-a-glance metadata (resolution, duration, character count) plus one clean type badge
-- Photoshop/Illustrator-style Properties panel: Transform (X/Y/W/H), opacity, layer order, multi-select alignment, distribute-evenly, and Tidy Up, non-destructive Brightness/Contrast/Saturation for image/GIF/video, and Media info
+- Photoshop/Illustrator-style Properties panel: Transform (X/Y/W/H, drag the label to scrub the value live like Maya/Adobe/Figma — hold Shift for fine control), opacity, layer order, multi-select alignment, distribute-evenly, and Tidy Up, non-destructive Brightness/Contrast/Saturation for image/GIF/video, and Media info
 - A Layers panel (its own side-panel tab): every card in z-order, click to select, drag to reorder, right-click for the full card menu, eye icon to hide/show, lock icon
 - 14 board templates — VFX (three skill tiers: Beginner/Intermediate/Professional Pipeline), Game Dev, Game Art, Filmmaking, Music Production, Animation Pipeline, Photography/Concept Art, Architecture & Product Design, UI/UX Design, Branding & Identity, Character Design, and a freeform Mood Board — plus the option to save your own board as a template. Every production-pipeline template now has its own "drop your references here" section pointing at exactly the media (plates, concept art, a real 3D model card, and so on) that template's own process notes assume you already have on the board
 
@@ -209,7 +209,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 8.8.3.exe` and `dist/Kanvaz 8.8.3.exe`
+Output: `dist/Kanvaz Setup 8.8.4.exe` and `dist/Kanvaz 8.8.4.exe`
 
 **macOS:**
 ```bash

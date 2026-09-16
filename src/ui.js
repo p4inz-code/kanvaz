@@ -419,8 +419,16 @@ var KanvazUI_Extended = (function() {
     if (enabled && !el) {
       el = document.createElement('div');
       el.id = 'dev-fps-overlay';
+      /* Direct feedback: this sat at top:8/left:8, directly on top of
+         the Kanvaz logo (board titlebar's own logo, and the Home
+         Screen's wordmark+icon both live in that exact corner) —
+         confirmed via screenshot, the FPS text and "Kanvaz" wordmark
+         were literally overlapping. Bottom-left instead, above both
+         the status bar's Cards/Zoom/Pos row and the Top Mode badge
+         (bottom:36px) — this is genuinely empty space on every screen
+         this dev overlay can appear on. */
       el.style.cssText = [
-        'position:fixed', 'top:8px', 'left:8px', 'z-index:99999',
+        'position:fixed', 'bottom:70px', 'left:8px', 'z-index:99999',
         'background:rgba(0,0,0,0.7)', 'color:#4CAF82',
         'font-family:var(--font-mono)', 'font-size:11px',
         'padding:4px 8px', 'border-radius:4px', 'pointer-events:none',

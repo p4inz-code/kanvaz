@@ -2,6 +2,43 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [8.8.4] — Drag-to-scrub, and two more real bugs from live testing
+
+*Direct user testing of v8.8.3, launched and driven by hand. Two real,
+concrete bugs plus one direct feature request, all fixed same-session.*
+
+### Added
+- **Drag-to-scrub on the Properties panel's Transform fields** — drag
+  the X/Y/W/H label left or right to change the value live, the same
+  interaction Maya, every Adobe app, and Figma all use for numeric
+  fields. Hold Shift while dragging for fine control (0.2 units/px vs
+  1). The card visibly moves/resizes on the canvas in real time as you
+  drag; only ONE undo step gets recorded per drag gesture, not one per
+  pixel of mouse movement — `KanvazCards.setTransform()` gained an
+  optional third `persist` argument (default `true`, so every existing
+  caller is unaffected) that the live-drag ticks pass `false` for, then
+  the real commit fires once on mouseup. Same "debounce the history,
+  not the visual feedback" pattern this codebase's own `nudge()`
+  already established for holding an arrow key.
+
+### Fixed
+- **The right-click context menu got stuck open if you clicked a card
+  right after opening it** — a real accessibility bug, not cosmetic:
+  the menu becomes unreachable clutter sitting over the board. Root
+  cause: `app.js`'s "close context menu on outside click" listener
+  lives on `document`, but `cards.js`'s own card-click handler calls
+  `e.stopPropagation()` on every plain card click (needed to keep a
+  card click from also triggering canvas-level pan/deselect) — so the
+  event never bubbled far enough to reach that listener. Fixed by
+  closing the context menu directly at the top of the card mousedown
+  handler, before any of its own stopPropagation branches run, so
+  every one of them is covered at once instead of patched individually.
+- **The dev FPS overlay sat directly on top of the Kanvaz logo** — on
+  both the board titlebar and the Home Screen wordmark, which both live
+  in that exact top-left corner. Moved to `bottom:70px;left:8px`,
+  clear of the status bar, Top Mode's badge, and the Home Screen's own
+  footer version label on every screen it can appear on.
+
 ## [8.8.3] — Escape didn't close the Shortcuts overlay
 
 *Found by the persona-based usability pass (`docs/FULL_AUDIT_SUITE.md`
