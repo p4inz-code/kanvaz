@@ -1970,6 +1970,20 @@ var KanvazApp = (function() {
     function closeAll() {
       closeDialog();
       hideContextMenu();
+      /* Live-audit catch: the Shortcuts overlay (`?`, ui.js's
+         showShortcuts()) was never included here — Escape is this
+         app's universal "close whatever's open" key everywhere else,
+         but pressing it with the Shortcuts overlay open did nothing to
+         the overlay while still running the rest of this function's
+         side effects (KanvazCards.deselectAll(), called by shortcuts.js
+         right after closeAll() on Escape) — confirmed live: opened the
+         overlay, dispatched a real Escape keydown, overlay was still
+         there afterward. Direct DOM removal matches showShortcuts()'s
+         own close path (its Close button and backdrop-click handler
+         both do exactly this) rather than calling back into ui.js for
+         what's a one-line, self-contained fix. */
+      var shortcutsOverlay = document.getElementById('shortcuts-overlay');
+      if (shortcutsOverlay && shortcutsOverlay.parentNode) shortcutsOverlay.parentNode.removeChild(shortcutsOverlay);
       if (typeof KanvazAnnotate !== 'undefined') KanvazAnnotate.deactivate();
       if (typeof KanvazProperties !== 'undefined') KanvazProperties.close();
       /* Escape closes the side panel's content pane regardless of which

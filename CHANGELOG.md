@@ -2,6 +2,25 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [8.8.3] — Escape didn't close the Shortcuts overlay
+
+*Found by the persona-based usability pass (`docs/FULL_AUDIT_SUITE.md`
+section 4) — the exact scenario a brand-new user hits: press `?` for
+help, then Escape to leave.*
+
+### Fixed
+- **The Shortcuts overlay (`?`) never closed on Escape**, confirmed
+  live (opened it, dispatched a real Escape keydown, overlay was still
+  there). `KanvazUI.closeAll()` — the function Escape calls to close
+  "whatever's open" everywhere else in the app (dialogs, context menu,
+  annotation mode, Properties, the side panel) — never included it.
+  Worse: Escape's OTHER side effects (`KanvazCards.deselectAll()`) ran
+  anyway, so pressing Escape to leave the help overlay silently cleared
+  your card selection while leaving the overlay open. Fixed:
+  `closeAll()` now also removes `#shortcuts-overlay` if present, the
+  same direct-DOM-removal its own Close button and backdrop-click
+  handler already use. Re-verified live: Escape now closes it cleanly.
+
 ## [8.8.2] — Two more Top Mode bugs, found by live CDP verification
 
 *The first release this line actually verified against a real running

@@ -37,7 +37,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## Latest release
 
-**v8.8.2** is the first release verified with a real running instance via CDP (`docs/FULL_AUDIT_SUITE.md`'s live-verification procedure), not static review alone — and it found two more real bugs static review missed: Top Mode's badge and accent-border indicator were completely invisible whenever the Home Screen was open (both sat behind it in stacking order), confirmed with an actual screenshot before and after the fix. v8.8.1 fixed a conflict a multi-angle self-review caught in Top Mode: an unrelated Settings change, or toggling Always on Top from the Command Palette, could silently defeat or corrupt Top Mode's forced state. v8.8.0 gave every production-pipeline template its own "drop your references here" section. v8.7.0 brought back Top Mode (`Ctrl+Shift+T`) by direct request. Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
+**v8.8.3** fixes a real, previously-unknown bug found by a live persona pass (a new user pressing `?` for help, then Escape to leave): the Shortcuts overlay never closed on Escape, and Escape's other side effects (deselecting your cards) still silently ran anyway. v8.8.2 was the first release verified with a real running instance via CDP (`docs/FULL_AUDIT_SUITE.md`'s live-verification procedure) rather than static review alone, and found Top Mode's badge/accent-border were invisible whenever the Home Screen was open. v8.8.1 fixed a Settings/Command-Palette conflict that could silently defeat or corrupt Top Mode's forced state. v8.8.0 gave every production-pipeline template its own "drop your references here" section. v8.7.0 brought back Top Mode (`Ctrl+Shift+T`) by direct request. Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
 
 <table>
 <tr>
@@ -209,7 +209,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 8.8.2.exe` and `dist/Kanvaz 8.8.2.exe`
+Output: `dist/Kanvaz Setup 8.8.3.exe` and `dist/Kanvaz 8.8.3.exe`
 
 **macOS:**
 ```bash
