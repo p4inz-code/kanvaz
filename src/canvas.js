@@ -588,7 +588,13 @@ var KanvazCanvas = (function() {
       var pivotX = e.clientX - rect.left;
       var pivotY = e.clientY - rect.top;
 
-      var factor = e.ctrlKey ? ZOOM_FACTOR_FINE : ZOOM_FACTOR;
+      /* Direct feedback: Mac users press Cmd, not physical Ctrl, for
+         this app's other "held modifier" shortcuts (shortcuts.js's own
+         dispatcher already treats e.ctrlKey||e.metaKey as one "ctrl"
+         concept everywhere) — this was the one place in the app that
+         checked ctrlKey alone, so Cmd+Scroll silently fell back to the
+         coarse zoom factor on Mac instead of the fine one. */
+      var factor = (e.ctrlKey || e.metaKey) ? ZOOM_FACTOR_FINE : ZOOM_FACTOR;
       /* Magnitude-aware: a precision trackpad emits many small-delta
          events per gesture where a mouse wheel emits few large-delta
          ones — scaling the exponent by deltaY means a gentle swipe
