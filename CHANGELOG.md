@@ -2,6 +2,43 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [8.9.4] — Grid style design review + a Command Palette toggle
+
+*Backlog item: "Grid style feature (Reference/3D-origin/Game-Dev tile)
+questioned directly by the user's own stated 'senior real feedback' —
+worth a real design review of whether tile grid earns its keep against
+reference mode."*
+
+### Changed
+- **Design review verdict: keep all three grid styles, no removal.**
+  Read the actual implementation before judging the idea in the
+  abstract: "3D" mode is the existing reference grid plus a ~20-line
+  two-line red/green origin-axis overlay, not a separate grid; "Game
+  Dev" mode is its own ~55-line function with a genuinely different
+  pixel-alignment semantic (uniform 32px tile spacing + a chunk line
+  every 8 tiles) serving a real, distinct tile/sprite-alignment use
+  case, not a reskin of the reference grid. Both map directly onto two
+  of this project's three explicitly named target personas (game
+  developers, 3D/VFX artists). Cutting either would remove real, cheap,
+  persona-aligned value against a vague "maybe nobody uses it" worry
+  with no usage data behind it.
+
+### Added
+- **A real, smaller gap the review DID find**: switching grid styles
+  required opening Settings — no quick toggle. Added `Cycle Grid Style
+  (Reference / 3D / Game Dev)` to the Command Palette
+  (`core.cycleGridStyle`, `commands.js`), cycling through the same
+  order the Settings dropdown lists, writing through the existing
+  generic `KanvazUI_Extended.updateSettings()` path (`applySettings()`
+  already redraws the grid on any settings change, so no extra
+  plumbing needed) and confirming the new style with a toast.
+  - Live-verified via CDP: ran the command three times in a row against
+    a real settings.json, confirmed it cycled `gamedev → reference →
+    3d → gamedev` (a full loop back to the starting value, so this
+    verification pass left no drift in the profile it ran against),
+    and confirmed the command is registered with the correct label via
+    `KanvazCommands.getCommand('core.cycleGridStyle')`.
+
 ## [8.9.3] — Real Map View thumbnails for video and 3D cards
 
 *Backlog item, from live-testing feedback: "Map View node cards and

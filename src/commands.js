@@ -228,6 +228,28 @@ var KanvazCommands = (function() {
        longer gets a dedicated key (that's Toggle Click-through's now,
        above), just Command Palette + the Settings checkbox for the
        minority of people who want it off. */
+    /* Design-review follow-up (ROADMAP.md item 10, 2026-09-16): the
+       "reference"/"3d"/"gamedev" grid styles are a real, cheap, kept
+       feature, but the only way to switch between them was a Settings
+       dropdown — no quick toggle for something a user might want to
+       flip per-board. Cycles in the same order the Settings dropdown
+       lists them; applySettings() already redraws the grid on any
+       settings change, so no extra plumbing needed here beyond the
+       write + a toast confirming which style is now active. */
+    registerCommand('core.cycleGridStyle', {
+      label: 'Cycle Grid Style (Reference / 3D / Game Dev)',
+      run: function() {
+        if (typeof KanvazUI_Extended === 'undefined') return;
+        var s = KanvazUI_Extended.getSettings();
+        if (!s) return;
+        var order = ['reference', '3d', 'gamedev'];
+        var labels = { reference: 'Reference', '3d': '3D — origin axes', gamedev: 'Game Dev — tile grid' };
+        var idx = order.indexOf(s.gridStyle || 'reference');
+        var next = order[(idx + 1) % order.length];
+        KanvazUI_Extended.updateSettings({ gridStyle: next });
+        if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Grid style: ' + labels[next]);
+      }
+    });
     registerCommand('core.toggleAlwaysOnTop', {
       label: 'Toggle Always on Top',
       run: function() { if (typeof KanvazApp !== 'undefined') KanvazApp.toggleAlwaysOnTop(); }
