@@ -2,6 +2,36 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [8.9.1] — 3D cards no longer trap you inside their orbit controls
+
+*Direct request: "when in 3d mode if user has zoomed a lot how will he
+move even if he focuses to card since 3d is interactive — add
+something like ctrl and middle mouse [to pan]."*
+
+### Added
+- **Alt+drag or Ctrl/Cmd+middle-mouse now pans the whole board even
+  with the cursor over a 3D model card's interactive viewport.** Real
+  gap: the viewport's own mousedown handler called
+  `e.stopPropagation()` unconditionally, swallowing Alt+drag — the
+  gesture this app already uses to pan from anywhere, over any other
+  card type — the moment the cursor crossed into a 3D card. Worse,
+  OrbitControls binds its own listener directly to the inner
+  `<canvas>` (a descendant of the viewport), which always sees a raw
+  mousedown before anything registered on an ancestor in the bubble
+  phase — a same-phase override could never win that race. Fixed with
+  a new capture-phase listener on the viewport (capture is the one
+  DOM event ordering that lets an ancestor pre-empt a descendant's own
+  listener) that intercepts Alt+drag or Ctrl/Cmd+middle-mouse
+  specifically and hands off to a new `KanvazCanvas.startExternalPan()`
+  — plain middle-mouse is deliberately left alone, still reaching
+  OrbitControls for its own dolly/zoom, a real convention worth
+  keeping rather than an oversight.
+  - Live-verified via CDP against a synthetic 3D card: both triggers
+    moved the board's `tx`/`ty` by the exact mouse delta; plain
+    middle-mouse correctly did nothing; the card did not get selected
+    mid-pan, matching how Alt-drag already behaves for every other
+    card type.
+
 ## [8.9.0] — Tags moved to Properties, real titlebar avatar, more stacking fixes
 
 *Direct requests plus a "quality over speed" audit pass on the areas

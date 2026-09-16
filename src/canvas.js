@@ -267,6 +267,37 @@ var KanvazCanvas = (function() {
     applyTransform();
   }
 
+  /* Direct feedback: "when in 3d mode if user has zoomed a lot how
+     will he move even if he focuses to card since 3d is interactive...
+     add something like ctrl and middle mouse." Real gap: a 3D model
+     card's OrbitControls-driven viewport calls e.stopPropagation() on
+     every mousedown (cards.js), including Alt+drag — the one gesture
+     this app already uses to pan from ANYWHERE, even over a card, for
+     every other card type. Worse, OrbitControls binds its own listener
+     directly to the inner <canvas> element, which always fires before
+     anything registered on an ancestor in the bubble phase — a plain
+     bubble-phase override on the viewport can never win that race.
+     This is the escape hatch: cards.js's 3D card setup calls it from
+     its OWN capture-phase mousedown listener (capture always resolves
+     on ancestors before the target's own listeners, bubble or capture,
+     ever run — the one ordering that actually lets an ancestor
+     pre-empt OrbitControls) for Alt+drag or Ctrl/Cmd+middle-mouse
+     specifically, so a plain middle-mouse click still reaches
+     OrbitControls for its own dolly/zoom, matching the professional-
+     3D-viewport convention that already exists. Sets up the exact same
+     state init()'s own mousedown handler does for a normal pan, so the
+     existing mousemove/mouseup listeners there drive the rest of the
+     gesture — no separate pan implementation to maintain. */
+  function startExternalPan(clientX, clientY) {
+    isPanning = true;
+    panStartX = clientX;
+    panStartY = clientY;
+    panOriginX = tx;
+    panOriginY = ty;
+    panMoved = false;
+    if (container) container.classList.add('grabbing');
+  }
+
   /* Audit fix: board load/switch used to call panTo(savedTx, savedTy)
      then setZoom(savedScale) — but setZoom's pivot math REWRITES tx/ty
      based on the ratio between the CURRENT scale (whatever the previous
@@ -920,6 +951,7 @@ var KanvazCanvas = (function() {
     recallViewBookmark: recallViewBookmark,
     panBy:          panBy,
     panTo:          panTo,
+    startExternalPan: startExternalPan,
     setViewport:    setViewport,
     initDrop:       initDrop,
     screenToWorld:  screenToWorld,

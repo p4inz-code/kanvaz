@@ -37,7 +37,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 ## Latest release
 
-**v8.9.0** moves tag editing out of each card's own cramped on-card tag bar into the Properties panel exclusively (direct request — its autocomplete moved too, now a native suggestion list), gives the Board View titlebar a real profile avatar matching the Home Screen's own (instead of a plain three-dot icon), and closes three more real bugs a fresh audit found: the About/Shortcuts/Official-Plugins overlays were completely invisible whenever the Home Screen was open (same stacking-order bug class as v8.8.2's Top Mode fix), the Shortcuts overlay's 3-column layout was too narrow for its own content, and Mac users saw "Ctrl" in shortcut labels for keys that already worked with Cmd. v8.8.5 fixed the Properties panel silently not refreshing on selection and a `.blend` conversion-failure gap. Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
+**v8.9.1** adds a real escape hatch for 3D cards: Alt+drag or Ctrl/Cmd+middle-mouse now pans the whole board even with the cursor over a 3D model's interactive viewport, so zooming into a 3D card no longer traps you there — plain middle-mouse still reaches the 3D viewport's own dolly/zoom, untouched. v8.9.0 moved tag editing out of each card's own cramped on-card tag bar into the Properties panel exclusively (direct request), gave the Board View titlebar a real profile avatar matching the Home Screen's own, and fixed the About/Shortcuts/Official-Plugins overlays being invisible whenever the Home Screen was open, a too-narrow Shortcuts layout, and Mac shortcut-label/Ctrl+Scroll gaps. Every release, with the reasoning behind it, is in [CHANGELOG.md](CHANGELOG.md).
 
 <table>
 <tr>
@@ -112,7 +112,7 @@ Most reference boards stop at "put images on a canvas." Kanvaz goes further, and
 **Canvas & organization**
 - Infinite pan/zoom canvas (8%–500%), multiple boards per file
 - Real board thumbnails on the Home Screen (generated from the actual card layout at save time)
-- 3D model cards (`.glb`/`.gltf`/`.obj`/`.fbx`/`.stl`/`.ply`/`.vox`/`.usd`/`.usdz`, up to 150MB, plus `.blend` if Blender is installed): orbit with the mouse, Normal/Wireframe/Matcap shading, animation playback with a scrub bar, background color picker
+- 3D model cards (`.glb`/`.gltf`/`.obj`/`.fbx`/`.stl`/`.ply`/`.vox`/`.usd`/`.usdz`, up to 150MB, plus `.blend` if Blender is installed): orbit with the mouse, Normal/Wireframe/Matcap shading, animation playback with a scrub bar, background color picker. Alt+drag or Ctrl/Cmd+middle-mouse pans the whole board even with the cursor over the model — you're never trapped inside its orbit controls
 - Image, GIF, video, and audio cards with full playback controls and a real volume slider
 - Note, text, color, URL, and file-reference card types. A file reference pointing at a `.pdf` or image gets a real inline preview inside the resizable card
 - Shared cards across boards: same content, no duplication, edit anywhere
@@ -209,7 +209,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 8.9.0.exe` and `dist/Kanvaz 8.9.0.exe`
+Output: `dist/Kanvaz Setup 8.9.1.exe` and `dist/Kanvaz 8.9.1.exe`
 
 **macOS:**
 ```bash

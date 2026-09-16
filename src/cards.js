@@ -3655,6 +3655,36 @@ var KanvazCards = (function() {
        to dolly the 3D camera also zoomed the canvas underneath. Matches
        the exact pattern the PDF preview already established for the
        same reason (buildPdfPreview's scrollArea, above). */
+    /* Direct feedback: "when in 3d mode if user has zoomed a lot how
+       will he move even if he focuses to card since 3d is interactive
+       — add something like ctrl and middle mouse [to pan]." Alt+drag
+       already pans the whole board from anywhere, even over a card,
+       for every OTHER card type (canvas.js) — cards.js's own delegated
+       mousedown handler bails out on e.altKey before it would ever
+       start a card drag, letting the gesture fall through to canvas.js.
+       This viewport's OWN mousedown listener (below) never had that
+       bailout, so Alt+drag (and plain middle-mouse, which pans
+       anywhere else in the app too) got swallowed the instant the
+       cursor was over a 3D card. Registered in the CAPTURE phase
+       specifically — OrbitControls binds its own listener directly to
+       the inner <canvas>, a descendant of viewport, in the bubble
+       phase; capture always resolves on ancestors before ANY listener
+       on the target runs, bubble or capture, so this is the one
+       ordering that lets an ancestor actually pre-empt OrbitControls
+       rather than losing the race to it. Ctrl/Cmd+middle-mouse (not
+       plain middle-mouse) is the 3D-specific trigger for board-pan,
+       deliberately leaving plain middle-mouse-over-the-viewport free
+       for OrbitControls' own dolly/zoom — a real, professional-
+       3D-viewport convention worth keeping, not just an oversight. */
+    viewport.addEventListener('mousedown', function(e) {
+      if (e.altKey || ((e.ctrlKey || e.metaKey) && e.button === 1)) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof KanvazCanvas !== 'undefined' && KanvazCanvas.startExternalPan) {
+          KanvazCanvas.startExternalPan(e.clientX, e.clientY);
+        }
+      }
+    }, true);
     viewport.addEventListener('mousedown', function(e) {
       /* Stopping propagation here blocks world's delegated handler from
          ever seeing this mousedown, which would otherwise also skip the
