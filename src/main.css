@@ -769,6 +769,53 @@ body.top-mode-active::after {
   background: var(--color-surface-2);
 }
 
+/* ── Account/profile avatar (titlebar) ──
+   Direct feedback: the corner icon here was a plain three-dot glyph
+   (deliberately "not a literal avatar" per the v7.x redesign comment
+   above it, back when the profile system didn't exist yet) while the
+   Home Screen's own equivalent button is already a real colored-circle
+   avatar with the profile's initial or photo. Same visual language
+   here now, matching how Figma/Notion/Linear all put a colored circle
+   top-right — a real, working profile switcher deserves to look like
+   one, not a generic overflow menu. Sizing/colors match the Home
+   Screen avatar's own treatment exactly (boards.js), just constrained
+   to the titlebar's own row height. */
+#btn-account {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--color-accent);
+  border: 1.5px solid transparent;
+  color: #fff;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  justify-content: center;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+}
+
+#btn-account img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+
+#btn-account:hover {
+  background: var(--color-accent);
+  color: #fff;
+  border-color: transparent;
+  transform: scale(1.06);
+  box-shadow: 0 0 0 3px var(--color-accent-bg);
+}
+
+#btn-account:active {
+  transform: scale(0.96);
+}
+
 .toolbar-btn:disabled {
   opacity: 0.35;
   cursor: default;
@@ -1309,108 +1356,6 @@ body.top-mode-active::after {
   min-width: 0;
 }
 
-/* ── Tag chips ── */
-.tag-bar {
-  position: absolute;
-  bottom: 52px;
-  left: 0;
-  right: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-  padding: 3px 6px;
-  background: var(--color-surface);
-  border-top: 1px solid var(--color-border);
-  opacity: 0;
-  transition: opacity 0.15s;
-  z-index: 2;
-  pointer-events: none;
-}
-
-.card:hover .tag-bar,
-.card.selected .tag-bar {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-/* Bug fix: video/audio cards have a scrub-controls row sitting between
-   the tag bar and the card-bar — a fixed bottom:52px (right for every
-   other card type, which only has the plain card-bar under the tag
-   bar) put the tag bar's tags directly on top of the scrub bar's play/
-   volume/loop controls once the scrub row's own responsive height grew
-   past a few px, as confirmed live (tags rendering across the scrub
-   line). Stack it above the scrub row's own space instead for these
-   two types specifically. */
-.card:has(.video-scrub) .tag-bar,
-.card:has(.audio-scrub) .tag-bar {
-  bottom: calc(52px + clamp(28px, 11cqw, 50px));
-}
-
-/* Usability audit: on video cards specifically, the tag bar and the
-   scrub bar both sit as flat, fully-opaque rectangles directly on top
-   of the actual video frame — unlike audio, whose scrub row sits on a
-   themed icon-area background, a video's underlying pixels are
-   unpredictable (bright, dark, colorful), so a solid var(--color-*)
-   slab reads as a jarring UI patch stuck over the footage rather than
-   a control overlay. Give the video-specific tag bar the same
-   translucent, blurred "glass" treatment as .video-scrub below —
-   scoped to video only via :has() so audio's already-reviewed,
-   theme-background scrub/tag styling is untouched. */
-.card:has(.video-scrub) .tag-bar {
-  background: rgba(10, 10, 16, 0.6);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.tag-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 1px 6px;
-  /* Audit fix (4.7.0): this was a flat 9px, completely unresponsive to
-     card size — cramped and hard to read on a large card, unlike the
-     video/audio scrub-time label right next to it (below), which
-     already scales with the card's own width via a container-query
-     unit. Same treatment here: 9px at a typical card width, scaling
-     gently up or down at the extremes rather than staying frozen. */
-  font-size: clamp(8px, 2.2cqw, 13px);
-  font-family: var(--font-ui);
-  color: var(--color-accent);
-  background: var(--color-accent-bg);
-  border-radius: 3px;
-  white-space: nowrap;
-  cursor: default;
-  line-height: 1.4;
-}
-
-.tag-chip-remove {
-  cursor: pointer;
-  opacity: 0.6;
-  font-size: 11px;
-  line-height: 1;
-  margin-left: 1px;
-}
-
-.tag-chip-remove:hover {
-  opacity: 1;
-  color: var(--color-red);
-}
-
-.tag-chip-add {
-  cursor: pointer;
-  color: var(--color-text-3);
-  background: var(--color-surface-2);
-  border: 1px dashed var(--color-border-2);
-  padding: 1px 8px;
-  font-size: 10px;
-}
-
-.tag-chip-add:hover {
-  color: var(--color-accent);
-  border-color: var(--color-accent);
-}
-
 /* Custom tooltip (tooltip.js) — replaces the OS-native title-attribute
    box everywhere in the app at once. Positioned via JS (left/top set
    directly, see positionTooltip()); this block only owns the visual
@@ -1441,39 +1386,6 @@ body.top-mode-active::after {
 #custom-tooltip.visible {
   opacity: 1;
   transform: translateY(0);
-}
-
-/* Tag autocomplete dropdown — floated on <body>, positioned via JS
-   (see showTagInput in cards.js). Anchored above the tag input. */
-.tag-autocomplete {
-  position: fixed;
-  transform: translateY(calc(-100% - 4px));
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-2);
-  border-radius: 6px;
-  box-shadow: 0 4px 16px var(--color-shadow);
-  overflow: hidden;
-  display: none;
-  z-index: 20002;
-  min-width: 90px;
-}
-
-.tag-autocomplete.visible {
-  display: block;
-}
-
-.tag-autocomplete-item {
-  padding: 4px 8px;
-  font-size: 10px;
-  font-family: var(--font-ui);
-  color: var(--color-text-2);
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.tag-autocomplete-item:hover {
-  background: var(--color-accent-bg);
-  color: var(--color-accent);
 }
 
 /* Relink button — only present while a card's media failed to load */
@@ -3019,7 +2931,15 @@ body.top-mode-active::after {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.65);
-  z-index: 60000;
+  /* Live-audit catch: 60000 sat BELOW #startup-screen (the Home
+     Screen, position:fixed, opaque, z-index:99998) — the About screen
+     is reachable from the Home Screen's own account menu, so opening
+     it there rendered nothing visible at all, even though the overlay
+     genuinely existed in the DOM. Same root cause, same fix already
+     applied to Top Mode's badge/border (v8.8.2) and the Shortcuts/
+     Official-Plugins overlays below: raised to 99999, matching the
+     first-run overlay's own already-correct value. */
+  z-index: 99999;
   display: flex;
   align-items: center;
   justify-content: center;

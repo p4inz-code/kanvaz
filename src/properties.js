@@ -512,15 +512,18 @@ var KanvazProperties = (function() {
     }
   }
 
-  /* ── Tags ── Direct feedback: "add more content in properties
-     panel" — tags were only ever editable from the small on-card tag
-     bar (cards.js's buildTagBar, easy to miss and cramped on a small
-     card), even though they're one of the three things search actually
-     matches against (name/type/tag — see app.js's applySearchFilter).
-     Mirrors the on-card tag bar's chips-plus-add-input shape but goes
-     through KanvazCards.setTags() (a full-array replace with its own
-     dirty/history/event handling) rather than splicing card.tags
-     directly, so this never has to duplicate that bookkeeping. */
+  /* ── Tags ── Originally added alongside the small on-card tag bar
+     (easy to miss and cramped on a small card), even though tags are
+     one of the three things search actually matches against (name/
+     type/tag — see app.js's applySearchFilter). v8.9.0, direct
+     request: tag editing lives here ONLY now — cards.js's own in-card
+     tag bar (buildTagBar/showTagInput) was removed entirely, this
+     section is the sole place tags get added, removed, or viewed.
+     Goes through KanvazCards.setTags() (a full-array replace with its
+     own dirty/history/event handling) rather than splicing card.tags
+     directly, so this never has to duplicate that bookkeeping — and
+     since this panel re-renders itself after every call, it always
+     reflects the true tag list with no separate sync step needed. */
   function renderTagsSection(body, card, cardId) {
     var title = document.createElement('div');
     title.style.cssText = SECTION_TITLE_CSS;
@@ -556,14 +559,58 @@ var KanvazProperties = (function() {
     addInput.type = 'text';
     addInput.placeholder = '+ tag';
     addInput.style.cssText = 'width:60px;padding:3px 8px;background:transparent;border:1px dashed var(--color-border-2);border-radius:999px;color:var(--color-text);font-family:var(--font-ui);font-size:11px;outline:none;';
-    addInput.addEventListener('keydown', function(e) {
-      if (e.key !== 'Enter') return;
+
+    /* Direct feedback: "remove the tag stuff [from cards], keep it in
+       Properties only" — the in-card tag bar's own input had a real
+       autocomplete dropdown (recent + board-wide tags, filtered as you
+       type); this is the equivalent for the one remaining tag editor,
+       via a native <datalist> instead of rebuilding that floating
+       dropdown's own positioning logic here. A datalist gets the
+       browser's own suggestion UI for free and behaves correctly
+       inside this panel's own scroll container with zero custom
+       layout code — recent tags first (most likely to be reused right
+       now), then every other tag already used anywhere on the board. */
+    if (typeof KanvazCards !== 'undefined' && KanvazCards.getAllTags) {
+      var existingTags = card.tags || [];
+      var recent = KanvazCards.getRecentTags ? KanvazCards.getRecentTags() : [];
+      var all = KanvazCards.getAllTags();
+      var seen = {};
+      var suggestions = [];
+      var candidates = recent.concat(all);
+      for (var si = 0; si < candidates.length; si++) {
+        var t = candidates[si];
+        if (!seen[t] && existingTags.indexOf(t) === -1) { seen[t] = true; suggestions.push(t); }
+      }
+      if (suggestions.length) {
+        var listId = 'tag-suggestions-' + cardId;
+        var datalist = document.createElement('datalist');
+        datalist.id = listId;
+        for (var oi = 0; oi < suggestions.length; oi++) {
+          var opt = document.createElement('option');
+          opt.value = suggestions[oi];
+          datalist.appendChild(opt);
+        }
+        addInput.setAttribute('list', listId);
+        wrap.appendChild(datalist);
+      }
+    }
+
+    function commitTag() {
       var val = addInput.value.trim().toLowerCase();
       if (!val) return;
       if ((card.tags || []).indexOf(val) !== -1) { addInput.value = ''; return; }
       if (typeof KanvazCards !== 'undefined') KanvazCards.setTags(cardId, (card.tags || []).concat([val]));
       if (panelEl) renderInto(panelEl);
+    }
+    addInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') commitTag();
     });
+    /* A datalist option click fires 'change' on the input (not
+       'keydown'), so picking a suggestion with the mouse needs its own
+       commit path — without this, clicking a suggestion filled the
+       input but never actually added the tag until Enter was also
+       pressed. */
+    addInput.addEventListener('change', commitTag);
     wrap.appendChild(addInput);
     body.appendChild(wrap);
   }

@@ -65,7 +65,7 @@ var KanvazCards = (function() {
   }
 
   /* Bug-bounty fix (v5.3.0): rememberedSizes and recentTags (declared
-     further down, next to buildTagBar) were both introduced as module-
+     further down) were both introduced as module-
      level state with no reset path — clearAll()/deserialise() run on
      every undo/redo too (see history.js), so resetting them THERE would
      wipe "recently used" mid-editing-session on a plain Ctrl+Z, which is
@@ -171,15 +171,6 @@ var KanvazCards = (function() {
       if (track) {
         e.stopPropagation();
         seekVideo(track.closest('.card'), e, track);
-        return;
-      }
-
-      /* Tag chips — remove/add/input must never trigger a card drag.
-         mousedown fires before the chip's own click handler, so without
-         this the underlying card would select/drag before the tag
-         action ever runs. */
-      if (target.closest('.tag-chip-remove') || target.closest('.tag-chip-add') || target.closest('.tag-input') || target.closest('.tag-autocomplete')) {
-        e.stopPropagation();
         return;
       }
 
@@ -1357,12 +1348,11 @@ var KanvazCards = (function() {
     }
 
     /* Text cards are a bare floating label — skip the name-strip/badge
-       chrome entirely (buildCardBar), but still support tags like every
-       other card type (buildTagBar is self-contained, not nested inside
-       buildCardBar's output). */
-    if (card.type === 'text') {
-      buildTagBar(el, card);
-    } else {
+       chrome entirely (buildCardBar). Tag editing moved to the
+       Properties panel only (v8.9.0, direct request) — every card type
+       used to also get an in-card tag bar here or inside buildCardBar
+       below; neither builds one anymore. */
+    if (card.type !== 'text') {
       buildCardBar(el, card);
     }
     buildPinIndicator(el);
@@ -1616,10 +1606,10 @@ var KanvazCards = (function() {
 
   /* Rebuilds just the media portion of a card (image/gif/video/audio
      element + skeleton/error state) in place, leaving the card bar,
-     tag bar, pin indicator and resize handles untouched. Used by
-     Relink after a successful reload. */
+     pin indicator and resize handles untouched. Used by Relink after a
+     successful reload. */
   function rebuildCardMedia(el, card) {
-    var KEEP_CLASSES = ['card-bar', 'tag-bar', 'card-pin', 'resize-handle'];
+    var KEEP_CLASSES = ['card-bar', 'card-pin', 'resize-handle'];
     var toRemove = [];
     for (var i = 0; i < el.children.length; i++) {
       var child = el.children[i];
@@ -4163,7 +4153,6 @@ var KanvazCards = (function() {
     bar.appendChild(pill);
 
     el.appendChild(bar);
-    buildTagBar(el, card);
   }
 
   /* ── Rename (4.7.0) ──
@@ -4276,162 +4265,6 @@ var KanvazCards = (function() {
       }
     }
     return Object.keys(allTags).sort();
-  }
-
-  function buildTagBar(el, card) {
-    var existing = el.querySelector('.tag-bar');
-    if (existing) existing.parentNode.removeChild(existing);
-
-    var tagBar = document.createElement('div');
-    tagBar.className = 'tag-bar';
-
-    if (card.tags && card.tags.length) {
-      for (var i = 0; i < card.tags.length; i++) {
-        (function(tag, idx) {
-          var chip = document.createElement('span');
-          chip.className = 'tag-chip';
-          chip.textContent = tag;
-
-          var removeBtn = document.createElement('span');
-          removeBtn.className = 'tag-chip-remove';
-          removeBtn.textContent = '\u00D7';
-          removeBtn.title = 'Remove tag';
-          removeBtn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            card.tags.splice(idx, 1);
-            buildTagBar(el, card);
-            KanvazApp.markDirty();
-            KanvazHistory.push();
-            emitCardEvent('cardUpdate', card);
-          });
-          chip.appendChild(removeBtn);
-          tagBar.appendChild(chip);
-        })(card.tags[i], i);
-      }
-    }
-
-    var addBtn = document.createElement('span');
-    addBtn.className = 'tag-chip tag-chip-add';
-    addBtn.textContent = '+';
-    addBtn.title = 'Add tag';
-    addBtn.addEventListener('click', function(e) {
-      e.stopPropagation();
-      showTagInput(el, card, tagBar);
-    });
-    tagBar.appendChild(addBtn);
-
-    el.appendChild(tagBar);
-  }
-
-  function showTagInput(cardEl, card, tagBar) {
-    var existingInput = tagBar.querySelector('.tag-input');
-    if (existingInput) return;
-
-    var input = document.createElement('input');
-    input.className = 'tag-input';
-    input.type = 'text';
-    input.placeholder = 'tag name';
-    input.style.cssText = 'width:70px;padding:1px 4px;border:1px solid var(--color-accent);border-radius:3px;background:var(--color-surface-2);color:var(--color-text);font-size:10px;font-family:var(--font-ui);outline:none;';
-
-    /* Autocomplete dropdown — suggests tags already used elsewhere on
-       the board, filtered to what's typed so far and excluding tags
-       already on this card. Floated on <body> (position:fixed), same
-       pattern as the opacity/speed pickers — `.card` has
-       overflow:hidden, so a dropdown nested inside the tag bar would
-       get clipped instead of popping out above the card. */
-    var dropdown = document.createElement('div');
-    dropdown.className = 'tag-autocomplete';
-    document.body.appendChild(dropdown);
-
-    function closeDropdown() {
-      if (dropdown.parentNode) dropdown.parentNode.removeChild(dropdown);
-    }
-
-    function addTag(val) {
-      val = (val !== undefined ? val : input.value).trim().toLowerCase();
-      if (val && (!card.tags || card.tags.indexOf(val) === -1)) {
-        if (!card.tags) card.tags = [];
-        card.tags.push(val);
-        noteRecentTag(val);
-        KanvazApp.markDirty();
-        KanvazHistory.push();
-        emitCardEvent('cardUpdate', card);
-      }
-      closeDropdown();
-      buildTagBar(cardEl, card);
-    }
-
-    function positionDropdown() {
-      var rect = input.getBoundingClientRect();
-      dropdown.style.left = rect.left + 'px';
-      dropdown.style.top  = rect.top + 'px';
-    }
-
-    function updateDropdown() {
-      var query = input.value.trim().toLowerCase();
-      dropdown.innerHTML = '';
-      var existing = card.tags || [];
-      var matches;
-      if (!query) {
-        /* Nothing typed yet — offer one-click re-add from recent tags
-           instead of hiding the dropdown entirely. */
-        matches = recentTags.filter(function(t) { return existing.indexOf(t) === -1; });
-        if (!matches.length) { dropdown.classList.remove('visible'); return; }
-      } else {
-        matches = collectAllTags().filter(function(t) {
-          return existing.indexOf(t) === -1 && t.indexOf(query) !== -1;
-        });
-        if (!matches.length) { dropdown.classList.remove('visible'); return; }
-      }
-
-      for (var i = 0; i < Math.min(matches.length, 6); i++) {
-        (function(tag) {
-          var item = document.createElement('div');
-          item.className = 'tag-autocomplete-item';
-          item.textContent = tag;
-          /* mousedown + preventDefault — stops the input from blurring,
-             so the blur handler's addTag() never fires with stale text
-             for this interaction; this handler adds the clicked tag
-             directly instead. */
-          item.addEventListener('mousedown', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            addTag(tag);
-          });
-          dropdown.appendChild(item);
-        })(matches[i]);
-      }
-      positionDropdown();
-      dropdown.classList.add('visible');
-    }
-
-    input.addEventListener('input', updateDropdown);
-    input.addEventListener('focus', updateDropdown);
-
-    /* buildTagBar() below rebuilds the tag bar, which removes this
-       still-focused input from the DOM — that fires a native 'blur' on
-       it first, which is wired to addTag() below. Left alone, Escape
-       would "cancel" by adding whatever partial text was typed as a
-       real tag, same as Enter. This flag lets the blur handler know a
-       cancel is already in progress so it skips addTag(). */
-    var cancelled = false;
-
-    input.addEventListener('keydown', function(e) {
-      e.stopPropagation();
-      if (e.key === 'Enter') { addTag(); }
-      if (e.key === 'Escape') {
-        cancelled = true;
-        closeDropdown();
-        buildTagBar(cardEl, card);
-      }
-    });
-    input.addEventListener('blur', function() {
-      if (cancelled) return;
-      addTag();
-    });
-
-    tagBar.insertBefore(input, tagBar.querySelector('.tag-chip-add'));
-    input.focus();
   }
 
   /* ── Pin indicator ── */
@@ -4878,13 +4711,13 @@ var KanvazCards = (function() {
     return card;
   }
 
-  /* Tag mutation currently only exists as a UI-input side effect buried
-     inside buildTagBar()'s closures (see showTagInput's addTag() and the
-     per-chip remove handler) — this is the standalone equivalent for a
-     programmatic caller that just wants to set the full tag list.
-     setTagsCore() does the actual mutation with no dirty/history/event
+  /* setTagsCore() does the actual mutation with no dirty/history/event
      side effects, so a batch caller (setTagsMultiple() below) can apply
-     it to many cards behind one history push instead of one per card. */
+     it to many cards behind one history push instead of one per card.
+     Sole real caller of the UI-facing setTags() below is properties.js's
+     Tags section (v8.9.0 — tag editing moved out of an in-card tag bar
+     into the Properties panel only), which re-renders itself directly
+     after every call, so no DOM refresh happens here anymore either. */
   function setTagsCore(id, tags) {
     var card = cards[id];
     if (!card) {
@@ -4903,11 +4736,6 @@ var KanvazCards = (function() {
     card.tags = Array.isArray(tags) ? tags.slice() : [];
     for (var ti = 0; ti < card.tags.length; ti++) {
       if (prevTags.indexOf(card.tags[ti]) === -1) noteRecentTag(card.tags[ti]);
-    }
-    var el = document.getElementById(id);
-    if (el) {
-      var existingBar = el.querySelector('.tag-bar');
-      if (existingBar) buildTagBar(el, card);
     }
     return card;
   }
@@ -6412,6 +6240,8 @@ var KanvazCards = (function() {
     deleteSelected:    deleteSelected,
     updateCardData:    updateCardData,
     setTags:           setTags,
+    getAllTags:        collectAllTags,
+    getRecentTags:     function() { return recentTags.slice(); },
     setTagsMultiple:   setTagsMultiple,
     search:            search,
     startRenameCard:   startRenameCard,

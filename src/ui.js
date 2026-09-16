@@ -1119,8 +1119,12 @@ var KanvazUI_Extended = (function() {
     var overlay = document.createElement('div');
     overlay.id = 'official-plugins-overlay';
     overlay.style.cssText = [
+      /* z-index raised same as .modal-overlay/#shortcuts-overlay — see
+         either's own comment for the #startup-screen stacking bug this
+         closes (this one's only reachable from Settings, itself behind
+         the Home Screen, so lower real-world impact, but consistent). */
       'position:fixed', 'inset:0', 'background:var(--color-overlay)',
-      'z-index:60000', 'display:flex', 'align-items:center',
+      'z-index:99999', 'display:flex', 'align-items:center',
       'justify-content:center'
     ].join(';');
     overlay.onclick = function(e) { if (e.target === overlay) close(); };
@@ -1477,6 +1481,26 @@ var KanvazUI_Extended = (function() {
 
   /* ── Shortcuts overlay ── */
 
+  /* Direct feedback: every shortcut in this app already WORKS with Cmd
+     on Mac — shortcuts.js's dispatcher treats `e.ctrlKey || e.metaKey`
+     as one "ctrl" concept everywhere (canvas.js's Ctrl+Scroll fine-zoom
+     was the one exception, fixed separately) — but this list and the
+     Command Palette's own shortcut column both hard-coded the literal
+     word "Ctrl" regardless of platform, so a Mac user reading the help
+     text sees the wrong modifier name for a key that actually works.
+     Display-only fix: swap the word for the Mac symbol at render time,
+     never touching the data (every group above stays written the
+     Windows/Linux way, which is still the majority of this app's
+     users) or the actual key-handling logic (already correct). */
+  function isMacPlatform() {
+    return /Mac/.test(navigator.platform || '') || /Macintosh/.test(navigator.userAgent || '');
+  }
+
+  function macifyShortcutLabel(label) {
+    if (!isMacPlatform()) return label;
+    return label.replace(/Ctrl/g, '⌘').replace(/Alt/g, '⌥').replace(/Shift/g, '⇧');
+  }
+
   function showShortcuts() {
     var existing = document.getElementById('shortcuts-overlay');
     if (existing) { existing.parentNode.removeChild(existing); return; }
@@ -1487,7 +1511,12 @@ var KanvazUI_Extended = (function() {
       'position:fixed',
       'inset:0',
       'background:var(--color-overlay)',
-      'z-index:60000',
+      /* Live-audit catch: same #startup-screen (z-index:99998)
+         stacking bug as .modal-overlay's own fix right above this
+         file's About screen — the Home Screen has its own visible
+         "Show Shortcuts" link, so this was reachable and invisible at
+         the same time. Raised to match. */
+      'z-index:99999',
       'display:flex',
       'align-items:center',
       'justify-content:center',
@@ -1505,7 +1534,18 @@ var KanvazUI_Extended = (function() {
          modal in the app now standardizes on --radius-lg (10px). */
       'border-radius:var(--radius-lg)',
       'padding:24px 28px',
-      'width:480px',
+      /* Live-audit catch: 480px total, split into 3 grid columns with
+         24px gaps, left barely ~125px per column — nowhere near enough
+         for entries like "Ctrl+drag / V" next to "Box-select multiple
+         cards (V toggles the mode, Esc exits)", which wrapped across
+         5+ cramped lines and forced a horizontal scrollbar just to see
+         the third column. Invisible until this same audit fixed the
+         overlay's z-index (it was rendering behind the Home Screen
+         entirely before that) — nobody could have caught this layout
+         issue while the whole thing was hidden. min() keeps it from
+         overflowing a genuinely small window instead of hard-coding a
+         bigger fixed width. */
+      'width:min(760px, 90vw)',
       'max-height:80vh',
       'overflow-y:auto',
       'box-shadow:0 16px 48px var(--color-shadow)',
@@ -1618,7 +1658,7 @@ var KanvazUI_Extended = (function() {
 
         var keyEl = document.createElement('span');
         keyEl.style.cssText = 'font-family:var(--font-mono);font-size:11px;color:var(--color-text-2);background:var(--color-surface-2);border:1px solid var(--color-border-2);border-radius:3px;padding:1px 5px;white-space:nowrap;flex-shrink:0;';
-        keyEl.textContent = group.items[r][0];
+        keyEl.textContent = macifyShortcutLabel(group.items[r][0]);
 
         var descEl = document.createElement('span');
         descEl.style.cssText = 'font-size:12px;color:var(--color-text-3);text-align:right;';

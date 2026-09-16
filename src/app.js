@@ -336,7 +336,14 @@ var KanvazApp = (function() {
                  like Kanvaz is broken rather than a missing optional
                  tool. */
               KanvazCards.createFileRefCardAtPath(pos.x, pos.y, file.path);
-              KanvazUI.toast('Install Blender to preview .blend files live — added "' + file.name + '" as a file reference instead.', 'warning');
+              /* Direct feedback: "it says download blender like what?"
+                 — the old message named a requirement with no context
+                 for what it even is or whether it's optional. Blender
+                 is a separate, real (and free) 3D tool at blender.org,
+                 entirely optional — Kanvaz already added the file as a
+                 real reference either way, this is purely about
+                 unlocking the LIVE 3D preview on top of that. */
+              KanvazUI.toast('"' + file.name + '" added as a file reference. For a live 3D preview, install the free Blender app (blender.org) and drop it again — totally optional either way.', 'warning');
             } else if (err === 'EXTERNAL_TOOL_FAILED') {
               /* Direct feedback: "the .blend dropped but error came...
                  didn't add to list" — this branch showed the error but,

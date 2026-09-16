@@ -167,6 +167,35 @@ var KanvazSidePanel = (function() {
 
   function isOpen() { return isOpenFlag; }
 
+  /* Direct feedback: "make icon or profile button show up here [board
+     view titlebar]... similar to online apps" — #btn-account already
+     opens the real profile menu, it just LOOKED like a generic
+     three-dot overflow button instead of an actual avatar, unlike the
+     Home Screen's own account button (boards.js) which already shows
+     the active profile's real photo or initial. Same data, same
+     visual language, just filled into this persistent titlebar button
+     instead of one rebuilt fresh on every Home Screen render. Called
+     once at init (below) and again after anything that can change the
+     active profile's name/photo while staying on it (showManageProfilesDialog's
+     own rebuild()) — a profile SWITCH goes through relaunchApp(), which
+     re-runs this whole init from scratch, so that path needs no
+     separate handling here. */
+  function syncAccountButtonAvatar(profile) {
+    var btn = document.getElementById('btn-account');
+    if (!btn) return;
+    btn.innerHTML = '';
+    var initial = (profile && profile.name) ? profile.name.trim().charAt(0).toUpperCase() : 'K';
+    if (profile && profile.avatarDataUrl) {
+      var img = document.createElement('img');
+      img.src = profile.avatarDataUrl;
+      img.alt = '';
+      btn.appendChild(img);
+    } else {
+      btn.textContent = initial;
+    }
+    btn.title = (profile && profile.name) ? profile.name + ' — About, Shortcuts, Profile' : 'About, Shortcuts, Profile';
+  }
+
   /* ── Account corner menu (About/Shortcuts/Profile) ──
      Plain dismiss-on-outside-click popover, same convention every
      other small menu in this app uses. Profile item is a stub until
@@ -175,6 +204,14 @@ var KanvazSidePanel = (function() {
     var btn = document.getElementById('btn-account');
     var menu = document.getElementById('account-menu');
     if (!btn || !menu) return;
+
+    /* Real avatar from first paint, not just after the first time the
+       menu is opened (the refresh point below, for edits made while
+       already running) — without this the button would sit on the
+       plain "K" HTML fallback until clicked once. */
+    if (typeof KanvazBridge !== 'undefined' && KanvazBridge.getActiveProfile) {
+      KanvazBridge.getActiveProfile().then(syncAccountButtonAvatar).catch(function() {});
+    }
 
     function positionMenu() {
       var rect = btn.getBoundingClientRect();
@@ -248,7 +285,12 @@ var KanvazSidePanel = (function() {
         origOpenMenu();
         KanvazBridge.getActiveProfile().then(function(p) {
           profileLabel.textContent = p && p.name ? p.name : 'Profile';
-        }).catch(function() { /* leave the last-known label showing */ });
+          /* Same self-healing refresh as the label above, and for the
+             identical reason: a rename or new avatar photo doesn't
+             relaunch the app, so this is the natural place to pick up
+             either without a dedicated event for it. */
+          syncAccountButtonAvatar(p);
+        }).catch(function() { /* leave the last-known avatar/label showing */ });
       };
     }
 

@@ -2,6 +2,70 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [8.9.0] — Tags moved to Properties, real titlebar avatar, more stacking fixes
+
+*Direct requests plus a "quality over speed" audit pass on the areas
+those requests touched.*
+
+### Changed
+- **Tag editing moved out of each card's own on-card tag bar entirely,
+  into the Properties panel only.** Direct, repeated request. The
+  in-card tag bar (`buildTagBar`/`showTagInput` in `cards.js`, ~250
+  lines) is deleted — no card type shows tag chips on the canvas
+  anymore. The Properties panel's own Tags section (already existed,
+  already went through the same `KanvazCards.setTags()` API) is now
+  the sole editor, and picked up the in-card version's one real
+  feature it would otherwise have lost: tag autocomplete, ported as a
+  native `<datalist>` (recent tags first, then every other tag used
+  anywhere on the board) instead of rebuilding the old floating
+  dropdown's own positioning logic — simpler, and it behaves correctly
+  inside the side panel's own scroll container for free. `setTags()`
+  itself, `KanvazCards.getAllTags()`/`getRecentTags()` (new, small
+  exports for the datalist), and every existing tag-search/Smart-Folder
+  behavior are unaffected — this only ever touched the on-card UI.
+- **The Board View titlebar's account button now shows a real profile
+  avatar** — the active profile's photo or initial in a colored circle,
+  matching the Home Screen's own account button exactly (and how
+  Figma/Notion/Linear all treat a top-right profile control) — instead
+  of a plain three-dot glyph. Same dropdown menu (Profile/Manage
+  Profiles/Home/About/Shortcuts) underneath, unchanged; only the
+  trigger button's look changed, via a new `syncAccountButtonAvatar()`
+  in `sidepanel.js` called once at boot and again every time the menu
+  opens (self-healing after a rename or new avatar photo, same
+  reasoning already used for the menu's own profile-name label — a
+  profile *switch* relaunches the whole app, so that path needs no
+  separate handling here).
+
+### Fixed
+- **The About screen, Shortcuts overlay, and Official-Plugins browser
+  were all completely invisible whenever the Home Screen was open** —
+  the same `#startup-screen` (z-index 99998) stacking bug v8.8.2 found
+  for Top Mode's badge, just never audited across the rest of this
+  app's overlays until now. All three reachable from the Home Screen
+  itself (its own account menu, or the "Show Shortcuts" link), so this
+  was a real, common dead end, not a corner case. Raised to z-index
+  99999, matching the already-correct first-run overlay.
+- **The Shortcuts overlay's own 3-column layout was too narrow for its
+  content** — 480px total split three ways left ~125px per column,
+  cramping entries like "Ctrl+drag / V" badly enough to force a
+  horizontal scrollbar just to read the third column. Only ever
+  discoverable once the z-index fix above made the overlay visible at
+  all. Widened to `min(760px, 90vw)`.
+- **`Ctrl+Scroll` fine-zoom didn't work with Cmd on Mac** — the one
+  place in the app that checked `e.ctrlKey` alone instead of the
+  `e.ctrlKey || e.metaKey` every other shortcut already uses.
+- **Mac users saw "Ctrl"/"Alt"/"Shift" in shortcut labels for keys that
+  already worked with Cmd/Option/Shift** — the Shortcuts overlay and
+  Command Palette both hard-coded the Windows/Linux modifier names
+  regardless of platform. Display-only fix (`navigator.platform`
+  check swaps the word for the Mac symbol at render time); the
+  underlying data and the actual key handling are untouched.
+- **`.blend` drop error message named a requirement with no context**
+  — "Install Blender to preview .blend files live" didn't say what
+  Blender is, where to get it, or that it's optional. Now names it as
+  the free app at blender.org and states plainly that the file was
+  already added as a real reference either way.
+
 ## [8.8.5] — Properties panel refresh bug, .blend conversion-failure fallback
 
 *More direct hands-on testing, plus a live screenshot that caught the

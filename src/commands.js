@@ -387,7 +387,13 @@ var KanvazCommands = (function() {
 
         if (cmd.shortcut) {
           var sc = document.createElement('span');
-          sc.textContent = cmd.shortcut;
+          /* Display-only Mac fix, same reasoning as ui.js's Shortcuts
+             overlay (see macifyShortcutLabel() there): every shortcut
+             here already works with Cmd on Mac, this column just
+             showed the wrong modifier word. Not worth a shared helper
+             for a two-line, platform-check-plus-replace — see the
+             other copy's own comment for the fuller writeup. */
+          sc.textContent = /Mac/.test(navigator.platform || '') ? cmd.shortcut.replace(/Ctrl/g, '⌘') : cmd.shortcut;
           sc.style.cssText = 'font-family:var(--font-mono);font-size:11px;color:var(--color-text-3);flex-shrink:0;';
           row.appendChild(sc);
         }

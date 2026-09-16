@@ -143,16 +143,14 @@
 
     <div class="toolbar-spacer"></div>
 
-    <!-- v7.x redesign — replaces the old Settings|About|Shortcuts button
-         cluster with one corner icon (a plain three-dot glyph, not a
-         literal avatar — Kanvaz has no accounts/login to imply). Opens
-         a small menu: the active offline profile's name, Manage
-         Profiles (switch/create/rename/delete — docs/
-         PROFILES_SYSTEM_PLAN.md), About, and Shortcuts. Settings itself
-         moved into the new left side panel. -->
-    <button class="toolbar-btn" id="btn-account" title="About, Shortcuts, Profile">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/><circle cx="5" cy="12" r="1.5"/></svg>
-    </button>
+    <!-- v7.x redesign added the menu (Profile/Manage Profiles/Home/
+         About/Shortcuts); v8.x gave the button itself the same real
+         colored-circle avatar treatment the Home Screen's own account
+         button already has (sidepanel.js's syncAccountButtonAvatar()
+         fills in the real initial/photo once profile data loads — the
+         plain "K" here is just the pre-JS fallback, same idea as any
+         other placeholder-until-hydrated content). -->
+    <button class="toolbar-btn" id="btn-account" title="About, Shortcuts, Profile">K</button>
     <!-- Dropdown menu for the account/corner icon above — plain, small,
          same dismiss-on-outside-click convention as every other popover
          in this app (see app.js's showReferenceModePopover-era pattern,
