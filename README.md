@@ -29,7 +29,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 </p>
 
 > **Note:** Kanvaz isn't code-signed (certificates cost money; this app doesn't). Windows will likely show **"Windows protected your PC."** Click **"More info" → "Run anyway."** That's normal for unsigned indie software, not a red flag.
-> Prebuilt installers are Windows only. macOS and Linux users build from source, see [Build installers](#build-installers).
+> Prebuilt installers are cross platform.see [Build installers](#build-installers).
 
 If you've used PureRef and wanted more than static images, or tried a cloud moodboard tool and didn't want an account standing between you and your own files, this is built for exactly that gap.
 
