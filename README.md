@@ -24,7 +24,7 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 <p align="center">
 
-### [⬇ Download for Windows, it's free](https://github.com/p4inz-code/kanvaz/releases/latest)
+### [⬇ Download for Windows | Linux | Mac, it's free](https://github.com/p4inz-code/kanvaz/releases/latest)
 
 </p>
 
