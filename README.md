@@ -327,22 +327,15 @@ Made by Atharva Patil | **[P4inz](https://github.com/p4inz-code)** | Northbyte S
 <!-- SUPPORT-BLOCK:START -->
 <div align="center">
 
-## 💜 Support This Project
+<a href="https://p4inz-code.github.io/donate/"><img src="https://raw.githubusercontent.com/p4inz-code/donate/main/banner.svg" alt="Support this project: donate by UPI" width="100%"></a>
 
-Thank you for using this project! If it saves you time and you would like to support development,
-you can donate directly by UPI. Every contribution helps me keep building.
+<a href="https://p4inz-code.github.io/donate/"><img src="https://raw.githubusercontent.com/p4inz-code/donate/main/qr-card.svg" alt="UPI QR code, scan with any UPI app" width="240"></a>
 
-<a href="https://p4inz-code.github.io/donate/"><img src="https://img.shields.io/badge/Donate-UPI-5F259F?style=for-the-badge" alt="Donate via UPI"></a>
-
-<img src="https://raw.githubusercontent.com/p4inz-code/donate/main/upi-qr.jpeg" alt="UPI QR code" width="220">
-
-**Scan with any UPI app**, or send to:
+Or send any amount to:
 
 `9321614988@jio`
 
-<sub>Payee name: Atharva Patil</sub>
-
-📱 **On mobile?** [Tap here to pay in your UPI app](https://p4inz-code.github.io/donate/)
+<sub>Payee name: Atharva Patil · <a href="https://p4inz-code.github.io/donate/">Donate from your phone</a></sub>
 
 </div>
 <!-- SUPPORT-BLOCK:END -->
