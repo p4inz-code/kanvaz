@@ -327,15 +327,15 @@ Made by Atharva Patil | **[P4inz](https://github.com/p4inz-code)** | Northbyte S
 <!-- SUPPORT-BLOCK:START -->
 <div align="center">
 
-<a href="https://p4inz-code.github.io/donate/"><img src="https://raw.githubusercontent.com/p4inz-code/donate/main/banner.svg" alt="Support this project: donate by UPI" width="100%"></a>
+### Support my work
 
-<a href="https://p4inz-code.github.io/donate/"><img src="https://raw.githubusercontent.com/p4inz-code/donate/main/qr-card.svg" alt="UPI QR code, scan with any UPI app" width="240"></a>
+I make these tools on my own and keep them free. If one helped you, you can chip in by UPI. Any amount.
 
-Or send any amount to:
+<a href="https://p4inz-code.github.io/donate/"><img src="https://raw.githubusercontent.com/p4inz-code/donate/main/qr.svg" alt="UPI QR code. Scan it with any UPI app." width="200"></a>
 
 `9321614988@jio`
 
-<sub>Payee name: Atharva Patil · <a href="https://p4inz-code.github.io/donate/">Donate from your phone</a></sub>
+On your phone? [Open the donation page](https://p4inz-code.github.io/donate/).
 
 </div>
 <!-- SUPPORT-BLOCK:END -->
