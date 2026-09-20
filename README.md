@@ -15,7 +15,6 @@
 <p align="center">
   <a href="https://github.com/p4inz-code/kanvaz/commits/main"><img src="https://img.shields.io/github/last-commit/p4inz-code/kanvaz?style=flat-square&color=9D7FFF&label=last%20commit" alt="Last commit"></a>
   <a href="https://github.com/p4inz-code/kanvaz/commits/main"><img src="https://img.shields.io/github/commit-activity/m/p4inz-code/kanvaz?style=flat-square&color=9D7FFF&label=commits" alt="Commits per month"></a>
-  <img src="https://hits.sh/github.com/p4inz-code/kanvaz.svg?style=flat-square&label=views&color=9D7FFF" alt="Page views">
   <a href="https://discord.gg/8UKt8s5FbW"><img src="https://img.shields.io/badge/join-9D7FFF?style=flat-square&logo=discord&logoColor=white&label=discord" alt="Discord"></a>
 </p>
 
