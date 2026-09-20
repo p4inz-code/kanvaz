@@ -4,12 +4,23 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/p4inz-code/kanvaz/releases/latest"><img src="https://img.shields.io/github/v/release/p4inz-code/kanvaz?style=flat-square&color=9D7FFF" alt="Release"></a>
-  <a href="https://github.com/p4inz-code/kanvaz/releases/latest"><img src="https://img.shields.io/github/downloads/p4inz-code/kanvaz/total?style=flat-square&color=4ECDC4&label=downloads" alt="Downloads"></a>
-  <a href="https://github.com/p4inz-code/kanvaz/stargazers"><img src="https://img.shields.io/github/stars/p4inz-code/kanvaz?style=flat-square&color=FFD700" alt="Stars"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/p4inz-code/kanvaz?style=flat-square&color=FF6B6B" alt="License"></a>
-  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue?style=flat-square" alt="Platform">
-  <img src="https://img.shields.io/badge/offline-100%25-green?style=flat-square" alt="Offline">
+  <a href="https://github.com/p4inz-code/kanvaz/releases/latest"><img src="https://img.shields.io/github/v/release/p4inz-code/kanvaz?style=flat-square&color=7c3aed&label=release" alt="Latest release"></a>
+  <a href="https://github.com/p4inz-code/kanvaz/releases"><img src="https://img.shields.io/github/downloads/p4inz-code/kanvaz/total?style=flat-square&color=7c3aed&label=downloads" alt="Downloads"></a>
+  <a href="https://github.com/p4inz-code/kanvaz/stargazers"><img src="https://img.shields.io/github/stars/p4inz-code/kanvaz?style=flat-square&color=7c3aed" alt="Stars"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/p4inz-code/kanvaz?style=flat-square&color=7c3aed" alt="License"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/p4inz-code/kanvaz/commits/main"><img src="https://img.shields.io/github/last-commit/p4inz-code/kanvaz?style=flat-square&color=7c3aed&label=last%20commit" alt="Last commit"></a>
+  <a href="https://github.com/p4inz-code/kanvaz/commits/main"><img src="https://img.shields.io/github/commit-activity/m/p4inz-code/kanvaz?style=flat-square&color=7c3aed&label=commits" alt="Commits per month"></a>
+  <a href="https://github.com/p4inz-code/kanvaz/issues"><img src="https://img.shields.io/github/issues/p4inz-code/kanvaz?style=flat-square&color=7c3aed&label=issues" alt="Open issues"></a>
+  <img src="https://hits.sh/github.com/p4inz-code/kanvaz.svg?style=flat-square&label=views&color=7c3aed" alt="Page views">
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Windows%20%7C%20macOS%20%7C%20Linux-7c3aed?style=flat-square&label=platform" alt="Platforms">
+  <img src="https://img.shields.io/badge/100%25-7c3aed?style=flat-square&label=offline" alt="Offline">
+  <a href="https://discord.gg/8UKt8s5FbW"><img src="https://img.shields.io/badge/join-7c3aed?style=flat-square&logo=discord&logoColor=white&label=discord" alt="Discord"></a>
 </p>
 
 # Kanvaz
@@ -28,8 +39,8 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 </p>
 
-> **Note:** Kanvaz isn't code-signed (certificates cost money; this app doesn't). Windows will likely show **"Windows protected your PC."** Click **"More info" → "Run anyway."** That's normal for unsigned indie software, not a red flag.
-> Prebuilt installers are cross platform.see [Build installers](#build-installers).
+> **Heads up:** Kanvaz is not code-signed yet, because signing certificates cost money. Windows will probably show "Windows protected your PC". Click "More info", then "Run anyway". That is normal for unsigned indie software.
+> Installers for Windows, macOS and Linux are on the [Releases page](https://github.com/p4inz-code/kanvaz/releases/latest). To build one yourself, see [Build installers](#build-installers).
 
 If you've used PureRef and wanted more than static images, or tried a cloud moodboard tool and didn't want an account standing between you and your own files, this is built for exactly that gap.
 
