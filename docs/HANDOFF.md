@@ -6,7 +6,7 @@
 
 ## Current state (2026-09-21) — read before anything else below
 
-The version history further down describes older work. **The hardening work is released as v9.0.0** (see the release status at the end of this note). See `CHANGELOG.md` "[9.0.0]" and `docs/ROADMAP.md`'s "Security & platform hardening" section for the full list and the reconciled audit table.
+The version history further down describes older work. **The hardening work shipped as v9.0.0 (published 2026-09-21, `draft:false`, 15 assets).** Work after it (3D render modes, Blender import fixes, clip picker, tag editor, Map labels, Shift+L) is committed locally on `main` and is NOT pushed or released yet — see `CHANGELOG.md` "[Unreleased]". See `CHANGELOG.md` and `docs/ROADMAP.md`'s "Security & platform hardening" section for the full list and the reconciled audit table.
 
 - **Runtime is now Electron 44.4.3 / electron-builder 26.15.3** (was 22 / 24). `npm audit` = 0. 32-bit Windows and macOS < 12 are dropped. `File.path` is gone, so drops use `webUtils.getPathForFile` (`preload.js` `getPathForFile`, `app.js` `normalizeDroppedFiles`).
 - **New trust-boundary modules, each with a Node-only test registered in `test/validate.js`:** `src/path-guard.js` (file IPC grants, UNC refusal, launcher blocklist), `src/net-guard.js` (SSRF), `src/mcp-auth.js` (MCP token), `src/crash-log.js` (local crash log), `src/blender-detect.js`; plus zip limits in `src/board-container.js`.

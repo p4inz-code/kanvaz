@@ -127,3 +127,22 @@ Priority order suggested.
 2. Ask the owner: release the hardening work now? (then follow section 4 item 1); answers to the Kanvaz Link decisions in section 5; plugin overview for the paid-plugin API (the Kanvaz Link master spec, now saved as `MASTER_SPEC.md`, may already be that overview; confirm).
 3. Without owner input, safe static work: Kanvaz Link Phase 0 spike scripts (no production code), 3D render mode Phase A design, tag-bar recon plan, CI review.
 4. Before touching git in the Kanvaz repo: `git status`, `git fetch`, pull the remote README commits, stage specific files only.
+
+
+---
+
+## 9. Addendum, later on 2026-09-21: 9.0.0 released, then the next batch
+
+### Release (done)
+`v9.0.0` is published (`gh release view v9.0.0` shows `isDraft:false`, 15 assets, Latest). Commits: `fbb75ae` (hardening), `21954d2` (path-guard platform fix). Lessons worth keeping:
+- **Push `main` before tagging.** CI's validate job caught a real failure that passed on Windows: `path-guard-test.js` ran Windows-path assertions on Linux while the guard used the host `path` module. Pushing without a tag ran validate only, so nothing was half-released.
+- **CI created two draft releases for one tag** (a race despite `max-parallel: 1`): the Windows files landed on one, macOS/Linux on the other. Merge by downloading from the extra draft, uploading to the main one via the uploads API with the release id, verifying sizes and SHA-256 against the `SHA256SUMS-*` files, then deleting the extra draft. Check `gh api repos/p4inz-code/kanvaz/releases` after every tag build.
+- `SHA256SUMS-windows-latest.txt` lists `Kanvaz 9.0.0.exe` (with a space) but GitHub names the asset `Kanvaz-9.0.0.exe`. Hashes are right, names differ.
+- The CI-built portable exe was smoke-tested live before publishing (boot on Electron 44.4.3, sandbox on, IPC guards refuse hostile input, note + 3D card + undo/redo + Map View).
+
+### Work after 9.0.0 (committed locally on `main`, NOT pushed, NOT released)
+`1be161f` 3D modes + Blender export fixes + strip fix; `b76a578` clip picker, stats, Properties refresh; `5f06657` Map labels + no-op undo step; `3cd423c` Shift+L; plus tag-editor changes (see `git log`). Full list in `CHANGELOG.md` "[Unreleased]". Highlights: render modes are a registry (`src/model3d-modes.js`); `.blend` import exports only visible objects of the active scene and retries with WebP textures if too large (`src/blender-export.js`); the 3D hover strip was clipped by `.card{overflow:hidden}` and never showed (found by screenshot, not by DOM checks).
+Tests added: `test/model3d-modes-test.js`, `test/blender-export-test.js`.
+
+### Still open
+Code signing; plugin process isolation and per-channel IPC schemas; licence decision and plugin API v2 (waiting on the owner's plugin overview); more 3D modes (depth, UV checker) and opening the registry to plugins; text-card features; Kanvaz Link (blocked on the owner's decisions in section 5); performance investigation (needs the owner's profiling); pdf/vendor hashes; one unexplained hang of the debug-port test instance seen once (not reproduced).
