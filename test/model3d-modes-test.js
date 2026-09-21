@@ -58,9 +58,18 @@ async function run() {
 
   Modes.applyToScene(THREE, root, 'wireframe', ctx);
   assert.strictEqual(single.material.wireframe, true, 'wireframe is on');
+  assert(single.material.isMeshBasicMaterial, 'wireframe is unlit, so lighting cannot turn lines white or black');
   assert.strictEqual(single.material.color.getHex(), 0xff8800, 'wireframe keeps the colour');
+  assert.strictEqual(single.material.map, tex, 'wireframe keeps the texture');
   assert.strictEqual(single.material.opacity, 0.35, 'wireframe keeps the opacity');
   assert.strictEqual(glass.wireframe, false, 'the ORIGINAL material is never mutated');
+  var darkMat = new THREE.MeshStandardMaterial({ color: 0x101010 });
+  var droot = sceneWith(THREE, [darkMat]);
+  Modes.applyToScene(THREE, droot, 'wireframe', ctx);
+  var dh = { h: 0, s: 0, l: 0 };
+  droot.children[0].material.color.getHSL(dh);
+  assert(dh.l >= 0.49, 'a near-black colour is lifted so its lines are visible on the dark board');
+  assert.strictEqual(darkMat.color.getHex(), 0x101010, 'and the original stays as it was');
   console.log('  ✓ wireframe keeps colour/opacity and leaves the original material alone');
 
   Modes.applyToScene(THREE, root, 'normals', ctx);

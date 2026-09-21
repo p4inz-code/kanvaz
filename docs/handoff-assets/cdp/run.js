@@ -8,7 +8,7 @@ var WebSocket = require('F:/OBL/Kanvaz/node_modules/ws');
 
 function targets() {
   return new Promise(function(res, rej) {
-    http.get('http://127.0.0.1:9333/json', function(r) {
+    http.get('http://127.0.0.1:' + (process.env.CDP_PORT || 9333) + '/json', function(r) {
       var d = ''; r.on('data', function(c) { d += c; }); r.on('end', function() { res(JSON.parse(d)); });
     }).on('error', rej);
   });

@@ -1287,7 +1287,7 @@ var KanvazCards = (function() {
        with it — you don't want a big image preview's remembered size
        forcing a plain-icon .zip card to also default huge, or vice
        versa. */
-    var isPreviewable = isPdfPath(p) || isImagePath(p) || isTextPreviewPath(p);
+    var isPreviewable = isPdfPath(p) || isImagePath(p) || isTextPreviewPath(p) || isAdobePath(p);
     var size = isPreviewable ? sizeFor('file-preview', 340, 260) : sizeFor('file', 220, 90);
     var card = {
       id:       id,
@@ -2746,6 +2746,36 @@ var KanvazCards = (function() {
 
   /* ── Color swatch card ── */
 
+  /* WCAG 2 relative luminance / contrast ratio of two #rrggbb colours.
+     Anything that does not parse counts as black. */
+  function relLuminance(hex) {
+    var m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ''));
+    var n = m ? parseInt(m[1], 16) : 0;
+    var ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(function(v) {
+      v /= 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+  }
+  function contrastRatio(a, b) {
+    var la = relLuminance(a), lb = relLuminance(b);
+    return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+  }
+  function fillContrastChip(chip, word, ratio) {
+    var grade = ratio >= 7 ? 'AAA' : ratio >= 4.5 ? 'AA' : ratio >= 3 ? 'AA large text only' : 'fails WCAG';
+    chip.textContent = '';
+    var aa = document.createElement('span');
+    aa.className = 'contrast-aa';
+    aa.textContent = 'Aa';
+    var num = document.createElement('span');
+    num.className = 'contrast-num';
+    num.textContent = (Math.round(ratio * 10) / 10).toFixed(1);
+    chip.appendChild(aa);
+    chip.appendChild(num);
+    chip.classList.toggle('contrast-fail', ratio < 3);
+    chip.title = word + ' text on this colour: ' + (Math.round(ratio * 10) / 10) + ':1 (' + grade + ')';
+  }
+
   function buildColorCard(el, card) {
     var hex = card.color || '#9D7FFF';
     var format = card.colorFormat || 'hex'; /* 'hex' | 'rgb' | 'hsl' */
@@ -2754,12 +2784,25 @@ var KanvazCards = (function() {
     swatch.className = 'color-swatch';
     swatch.style.background = hex;
 
-    /* Contrast checker — white/black "Aa" samples so the user can judge
-       text-on-swatch legibility at a glance without leaving the canvas. */
+    /* Contrast checker — white and black "Aa" samples with their real WCAG
+       contrast ratio against this colour, so text-on-swatch legibility is a
+       number, not a guess. It used to be two unlabelled samples at 30% opacity
+       that looked like leftover UI. Updated by applyColorVisual(). */
     var contrast = document.createElement('div');
     contrast.className = 'color-contrast';
-    contrast.innerHTML = '<span class="contrast-white">Aa</span><span class="contrast-black">Aa</span>';
+    var cWhite = document.createElement('span');
+    cWhite.className = 'contrast-white';
+    var cBlack = document.createElement('span');
+    cBlack.className = 'contrast-black';
+    contrast.appendChild(cWhite);
+    contrast.appendChild(cBlack);
     swatch.appendChild(contrast);
+    function paintContrast(color) {
+      var w = contrastRatio(color, '#ffffff'), b = contrastRatio(color, '#000000');
+      fillContrastChip(cWhite, 'White', w);
+      fillContrastChip(cBlack, 'Black', b);
+    }
+    paintContrast(hex);
 
     var labelRow = document.createElement('div');
     labelRow.className = 'color-label-row';
@@ -2792,6 +2835,7 @@ var KanvazCards = (function() {
     function applyColorVisual(newColor) {
       hex = newColor;
       swatch.style.background = newColor;
+      paintContrast(newColor);
       label.textContent = formatColorString(hex, format);
       var barName = el.querySelector('.card-bar-title');
       if (barName) barName.textContent = newColor;
@@ -3120,6 +3164,14 @@ var KanvazCards = (function() {
     return /\.(jpe?g|png|gif|bmp|webp)$/i.test((p || '').trim());
   }
 
+  /* Adobe files that get a real in-card preview: Photoshop (PSD/PSB), Illustrator
+     (AI), XD, InDesign, and Fresco (which explains how to export, since Fresco
+     cannot save its own files locally). main.js's adobe-preview decides what
+     can actually be drawn. */
+  function isAdobePath(p) {
+    return /\.(psd|psb|ai|xd|indd|indt|fresco)$/i.test((p || '').trim());
+  }
+
   /* Text-like files that get a rendered in-card preview (main.js's
      text-read-preview holds the authoritative allowlist and refuses the
      rest — this only decides whether to TRY). */
@@ -3353,6 +3405,61 @@ var KanvazCards = (function() {
     });
   }
 
+  /* In-card preview for an Adobe file. The picture comes from main.js
+     (adobe-preview: PSD/PSB composite decoded and downscaled to at most 3072px
+     so it stays sharp when the card is enlarged; XD renditions; embedded
+     thumbnails). A PDF-compatible .ai is handed to the PDF viewer instead. When
+     no preview is possible the reason is shown in the card, not a blank. */
+  function buildAdobePreview(el, card) {
+    var wrap = document.createElement('div');
+    wrap.className = 'file-image-preview';
+
+    var statusEl = document.createElement('div');
+    statusEl.className = 'pdf-status';
+    statusEl.textContent = 'Loading preview…';
+    wrap.appendChild(statusEl);
+
+    var img = document.createElement('img');
+    img.style.display = 'none';
+    img.draggable = false;
+    wrap.appendChild(img);
+
+    var noteEl = document.createElement('div');
+    noteEl.className = 'file-preview-note';
+    noteEl.style.display = 'none';
+    wrap.appendChild(noteEl);
+
+    el.appendChild(wrap);
+
+    if (typeof KanvazBridge === 'undefined' || !KanvazBridge.adobePreview) return;
+    KanvazBridge.adobePreview(card.path).then(function(res) {
+      if (!document.body.contains(el)) return; /* card deleted while loading */
+      if (res && res.ok && res.kind === 'pdf') {
+        wrap.remove();
+        buildPdfPreview(el, card);
+        return;
+      }
+      if (!res || !res.ok || !res.dataUrl) {
+        statusEl.textContent = (res && res.reason) || 'No preview available for this file.';
+        statusEl.classList.add('file-preview-reason');
+        return;
+      }
+      img.src = res.dataUrl;
+      img.onload = function() {
+        statusEl.style.display = 'none';
+        img.style.display = '';
+        var bits = [];
+        if (res.srcWidth && res.srcHeight) bits.push(res.srcWidth + ' × ' + res.srcHeight + ' px');
+        if (res.note) bits.push(res.note);
+        if (bits.length) { noteEl.textContent = bits.join(' · '); noteEl.title = noteEl.textContent; noteEl.style.display = ''; }
+      };
+      img.onerror = function() { statusEl.textContent = 'Could not show the preview image'; };
+    }).catch(function(e) {
+      if (!document.body.contains(el)) return;
+      statusEl.textContent = 'Could not preview this file: ' + e.message;
+    });
+  }
+
   /* Rendered text preview for a file-ref card ("text files must come in a
      side window in the canvas with text rendered"). Same contract as the
      PDF/image previews: read fresh per render, never persisted onto the
@@ -3428,6 +3535,9 @@ var KanvazCards = (function() {
     } else if (isTextPreviewPath(card.path)) {
       el.classList.add('has-file-preview');
       buildTextFilePreview(el, card);
+    } else if (isAdobePath(card.path)) {
+      el.classList.add('has-file-preview');
+      buildAdobePreview(el, card);
     }
 
     var body = document.createElement('div');
@@ -3504,6 +3614,10 @@ var KanvazCards = (function() {
           if (existingPreview) existingPreview.remove();
           el.classList.add('has-file-preview');
           buildTextFilePreview(el, card);
+        } else if (isAdobePath(card.path)) {
+          if (existingPreview) existingPreview.remove();
+          el.classList.add('has-file-preview');
+          buildAdobePreview(el, card);
         } else if (existingPreview) {
           el.classList.remove('has-file-preview');
           existingPreview.remove();
@@ -4292,7 +4406,9 @@ var KanvazCards = (function() {
         animScrub.appendChild(animPlayBtn);
         animScrub.appendChild(animTrack);
         animScrub.appendChild(animTimeEl);
-        el.appendChild(animScrub);
+        /* In the hover strip under the card, not over the viewport (see the
+           .model3d-anim-scrub rule in main.css). */
+        toolbar.appendChild(animScrub);
       }
 
       function updateAnimUI() {
@@ -6667,6 +6783,7 @@ var KanvazCards = (function() {
     createFileRefCardAtPath: createFileRefCardAtPath,
     isTextPreviewPath: isTextPreviewPath,
     isPdfPath: isPdfPath,
+    isAdobePath: isAdobePath,
     createPluginCard: createPluginCard,
     generateTestCards: generateTestCards,
     selectCard:        selectCard,
