@@ -180,6 +180,36 @@ if (fs.existsSync(path.join(__dirname, 'blender-detect-test.js'))) {
   console.log('  (skipped — test/blender-detect-test.js missing)');
 }
 
+/* 5f. Blender export script — hidden objects / extra scenes excluded, alpha kept (real Blender if installed) */
+section('5f. Blender export script');
+if (fs.existsSync(path.join(__dirname, 'blender-export-test.js'))) {
+  try {
+    var beOut = cp.execSync('node "' + path.join(__dirname, 'blender-export-test.js') + '"', { encoding: 'utf8', timeout: 240000 });
+    if (/ALL BLENDER EXPORT TESTS PASSED/.test(beOut)) ok(/skipped/.test(beOut) ? 'script text checked (no Blender here, real-export part skipped)' : 'real Blender: hidden object and other scenes left out, alpha kept');
+    else { bad('blender export test failed'); console.log(beOut); }
+  } catch (e) {
+    bad('blender export test crashed');
+    console.log(e.stdout || e.message);
+  }
+} else {
+  console.log('  (skipped — test/blender-export-test.js missing)');
+}
+
+/* 5g. 3D render modes — colour/opacity/sidedness survive every mode (real Three.js) */
+section('5g. 3D render modes');
+if (fs.existsSync(path.join(__dirname, 'model3d-modes-test.js'))) {
+  try {
+    var mmOut = cp.execSync('node "' + path.join(__dirname, 'model3d-modes-test.js') + '"', { encoding: 'utf8', timeout: 60000 });
+    if (/ALL MODEL3D MODES TESTS PASSED/.test(mmOut)) ok('Shaded/Normals/Matcap/Wireframe/Albedo/Alpha keep colour, opacity and sidedness; original materials untouched');
+    else { bad('model3d modes test failed'); console.log(mmOut); }
+  } catch (e) {
+    bad('model3d modes test crashed');
+    console.log(e.stdout || e.message);
+  }
+} else {
+  console.log('  (skipped — test/model3d-modes-test.js missing)');
+}
+
 /* 6. Command registry — registration validation, palette filtering, fuzzy match */
 section('6. Command registry');
 if (fs.existsSync(path.join(__dirname, 'command-registry-test.js'))) {

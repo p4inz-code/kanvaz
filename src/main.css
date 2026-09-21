@@ -2405,7 +2405,7 @@ body.presentation-mode-active #side-panel {
   right: 0;
   top: 100%;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 6px;
   padding: 6px 8px;
   background: var(--color-chrome);
@@ -2421,8 +2421,28 @@ body.presentation-mode-active #side-panel {
   pointer-events: auto;
 }
 
+/* The render-mode strip sits BELOW the card (top:100%), but .card is
+   overflow:hidden, so it was clipped away entirely: the hover strip never
+   actually showed. Found 2026-09-21 by taking a real screenshot (a DOM
+   check said the strip was "visible, opacity 1"). 3D cards now overflow,
+   and the children that relied on the card's clipping round their own
+   corners instead. */
+.card.card-model3d {
+  overflow: visible;
+}
+
+.card-model3d .model3d-viewport {
+  border-radius: calc(var(--radius-card) - 1px);
+  overflow: hidden;
+}
+
+.card-model3d .card-bar {
+  border-radius: 0 0 calc(var(--radius-card) - 1px) calc(var(--radius-card) - 1px);
+}
+
 .model3d-mode-group {
   display: flex;
+  flex-wrap: wrap; /* six modes: wrap on a narrow card rather than overflow it */
   gap: 4px;
   flex: 1;
   min-width: 0;

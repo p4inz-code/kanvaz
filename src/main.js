@@ -21,6 +21,7 @@ var pluginLoader = require('./plugin-loader');
 var kanvazProfiles = require('./profiles');
 var netGuard = require('./net-guard');
 var blenderDetect = require('./blender-detect');
+var blenderExport = require('./blender-export');
 var pathGuard = require('./path-guard');
 var mcpAuth = require('./mcp-auth');
 var crashLog = require('./crash-log');
@@ -1168,9 +1169,10 @@ function registerIPC() {
      crosses IPC as base64 (the input cap alone didn't bound that). It
      must come BEFORE --python-expr on Blender's command line. */
   var BLENDER_CONVERT_TIMEOUT_MS = 180000;
-  function convertBlendToGlb(blenderExe, blendPath, outputGlbPath) {
+  function convertBlendToGlb(blenderExe, blendPath, outputGlbPath, exportOpts) {
     return new Promise(function(resolve, reject) {
-      var pyScript = 'import bpy, sys; bpy.ops.export_scene.gltf(filepath=sys.argv[-1], export_format="GLB")';
+      /* Script text and its reasoning live in blender-export.js. */
+      var pyScript = blenderExport.buildExportScript(exportOpts);
       /* --disable-autoexec: a dropped .blend is untrusted, and Blender's own
          "Auto Run Python Scripts" preference (on for many VFX users) would
          otherwise run drivers/text-blocks embedded in it. --factory-startup
@@ -1248,7 +1250,13 @@ function registerIPC() {
         app.getPath('temp'),
         'kanvaz-external-' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.glb'
       );
-      return convertBlendToGlb(blenderExe, filePath, outputGlbPath).then(function() {
+      /* A photo-textured scene can export a GLB over the size limit almost
+         entirely because of PNG textures. Retry once with WebP textures
+         (alpha survives) before giving up on the preview. */
+      return convertBlendToGlb(blenderExe, filePath, outputGlbPath).catch(function(e) {
+        if (!(e && e.code === 'OUTPUT_TOO_LARGE')) throw e;
+        return convertBlendToGlb(blenderExe, filePath, outputGlbPath, { smallTextures: true });
+      }).then(function() {
         return fs.promises.readFile(outputGlbPath).then(function(data) {
           return fs.promises.unlink(outputGlbPath).catch(function() {}).then(function() {
             return {

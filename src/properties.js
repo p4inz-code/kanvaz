@@ -771,20 +771,21 @@ var KanvazProperties = (function() {
     body.appendChild(title);
 
     var modeRow = document.createElement('div');
-    modeRow.style.cssText = 'display:flex;gap:6px;margin-bottom:10px;';
-    var modes = [['normal', 'Normal'], ['wireframe', 'Wireframe'], ['matcap', 'Matcap']];
+    modeRow.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;';
+    var modes = KanvazCards.getRenderModes();
     for (var i = 0; i < modes.length; i++) {
-      (function(modeKey, modeLabel) {
+      (function(modeKey, modeLabel, modeTitle) {
         var isOn = (card.renderMode || 'normal') === modeKey;
         var btn = document.createElement('button');
         btn.textContent = modeLabel;
+        btn.title = modeTitle;
         btn.style.cssText = 'flex:1;padding:5px 4px;background:' + (isOn ? 'var(--color-accent-bg)' : 'var(--color-surface-2)') + ';border:1px solid ' + (isOn ? 'var(--color-accent)' : 'var(--color-border-2)') + ';border-radius:5px;color:' + (isOn ? 'var(--color-accent)' : 'var(--color-text-2)') + ';font-family:var(--font-ui);font-size:11px;cursor:pointer;';
         btn.onclick = function() {
           controls.setRenderMode(modeKey);
           if (panelEl) renderInto(panelEl);
         };
         modeRow.appendChild(btn);
-      })(modes[i][0], modes[i][1]);
+      })(modes[i][0], modes[i][1], modes[i][2]);
     }
     body.appendChild(modeRow);
 
