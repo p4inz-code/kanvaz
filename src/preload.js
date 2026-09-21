@@ -39,7 +39,10 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
   openRefFileDialog: function(ext) { return ipcRenderer.invoke('dialog-open-ref-file', ext); },
   readPdfBytes: function(filePath) { return ipcRenderer.invoke('pdf-read-bytes', filePath); },
   readTextPreview: function(filePath) { return ipcRenderer.invoke('text-read-preview', filePath); },
-  adobePreview:   function(filePath) { return ipcRenderer.invoke('adobe-preview', filePath); },
+  adobePreview:   function(filePath, quality) { return ipcRenderer.invoke('adobe-preview', filePath, quality); },
+  blenderStatus:  function() { return ipcRenderer.invoke('blender-status'); },
+  blenderChoose:  function() { return ipcRenderer.invoke('blender-choose'); },
+  blenderClear:   function() { return ipcRenderer.invoke('blender-clear'); },
   getPathForFile:  function(file) {
     try {
       if (webUtils && typeof webUtils.getPathForFile === 'function') return webUtils.getPathForFile(file) || '';

@@ -7,6 +7,36 @@ All notable changes to Kanvaz are documented here.
 *Committed locally after 9.0.0, not released. Checked against the running app
 (Electron 44 dev run, scratch profile) with a real `.blend` built for the purpose.*
 
+### Added (later the same day)
+- **Adobe previews in file cards** (`src/adobe-preview.js`, tested with PSD/PSB/XD files built to the
+  published layout; Photoshop itself was not available to write test files):
+  **PSD and PSB** show the full flattened image, decoded straight from the file (raw or RLE, 8 and 16 bit,
+  RGB, grayscale, indexed and CMYK, transparency only when the file says the merged image has it), streamed
+  and averaged down to at most 3072 px so a huge file never loads into memory. A file saved without
+  "Maximize Compatibility" has no flattened image, so its small embedded thumbnail is shown with a plain
+  explanation. **AI** files that are PDF-compatible (Illustrator's default) use the PDF viewer, others their
+  embedded thumbnail. **XD** shows its largest rendition. **InDesign** shows its embedded thumbnail.
+  **Fresco** keeps its native files in Creative Cloud and cannot save them locally, so the card says how to
+  export PSD or PDF from Fresco instead. CMYK is shown with a plain conversion (no colour profile), and says so.
+- **Kanvaz Link connector** (the Kanvaz side of the Blender add-on; nothing on the Blender side exists yet):
+  a local listener (named pipe / Unix socket, no network) with a per-start token, a proof so the add-on can
+  tell it is the real app, four methods only, a private drop folder, and a native permission prompt the first
+  time a program asks (default answer: don't allow). The renderer never receives a file path. Tested over a
+  real pipe with hostile clients; the first delivery inside the running app has not been exercised yet.
+
+### Fixed (later the same day)
+- **3D card:** the animation play bar was a translucent band over the bottom of the viewport, hiding part
+  of the model and the card name, with its time text cut off. It now lives in the hover strip under the card.
+- **Wireframe** was a lit copy of the material, so lines came out white or black whatever the colour. It is now
+  unlit and keeps the material's colour or texture (very dark colours are lifted so they show on the dark board).
+- **Colour card "Aa" chips** were two unlabelled samples at 30% opacity. They now show the real WCAG contrast
+  ratio of white and black text on that colour, update when the colour changes, and explain themselves on hover.
+- **PDF preview** opened at 1 CSS pixel per PDF point (only the top-left corner of a large page) and drew at
+  1x on high-DPI screens. It now fits the page to the card width and draws at the screen's pixel density.
+- **File cards with a preview (PDF, image, text, Adobe): the "Open with default app" and "Change file"
+  buttons were hidden underneath the card's name bar and could not be clicked.** Found with a real hit test.
+  They are now a small control in the preview's top-right corner, shown on hover or when selected.
+
 ### Fixed
 - **The 3D hover strip (render modes, background, reset) never showed.** It is drawn
   below the card, but cards clip their contents, so it was cut off. A DOM check said

@@ -648,7 +648,13 @@ function createWindow(hasStartupFile) {
     height: 800,
     minWidth: 320,
     minHeight: 240,
-    frame: false,
+    /* Windows / Linux: our own frameless titlebar with its own buttons.
+       macOS: the native traffic lights, inset into our titlebar (the custom
+       buttons are hidden by CSS, see .platform-mac). A Mac window without them
+       has no familiar way to close, minimise or go full screen. */
+    frame: process.platform === 'darwin',
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : undefined,
+    trafficLightPosition: process.platform === 'darwin' ? { x: 14, y: 11 } : undefined,
     transparent: false,
     backgroundColor: '#0E0E10',
     show: false,
@@ -1093,13 +1099,30 @@ function registerIPC() {
      only validates the path and turns the result into something the renderer
      can show. Reads the file fresh each time and stores nothing. */
   var ADOBE_MAX_OUT_BYTES = 90 * 1024 * 1024;
-  ipcMain.handle('adobe-preview', function(event, filePath) {
+  /* Preview quality (Settings): the longest side of a PSD/PSB preview. */
+  function adobeMaxSide(q) { return q === 'low' ? 1536 : (q === 'high' ? 6144 : 3072); }
+  var ADOBE_WORKER_MS = 25000;
+  function runAdobeWorker(filePath, maxSide) {
+    return new Promise(function(resolve) {
+      var w;
+      var done = false;
+      function finish(v) { if (done) return; done = true; clearTimeout(timer); try { w.terminate(); } catch (e) { /* gone */ } resolve(v); }
+      try {
+        w = new Worker(path.join(__dirname, 'adobe-worker.js'), { workerData: { filePath: filePath, maxSide: maxSide }, resourceLimits: { maxOldGenerationSizeMb: 1536 } });
+      } catch (e) { resolve({ ok: false, reason: 'could not start the preview: ' + e.message }); return; }
+      var timer = setTimeout(function() { finish({ ok: false, reason: 'This file took too long to preview, so it was stopped.' }); }, ADOBE_WORKER_MS);
+      w.on('message', function(m) { finish(m); });
+      w.on('error', function(e) { finish({ ok: false, reason: 'the preview failed: ' + (e && e.message || e) }); });
+      w.on('exit', function() { finish({ ok: false, reason: 'the preview stopped unexpectedly' }); });
+    });
+  }
+  ipcMain.handle('adobe-preview', function(event, filePath, quality) {
     var nonLocal = rejectNonLocal(filePath);
     if (nonLocal) return Promise.resolve(nonLocal);
     if (typeof filePath !== 'string' || !filePath) return Promise.resolve({ ok: false, reason: 'invalid path' });
     var aext = path.extname(filePath).toLowerCase().replace('.', '');
     if (adobePreview.EXTENSIONS.indexOf(aext) === -1) return Promise.resolve({ ok: false, reason: 'not an Adobe file type Kanvaz previews' });
-    return adobePreview.previewFile(filePath).then(function(r) {
+    return runAdobeWorker(filePath, adobeMaxSide(quality)).then(function(r) {
       if (!r || !r.ok) return { ok: false, reason: (r && r.reason) || 'no preview' };
       if (r.kind === 'pdf') return { ok: true, kind: 'pdf' };
       if (r.bytes.length > ADOBE_MAX_OUT_BYTES) return { ok: false, reason: 'the preview image is too large' };
@@ -1222,15 +1245,59 @@ function registerIPC() {
      it installed. The result is cached (the lookup can spawn `reg`), and
      re-validated so an uninstall/move is noticed. Returns null when not
      found; the caller reports EXTERNAL_TOOL_NOT_FOUND directly. */
+  /* Where the user pointed Kanvaz at Blender (Settings > Blender > Choose...).
+     Wins over every automatic guess, so a Blender in any folder, on any
+     drive, works and is remembered. Stored in <userData>/blender.json. */
+  function blenderConfigPath() { return path.join(app.getPath('userData'), 'blender.json'); }
+  function readBlenderChoice() {
+    try {
+      var j = JSON.parse(fs.readFileSync(blenderConfigPath(), 'utf8'));
+      return (j && typeof j.path === 'string') ? j.path : null;
+    } catch (e) { return null; }
+  }
+  function writeBlenderChoice(p) {
+    try {
+      if (p) fs.writeFileSync(blenderConfigPath(), JSON.stringify({ path: p }), 'utf8');
+      else fs.unlinkSync(blenderConfigPath());
+    } catch (e) { /* nothing to remove, or not writable: detection still works */ }
+  }
   var blenderExeCache = null;
   function findBlenderExecutable() {
     if (blenderExeCache) {
       try { if (fs.statSync(blenderExeCache).isFile()) return blenderExeCache; } catch (e) { /* moved/uninstalled — re-detect below */ }
       blenderExeCache = null;
     }
-    blenderExeCache = blenderDetect.findBlenderExecutable(null);
+    blenderExeCache = blenderDetect.findBlenderExecutable(readBlenderChoice());
     return blenderExeCache;
   }
+
+  /* Settings: what Kanvaz is using, choose another, or go back to auto-detect. */
+  ipcMain.handle('blender-status', function() {
+    var chosen = readBlenderChoice();
+    var exe = findBlenderExecutable();
+    if (!exe) return { ok: true, found: false, custom: !!chosen, chosenMissing: !!chosen };
+    return { ok: true, found: true, path: exe, version: blenderDetect.blenderVersion(exe), custom: !!chosen && exe === chosen };
+  });
+  ipcMain.handle('blender-choose', function() {
+    var opts = { title: 'Choose the Blender program', properties: ['openFile'] };
+    if (process.platform === 'win32') opts.filters = [{ name: 'Blender', extensions: ['exe'] }];
+    return dialog.showOpenDialog(mainWindow, opts).then(function(r) {
+      if (r.canceled || !r.filePaths || !r.filePaths[0]) return { ok: false, canceled: true };
+      var p = r.filePaths[0];
+      if (process.platform === 'darwin' && /\.app$/i.test(p)) p = path.join(p, 'Contents', 'MacOS', 'Blender');
+      var v = blenderDetect.blenderVersion(p);
+      if (!v) return { ok: false, error: 'That does not look like Blender: it did not answer "--version". Choose blender.exe (not the launcher or an add-on).' };
+      writeBlenderChoice(p);
+      blenderExeCache = null;
+      return { ok: true, path: p, version: v };
+    });
+  });
+  ipcMain.handle('blender-clear', function() {
+    writeBlenderChoice(null);
+    blenderExeCache = null;
+    var exe = findBlenderExecutable();
+    return { ok: true, found: !!exe, path: exe || null, version: exe ? blenderDetect.blenderVersion(exe) : null };
+  });
 
   /* Blender's own CLI convention: opening a .blend path as the first
      argument loads it; --background runs headless (no window); a

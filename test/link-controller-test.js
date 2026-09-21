@@ -98,7 +98,7 @@ async function run() {
   await until(function() { return f.dialogs.length === 1; }, 'consent dialog');
   assert(/Kanvaz Link for Blender/.test(f.dialogs[0].message), 'the dialog names the program');
   assert.strictEqual(f.dialogs[0].defaultId, 2, 'the default button is "Don\'t allow"');
-  await until(function() { return ctl._config().consent['Kanvaz Link for Blender'] === 'granted'; }, 'consent stored');
+  await until(function() { return ctl._config().consent['kanvaz link for blender'] === 'granted'; }, 'consent stored');
   assert(fs.existsSync(path.join(dir, 'link-config.json')), 'consent persisted to disk');
   var h2 = await c.send({ token: info.token, id: 2, method: 'hello', nonce: nonce, client: { name: 'Kanvaz Link for Blender' } });
   assert.strictEqual(h2.consent, 'granted');
@@ -170,7 +170,7 @@ async function run() {
   /* foreign sender cannot use the settings channels */
   assert.strictEqual((await f.handlers['link-get-status'](f.fromOther)).ok, false, 'status is for the app window only');
   var stt = await f.handlers['link-get-status'](f.fromWin);
-  assert(stt.ok && stt.running && stt.clients[0].name === 'Kanvaz Link for Blender' && stt.clients[0].state === 'granted');
+  assert(stt.ok && stt.running && stt.clients[0].name === 'kanvaz link for blender' && stt.clients[0].state === 'granted');
   var fg = await f.handlers['link-forget-consent'](f.fromWin, 'Kanvaz Link for Blender');
   assert.deepStrictEqual(fg.clients, [], 'forget removes the remembered answer');
   var h3 = await c.send({ token: info.token, id: 30, method: 'hello', nonce: nonce, client: { name: 'Kanvaz Link for Blender' } });
@@ -201,7 +201,7 @@ async function run() {
   await until(function() { return f2.dialogs.length === 1; }, 'dialog');
   await sleep(100);
   assert.strictEqual((await c2.send({ token: i2.token, id: 2, method: 'hello', nonce: nonce, client: { name: 'Session Tool' } })).consent, 'granted', 'allowed for the session');
-  assert.strictEqual(fs.existsSync(path.join(dir2, 'link-config.json')) && JSON.parse(fs.readFileSync(path.join(dir2, 'link-config.json'), 'utf8')).consent['Session Tool'], false, 'a session-only answer is never written to disk');
+  assert.strictEqual(fs.existsSync(path.join(dir2, 'link-config.json')) && JSON.parse(fs.readFileSync(path.join(dir2, 'link-config.json'), 'utf8')).consent['session tool'], false, 'a session-only answer is never written to disk');
   c2.close();
   await new Promise(function(res) { ctl2.stop(res); });
 
@@ -221,7 +221,7 @@ async function run() {
   c3.close();
   await new Promise(function(res) { ctl3.stop(res); });
   var ctl3b = lc.createLinkController({ dataDir: dir3, appVersion: '9', dialog: f3.dialog, ipcMain: fakes(2).ipcMain, log: function() {} });
-  assert.strictEqual(ctl3b._config().consent['Nope'], 'denied', 'a denial survives a restart');
+  assert.strictEqual(ctl3b._config().consent['nope'], 'denied', 'a denial survives a restart');
   console.log('  ✓ "this session only" is not persisted; "don\'t allow" blocks delivery and survives a restart');
 
   /* window reload */
@@ -233,7 +233,7 @@ async function run() {
   var i4 = discovery(dir4);
   var c4 = await connect(i4.endpoint);
   await c4.send({ token: i4.token, id: 1, method: 'hello', nonce: nonce, client: { name: 'T' } });
-  await until(function() { return ctl4._config().consent['T'] === 'granted'; }, 'consent');
+  await until(function() { return ctl4._config().consent['t'] === 'granted'; }, 'consent');
   var fp4 = path.join(ctl4.dropDir, 'r.glb'); fs.writeFileSync(fp4, 'abcd');
   await c4.send({ token: i4.token, id: 2, method: 'deliver', client: { name: 'T' }, path: fp4, format: 'glb', sizeBytes: 4 });
   await sleep(150);
