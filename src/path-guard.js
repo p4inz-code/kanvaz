@@ -50,18 +50,25 @@ function isString(p) { return typeof p === 'string' && p.length > 0 && p.indexOf
    starting with two separators, plus relative paths. A mapped network drive
    letter (Z:\) can't be told apart from a local one here; that residual case
    is accepted. */
-function isLocalAbsolutePath(p) {
+/* The platform argument lets the tests check Windows-style paths on any host;
+   with no argument the host's own path rules apply. */
+function pathFor(platform) {
+  return platform === 'win32' ? path.win32 : (platform ? path.posix : path);
+}
+
+function isLocalAbsolutePath(p, platform) {
   if (!isString(p)) return false;
   if (/^[\\/]{2}/.test(p)) return false;
-  return path.isAbsolute(p);
+  return pathFor(platform).isAbsolute(p);
 }
 
 /* Windows silently drops trailing dots and spaces from a file name, so
    "x.hta." and "x.hta " open as x.hta. Strip them before reading the
    extension, or they would slip past the blocklist. */
-function extOf(p) {
-  var base = path.basename(String(p)).replace(/[. ]+$/, '');
-  var e = path.extname(base).toLowerCase();
+function extOf(p, platform) {
+  var pm = pathFor(platform);
+  var base = pm.basename(String(p)).replace(/[. ]+$/, '');
+  var e = pm.extname(base).toLowerCase();
   return e ? e.slice(1) : '';
 }
 
@@ -69,14 +76,14 @@ function extOf(p) {
 function checkOpenable(p, platform) {
   platform = platform || process.platform;
   if (!isString(p)) return { ok: false, reason: 'Invalid path' };
-  if (!isLocalAbsolutePath(p)) return { ok: false, reason: 'Only local files can be opened from Kanvaz.' };
+  if (!isLocalAbsolutePath(p, platform)) return { ok: false, reason: 'Only local files can be opened from Kanvaz.' };
   /* NTFS alternate data streams (file.png:evil.exe, file.hta::$DATA) name a
      different payload than the visible extension; a colon anywhere past the
      drive letter is never a legitimate reference. */
   if (platform === 'win32' && p.indexOf(':', 2) !== -1) {
     return { ok: false, reason: 'Kanvaz won\'t open paths containing alternate data streams.' };
   }
-  var ext = extOf(p);
+  var ext = extOf(p, platform);
   if (ext && UNSAFE_OPEN_EXTENSIONS.indexOf(ext) !== -1) {
     return { ok: false, reason: 'Kanvaz won\'t open ' + ext.toUpperCase() + ' files directly for safety — open it from your file manager if you trust the source.' };
   }
