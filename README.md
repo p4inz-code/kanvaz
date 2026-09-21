@@ -343,7 +343,9 @@ I make these tools on my own and keep them free. If one helped you, you can chip
 
 On your phone? [Open the donation page](https://p4inz-code.github.io/donate/).
 
-Prefer a card? [Buy me a coffee](https://buymeacoffee.com/p4inz).
+Outside India, or prefer a card?
+
+<a href="https://buymeacoffee.com/p4inz"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-p4inz-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black" alt="Buy me a coffee"></a>
 
 </div>
 <!-- SUPPORT-BLOCK:END -->
