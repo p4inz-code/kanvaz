@@ -2657,7 +2657,14 @@ var KanvazCards = (function() {
       }
     });
 
+    /* Push an undo step only when the text actually changed. Every blur
+       used to push, so clicking into a note and back out left an identical
+       extra step and the first Ctrl+Z appeared to do nothing. */
+    var noteTextAtFocus = ta.value;
+    ta.addEventListener('focus', function() { noteTextAtFocus = ta.value; });
     ta.addEventListener('blur', function() {
+      if (ta.value === noteTextAtFocus) return;
+      noteTextAtFocus = ta.value;
       KanvazHistory.push();
       emitCardEvent('cardUpdate', card);
     });
@@ -2702,8 +2709,12 @@ var KanvazCards = (function() {
       KanvazApp.markDirty();
     });
 
+    var labelTextAtFocus = ta.value;
+    ta.addEventListener('focus', function() { labelTextAtFocus = ta.value; });
     ta.addEventListener('blur', function() {
       ta.readOnly = true;
+      if (ta.value === labelTextAtFocus) return; /* nothing changed, no undo step */
+      labelTextAtFocus = ta.value;
       KanvazHistory.push();
       emitCardEvent('cardUpdate', card);
     });

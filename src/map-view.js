@@ -1766,6 +1766,25 @@ var KanvazMapView = (function() {
      BEZIER TUBE LINES
      ══════════════════════════════════════════ */
 
+  /* First y (trying 0, +14, -14, +28, -28 ... from the wanted one) where a
+     label of width w centred on x does not overlap one already placed. Falls
+     back to the wanted y after 12 tries rather than drifting far from its
+     line. Records the chosen spot in `placed`. */
+  function placeLabelY(x, y, w, placed) {
+    var h = 14; /* a 9.5px SVG text box is about 13 units tall */
+    for (var n = 0; n < 12; n++) {
+      var off = n === 0 ? 0 : ((n % 2) ? Math.ceil(n / 2) * h : -Math.ceil(n / 2) * h);
+      var cy = y + off;
+      var clash = false;
+      for (var i = 0; i < placed.length; i++) {
+        if (Math.abs(placed[i].x - x) < (placed[i].w + w) / 2 + 2 && Math.abs(placed[i].y - cy) < h) { clash = true; break; }
+      }
+      if (!clash) { placed.push({ x: x, y: cy, w: w }); return cy; }
+    }
+    placed.push({ x: x, y: y, w: w });
+    return y;
+  }
+
   function renderLines(isFirstOpen) {
     if (!svg) return;
 
@@ -1776,6 +1795,7 @@ var KanvazMapView = (function() {
 
     var conns = KanvazConnections.serialise();
     var cards = KanvazCards.getAll();
+    var placedLabels = [];
 
     for (var j = 0; j < conns.length; j++) {
       var conn = conns[j];
@@ -1869,9 +1889,17 @@ var KanvazMapView = (function() {
       dotIn.dataset.baseFillOpacity = '0.9';
       svg.appendChild(dotIn);
 
-      /* Label at bezier midpoint */
+      /* Label at bezier midpoint, nudged clear of labels already placed
+         (two connections between the same pair, or midpoints that happen
+         to coincide, used to draw their text on top of each other). */
+      var devIds = false;
+      if (typeof KanvazUI_Extended !== 'undefined') {
+        var devS = KanvazUI_Extended.getSettings();
+        devIds = !!(devS && devS.devShowIds);
+      }
+      var labelText = typeLabel(conn.type) + (devIds ? ' [' + conn.id + ']' : '');
       var mx = (op.x + ip.x) / 2;
-      var my = (op.y + ip.y) / 2 - 10;
+      var my = placeLabelY(mx, (op.y + ip.y) / 2 - 10, labelText.length * 5.6 + 4, placedLabels);
       var label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       label.setAttribute('class', 'conn-label');
       label.setAttribute('x', mx);
@@ -1883,12 +1911,7 @@ var KanvazMapView = (function() {
       label.setAttribute('font-weight', '500');
       label.setAttribute('opacity', '0.65');
       label.dataset.baseOpacity = '0.65';
-      var devIds = false;
-      if (typeof KanvazUI_Extended !== 'undefined') {
-        var devS = KanvazUI_Extended.getSettings();
-        devIds = !!(devS && devS.devShowIds);
-      }
-      label.textContent = typeLabel(conn.type) + (devIds ? ' [' + conn.id + ']' : '');
+      label.textContent = labelText;
       svg.appendChild(label);
 
       /* Entrance: tube draws on, halo/dots/label fade in — first open only.
