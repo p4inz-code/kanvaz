@@ -1830,6 +1830,32 @@ body.presentation-mode-active #side-panel {
   object-fit: contain;
 }
 
+/* One-line caption on an Adobe preview: the source size and anything the
+   user should know (thumbnail only, CMYK approximate). Sits inside the
+   preview, never over the name/meta row. */
+.file-preview-note {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 3px 8px;
+  font-size: 10px;
+  color: var(--color-text-2);
+  background: var(--color-chrome);
+  opacity: 0.92;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* A reason (for example Fresco's export advice) is a sentence, not one word. */
+.pdf-status.file-preview-reason {
+  width: 84%;
+  text-align: center;
+  white-space: normal;
+  line-height: 1.45;
+}
+
 /* Text file-ref preview — rendered file contents in a scrollable,
    selectable monospace pane. Content is set via textContent, so it is
    always displayed literally. */
@@ -2091,28 +2117,47 @@ body.presentation-mode-active #side-panel {
   bottom: 6px;
   right: 6px;
   display: flex;
-  gap: 3px;
-  opacity: 0.3;
-  pointer-events: none;
+  gap: 4px;
+  /* pointer-events on so the chips' tooltips (the ratio and its WCAG grade)
+     can show; nothing here is clickable. */
 }
 
-.color-contrast span {
+.color-contrast > span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
   font-family: var(--font-ui);
-  font-size: 11px;
   font-weight: 600;
   line-height: 1;
-  padding: 2px 4px;
-  border-radius: 3px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  cursor: default;
+}
+
+.color-contrast .contrast-aa {
+  font-size: 11px;
+}
+
+.color-contrast .contrast-num {
+  font-size: 9px;
+  font-weight: 500;
+  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
 }
 
 .color-contrast .contrast-white {
   color: #fff;
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(0, 0, 0, 0.28);
 }
 
 .color-contrast .contrast-black {
   color: #000;
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Below 3:1 the sample is not something you should put text in. */
+.color-contrast .contrast-fail {
+  opacity: 0.45;
 }
 
 .card-note .note-body {
@@ -2487,17 +2532,34 @@ body.presentation-mode-active #side-panel {
   flex-shrink: 0;
 }
 
-.model3d-anim-scrub {
-  position: absolute;
-  bottom: 34px;
-  left: 0;
-  right: 0;
-  opacity: 0;
-  transition: opacity 0.15s;
+/* The animation controls used to be a translucent band laid over the bottom
+   of the viewport, 18px into the name/meta row: it hid the lower part of the
+   model and the card name, and its time text was clipped ("0:00 / 0").
+   They now live in the hover strip under the card, as a second row, where
+   they cover nothing. */
+.model3d-toolbar {
+  flex-wrap: wrap;
 }
 
-.card:hover .model3d-anim-scrub {
+.card .model3d-toolbar .model3d-anim-scrub {
+  position: static;
+  flex: 1 0 100%;
+  height: 24px;
+  padding: 0 2px;
+  background: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  color: var(--color-text-2);
   opacity: 1;
+  border-top: 1px solid var(--color-border);
+  padding-top: 4px;
+  box-sizing: content-box;
+}
+
+.card .model3d-toolbar .model3d-anim-scrub .scrub-time {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: 10px;
 }
 
 /* Onion-skin ghost (v6.x) — sits above the video itself but below the

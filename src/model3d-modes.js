@@ -64,13 +64,24 @@ var KanvazModel3DModes = (function() {
         return copySurface(mat, m);
       } },
 
-    { key: 'wireframe', label: 'Wireframe', title: 'Wireframe: the mesh edges, with the original colour',
+    { key: 'wireframe', label: 'Wireframe', title: 'Wireframe: mesh edges in the material colour, unlit',
+      /* Was a lit clone of the material, so faces facing the light drew
+         white lines and faces turned away drew black ones, whatever the
+         real colour was. Now unlit: every line is the material's own colour
+         (or its texture). A very dark colour would vanish on the dark
+         board, so it is lifted to a readable lightness. */
       build: function(THREE, m) {
-        var wf = m.clone();
-        wf.wireframe = true;
-        /* A transmission (glass) pass over lines just muddies them. */
-        if ('transmission' in wf) wf.transmission = 0;
-        return wf;
+        var col = colorOf(THREE, m);
+        var hsl = { h: 0, s: 0, l: 0 };
+        col.getHSL(hsl);
+        if (hsl.l < 0.5) col.setHSL(hsl.h, hsl.s, 0.5);
+        var mat = new THREE.MeshBasicMaterial({
+          color: col,
+          map: m.map || null,
+          vertexColors: !!m.vertexColors,
+          wireframe: true
+        });
+        return copySurface(mat, m);
       } },
 
     /* Base colour with no lighting at all: what the artist painted. */

@@ -26,6 +26,7 @@ var pathGuard = require('./path-guard');
 var mcpAuth = require('./mcp-auth');
 var crashLog = require('./crash-log');
 var linkController = require('./link-controller');
+var adobePreview = require('./adobe-preview');
 
 /* Local-only crash log (src/crash-log.js): nothing is ever uploaded. */
 function logCrash(kind, message, stack, detail) {
@@ -1046,15 +1047,44 @@ function registerIPC() {
       if (sizeMB > MAX_FILE_SIZE_MB) {
         return { ok: false, error: 'FILE_TOO_LARGE', sizeMB: sizeMB };
       }
-      if (path.extname(filePath).toLowerCase() !== '.pdf') {
+      /* .ai: modern Illustrator files are PDF-compatible, so the same viewer
+         draws them; the %PDF header is checked, not just the extension. */
+      var pdfExt = path.extname(filePath).toLowerCase();
+      if (pdfExt !== '.pdf' && pdfExt !== '.ai') {
         return { ok: false, error: 'not a .pdf file' };
       }
       return fs.promises.readFile(filePath).then(function(data) {
+        if (pdfExt === '.ai' && data.slice(0, 1024).toString('latin1').indexOf('%PDF') === -1) {
+          return { ok: false, error: 'this .ai file has no PDF data' };
+        }
         return { ok: true, base64: data.toString('base64'), sizeMB: sizeMB };
       });
     }).catch(function(e) {
       return { ok: false, error: e.message };
     });
+  });
+
+  /* Adobe previews for file-reference cards (PSD, PSB, AI, XD, INDD, Fresco).
+     Decoding lives in adobe-preview.js (streaming, downscaling, tested); this
+     only validates the path and turns the result into something the renderer
+     can show. Reads the file fresh each time and stores nothing. */
+  var ADOBE_MAX_OUT_BYTES = 90 * 1024 * 1024;
+  ipcMain.handle('adobe-preview', function(event, filePath) {
+    var nonLocal = rejectNonLocal(filePath);
+    if (nonLocal) return Promise.resolve(nonLocal);
+    if (typeof filePath !== 'string' || !filePath) return Promise.resolve({ ok: false, reason: 'invalid path' });
+    var aext = path.extname(filePath).toLowerCase().replace('.', '');
+    if (adobePreview.EXTENSIONS.indexOf(aext) === -1) return Promise.resolve({ ok: false, reason: 'not an Adobe file type Kanvaz previews' });
+    return adobePreview.previewFile(filePath).then(function(r) {
+      if (!r || !r.ok) return { ok: false, reason: (r && r.reason) || 'no preview' };
+      if (r.kind === 'pdf') return { ok: true, kind: 'pdf' };
+      if (r.bytes.length > ADOBE_MAX_OUT_BYTES) return { ok: false, reason: 'the preview image is too large' };
+      return {
+        ok: true, kind: 'image', width: r.width || null, height: r.height || null,
+        srcWidth: r.srcWidth || null, srcHeight: r.srcHeight || null, note: r.note || null,
+        dataUrl: 'data:' + r.mime + ';base64,' + r.bytes.toString('base64')
+      };
+    }).catch(function(e) { return { ok: false, reason: e.message }; });
   });
 
   /* Text-file preview for file-reference cards. Same shape as

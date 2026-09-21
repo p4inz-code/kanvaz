@@ -39,6 +39,7 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
   openRefFileDialog: function(ext) { return ipcRenderer.invoke('dialog-open-ref-file', ext); },
   readPdfBytes: function(filePath) { return ipcRenderer.invoke('pdf-read-bytes', filePath); },
   readTextPreview: function(filePath) { return ipcRenderer.invoke('text-read-preview', filePath); },
+  adobePreview:   function(filePath) { return ipcRenderer.invoke('adobe-preview', filePath); },
   getPathForFile:  function(file) {
     try {
       if (webUtils && typeof webUtils.getPathForFile === 'function') return webUtils.getPathForFile(file) || '';

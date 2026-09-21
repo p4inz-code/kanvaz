@@ -210,6 +210,21 @@ if (fs.existsSync(path.join(__dirname, 'link-controller-test.js'))) {
   console.log('  (skipped — test/link-controller-test.js missing)');
 }
 
+/* 5j. Adobe previews — PSD/PSB composite, XD, XMP thumbnails, AI, Fresco */
+section('5j. Adobe previews');
+if (fs.existsSync(path.join(__dirname, 'adobe-preview-test.js'))) {
+  try {
+    var adOut = cp.execSync('node "' + path.join(__dirname, 'adobe-preview-test.js') + '"', { encoding: 'utf8', timeout: 120000 });
+    if (/ALL ADOBE PREVIEW TESTS PASSED/.test(adOut)) ok('PSD/PSB (raw+RLE, 8/16-bit, RGB/gray/indexed/CMYK, alpha), XD, XMP thumbnails, AI, Fresco; broken files refused');
+    else { bad('adobe preview test failed'); console.log(adOut); }
+  } catch (e) {
+    bad('adobe preview test crashed');
+    console.log(e.stdout || e.message);
+  }
+} else {
+  console.log('  (skipped — test/adobe-preview-test.js missing)');
+}
+
 /* 5f. Blender export script — hidden objects / extra scenes excluded, alpha kept (real Blender if installed) */
 section('5f. Blender export script');
 if (fs.existsSync(path.join(__dirname, 'blender-export-test.js'))) {
