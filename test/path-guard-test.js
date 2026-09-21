@@ -71,6 +71,64 @@ function run() {
   assert.strictEqual(g.has('constructor'), false);
   if (W) assert.strictEqual(g.has(ABS.toUpperCase() + 'B.KANVAZ'), true, 'Windows paths are case-insensitive');
   console.log('  ✓ board paths need .kanvaz + an explicit grant; grants are per-path, normalised, never remote');
+
+  /* ── Kanvaz Link drop files ── */
+  var fs = require('fs');
+  var os = require('os');
+  var crypto = require('crypto');
+  var base = fs.mkdtempSync(path.join(os.tmpdir(), 'kz-drop-'));
+  var drop = path.join(base, 'drop');
+  var outside = path.join(base, 'outside');
+  fs.mkdirSync(drop); fs.mkdirSync(outside);
+  var glb = Buffer.from('glTFfake-model-bytes');
+  var ok1 = path.join(drop, 'a.glb');
+  fs.writeFileSync(ok1, glb);
+  var opts = { formats: ['glb', 'gltf'], maxBytes: 1024 };
+
+  var r = pg.readDropFile(drop, ok1, opts);
+  assert(r.ok && r.data.equals(glb), 'a normal file in the drop dir is read back exactly');
+  assert(pg.readDropFile(drop, ok1, { formats: ['glb'], sha256: crypto.createHash('sha256').update(glb).digest('hex') }).ok, 'matching sha-256 passes');
+  assert.strictEqual(pg.readDropFile(drop, ok1, { sha256: '00'.repeat(32) }).ok, false, 'wrong sha-256 is refused');
+  assert.strictEqual(pg.readDropFile(drop, ok1, { expectedSize: glb.length + 1 }).ok, false, 'size mismatch (half-written file) is refused');
+  assert.strictEqual(pg.readDropFile(drop, ok1, { maxBytes: 5 }).ok, false, 'over the size cap is refused');
+  assert.strictEqual(pg.readDropFile(drop, ok1, { formats: ['obj'] }).ok, false, 'format outside the allowlist is refused');
+  assert.strictEqual(pg.readDropFile(drop, path.join(drop, 'missing.glb'), opts).ok, false, 'missing file');
+  assert.strictEqual(pg.readDropFile(drop, drop, opts).ok, false, 'a directory is not a file');
+  assert.strictEqual(pg.readDropFile(drop, 'relative/a.glb', opts).ok, false, 'relative path');
+  var secret = path.join(outside, 's.glb');
+  fs.writeFileSync(secret, 'secret');
+  assert.strictEqual(pg.readDropFile(drop, secret, opts).ok, false, 'a file outside the drop dir is refused');
+  assert.strictEqual(pg.readDropFile(drop, path.join(drop, '..', 'outside', 's.glb'), opts).ok, false, '.. traversal is refused');
+  assert.strictEqual(pg.isWithinDir(drop, ok1), true);
+  assert.strictEqual(pg.isWithinDir(drop, drop), false, 'the directory itself is not "within"');
+  assert.strictEqual(pg.isWithinDir(drop + '-evil', path.join(drop, 'a.glb')), false, 'a sibling with the same prefix is not inside');
+  if (W) assert.strictEqual(pg.readDropFile(drop, ok1 + ':evil', opts).ok, false, 'alternate data stream is refused');
+
+  var hard = path.join(drop, 'hard.glb');
+  var hardOk = true;
+  try { fs.linkSync(secret, hard); } catch (e) { hardOk = false; }
+  if (hardOk) assert.strictEqual(pg.readDropFile(drop, hard, opts).ok, false, 'a hard link to a file elsewhere is refused');
+
+  var sym = path.join(drop, 'sym.glb');
+  var symOk = true;
+  try { fs.symlinkSync(secret, sym, 'file'); } catch (e) { symOk = false; /* needs privilege on some Windows setups */ }
+  if (symOk) assert.strictEqual(pg.readDropFile(drop, sym, opts).ok, false, 'a symlink pointing outside is refused');
+  console.log('  ✓ drop files: read exactly, size/sha/format/traversal/outside/hard link' + (symOk ? '/symlink' : ' (symlink check skipped: no privilege)') + ' enforced');
+
+  /* single-use, expiring delivery grants */
+  var clock = 1000;
+  var dg = pg.createDeliveryGrants(500, undefined, function() { return clock; });
+  assert.strictEqual(dg.take(ok1), false, 'nothing granted by default');
+  assert.strictEqual(dg.grant(ok1), true);
+  assert.strictEqual(dg.take(ok1), true, 'first take succeeds');
+  assert.strictEqual(dg.take(ok1), false, 'a grant is single use');
+  dg.grant(ok1); clock += 501;
+  assert.strictEqual(dg.take(ok1), false, 'an expired grant is refused');
+  assert.strictEqual(dg.grant('\\\\evil\\s\\a.glb'), false, 'remote paths can never be granted');
+  assert.strictEqual(dg.size(), 0, 'nothing left over');
+  console.log('  ✓ delivery grants are single-use, expire, and never cover remote paths');
+
+  try { fs.rmSync(base, { recursive: true, force: true }); } catch (e) { /* temp */ }
 }
 
 try {

@@ -180,6 +180,21 @@ if (fs.existsSync(path.join(__dirname, 'blender-detect-test.js'))) {
   console.log('  (skipped — test/blender-detect-test.js missing)');
 }
 
+/* 5h. Kanvaz Link listener — token, consent, whitelist, caps, real pipe */
+section('5h. Kanvaz Link listener');
+if (fs.existsSync(path.join(__dirname, 'link-server-test.js'))) {
+  try {
+    var lkOut = cp.execSync('node "' + path.join(__dirname, 'link-server-test.js') + '"', { encoding: 'utf8', timeout: 120000 });
+    if (/ALL LINK SERVER TESTS PASSED/.test(lkOut)) ok('token on every request, four-method whitelist, consent gating, hostile input refused, real pipe/socket');
+    else { bad('link server test failed'); console.log(lkOut); }
+  } catch (e) {
+    bad('link server test crashed');
+    console.log(e.stdout || e.message);
+  }
+} else {
+  console.log('  (skipped — test/link-server-test.js missing)');
+}
+
 /* 5f. Blender export script — hidden objects / extra scenes excluded, alpha kept (real Blender if installed) */
 section('5f. Blender export script');
 if (fs.existsSync(path.join(__dirname, 'blender-export-test.js'))) {
