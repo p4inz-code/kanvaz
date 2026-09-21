@@ -9,6 +9,15 @@
         "start"
       ],
       "port": 3000
+    },
+    {
+      "name": "card-audit",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "tools/card-audit/server.js",
+        "5599"
+      ],
+      "port": 5599
     }
   ]
 }
