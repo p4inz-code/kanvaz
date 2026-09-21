@@ -1039,6 +1039,28 @@ var KanvazCards = (function() {
     return card;
   }
 
+  /* ── Create a 3D card from a Kanvaz Link delivery ──
+     p is what main.js sends on 'link-deliver' (validated there; the file was
+     already read and deleted, so there is no path). Goes through the normal
+     createFromMedia() so it is a card like any other, then applies the
+     display settings the add-on asked for. Returns the card. */
+  function createModelFromLink(p, pos) {
+    var card = createFromMedia({
+      type: 'model3d', dataUrl: p.dataUrl, name: p.name, originalPath: null,
+      modelFormat: p.format, naturalW: 420, naturalH: 340, displayW: 420, displayH: 340
+    }, pos);
+    if (typeof p.animationClip === 'number' && p.animationClip > 0) card.animationClip = p.animationClip;
+    if (p.upAxis === 'y' || p.upAxis === 'z') card.upAxis = p.upAxis;
+    if (typeof p.bgColor === 'string') card.bgColor = p.bgColor;
+    if (p.cameraPosition && p.cameraTarget) {
+      card.cameraPosition = { x: p.cameraPosition.x, y: p.cameraPosition.y, z: p.cameraPosition.z };
+      card.cameraTarget = { x: p.cameraTarget.x, y: p.cameraTarget.y, z: p.cameraTarget.z };
+    }
+    if (typeof KanvazApp !== 'undefined') KanvazApp.markDirty();
+    if (typeof KanvazHistory !== 'undefined') KanvazHistory.push();
+    return card;
+  }
+
   /* ── Create from dataUrl (clipboard) ── */
 
   function createFromDataUrl(dataUrl, name, pos) {
@@ -6712,6 +6734,7 @@ var KanvazCards = (function() {
     getSelected:       function() { return selectedId; },
     getSelectedIds:    getSelectedIds,
     getModel3DControls: getModel3DControls,
+    createModelFromLink: createModelFromLink,
     getRenderModes: function() { return KanvazModel3DModes.list(); },
     getModel3DThumbnail: function(id) { return model3DThumbCache[id] || null; }
   };

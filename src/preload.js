@@ -124,6 +124,15 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
      mcpInvokeResult is the renderer's reply half of the main→renderer
      round trip that 'mcp-invoke' (added to the on()/off() allowlist
      below) is the push half of; see plugin-api.js's mcpBridge.onInvoke(). */
+  /* Kanvaz Link (Blender add-on connector). The renderer says when it is ready
+     to receive, reports the outcome of each delivery, and drives the
+     Settings section. Deliveries themselves arrive on the 'link-deliver'
+     event (see on() below). */
+  linkRendererReady: function() { ipcRenderer.send('link-renderer-ready'); },
+  linkResult:        function(r) { ipcRenderer.send('link-result', r); },
+  linkGetStatus:     function() { return ipcRenderer.invoke('link-get-status'); },
+  linkSetEnabled:    function(on) { return ipcRenderer.invoke('link-set-enabled', !!on); },
+  linkForgetConsent: function(name) { return ipcRenderer.invoke('link-forget-consent', typeof name === 'string' ? name : null); },
   startMcpBridge:  function() { return ipcRenderer.invoke('mcp-bridge-start'); },
   stopMcpBridge:   function() { return ipcRenderer.invoke('mcp-bridge-stop'); },
   mcpInvokeResult: function(payload) { ipcRenderer.send('mcp-invoke-result', payload); },
@@ -142,7 +151,7 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
 
   /* Main → Renderer events */
   on: function(channel, fn) {
-    var allowed = ['recovery-available', 'window-maximized-changed', 'check-unsaved-before-close', 'open-file-from-argv', 'update-available', 'update-download-progress', 'update-downloaded', 'mcp-invoke', 'smart-search-crashed'];
+    var allowed = ['recovery-available', 'window-maximized-changed', 'check-unsaved-before-close', 'open-file-from-argv', 'update-available', 'update-download-progress', 'update-downloaded', 'mcp-invoke', 'smart-search-crashed', 'link-deliver'];
     if (allowed.indexOf(channel) !== -1) {
       ipcRenderer.on(channel, function(event, data) { fn(data); });
     }
@@ -154,7 +163,7 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
        subscribe to in the first place. Not currently exploited anywhere
        (nothing in the renderer calls off() with an arbitrary channel),
        just closing the gap between the two. */
-    var allowed = ['recovery-available', 'window-maximized-changed', 'check-unsaved-before-close', 'open-file-from-argv', 'update-available', 'update-download-progress', 'update-downloaded', 'mcp-invoke', 'smart-search-crashed'];
+    var allowed = ['recovery-available', 'window-maximized-changed', 'check-unsaved-before-close', 'open-file-from-argv', 'update-available', 'update-download-progress', 'update-downloaded', 'mcp-invoke', 'smart-search-crashed', 'link-deliver'];
     if (allowed.indexOf(channel) !== -1) {
       ipcRenderer.removeAllListeners(channel);
     }
