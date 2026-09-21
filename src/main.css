@@ -1830,6 +1830,42 @@ body.presentation-mode-active #side-panel {
   object-fit: contain;
 }
 
+/* Text file-ref preview — rendered file contents in a scrollable,
+   selectable monospace pane. Content is set via textContent, so it is
+   always displayed literally. */
+.file-text-preview {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+  overflow: hidden;
+}
+
+.file-text-pre {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 8px 10px;
+  overflow: auto;
+  font-family: var(--font-mono, ui-monospace, Consolas, monospace);
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre;
+  tab-size: 4;
+  color: var(--color-text);
+  user-select: text;
+  cursor: text;
+}
+
+.file-text-note {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  font-size: 10px;
+  color: var(--color-text-3);
+  border-top: 1px solid var(--color-border);
+}
+
 .pdf-scroll-area {
   flex: 1;
   min-height: 0;
@@ -2353,22 +2389,36 @@ body.presentation-mode-active #side-panel {
 }
 
 .model3d-toolbar {
+  /* Direct feedback, live user audit: this used to be bottom:0 inside
+     the card, overlaying the viewport on hover — covering the model
+     itself and the card-bar name label sitting near the same corner.
+     top:100% renders it in a strip directly BELOW the card's own
+     bottom edge instead, the same "extends past the declared bounds"
+     approach this app's own resize handles already use (negative-
+     offset positioning outside the nominal box) — so hovering reveals
+     an extra strip rather than covering anything. pointer-events
+     toggles with opacity so the (usually invisible) strip below the
+     card doesn't swallow clicks meant for whatever's underneath it
+     when not hovering. */
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 0;
+  top: 100%;
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 6px 8px;
   background: var(--color-chrome);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
   opacity: 0;
+  pointer-events: none;
   transition: opacity 0.15s;
   z-index: 3;
 }
 
 .card:hover .model3d-toolbar {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .model3d-mode-group {
@@ -2499,6 +2549,20 @@ body.presentation-mode-active #side-panel {
 /* ── Audio card ── */
 
 .audio-icon-area {
+  /* Real bug found via live user audit: the icon below sized itself
+     off container WIDTH only (cqw), with nothing tying it to this
+     element's own HEIGHT — which is a fixed subtraction of the label
+     row and scrub bar from the card's total height, not something that
+     scales with width at all. On any realistically wide-but-short
+     audio card (the actual 280×100 default included, not just an edge
+     case), the icon's width-derived size exceeded the space this
+     element's own height formula left for it, and got visibly clipped
+     by this element's own overflow:hidden. container-type:size (not
+     just the ancestor .card's inline-size) makes cqh available scoped
+     to just this element, so the icon can be constrained by BOTH axes
+     — this element already has an explicit, resolved height from the
+     calc() below, so containing its own size costs nothing here. */
+  container-type: size;
   position: relative;
   width: 100%;
   height: calc(100% - 24px - clamp(30px, 11cqw, 50px));
@@ -2510,8 +2574,8 @@ body.presentation-mode-active #side-panel {
 }
 
 .audio-icon-area .audio-icon-svg {
-  width: clamp(28px, 25cqw, 64px);
-  height: clamp(28px, 25cqw, 64px);
+  width: clamp(20px, min(25cqw, 55cqh), 56px);
+  height: clamp(20px, min(25cqw, 55cqh), 56px);
   position: relative;
   z-index: 1;
 }

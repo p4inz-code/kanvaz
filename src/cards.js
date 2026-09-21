@@ -20,6 +20,19 @@ var KanvazCards = (function() {
      view this session — callers (map-view.js) must fall back to the
      plain type icon when a card isn't in here yet. */
   var model3DThumbCache = {};
+  /* Onion-skin toggle state for video cards (id -> boolean), session-
+     only, never persisted — same scoping as the thumbnail cache above.
+     Direct feedback: frame-step + onion-skin used to be buttons crammed
+     into the card's own already-crowded scrub bar, private closures
+     inside buildVideoCard with no way for anything outside that one
+     render pass to reach them; moved to the Properties panel (a
+     dedicated control surface, not a tiny hover strip on the card
+     itself) per direct request. Keyed by id here, rather than staying
+     as local closure state, specifically so Properties panel's own
+     renderPlaybackSection can drive the same live video element a
+     fresh document.getElementById() lookup finds, matching this
+     codebase's own established getMediaEl() pattern. */
+  var videoOnionState = {};
   var selectedId = null;      /* "primary" selection — the one card that
                                   single-target features (Annotate, Connections,
                                   Properties) act on. Always the last id in
@@ -230,8 +243,22 @@ var KanvazCards = (function() {
       }
       bringToFront(card.id);
 
-      /* Let textareas/inputs/buttons receive focus normally — no drag */
-      if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT' || target.tagName === 'BUTTON') {
+      /* Let textareas/inputs/buttons receive focus normally — no drag.
+         Real bug found via live user audit: Text cards have no card-bar
+         footer (buildCardBar is deliberately skipped for type 'text',
+         to keep the bare-floating-label look this type is meant for),
+         so their <textarea> covers 100% of the card with nothing left
+         outside it to grab — every single click anywhere on a text
+         card hit this early-return and NEVER started a drag. Note/URL
+         cards don't have this problem because their footer/other chrome
+         sits outside their own input, giving a real drag-safe area.
+         A readonly textarea/input is being used purely as a styled
+         display surface (see buildTextCard's own readonly-until-
+         double-click toggle below) — it should behave like any other
+         non-interactive card surface and still start a drag. */
+      if ((target.tagName === 'TEXTAREA' && !target.readOnly) ||
+          (target.tagName === 'INPUT' && !target.readOnly) ||
+          target.tagName === 'BUTTON') {
         return;
       }
 
@@ -1099,12 +1126,14 @@ var KanvazCards = (function() {
     updateEmptyState();
     updateCount();
 
-    /* Focus the textarea */
+    /* Focus the textarea — a brand-new card should be immediately
+       typable, not require the double-click buildTextCard's readonly
+       toggle otherwise expects for an already-placed card. */
     setTimeout(function() {
       var el = document.getElementById(id);
       if (el) {
         var ta = el.querySelector('.text-body');
-        if (ta) ta.focus();
+        if (ta) { ta.readOnly = false; ta.focus(); }
       }
     }, 50);
 
@@ -1235,7 +1264,7 @@ var KanvazCards = (function() {
        with it — you don't want a big image preview's remembered size
        forcing a plain-icon .zip card to also default huge, or vice
        versa. */
-    var isPreviewable = isPdfPath(p) || isImagePath(p);
+    var isPreviewable = isPdfPath(p) || isImagePath(p) || isTextPreviewPath(p);
     var size = isPreviewable ? sizeFor('file-preview', 340, 260) : sizeFor('file', 220, 90);
     var card = {
       id:       id,
@@ -2226,76 +2255,6 @@ var KanvazCards = (function() {
     muteBtn.innerHTML = vid.muted ? MUTED_ICON : MUTE_ICON;
     muteBtn.title = 'Toggle mute';
 
-    /* v6.x — frame-stepping + onion-skin (ArtDeck-inspired analysis
-       tools). Frame duration is a fixed 1/30s approximation, not a true
-       frame-boundary detection — HTML5 <video> has no reliable
-       cross-browser way to query a container's actual frame rate or
-       seek to an exact frame index, so this is a disclosed, deliberate
-       approximation rather than something silently wrong. Good enough
-       for "step through and check spacing/timing," not frame-accurate
-       for variable-frame-rate footage. */
-    var FRAME_DURATION = 1 / 30;
-    var onionEnabled = false;
-    var onionCanvas = null;
-
-    function ensureOnionCanvas() {
-      if (onionCanvas) return;
-      onionCanvas = document.createElement('canvas');
-      onionCanvas.className = 'video-onion-canvas';
-      onionCanvas.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;';
-      el.insertBefore(onionCanvas, progressLine);
-    }
-
-    function captureOnionGhost() {
-      if (!vid.videoWidth) return; /* nothing decoded yet to ghost */
-      ensureOnionCanvas();
-      onionCanvas.width  = vid.clientWidth;
-      onionCanvas.height = vid.clientHeight;
-      var octx = onionCanvas.getContext('2d');
-      octx.clearRect(0, 0, onionCanvas.width, onionCanvas.height);
-      octx.globalAlpha = 0.4;
-      octx.drawImage(vid, 0, 0, onionCanvas.width, onionCanvas.height);
-    }
-
-    function stepFrame(dir) {
-      if (!vid.duration) return;
-      vid.pause();
-      playBtn.innerHTML = PLAY_ICON;
-      if (onionEnabled) captureOnionGhost();
-      vid.currentTime = Math.max(0, Math.min(vid.duration, vid.currentTime + dir * FRAME_DURATION));
-    }
-
-    var frameBackBtn = document.createElement('button');
-    frameBackBtn.className = 'media-play-btn';
-    frameBackBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-text-2);padding:0;display:flex;align-items:center;';
-    frameBackBtn.innerHTML = FRAME_BACK_ICON;
-    frameBackBtn.title = 'Step back one frame (~1/30s)';
-    frameBackBtn.addEventListener('click', function(e) { e.stopPropagation(); stepFrame(-1); });
-    frameBackBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
-
-    var frameForwardBtn = document.createElement('button');
-    frameForwardBtn.className = 'media-play-btn';
-    frameForwardBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-text-2);padding:0;display:flex;align-items:center;';
-    frameForwardBtn.innerHTML = FRAME_FORWARD_ICON;
-    frameForwardBtn.title = 'Step forward one frame (~1/30s)';
-    frameForwardBtn.addEventListener('click', function(e) { e.stopPropagation(); stepFrame(1); });
-    frameForwardBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
-
-    var onionBtn = document.createElement('button');
-    onionBtn.className = 'media-play-btn';
-    onionBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--color-text-2);padding:0;display:flex;align-items:center;';
-    onionBtn.innerHTML = ONION_SKIN_ICON;
-    onionBtn.title = 'Onion-skin: ghost the previous frame while stepping';
-    onionBtn.addEventListener('click', function(e) {
-      e.stopPropagation();
-      onionEnabled = !onionEnabled;
-      onionBtn.style.color = onionEnabled ? 'var(--color-accent)' : 'var(--color-text-2)';
-      if (!onionEnabled && onionCanvas) {
-        onionCanvas.getContext('2d').clearRect(0, 0, onionCanvas.width, onionCanvas.height);
-      }
-    });
-    onionBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
-
     var volumeSlider = buildVolumeSlider(vid, card);
 
     /* v8.x polish — expand to real browser fullscreen. requestFullscreen()
@@ -2316,9 +2275,6 @@ var KanvazCards = (function() {
     expandBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
 
     scrub.appendChild(playBtn);
-    scrub.appendChild(frameBackBtn);
-    scrub.appendChild(frameForwardBtn);
-    scrub.appendChild(onionBtn);
     scrub.appendChild(track);
     scrub.appendChild(timeEl);
     scrub.appendChild(muteBtn);
@@ -2339,6 +2295,76 @@ var KanvazCards = (function() {
     });
 
     buildAnnotationDot(el, card);
+  }
+
+  /* v6.x — frame-stepping + onion-skin (ArtDeck-inspired analysis
+     tools), moved out of the card's own scrub bar into the Properties
+     panel (direct feedback: nine controls in one hover strip was
+     unusable). Frame duration is a fixed 1/30s approximation, not true
+     frame-boundary detection — HTML5 <video> has no reliable way to
+     query a container's real frame rate or seek to an exact frame
+     index, a disclosed, deliberate approximation, good for "step
+     through and check spacing/timing," not frame-accurate on
+     variable-frame-rate footage. Every function looks the live card
+     up by id each call (same pattern as properties.js's getMediaEl)
+     rather than closing over one render pass's elements, so a card
+     re-render never leaves these pointing at a detached <video>. */
+  var FRAME_DURATION = 1 / 30;
+
+  function getVideoElFor(id) {
+    var el = document.getElementById(id);
+    return el ? el.querySelector('video') : null;
+  }
+
+  function ensureOnionCanvasFor(id) {
+    var el = document.getElementById(id);
+    if (!el) return null;
+    var canvas = el.querySelector('.video-onion-canvas');
+    if (canvas) return canvas;
+    canvas = document.createElement('canvas');
+    canvas.className = 'video-onion-canvas';
+    canvas.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;';
+    var progressLine = el.querySelector('.video-progress-line');
+    if (progressLine) el.insertBefore(canvas, progressLine); else el.appendChild(canvas);
+    return canvas;
+  }
+
+  function captureOnionGhostFor(id) {
+    var vid = getVideoElFor(id);
+    if (!vid || !vid.videoWidth) return; /* nothing decoded yet to ghost */
+    var canvas = ensureOnionCanvasFor(id);
+    if (!canvas) return;
+    canvas.width  = vid.clientWidth;
+    canvas.height = vid.clientHeight;
+    var octx = canvas.getContext('2d');
+    octx.clearRect(0, 0, canvas.width, canvas.height);
+    octx.globalAlpha = 0.4;
+    octx.drawImage(vid, 0, 0, canvas.width, canvas.height);
+  }
+
+  function stepVideoFrame(id, dir) {
+    var vid = getVideoElFor(id);
+    if (!vid || !vid.duration) return;
+    vid.pause();
+    var el = document.getElementById(id);
+    var playBtn = el ? el.querySelector('.video-scrub .media-play-btn') : null;
+    if (playBtn) playBtn.innerHTML = PLAY_ICON;
+    if (videoOnionState[id]) captureOnionGhostFor(id);
+    vid.currentTime = Math.max(0, Math.min(vid.duration, vid.currentTime + dir * FRAME_DURATION));
+  }
+
+  function toggleOnionSkin(id) {
+    videoOnionState[id] = !videoOnionState[id];
+    if (!videoOnionState[id]) {
+      var el = document.getElementById(id);
+      var canvas = el ? el.querySelector('.video-onion-canvas') : null;
+      if (canvas) canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+    }
+    return videoOnionState[id];
+  }
+
+  function isOnionSkinOn(id) {
+    return !!videoOnionState[id];
   }
 
   /* Playback speed picker — same floating-panel pattern as the opacity
@@ -2652,12 +2678,31 @@ var KanvazCards = (function() {
     ta.value = card.text || '';
     ta.style.cssText = 'width:100%;height:100%;';
 
+    /* Real bug found via live user audit: this textarea covers 100% of
+       the card (no card-bar footer for type 'text' — see the comment
+       on this file's world mousedown handler), so leaving it always
+       directly editable meant the card had literally no surface a
+       click-drag could grab; every click hit the "inputs receive focus
+       normally, skip drag" rule. Fixed with the same double-click-to-edit
+       convention this codebase already uses for renaming (Layers panel
+       rows, card-bar titles): readonly by default so a plain click+
+       drag moves the card like any other type, real editing only after
+       an explicit double-click. */
+    ta.readOnly = true;
+
+    ta.addEventListener('dblclick', function(e) {
+      e.stopPropagation();
+      ta.readOnly = false;
+      ta.focus();
+    });
+
     ta.addEventListener('input', function() {
       card.text = ta.value;
       KanvazApp.markDirty();
     });
 
     ta.addEventListener('blur', function() {
+      ta.readOnly = true;
       KanvazHistory.push();
       emitCardEvent('cardUpdate', card);
     });
@@ -3041,6 +3086,13 @@ var KanvazCards = (function() {
     return /\.(jpe?g|png|gif|bmp|webp)$/i.test((p || '').trim());
   }
 
+  /* Text-like files that get a rendered in-card preview (main.js's
+     text-read-preview holds the authoritative allowlist and refuses the
+     rest — this only decides whether to TRY). */
+  function isTextPreviewPath(p) {
+    return /\.(txt|md|markdown|log|json|csv|tsv|xml|ya?ml|ini|toml|js|ts|py|html|css|c|cpp|h|rs|go|java|sh|bat|glsl|frag|vert|usda)$/i.test((p || '').trim());
+  }
+
   /* Electron's bundled Chromium lags a couple of years behind the
      absolute newest JS engine features by design (this project doesn't
      chase every Electron point release) — pdfjs-dist's own "legacy"
@@ -3267,6 +3319,44 @@ var KanvazCards = (function() {
     });
   }
 
+  /* Rendered text preview for a file-ref card ("text files must come in a
+     side window in the canvas with text rendered"). Same contract as the
+     PDF/image previews: read fresh per render, never persisted onto the
+     card. Text goes in via textContent (never innerHTML) so a hostile
+     .html/.md file is displayed as text, not executed. Only the first
+     256KB is read; a truncation note says so. */
+  function buildTextFilePreview(el, card) {
+    var wrap = document.createElement('div');
+    wrap.className = 'file-text-preview';
+    var pre = document.createElement('pre');
+    pre.className = 'file-text-pre';
+    pre.textContent = 'Loading…';
+    wrap.appendChild(pre);
+    var note = document.createElement('div');
+    note.className = 'file-text-note';
+    note.style.display = 'none';
+    wrap.appendChild(note);
+    wrap.addEventListener('wheel', function(e) { e.stopPropagation(); });
+    wrap.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+    el.appendChild(wrap);
+    if (typeof KanvazBridge === 'undefined' || !KanvazBridge.readTextPreview) return;
+    KanvazBridge.readTextPreview(card.path).then(function(res) {
+      if (!document.body.contains(el)) return;
+      if (!res || !res.ok) {
+        pre.textContent = 'Could not preview' + (res && res.error ? ': ' + res.error : '');
+        return;
+      }
+      pre.textContent = res.text.length ? res.text : '(empty file)';
+      if (res.truncated) {
+        note.textContent = 'Showing the first 256 KB of ' + Math.round(res.totalBytes / 1024) + ' KB — open the file to see the rest.';
+        note.style.display = '';
+      }
+    }).catch(function(e) {
+      if (!document.body.contains(el)) return;
+      pre.textContent = 'Could not preview: ' + e.message;
+    });
+  }
+
   function buildFileRefCard(el, card) {
     var accent = document.createElement('div');
     accent.className = 'url-accent-bar file-type-icon';
@@ -3301,6 +3391,9 @@ var KanvazCards = (function() {
     } else if (isImagePath(card.path)) {
       el.classList.add('has-file-preview');
       buildFileImagePreview(el, card);
+    } else if (isTextPreviewPath(card.path)) {
+      el.classList.add('has-file-preview');
+      buildTextFilePreview(el, card);
     }
 
     var body = document.createElement('div');
@@ -3362,7 +3455,7 @@ var KanvazCards = (function() {
            Same rebuild-fresh treatment now applies re-pointing between
            two different images (a stale <img src> would otherwise just
            sit there showing the old file). */
-        var existingPreview = el.querySelector('.pdf-preview, .file-image-preview');
+        var existingPreview = el.querySelector('.pdf-preview, .file-image-preview, .file-text-preview');
         disposePdfPreview(card.id);
         if (isPdfPath(card.path)) {
           delete card.pdfPage; delete card.pdfZoom;
@@ -3373,6 +3466,10 @@ var KanvazCards = (function() {
           if (existingPreview) existingPreview.remove();
           el.classList.add('has-file-preview');
           buildFileImagePreview(el, card);
+        } else if (isTextPreviewPath(card.path)) {
+          if (existingPreview) existingPreview.remove();
+          el.classList.add('has-file-preview');
+          buildTextFilePreview(el, card);
         } else if (existingPreview) {
           el.classList.remove('has-file-preview');
           existingPreview.remove();
@@ -3485,11 +3582,61 @@ var KanvazCards = (function() {
      limitation, same class as FBX being "best-effort": only a
      self-contained (embedded-buffers) .gltf or a .glb is guaranteed to
      fully render. */
+  /* A glTF/USD can reference external resources by URI. parse() is given no
+     base path, so nothing legitimate is ever fetched this way, but a hostile
+     file could name file://host/share/x.png (an SMB connection that leaks
+     the user's NTLM hash) or a remote URL. Every URL is rewritten to an
+     empty data URL unless it is already an embedded data:/blob: resource. */
+  function makeLocalOnlyLoadingManager(three) {
+    var mgr = new three.THREE.LoadingManager();
+    mgr.setURLModifier(function(u) {
+      return /^(data|blob):/i.test(String(u)) ? u : 'data:,';
+    });
+    return mgr;
+  }
+
+  /* Up axis. STL is Z-up by universal convention (CAD, slicers, Blender's
+     exporter), so without a correction an STL lies on its back in this
+     Y-up viewer (found live 2026-09-20). Every other format defaults to
+     Y-up (glTF/OBJ/FBX carry or assume it; USD's own upAxis is handled by
+     its loader). PLY has no standard, so it stays Y-up until the user
+     flips it: card.upAxis ('y' | 'z') is the per-card override, set from
+     the Properties panel. */
+  function getModelUpAxis(card) {
+    if (card && (card.upAxis === 'y' || card.upAxis === 'z')) return card.upAxis;
+    return (card && card.modelFormat === 'stl') ? 'z' : 'y';
+  }
+
+  function setModelUpAxis(id, axis) {
+    var card = cards[id];
+    var el = document.getElementById(id);
+    if (!card || card.type !== 'model3d' || (axis !== 'y' && axis !== 'z')) return false;
+    card.upAxis = axis;
+    /* a saved camera was framed for the old orientation; drop it so the
+       rebuilt viewer re-frames the model */
+    card.cameraPosition = null;
+    card.cameraTarget = null;
+    if (el) rebuildCardMedia(el, card);
+    KanvazApp.markDirty();
+    KanvazHistory.push();
+    emitCardEvent('cardUpdate', card);
+    return true;
+  }
+
   function loadModelIntoScene(card, three, onLoad, onError) {
     var format = card.modelFormat;
+    if (getModelUpAxis(card) === 'z') {
+      var loadedOnLoad = onLoad;
+      onLoad = function(root, animations) {
+        var upFix = new three.THREE.Group();
+        upFix.add(root);
+        upFix.rotation.x = -Math.PI / 2;
+        loadedOnLoad(upFix, animations);
+      };
+    }
     try {
       if (format === 'glb' || format === 'gltf') {
-        var gltfLoader = new three.GLTFLoader();
+        var gltfLoader = new three.GLTFLoader(makeLocalOnlyLoadingManager(three));
         gltfLoader.parse(model3dDataToArrayBuffer(card.dataUrl), '', function(gltf) {
           onLoad(gltf.scene, gltf.animations || []);
         }, onError);
@@ -3546,7 +3693,7 @@ var KanvazCards = (function() {
            sub-format. No animation extraction path is exposed by this
            loader today — matches OBJLoader's own no-animation contract
            above, not a gap specific to USD. */
-        var usdLoader = new three.USDLoader();
+        var usdLoader = new three.USDLoader(makeLocalOnlyLoadingManager(three));
         usdLoader.parse(model3dDataToArrayBuffer(card.dataUrl), '', function(group) {
           onLoad(group, []);
         }, onError);
@@ -5292,6 +5439,7 @@ var KanvazCards = (function() {
          any other media type). */
       modelFormat:      c.modelFormat      || null,
       renderMode:       c.renderMode       || null,
+      upAxis:           c.upAxis           || null,
       bgColor:          c.bgColor          || null,
       animationPlaying: c.animationPlaying || false,
       /* v8.x — camera orbit position, now persisted (was deliberately
@@ -5440,6 +5588,18 @@ var KanvazCards = (function() {
          skipped (with a console error) instead of taking the rest of
          the board down with it. */
       try {
+        /* A .kanvaz file may come from anyone. Embedded media must be a data:
+           URL and a URL-preview image must be a data:image/ URL: anything
+           else (file://host/share/x.png, http://...) would make the renderer
+           reach out on load. objectFit is written into a style string, so it
+           is limited to the real CSS keywords. */
+        if (c.dataUrl != null && !(typeof c.dataUrl === 'string' && /^data:/i.test(c.dataUrl))) c.dataUrl = null;
+        if (c.urlPreview && typeof c.urlPreview === 'object' && c.urlPreview.image != null &&
+            !(typeof c.urlPreview.image === 'string' && /^data:image\//i.test(c.urlPreview.image))) {
+          c.urlPreview.image = null;
+        }
+        if (c.objectFit != null && ['cover', 'contain', 'fill', 'none', 'scale-down'].indexOf(c.objectFit) === -1) c.objectFit = null;
+
         /* v3 field defaults — ensures v2.x files load cleanly */
         if (!c.tags)        c.tags        = [];
         if (!c.properties)  c.properties  = {};
@@ -6158,6 +6318,81 @@ var KanvazCards = (function() {
     emitCardEvent('cardUpdate', card);
   }
 
+  /* ── 3D render-mode picker ──
+     Direct feedback: give the Normal/Wireframe/Matcap/Reset-Camera
+     controls a second way in besides hovering the card's own toolbar —
+     a right-click context menu entry, same "already-live model3dInstances
+     controls object, no separate state to keep in sync" approach
+     properties.js's own 3D View section already uses. Modeled on
+     showOpacityPicker's popover pattern just below. */
+  function showModel3DModePicker(id, x, y) {
+    var existing = document.getElementById('model3d-mode-picker');
+    if (existing) existing.parentNode.removeChild(existing);
+
+    var card = cards[id];
+    if (!card) return;
+    var controls = getModel3DControls(id);
+    if (!controls) return;
+
+    var picker = document.createElement('div');
+    picker.id = 'model3d-mode-picker';
+    picker.style.cssText = [
+      'position:fixed',
+      'left:' + x + 'px',
+      'top:' + y + 'px',
+      'background:var(--color-surface)',
+      'border:1px solid var(--color-border-2)',
+      'border-radius:8px',
+      'padding:10px',
+      'z-index:20001',
+      'box-shadow:0 8px 24px rgba(0,0,0,0.6)',
+      'min-width:200px'
+    ].join(';');
+
+    var label = document.createElement('div');
+    label.style.cssText = 'font-size:11px;color:var(--color-text-3);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.06em;';
+    label.textContent = '3D View';
+    picker.appendChild(label);
+
+    var modeRow = document.createElement('div');
+    modeRow.style.cssText = 'display:flex;gap:6px;margin-bottom:8px;';
+    var modes = [['normal', 'Normal'], ['wireframe', 'Wireframe'], ['matcap', 'Matcap']];
+    for (var i = 0; i < modes.length; i++) {
+      (function(modeKey, modeLabel) {
+        var isOn = (card.renderMode || 'normal') === modeKey;
+        var btn = document.createElement('button');
+        btn.textContent = modeLabel;
+        btn.style.cssText = 'flex:1;padding:5px 4px;background:' + (isOn ? 'var(--color-accent-bg)' : 'var(--color-surface-2)') + ';border:1px solid ' + (isOn ? 'var(--color-accent)' : 'var(--color-border-2)') + ';border-radius:5px;color:' + (isOn ? 'var(--color-accent)' : 'var(--color-text-2)') + ';font-family:var(--font-ui);font-size:11px;cursor:pointer;';
+        btn.onclick = function() {
+          controls.setRenderMode(modeKey);
+          if (picker.parentNode) picker.parentNode.removeChild(picker);
+        };
+        modeRow.appendChild(btn);
+      })(modes[i][0], modes[i][1]);
+    }
+    picker.appendChild(modeRow);
+
+    var resetBtn = document.createElement('button');
+    resetBtn.textContent = 'Reset Camera';
+    resetBtn.style.cssText = 'width:100%;padding:6px;background:none;border:1px solid var(--color-border-2);border-radius:5px;color:var(--color-text-2);font-family:var(--font-ui);font-size:12px;cursor:pointer;';
+    resetBtn.onclick = function() {
+      controls.resetCamera();
+      if (picker.parentNode) picker.parentNode.removeChild(picker);
+    };
+    picker.appendChild(resetBtn);
+
+    document.body.appendChild(picker);
+
+    setTimeout(function() {
+      document.addEventListener('mousedown', function closePicker(e) {
+        if (!picker.contains(e.target)) {
+          if (picker.parentNode) picker.parentNode.removeChild(picker);
+          document.removeEventListener('mousedown', closePicker);
+        }
+      });
+    }, 50);
+  }
+
   /* ── Opacity picker ── */
 
   function showOpacityPicker(id, x, y) {
@@ -6370,6 +6605,8 @@ var KanvazCards = (function() {
     createUrlCard:     createUrlCard,
     createFileRefCard: createFileRefCard,
     createFileRefCardAtPath: createFileRefCardAtPath,
+    isTextPreviewPath: isTextPreviewPath,
+    isPdfPath: isPdfPath,
     createPluginCard: createPluginCard,
     generateTestCards: generateTestCards,
     selectCard:        selectCard,
@@ -6414,6 +6651,12 @@ var KanvazCards = (function() {
     renderLayersInto:  renderLayersInto,
     reorderLayers:     reorderLayers,
     showOpacityPicker: showOpacityPicker,
+    showModel3DModePicker: showModel3DModePicker,
+    getModelUpAxis: getModelUpAxis,
+    setModelUpAxis: setModelUpAxis,
+    stepVideoFrame:    stepVideoFrame,
+    toggleOnionSkin:   toggleOnionSkin,
+    isOnionSkinOn:     isOnionSkinOn,
     toggleObjectFit:   toggleObjectFit,
     setAdjustment:     setAdjustment,
     showSpeedPicker:   showSpeedPicker,

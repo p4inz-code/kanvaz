@@ -33,8 +33,22 @@
        either, while the network-security intent (offline-only) is
        untouched: a blob: URL is a same-process, locally-generated
        object reference, never real network egress. -->
+  <!-- connect-src gained "data:" the same way — found via live user
+       audit, not static review: cards.js's generateWaveform() reads an
+       audio card's own embedded dataUrl via fetch() before handing the
+       bytes to decodeAudioData(), and fetch() of ANY scheme (including
+       data:) is governed by connect-src, same class of gap "blob:"
+       above already fixed for a different loader. Without it, every
+       single audio card's waveform silently failed to generate,
+       forever — generateWaveform()'s own catch() swallows the error,
+       so this shipped invisibly. media-src already trusted "data:" for
+       the exact same embedded-card-content case (the <audio> element
+       itself loads fine); a data: URI is inline, self-contained bytes
+       with no network egress possible, so this closes the same kind of
+       gap with the same "no real security cost" reasoning already
+       established for blob: above. -->
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; script-src 'self' file:; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://api.github.com blob:; object-src 'none'; base-uri 'self';">
+    content="default-src 'self'; script-src 'self' file:; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://api.github.com blob: data:; object-src 'none'; base-uri 'self';">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kanvaz</title>
   <link rel="stylesheet" href="main.css">

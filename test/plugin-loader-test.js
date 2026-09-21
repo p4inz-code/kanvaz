@@ -39,6 +39,12 @@ function writePlugin(id, folder, manifestOverrides, entryContent) {
   return dir;
 }
 
+/* Approve exactly as main.js's review handler does: with the scanned content hash. */
+function approveScanned(dir, id, version, perms) {
+  var hit = pluginLoader.scanPlugins(dir, dir).filter(function(x) { return x.manifest && x.manifest.id === id; })[0];
+  pluginLoader.approvePlugin(dir, id, version, perms, hit ? hit.contentHash : undefined);
+}
+
 function run() {
   /* 1. A valid, never-approved plugin loads and correctly needs consent */
   writePlugin('com.test.valid', 'valid-plugin');
@@ -72,7 +78,7 @@ function run() {
 
   /* 4. Permission escalation on an update re-triggers consent */
   writePlugin('com.test.escalate', 'escalate-plugin', { permissions: ['cardTypes'] });
-  pluginLoader.approvePlugin(TMP, 'com.test.escalate', '1.0.0', ['cardTypes']);
+  approveScanned(TMP, 'com.test.escalate', '1.0.0', ['cardTypes']);
   var afterApprove = pluginLoader.scanPlugins(TMP, TMP);
   var approved = afterApprove.filter(function(p) { return p.folder === 'escalate-plugin'; })[0];
   assert.strictEqual(approved.needsConsent, false, 'an approved plugin with unchanged permissions must not need consent again');
@@ -85,6 +91,45 @@ function run() {
   assert.strictEqual(escalated.needsConsent, true, 'a permission-escalating update must re-require consent');
   assert.strictEqual(escalated.enabled, false, 'a plugin needing re-consent must not silently stay enabled');
   console.log('  ✓ permission escalation on update re-triggers consent, does not inherit the old approval');
+
+  /* 4b. Approval is bound to the exact code reviewed (content hash), not just
+     id + version + permissions. Same id, same version string, same permission
+     list, DIFFERENT code must lose its approval. */
+  writePlugin('com.test.swap', 'swap-plugin', { permissions: ['cardTypes'] }, '/* reviewed code */');
+  approveScanned(TMP, 'com.test.swap', '1.0.0', ['cardTypes']);
+  var swapOk = pluginLoader.scanPlugins(TMP, TMP).filter(function(x) { return x.folder === 'swap-plugin'; })[0];
+  assert.strictEqual(swapOk.needsConsent, false, 'freshly approved plugin loads without re-consent');
+  fs.writeFileSync(path.join(TMP, 'plugins', 'swap-plugin', 'main.js'), '/* swapped after approval */', 'utf8');
+  var swapped = pluginLoader.scanPlugins(TMP, TMP).filter(function(x) { return x.folder === 'swap-plugin'; })[0];
+  assert.strictEqual(swapped.needsConsent, true, 'changed code with unchanged id/version/permissions must need consent again');
+  assert.strictEqual(swapped.enabled, false, 'and must not stay enabled');
+  assert.strictEqual(swapped.changedSinceApproval, true, 'and the consent dialog can say the files changed');
+  fs.writeFileSync(path.join(TMP, 'plugins', 'swap-plugin', 'extra.js'), '/* new file */', 'utf8');
+  approveScanned(TMP, 'com.test.swap', '1.0.0', ['cardTypes']);
+  var reapproved = pluginLoader.scanPlugins(TMP, TMP).filter(function(x) { return x.folder === 'swap-plugin'; })[0];
+  assert.strictEqual(reapproved.needsConsent, false, 'after re-approval it loads again');
+  fs.writeFileSync(path.join(TMP, 'plugins', 'swap-plugin', 'extra.js'), '/* changed extra file */', 'utf8');
+  var extraChanged = pluginLoader.scanPlugins(TMP, TMP).filter(function(x) { return x.folder === 'swap-plugin'; })[0];
+  assert.strictEqual(extraChanged.needsConsent, true, 'a change to ANY file in the folder (not just the entry) re-asks');
+  /* an approval recorded before hashes existed (no approvedHash) is asked once more */
+  writePlugin('com.test.legacy', 'legacy-plugin', {});
+  pluginLoader.approvePlugin(TMP, 'com.test.legacy', '1.0.0', ['cardTypes']);
+  var legacy = pluginLoader.scanPlugins(TMP, TMP).filter(function(x) { return x.folder === 'legacy-plugin'; })[0];
+  assert.strictEqual(legacy.needsConsent, true, 'a pre-hash approval must be re-confirmed once');
+  console.log('  ✓ approval is bound to the exact code: swapped/added/changed files re-trigger consent; legacy approvals re-confirm once');
+
+  /* 4c. symlinks cannot be verified, so a plugin containing one is refused */
+  writePlugin('com.test.symlink', 'symlink-plugin', {});
+  var linked = false;
+  try { fs.symlinkSync(path.join(TMP, 'plugins', 'swap-plugin', 'main.js'), path.join(TMP, 'plugins', 'symlink-plugin', 'link.js')); linked = true; } catch (e) { /* no symlink privilege on this machine (Windows without dev mode) */ }
+  if (linked) {
+    var sym = pluginLoader.scanPlugins(TMP, TMP).filter(function(x) { return x.folder === 'symlink-plugin'; })[0];
+    assert.strictEqual(sym.valid, false, 'a plugin containing a symlink must be refused');
+    assert.ok(/symlink/.test(sym.reason), 'reason should say why: ' + sym.reason);
+    console.log('  ✓ plugin containing a symlink is refused');
+  } else {
+    console.log('  (symlink refusal not exercised — this machine cannot create symlinks)');
+  }
 
   /* 5. removePlugin() refuses to escape the plugins directory */
   var outsideDir = path.join(TMP, 'outside-target');
@@ -114,7 +159,7 @@ function run() {
   assert.strictEqual(serverPlugin.needsConsent, true, 'a never-approved "server" plugin must need consent, same as any other permission');
   console.log('  ✓ "server" permission validates and requires consent like any other');
 
-  pluginLoader.approvePlugin(TMP, 'com.test.mcpbridgelike', '1.0.0', ['server']);
+  approveScanned(TMP, 'com.test.mcpbridgelike', '1.0.0', ['server']);
   var afterServerApprove = pluginLoader.scanPlugins(TMP, TMP);
   var approvedServerPlugin = afterServerApprove.filter(function(p) { return p.folder === 'mcp-bridge-like-plugin'; })[0];
   assert.strictEqual(approvedServerPlugin.needsConsent, false, 'approving "server" must clear needsConsent');
@@ -131,6 +176,44 @@ function run() {
   var serverDescription = pluginLoader.describePermissions(['server']);
   assert.ok(/local server/.test(serverDescription), '"server" must have a human-readable description in the consent dialog text: ' + serverDescription);
   console.log('  ✓ describePermissions() has real prose for "server", not just the raw string');
+
+  /* Prototype-pollution regression (2026-09-15 audit, confirmed still
+     open by the 2026-09-20 re-audit): a manifest id of "__proto__"
+     used to be accepted, and state["__proto__"] = {...} reassigns the
+     state object's prototype instead of creating a key. */
+  ['__proto__', 'constructor', 'prototype'].forEach(function(badId) {
+    var v = pluginLoader.validateManifest({
+      id: badId, name: 'x', version: '1.0.0',
+      kanvazApiVersion: pluginLoader.PLUGIN_API_VERSION, entry: 'main.js', permissions: []
+    });
+    assert.strictEqual(v.ok, false, 'reserved id "' + badId + '" must be rejected by validateManifest');
+    assert.ok(/reserved/.test(v.reason), 'reason should say why: ' + v.reason);
+  });
+  console.log('  ✓ reserved ids (__proto__, constructor, prototype) are rejected as plugin ids');
+
+  var pollutionDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kanvaz-proto-test-'));
+  try {
+    pluginLoader.approvePlugin(pollutionDir, '__proto__', '1.0.0', ['cardTypes']);
+    pluginLoader.setEnabled(pollutionDir, '__proto__', true);
+    assert.strictEqual(({}).approvedPermissions, undefined, 'Object.prototype must not gain approvedPermissions');
+    assert.strictEqual(({}).enabled, undefined, 'Object.prototype must not gain enabled');
+    assert.ok(!fs.existsSync(path.join(pollutionDir, 'plugin-state.json')), 'approving a reserved id must not write any state at all');
+
+    /* A hand-edited plugin-state.json carrying a literal "__proto__"
+       key must not leak inherited approval into an unrelated plugin's
+       lookup either. */
+    fs.writeFileSync(path.join(pollutionDir, 'plugin-state.json'),
+      '{"__proto__": {"enabled": true, "approvedPermissions": ["server"], "approvedVersion": "9.9.9"}}', 'utf8');
+    writePlugin('com.test.unrelated', 'unrelated-plugin');
+    var pollutedScan = pluginLoader.scanPlugins(TMP, pollutionDir);
+    var unrelated = pollutedScan.filter(function(p) { return p.folder === 'unrelated-plugin'; })[0];
+    assert.ok(unrelated, 'unrelated plugin must still scan');
+    assert.strictEqual(unrelated.enabled, false, 'a "__proto__" entry in plugin-state.json must not enable an unrelated plugin');
+    assert.strictEqual(unrelated.needsConsent, true, 'and must not spare it the consent dialog');
+  } finally {
+    fs.rmSync(pollutionDir, { recursive: true, force: true });
+  }
+  console.log('  ✓ __proto__ in state (via API or hand-edited file) cannot pollute or grant approval');
 }
 
 try {

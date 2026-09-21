@@ -468,3 +468,138 @@ not a quick settings-panel addition) and a settings-only export/import
 separate from full profile export (profile export already covers this;
 a narrower "just settings" export would need its own decision about
 whether that's actually a distinct enough use case to justify).
+
+
+---
+
+# Security & platform hardening: reconciled audit, 2026-09-20
+
+Two external reports (DeepSeek and a second agent) said Kanvaz has a strong
+foundation but is not production-release ready. Each claim below was checked
+against the code, not taken on trust. Status key: **FIXED** (in the working
+tree, tested), **OPEN** (real, planned), **REFUTED** (report was wrong),
+**UNVERIFIED** (not yet checked or cannot be checked offline).
+
+Nothing here is released. All FIXED items sit uncommitted until the release
+decision is made.
+
+## Verdict table
+
+| # | Report claim | Verdict | Evidence / status |
+|---|---|---|---|
+| 1 | Electron 22.3.27 is outdated (P0) | **FIXED** | Now Electron 44.4.3 (Chromium 152), electron-builder 26.15.3. Full feature pass on the packaged build. Drops 32-bit Windows and macOS < 12. |
+| 2 | Dependency audit: 13 findings (1 critical, 12 high) | **FIXED** | Confirmed 13 before; `npm audit` now 0 for the app and 0 for the MCP shim; CI audit gate is blocking. |
+| 3 | Unsigned installers (P0) | **OPEN** | True. Signing plan in Tier 1. |
+| 4 | Plugins not sandboxed (P1) | **OPEN** | Plugins share the renderer. Capability scoping exists (validate.js section 8) but there is no process isolation. Tier 2. |
+| 5 | MCP has no per-client auth (P1) | **FIXED** (with stated limit) | Per-start 256-bit token in a file, checked on every request, e2e-tested including a wrong-token client. Does not stop malware running as the same user. |
+| 6 | URL preview SSRF (P1) | **FIXED** | `src/net-guard.js`: literal-IP and localhost pre-check, plus a `lookup` validated at connect time (DNS-rebinding safe), rechecked on every redirect hop. `test/net-guard-test.js` includes a real loopback request that must be refused. |
+| 7 | Privacy statements contradict code | **FIXED** | `PRIVACY.md` rewritten with a table of every network call. Re-check whenever a network call is added. |
+| 8 | CI has broad `contents: write` and mutable action tags (P2) | **FIXED** (unrun) | Read-only default, write on the build job only, actions pinned by SHA. Workflow YAML validated but not yet run on GitHub. |
+| 9 | No SBOM | **FIXED** (unrun) | CycloneDX artifact in CI, plus SHA-256 checksums on releases. Not yet run on GitHub. |
+| 10 | `SECURITY.md` says "6 high" and lists version 7.13 | **FIXED** | Version table now 8.9.x, advisories section corrected. |
+| 11 | Renderer sandbox off | **FIXED** | `sandbox: true` in `main.js` (context isolation was already on, node integration off). Needs a live boot check. |
+| 12 | Plugin id collision bypasses consent (our own 2026-09-15 audit) | **FIXED** | Reserved ids rejected; null-prototype state; approval now bound to version + SHA-256 of the whole plugin folder, symlinks refused. Storage is still keyed by id (acceptable: same id after re-consent). |
+| 13 | Unscoped file IPC handlers | **FIXED** (board IO) / **OPEN** (rest) | `file-read`/`file-write` need a `.kanvaz` path main granted; all path-taking loaders refuse UNC/relative. Still open: plugin storage and settings handlers, per-channel schemas. |
+| 14 | DoS vectors (unbounded reads/output) | **PARTLY FIXED** | Blender conversion timeout/output cap, text preview 256 KB, `.kanvaz` zip-bomb limits. Other handlers still need caps. |
+| 15 | Undo wipes card fields | **FIXED** (found by us, not the reports) | Any undo dropped groupId, hidden, highlighted, modelFormat, renderMode, bgColor, camera and adjustments. `history.js` now copies every field generically; the regression test fails on the old code. |
+
+## Tier 1: audit and remediation plan (do first)
+
+1. **Electron 22 to a supported line, staged.** Bump in steps, running the
+   full suite and a live pass at each step. Known breakages: `File.path` is
+   removed, so drag-drop needs `webUtils.getPathForFile` exposed through
+   preload; re-check the CSP, `sandbox: true` preload limits, and the
+   Three.js / pdf.js vendored builds. Update electron-builder alongside.
+2. **Dependency remediation.** Run `npm audit` on the release tree, upgrade,
+   and record the result (and any accepted residual risk) in `SECURITY.md`.
+3. **Code signing.** Windows Authenticode (evaluate SignPath for OSS or Azure
+   Trusted Signing; eligibility to be confirmed before committing to either)
+   and Apple Developer ID plus notarization for macOS. Until signed, the
+   README must say the installers are unsigned.
+4. **MCP authentication.** Per-launch random token in a 0600 file, required
+   in the first frame, random pipe name, plugin API v2 carries it, and the
+   end-to-end test is updated to authenticate.
+5. **CI hardening.** Per-job `permissions`, actions pinned by SHA, an
+   `npm audit` gate, a CycloneDX SBOM, and SHA-256 checksums on release
+   assets. The release sequencing rule still applies: never
+   `gh release create` before CI's draft exists.
+6. **IPC hardening.** A schema per channel, scoped filesystem roots, size caps
+   on every read/write, and `senderFrame` origin checks.
+7. **Plugin trust binding.** Bind approval to id + version + content hash,
+   re-consent on change, and key plugin storage by a verified identity
+   instead of the bare id.
+8. **Remaining audit items.** `innerHTML` sweep, a glTF external-URI proof of
+   concept (do embedded `uri` references fetch anything?), a gitleaks run,
+   and hashes for vendored libs.
+9. **Adversarial test suite.** Malicious plugin manifest, path traversal on
+   every file IPC, oversized payloads, hostile filenames, and
+   redirect-to-private-IP for the URL fetch, registered in `test/validate.js`.
+
+## Tier 2: future-proofing and the paid plugin
+
+The paid plugin's details are not known yet. The user will give an overview
+once the Tier 1 plan is agreed and current tasks are finished. Until then,
+**the plugin API is not frozen.**
+
+Design constraints to plan around:
+
+- **Versioned, capability-scoped plugin API (v2).** Plugins declare the
+  capabilities they need; anything undeclared is unreachable.
+- **Isolation.** Move toward running plugin code outside the main renderer
+  world (separate context or process). The Tier 1 trust binding is the
+  first step.
+- **Signed packages.** Publisher-signed plugin packages, verified at install.
+- **Offline license verification.** A signed license file checked locally.
+  The core app never phones home; any activation call would live in the paid
+  plugin, be disclosed in `PRIVACY.md`, and be optional.
+- **Extension points to leave room for:** `registerRenderMode` (below),
+  `registerPropertyFieldType`, custom card types, and export formats.
+
+## 3D render modes: plan (needed the history fix first, now done)
+
+Feedback: matcap and wireframe lose color, so they need alpha and normal
+differentiators, and more modes overall.
+
+- **Phase A: stock-material modes.** Keep current modes and add **Normals**
+  (normal as color). Decision needed: today's mode named "Normal" is really
+  the lit/textured view, so rename it **Shaded** to avoid clashing with a
+  true normals view.
+- **Phase B: color-preserving variants.** Matcap and wireframe tinted by the
+  base color/texture, plus an alpha/opacity view.
+- **Phase C: onBeforeCompile patches** for depth, UV checker and AO-style
+  views, behind a small render-mode registry so each mode is data instead of
+  branches in `cards.js`.
+- **Phase D: registry opened to plugins** (the `registerRenderMode`
+  extension point above), where a paid mode pack could plug in.
+
+## Tag UI: deep recon (queued)
+
+Feedback: the tag-adding bar looks bad. Not yet investigated. Plan: audit the
+current bar in the live app with screenshots at several card sizes, list
+concrete problems (spacing, contrast, overflow, keyboard flow), then propose
+one redesign for approval before building it.
+
+## Card feature backlog (3D and text)
+
+Feedback: needs more features on 3D and text cards. Quick wins vs
+needs-design to be split after the recon. Already done this cycle: text file
+preview in file cards, video frame-step and onion skin moved into Properties,
+and a 3D mode strip below the card with a right-click "3D View" picker.
+
+## Current task list (updated 2026-09-20 after the live pass)
+
+| Task | Status |
+|---|---|
+| Electron 22 to 44, electron-builder 24 to 26, `npm audit` to 0 | Done. Feature pass on the dev run **and** on a packaged Windows build |
+| SSRF guard, sandbox on, prototype-pollution guard, file IPC grants, UNC/NTLM refusal, launcher blocklist, MCP token, plugin content-hash binding, zip limits, load-time media validation, glTF URI neutralising, crash log | Done. Unit-tested; the IPC guards, save/open through a granted path, and the crash log were also exercised live |
+| Undo field-wipe fix | Done. Proven live (groupId/highlighted survive undo) and by a test that fails on the old code |
+| Blender detection and hardened conversion | Done. Live: found `F:Blender`, converted a real `.blend` in under a second, and a hostile `.blend` whose auto-run script fires with autoexec on did **not** run through Kanvaz |
+| FBX to GLB/OBJ/STL/PLY/USDA/USDC/USDZ | Loaded and rendered. STL upright after the Z-up fix; PLY has an Up-axis switch. Skinned USD (rigged model) still renders lying and off-centre (loader limitation) |
+| Text and PDF file references render in the card | Done, live on both Electron versions |
+| Click-outside exits edit mode, `S` after focus loss, 3D strip and right-click "3D View", video frame-step/onion in Properties, Map View stuck wire (same node, same port, empty canvas, Esc) | Done, all live-verified with real mouse/keyboard events |
+| Code signing (Windows Authenticode, Apple notarization) | Open, needs the owner's certificates/accounts |
+| Plugin process isolation, per-channel IPC schemas, remaining unscoped handlers, CSP `script-src file:` | Open |
+| Licence decision (MIT core vs source-available), paid-plugin API v2 | Open, waiting on the owner (plugin API deliberately not frozen) |
+| 3D render modes (Shaded, Normals, color-preserving matcap/wireframe, alpha), tag-bar redesign, more 3D/text card features | Planned, not started |
+| Map View label overlap where connection midpoints coincide | Open |
+| Release | **Not started.** No commit, push or publish until the owner says. Release needs: catalog.json update, MCP plugin 1.3.0 zip, first real CI run of the new steps |

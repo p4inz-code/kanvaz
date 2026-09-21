@@ -40,17 +40,20 @@ on:
   pull_request:
     branches: [main]
 
+# Least privilege by default. Only the build job (electron-builder
+# --publish always + gh release upload) needs contents: write; it is
+# granted on that job below.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   validate:
     name: Validate (lint + syntax + version check)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 20
           cache: npm
@@ -72,10 +75,31 @@ jobs:
 
       - run: npm run validate
 
+      # Dependency audit, whole tree (build tooling included: a compromised
+      # build tool is a supply-chain risk for every installer). Blocking since
+      # the Electron 44 / electron-builder 26 upgrade brought it to 0 findings.
+      - name: npm audit
+        run: npm audit --audit-level=high
+
+      # CycloneDX SBOM of production dependencies, kept as a workflow
+      # artifact only (deliberately not attached to the release).
+      - name: Generate SBOM
+        run: npx --yes @cyclonedx/cyclonedx-npm@6.0.1 --omit dev --output-format JSON --output-file sbom.json
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sbom
+          path: sbom.json
+
   build:
     name: Build (${{ matrix.os }})
     needs: validate
     if: startsWith(github.ref, 'refs/tags/v')
+    # Needed for electron-builder --publish always (creates the draft
+    # release + uploads installers) and the gh release upload steps below.
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       # max-parallel: 1 — all three legs publish to the SAME GitHub
@@ -95,9 +119,9 @@ jobs:
             script: build:linux
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 20
           cache: npm
@@ -155,5 +179,38 @@ jobs:
       - name: Publish official plugin assets
         if: matrix.os == 'ubuntu-latest'
         run: gh release upload "${GITHUB_REF_NAME}" dist-plugins/*.zip --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # SHA-256 checksums for the installers electron-builder just uploaded.
+      # Runs after the publish step, so the draft release already exists.
+      # Top-level dist/ files only (skips win-unpacked/ etc). bash shell so
+      # it behaves identically on the Windows runner; sha256sum where
+      # available, shasum -a 256 on macOS.
+      - name: Generate and upload installer checksums
+        # Runs after the release assets are already published, so a problem
+        # here must never turn a good release build red.
+        continue-on-error: true
+        shell: bash
+        run: |
+          cd dist
+          shopt -s nullglob
+          files=(*.exe *.dmg *.AppImage)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No installer files found in dist/"
+            ls -la
+            exit 1
+          fi
+          out="SHA256SUMS-${{ matrix.os }}.txt"
+          : > "$out"
+          for f in "${files[@]}"; do
+            if command -v sha256sum >/dev/null 2>&1; then
+              sha256sum "$f" >> "$out"
+            else
+              shasum -a 256 "$f" >> "$out"
+            fi
+          done
+          cat "$out"
+          gh release upload "${GITHUB_REF_NAME}" "$out" --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

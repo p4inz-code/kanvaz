@@ -2,6 +2,11 @@
 
 var contextBridge = require('electron').contextBridge;
 var ipcRenderer = require('electron').ipcRenderer;
+/* Electron 32 removed File.path; webUtils.getPathForFile (Electron 29+) is the
+   replacement. On the current Electron 22 webUtils does not exist, so this
+   falls back to File.path and the same code works on both sides of the
+   upgrade. */
+var webUtils = require('electron').webUtils;
 
 /* Redesign v1 Phase 2: main.js passes this at window-creation time (see
    createWindow's additionalArguments) so the renderer can decide,
@@ -33,6 +38,13 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
   importMediaDialog: function() { return ipcRenderer.invoke('dialog-import-media'); },
   openRefFileDialog: function(ext) { return ipcRenderer.invoke('dialog-open-ref-file', ext); },
   readPdfBytes: function(filePath) { return ipcRenderer.invoke('pdf-read-bytes', filePath); },
+  readTextPreview: function(filePath) { return ipcRenderer.invoke('text-read-preview', filePath); },
+  getPathForFile:  function(file) {
+    try {
+      if (webUtils && typeof webUtils.getPathForFile === 'function') return webUtils.getPathForFile(file) || '';
+    } catch (e) { /* not a real File object */ }
+    return (file && typeof file.path === 'string') ? file.path : '';
+  },
 
   /* File I/O */
   readFile:        function(p) { return ipcRenderer.invoke('file-read', p); },

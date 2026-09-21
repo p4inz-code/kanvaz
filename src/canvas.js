@@ -642,11 +642,31 @@ var KanvazCanvas = (function() {
        priority over the default left-drag-pans-canvas behavior — a
        marquee selection box needs the same gesture pan already claims,
        so it has to be checked and excluded first. */
+    /* Real bug found via live user audit: "when I click outside the
+       card area it doesn't exit edit mode." Root cause: clicking on
+       empty canvas always calls e.preventDefault() below (needed so
+       the click starts a pan-drag or marquee-select instead of, say,
+       the browser trying to select page text) — but preventDefault()
+       on mousedown also suppresses the browser's own default focus-
+       shift behavior, which is what would otherwise blur whatever
+       textarea/input a card left focused. Clicking a DIFFERENT card
+       already works fine (cards.js's own mousedown handler never calls
+       preventDefault for a plain card click), so this is scoped
+       specifically to the empty-canvas case. */
+    function blurActiveEditIfAny() {
+      var ae = document.activeElement;
+      if (ae && ae !== document.body &&
+          (ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT' || ae.tagName === 'SELECT' || ae.isContentEditable)) {
+        ae.blur();
+      }
+    }
+
     container.addEventListener('mousedown', function(e) {
       var isEmptyTarget = (e.target === container || e.target === world || e.target === gridCanvas);
 
       if (e.button === 0 && isEmptyTarget && (e.ctrlKey || e.metaKey || marqueeModeOn)) {
         e.preventDefault();
+        blurActiveEditIfAny();
         startMarquee(e.clientX, e.clientY);
         return;
       }
@@ -669,6 +689,7 @@ var KanvazCanvas = (function() {
 
       if (shouldPan) {
         e.preventDefault();
+        blurActiveEditIfAny();
         isPanning = true;
         panStartX = e.clientX;
         panStartY = e.clientY;

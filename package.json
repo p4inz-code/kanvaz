@@ -1,6 +1,6 @@
 {
   "name": "kanvaz",
-  "version": "8.9.8",
+  "version": "9.0.0",
   "description": "Reference Operating System — collect, organize, connect, and understand your references.",
   "private": true,
   "main": "src/main.js",
@@ -28,8 +28,8 @@
     "test:plugins": "node test/plugin-loader-test.js"
   },
   "devDependencies": {
-    "electron": "22.3.27",
-    "electron-builder": "24.13.3",
+    "electron": "44.4.3",
+    "electron-builder": "26.15.3",
     "puppeteer-core": "^25.3.0"
   },
   "build": {
@@ -59,8 +59,7 @@
         {
           "target": "nsis",
           "arch": [
-            "x64",
-            "ia32"
+            "x64"
           ]
         },
         {
@@ -75,7 +74,7 @@
     "mac": {
       "target": "dmg",
       "icon": "assets/icons/icon.icns",
-      "minimumSystemVersion": "10.13.0"
+      "minimumSystemVersion": "12.0.0"
     },
     "linux": {
       "target": "AppImage",

@@ -124,8 +124,38 @@ function packBoard(jsonString) {
    card, which the existing "Missing media" error state already
    handles gracefully (same UI a moved/deleted file would show). One
    damaged asset can never take down the rest of the board. */
-function unpackBoard(buf) {
+/* Decompression limits (2026-09-20 audit): a 10 MB .kanvaz whose board.json
+   inflates to gigabytes used to be read entirely into the main process and
+   crash the whole app on open. The zip's DECLARED sizes are checked before
+   anything is inflated (JSZip re-verifies the real size against them while
+   inflating, so a lying header fails instead of slipping past). The caps are
+   far above any real board: the app itself limits one media file to 500 MB. */
+var DEFAULT_LIMITS = {
+  maxBoardJsonBytes: 256 * 1024 * 1024,
+  maxAssetBytes: 600 * 1024 * 1024,
+  maxTotalBytes: 3 * 1024 * 1024 * 1024,
+  maxEntries: 20000
+};
+
+function checkZipLimits(zip, limits) {
+  var names = Object.keys(zip.files);
+  if (names.length > limits.maxEntries) throw new Error('Board file rejected: too many entries in the container');
+  var total = 0;
+  for (var i = 0; i < names.length; i++) {
+    var f = zip.files[names[i]];
+    if (f.dir) continue;
+    var size = (f._data && f._data.uncompressedSize) || 0;
+    var cap = names[i] === 'board.json' ? limits.maxBoardJsonBytes : limits.maxAssetBytes;
+    if (size > cap) throw new Error('Board file rejected: "' + names[i] + '" is larger than the allowed size when unpacked');
+    total += size;
+    if (total > limits.maxTotalBytes) throw new Error('Board file rejected: unpacked size is too large');
+  }
+}
+
+function unpackBoard(buf, limitOverrides) {
+  var limits = Object.assign({}, DEFAULT_LIMITS, limitOverrides || {});
   return JSZip.loadAsync(buf).then(function(zip) {
+    checkZipLimits(zip, limits);
     var boardEntry = zip.file('board.json');
     if (!boardEntry) throw new Error('Not a valid Kanvaz board — board.json missing from container');
     return boardEntry.async('string').then(function(jsonStr) {

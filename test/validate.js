@@ -90,6 +90,96 @@ if (fs.existsSync(path.join(__dirname, 'plugin-loader-test.js'))) {
   console.log('  (skipped — test/plugin-loader-test.js missing)');
 }
 
+/* 5b. SSRF guard — URL-card preview must never reach private/loopback addresses */
+section('5b. SSRF guard (URL preview fetch)');
+if (fs.existsSync(path.join(__dirname, 'net-guard-test.js'))) {
+  try {
+    var guardOut = cp.execSync('node "' + path.join(__dirname, 'net-guard-test.js') + '"', { encoding: 'utf8', timeout: 30000 });
+    if (/ALL NET GUARD TESTS PASSED/.test(guardOut)) ok('private/loopback/link-local/reserved addresses blocked, public allowed, real loopback request refused');
+    else { bad('net guard test failed'); console.log(guardOut); }
+  } catch (e) {
+    bad('net guard test crashed');
+    console.log(e.stdout || e.message);
+  }
+} else {
+  console.log('  (skipped — test/net-guard-test.js missing)');
+}
+
+/* 5d. Path guard — file IPC scope, UNC/NTLM refusal, open-path blocklist */
+section('5d. Path guard (file IPC trust boundary)');
+if (fs.existsSync(path.join(__dirname, 'path-guard-test.js'))) {
+  try {
+    var pgOut = cp.execSync('node "' + path.join(__dirname, 'path-guard-test.js') + '"', { encoding: 'utf8', timeout: 30000 });
+    if (/ALL PATH GUARD TESTS PASSED/.test(pgOut)) ok('remote/UNC refused, board paths need .kanvaz + a main-issued grant, widened launcher blocklist');
+    else { bad('path guard test failed'); console.log(pgOut); }
+  } catch (e) {
+    bad('path guard test crashed');
+    console.log(e.stdout || e.message);
+  }
+} else {
+  console.log('  (skipped — test/path-guard-test.js missing)');
+}
+
+/* 5e. MCP bridge token auth */
+section('5e. MCP token auth');
+if (fs.existsSync(path.join(__dirname, 'mcp-auth-test.js'))) {
+  try {
+    var maOut = cp.execSync('node "' + path.join(__dirname, 'mcp-auth-test.js') + '"', { encoding: 'utf8', timeout: 30000 });
+    if (/ALL MCP AUTH TESTS PASSED/.test(maOut)) ok('256-bit per-start token, constant-time verify, atomic token file, removed on stop');
+    else { bad('mcp auth test failed'); console.log(maOut); }
+  } catch (e) {
+    bad('mcp auth test crashed');
+    console.log(e.stdout || e.message);
+  }
+} else {
+  console.log('  (skipped — test/mcp-auth-test.js missing)');
+}
+
+/* 5f. Board container decompression limits */
+section('5f. Board container limits (zip-bomb defense)');
+if (fs.existsSync(path.join(__dirname, 'board-container-limits-test.js'))) {
+  try {
+    var bcOut = cp.execSync('node "' + path.join(__dirname, 'board-container-limits-test.js') + '"', { encoding: 'utf8', timeout: 60000 });
+    if (/ALL BOARD CONTAINER LIMIT TESTS PASSED/.test(bcOut)) ok('oversized board.json/asset/total/entry-count rejected before inflating; normal board unchanged');
+    else { bad('board container limits test failed'); console.log(bcOut); }
+  } catch (e) {
+    bad('board container limits test crashed');
+    console.log(e.stdout || e.message);
+  }
+} else {
+  console.log('  (skipped — test/board-container-limits-test.js missing)');
+}
+
+/* 5g. Local crash log */
+section('5g. Crash log (local only)');
+if (fs.existsSync(path.join(__dirname, 'crash-log-test.js'))) {
+  try {
+    var clOut = cp.execSync('node "' + path.join(__dirname, 'crash-log-test.js') + '"', { encoding: 'utf8', timeout: 30000 });
+    if (/ALL CRASH LOG TESTS PASSED/.test(clOut)) ok('JSON lines, home dir masked, fields clipped, rotates at 1 MB, never throws');
+    else { bad('crash log test failed'); console.log(clOut); }
+  } catch (e) {
+    bad('crash log test crashed');
+    console.log(e.stdout || e.message);
+  }
+} else {
+  console.log('  (skipped — test/crash-log-test.js missing)');
+}
+
+/* 5c. Blender detection — finds installs on any drive/version */
+section('5c. Blender detection');
+if (fs.existsSync(path.join(__dirname, 'blender-detect-test.js'))) {
+  try {
+    var bdOut = cp.execSync('node "' + path.join(__dirname, 'blender-detect-test.js') + '"', { encoding: 'utf8', timeout: 30000 });
+    if (/ALL BLENDER DETECT TESTS PASSED/.test(bdOut)) ok('newest-version pick, plain/other-drive folders, PATH, override, registry parser, null when absent');
+    else { bad('blender detect test failed'); console.log(bdOut); }
+  } catch (e) {
+    bad('blender detect test crashed');
+    console.log(e.stdout || e.message);
+  }
+} else {
+  console.log('  (skipped — test/blender-detect-test.js missing)');
+}
+
 /* 6. Command registry — registration validation, palette filtering, fuzzy match */
 section('6. Command registry');
 if (fs.existsSync(path.join(__dirname, 'command-registry-test.js'))) {

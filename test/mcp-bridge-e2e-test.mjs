@@ -48,6 +48,8 @@ function check(label, cond) {
 }
 
 /* ---- Fake Kanvaz listener ---- */
+const TEST_TOKEN = 'e2e-test-token-' + Math.random().toString(36).slice(2);
+let unauthorizedCount = 0;
 const fakeCards = {
   'card-1': { id: 'card-1', type: 'note', name: 'Note', text: 'hello', tags: [], x: 0, y: 0 }
 };
@@ -61,6 +63,11 @@ const fakeServer = net.createServer((socket) => {
     if (nl === -1) return;
     var req = JSON.parse(buffer.slice(0, nl));
     var result, error;
+    if (req.token !== TEST_TOKEN) {
+      unauthorizedCount++;
+      socket.end(JSON.stringify({ id: req.id, error: 'unauthorized' }) + '\n');
+      return;
+    }
     if (req.method === 'getActiveBoard') {
       result = { id: 'board-1', name: 'Test Board', path: null };
     } else if (req.method === 'getCard') {
@@ -102,7 +109,7 @@ const transport = new StdioClientTransport({
   command: process.execPath,
   args: ['server.js'],
   cwd: PLUGIN_DIR,
-  env: Object.assign({}, process.env, { KANVAZ_MCP_SOCKET: PIPE_PATH })
+  env: Object.assign({}, process.env, { KANVAZ_MCP_SOCKET: PIPE_PATH, KANVAZ_MCP_TOKEN: TEST_TOKEN })
 });
 
 const client = new Client({ name: 'kanvaz-test-client', version: '1.0.0' });
@@ -163,7 +170,21 @@ const r12 = await client.callTool({ name: 'shareCardToBoard', arguments: { id: '
 const r12data = JSON.parse(r12.content[0].text);
 check('shareCardToBoard surfaces a real refusal, not a crash (v7.x)', r12data.ok === false && /already open/.test(r12data.error));
 
+check('every request from the shim carried the token (none refused)', unauthorizedCount === 0);
 await client.close();
+
+/* A shim without the token must be refused by the listener. */
+const transportBad = new StdioClientTransport({
+  command: process.execPath,
+  args: ['server.js'],
+  cwd: PLUGIN_DIR,
+  env: Object.assign({}, process.env, { KANVAZ_MCP_SOCKET: PIPE_PATH, KANVAZ_MCP_TOKEN: 'wrong-token' })
+});
+const clientBad = new Client({ name: 'kanvaz-test-client-bad', version: '1.0.0' });
+await clientBad.connect(transportBad);
+const rBad = await clientBad.callTool({ name: 'getActiveBoard', arguments: {} });
+check('a client with the wrong token is refused, not served', rBad.isError === true && /unauthorized/.test(rBad.content[0].text) && unauthorizedCount === 1);
+await clientBad.close();
 fakeServer.close();
 try {
   if (process.platform !== 'win32') fs.unlinkSync(PIPE_PATH);

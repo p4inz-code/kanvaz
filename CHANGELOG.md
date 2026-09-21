@@ -2,6 +2,38 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [9.0.0] — 2026-09-21 — Security & platform hardening
+
+*Major version because it drops 32-bit Windows and macOS before 12. Everything
+below was tested against the running app (Electron 22 and the packaged Electron 44
+build) unless marked otherwise. Not yet exercised: the plugin-approval native
+dialog, macOS and Linux builds, and the new CI steps on GitHub.*
+
+### Platform
+- **Electron 22.3.27 to 44.4.3** (Chromium 108 to 152) and **electron-builder 24 to 26**.
+  `npm audit` went from 13 findings (1 critical, 12 high) to 0. **32-bit Windows and
+  macOS before 12 are no longer supported.** Dropped-file paths now go through
+  `webUtils.getPathForFile` because `File.path` no longer exists.
+
+### Security
+- File IPC scoped to files the user chose; UNC/remote paths refused everywhere (NTLM leak); wider `shell-open-path` blocklist; SSRF guard on URL previews; MCP Bridge per-start token; plugin approval bound to the reviewed code (content hash), symlink plugins refused; `.blend` import with `--disable-autoexec`; decompression limits on `.kanvaz` files; embedded-media/`objectFit` validation on load; glTF/USD external URIs neutralised; renderer `sandbox: true`; local crash log; CI hardening. Details in `SECURITY.md`.
+- **One-time effect:** plugins you approved before this version ask for consent again (approval now records the plugin's content hash).
+- MCP Bridge plugin **1.3.0**: shim sends the token; a shim older than 1.3.0 is refused until updated. The catalog entry now points at the 1.3.0 zip published with this release.
+
+### Fixed
+- **Undo silently wiped card fields** (group, hidden, highlighted, 3D format/render mode/background/camera, image adjustments): any Ctrl+Z reset them. History now copies every field; regression test fails on the old code.
+- **`.blend` files were reported as needing Blender even when installed** (detection only checked `C:\Program Files\Blender Foundation` for versions 3.0 to 5.0). Now finds any drive/version via PATH, standard roots, the Windows registry and package managers; `BLENDER_PATH` overrides.
+- Clicking outside a card now leaves edit mode; the `S` shortcut works again after the window loses focus; the 3D render-mode buttons moved to a strip under the card (hover) with a right-click "3D View" option; video frame-step and onion skin moved to the Properties panel; Map View no longer leaves a stuck dashed wire when you click the node or port a wire started from.
+- **STL files loaded lying on their back** (STL is Z-up). They now load upright, and 3D cards have an Up axis (Y/Z) switch in Properties for PLY or anything else.
+
+### Added
+- **Text and PDF file references render inside the card** (drop a `.txt`, `.md`, `.json`, `.log`, code file, or PDF). Text is read from the first 256 KB only and shown literally.
+- Local crash log; SBOM and release checksums in CI.
+
+### Known limitations found during testing
+- A skinned/rigged model exported to USD renders lying down and off-centre (static USD is correct). Use GLB for rigged models.
+- External textures next to an FBX are not loaded (the model shows untextured).
+
 ## [8.9.8] — Live verification: templates confirmed working end-to-end
 
 *No code changes — closes out the one queued live check disclosed in

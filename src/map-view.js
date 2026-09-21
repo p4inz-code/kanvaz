@@ -418,6 +418,13 @@ var KanvazMapView = (function() {
           return;
         }
 
+        /* Clicking the port the wire started from again cancels it, matching
+           the node-click path below (a self-connection is meaningless). */
+        if (wireFrom && wireFrom === portRefId) {
+          cancelWire();
+          return;
+        }
+
         /* Only start wires from the output port (right side) */
         if (portEl.classList.contains('map-port-out') && !wireFrom) {
           startWire(portRefId);
@@ -471,6 +478,22 @@ var KanvazMapView = (function() {
         if (wireFrom && wireFrom !== refId) {
           completeWire(refId);
           return;
+        }
+
+        /* Real bug found via live user audit: clicking/dragging the
+           SAME node a wire-drag started from (rather than Escape, a
+           different node, or empty canvas — the only three paths that
+           already call cancelWire()) fell straight through to the
+           normal select/drag logic below with wireFrom/wirePreview
+           never cleared. The mousemove handler keeps updating that
+           orphaned preview's bezier path to follow the mouse
+           indefinitely — a permanently "stuck," disconnected dashed
+           line is exactly what that looks like. A self-connection is
+           already meaningless (connections.js's own create() rejects
+           fromRefId === toRefId), so cancel outright here instead of
+           silently leaving the wire state dangling. */
+        if (wireFrom && wireFrom === refId) {
+          cancelWire();
         }
 
         selectNode(refId);

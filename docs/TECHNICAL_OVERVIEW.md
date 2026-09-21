@@ -4,7 +4,7 @@ This document describes how Kanvaz is built, for anyone reading the
 source, considering a contribution, or just curious how it works.
 
 ## Stack
-- **Electron 22.3.27** (locked — see "Why pinned versions" below)
+- **Electron 44.4.3** (was 22.3.27 until 2026-09-20; see `SECURITY.md`)
 - **electron-builder 24.13.3** for packaging installers
 - Plain JavaScript (ES5-style `var`, no build step, no bundler, no
   frontend framework) — the entire UI is hand-written HTML/CSS/JS

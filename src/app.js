@@ -258,7 +258,22 @@ var KanvazApp = (function() {
     menu.style.top  = top + 'px';
   }
 
+  /* File objects lose .path on Electron 32+, so resolve each dropped File to a
+     plain { path, name } once, here, and use that everywhere below. */
+  function normalizeDroppedFiles(files) {
+    var out = [];
+    for (var i = 0; i < files.length; i++) {
+      var f = files[i];
+      var p = '';
+      if (f && f.path !== undefined && typeof f.path === 'string' && !f.__kanvazResolved) p = f.path;
+      if (!p && typeof KanvazBridge !== 'undefined' && KanvazBridge.getPathForFile) p = KanvazBridge.getPathForFile(f);
+      out.push({ path: p, name: (f && f.name) || '', __kanvazResolved: true });
+    }
+    return out;
+  }
+
   function handleDroppedFiles(files, worldPos) {
+    files = normalizeDroppedFiles(files);
     /* Intercept .pur files — route to PureRef importer */
     for (var p = 0; p < files.length; p++) {
       if (files[p].path && files[p].path.toLowerCase().slice(-4) === '.pur') {
@@ -325,8 +340,11 @@ var KanvazApp = (function() {
               KanvazUI.toast((isModelFile || isExternalConvertFile)
                 ? 'Model too large for Kanvaz (max 150MB). Try a decimated/compressed export.'
                 : 'File too large for Kanvaz (max 500MB). Use a smaller preview or proxy file.', 'error');
+            } else if (err === 'FILE_TYPE_INVALID' && KanvazCards.isTextPreviewPath && (KanvazCards.isTextPreviewPath(file.path) || KanvazCards.isPdfPath(file.path))) {
+              /* Text-like files and PDFs become a file-reference card whose body renders the content. */
+              KanvazCards.createFileRefCardAtPath(pos.x, pos.y, file.path);
             } else if (err === 'FILE_TYPE_INVALID') {
-              KanvazUI.toast('"' + file.name + '" is not supported. Supported: JPG, PNG, GIF, BMP, WEBP, MP4, WEBM, MOV, MP3, WAV, OGG, M4A, GLB, GLTF, OBJ, FBX, STL, PLY, VOX, USD, USDZ, BLEND', 'error');
+              KanvazUI.toast('"' + file.name + '" is not supported. Supported: JPG, PNG, GIF, BMP, WEBP, MP4, WEBM, MOV, MP3, WAV, OGG, M4A, GLB, GLTF, OBJ, FBX, STL, PLY, VOX, USD, USDZ, BLEND, PDF and text files', 'error');
             } else if (err === 'EXTERNAL_TOOL_NOT_FOUND') {
               /* Blender genuinely not installed is the expected, common
                  case for most users, not a bug — fall back to a plain
@@ -343,7 +361,10 @@ var KanvazApp = (function() {
                  entirely optional — Kanvaz already added the file as a
                  real reference either way, this is purely about
                  unlocking the LIVE 3D preview on top of that. */
-              KanvazUI.toast('"' + file.name + '" added as a file reference. For a live 3D preview, install the free Blender app (blender.org) and drop it again — totally optional either way.', 'warning');
+              KanvazUI.toast('"' + file.name + '" added as a file reference. Kanvaz could not find Blender on this PC — if it is installed somewhere unusual, set the BLENDER_PATH environment variable to blender.exe and drop the file again. (Blender is optional, only needed for the live 3D preview.)', 'warning');
+            } else if (err === 'MODEL_TOO_LARGE') {
+              KanvazCards.createFileRefCardAtPath(pos.x, pos.y, file.path);
+              KanvazUI.toast('"' + file.name + '" converts to a model over the 150MB limit. Added it as a file reference instead — try decimating it in Blender first.', 'warning');
             } else if (err === 'EXTERNAL_TOOL_FAILED') {
               /* Direct feedback: "the .blend dropped but error came...
                  didn't add to list" — this branch showed the error but,
@@ -1768,6 +1789,17 @@ var KanvazApp = (function() {
         });
       }
 
+      /* 3D model-only: Normal/Wireframe/Matcap + Reset Camera — direct
+         feedback, a second way in besides hovering the card's own
+         toolbar strip. */
+      if (card.type === 'model3d') {
+        items.push({
+          label: '3D View',
+          submenu: true,
+          action: function() { KanvazCards.showModel3DModePicker(card.id, x, y); }
+        });
+      }
+
       items.push({ sep: true });
       items.push({
         label: 'Opacity',
@@ -2299,6 +2331,34 @@ var KanvazApp = (function() {
       if (e.key === 'Tab') tabHeld = false;
     }, true);
     window.addEventListener('blur', function() { tabHeld = false; });
+
+    /* Real bug found via live user audit: "when I re-targeted the
+       Kanvaz window, the S key (Settings open/close) wasn't working."
+       Root cause is bigger than just S — shortcuts.js's whole dispatcher
+       has one early `if (inText) return;` gating EVERY single-key
+       shortcut (S, L, F, 0, P, C, E, M, H, and more), where `inText` is
+       computed from `document.activeElement`'s tag. Switching to another
+       app and back does NOT blur whatever textarea/input was focused in
+       Chromium — focus state survives a window-level blur/focus cycle by
+       design, the same way switching browser tabs and back doesn't blur
+       a focused field either. So editing a note, then alt-tabbing away
+       and back, leaves `inText` silently true forever afterward, with no
+       visual sign anything is still "in edit mode" — every single-key
+       shortcut just does nothing until the user happens to click that
+       same field again and then click away. Forcing a blur on whatever
+       was focused the moment the WINDOW itself loses focus matches what
+       a user actually expects ("I left the app, I'm done with that
+       field for now") and, as a real bonus, guarantees in-progress edits
+       get committed through each field's own existing blur handler
+       (history push, dirty-flag, etc.) rather than sitting one alt-tab
+       away from being lost if the app closes while the user is away. */
+    window.addEventListener('blur', function() {
+      var ae = document.activeElement;
+      if (ae && ae !== document.body &&
+          (ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT' || ae.tagName === 'SELECT' || ae.isContentEditable)) {
+        ae.blur();
+      }
+    });
 
     function initTabMmbWindowDrag() {
       window.addEventListener('mousedown', function(e) {

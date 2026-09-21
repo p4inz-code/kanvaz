@@ -809,6 +809,31 @@ var KanvazProperties = (function() {
     bgRow.appendChild(bgSwatchEl);
     body.appendChild(bgRow);
 
+    /* Up axis: STL is Z-up by convention and PLY has no standard, so the
+       user can flip a model that loads lying on its back. */
+    var upRow = document.createElement('div');
+    upRow.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:10px;';
+    var upLabel = document.createElement('div');
+    upLabel.style.cssText = LABEL_CSS + 'flex-shrink:0;width:60px;';
+    upLabel.textContent = 'Up axis';
+    upRow.appendChild(upLabel);
+    var curUp = KanvazCards.getModelUpAxis(card);
+    var upOpts = [['y', 'Y-up'], ['z', 'Z-up']];
+    for (var ui = 0; ui < upOpts.length; ui++) (function(opt) {
+      var on = curUp === opt[0];
+      var ub = document.createElement('button');
+      ub.textContent = opt[1];
+      ub.title = 'Flip this if the model loads lying on its back (STL and 3D-print/CAD files are usually Z-up)';
+      ub.style.cssText = 'flex:1;padding:5px 4px;background:' + (on ? 'var(--color-accent-bg)' : 'var(--color-surface-2)') + ';border:1px solid ' + (on ? 'var(--color-accent)' : 'var(--color-border-2)') + ';border-radius:5px;color:' + (on ? 'var(--color-accent)' : 'var(--color-text-2)') + ';font-family:var(--font-ui);font-size:11px;cursor:pointer;';
+      ub.onclick = function() {
+        if (curUp === opt[0]) return;
+        KanvazCards.setModelUpAxis(cardId, opt[0]);
+        if (panelEl) setTimeout(function() { renderInto(panelEl); }, 400);
+      };
+      upRow.appendChild(ub);
+    })(upOpts[ui]);
+    body.appendChild(upRow);
+
     var resetBtn = document.createElement('button');
     resetBtn.textContent = 'Reset Camera';
     resetBtn.style.cssText = 'width:100%;padding:6px;background:none;border:1px solid var(--color-border-2);border-radius:5px;color:var(--color-text-2);font-family:var(--font-ui);font-size:12px;cursor:pointer;margin-bottom:16px;';
@@ -872,6 +897,52 @@ var KanvazProperties = (function() {
       speedRow.appendChild(speedLabel);
       speedRow.appendChild(speedBtn);
       body.appendChild(speedRow);
+
+      /* Frame-step + onion-skin — moved here from the card's own hover
+         scrub bar (direct feedback: nine controls in one strip was
+         unusable; Properties is the panel built for this kind of
+         secondary control). ~1/30s per step, a disclosed approximation. */
+      var stepRow = document.createElement('div');
+      stepRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;';
+      var stepLabel = document.createElement('div');
+      stepLabel.style.cssText = 'font-size:12px;color:var(--color-text-2);';
+      stepLabel.textContent = 'Frame step';
+      var stepBtns = document.createElement('div');
+      stepBtns.style.cssText = 'display:flex;gap:6px;';
+      var BTN_CSS = 'padding:4px 10px;background:none;border:1px solid var(--color-border-2);border-radius:5px;color:var(--color-text-2);font-family:var(--font-ui);font-size:11px;cursor:pointer;';
+      var backBtn = document.createElement('button');
+      backBtn.textContent = '◀ Back';
+      backBtn.title = 'Step back one frame (~1/30s)';
+      backBtn.style.cssText = BTN_CSS;
+      backBtn.onclick = function() { KanvazCards.stepVideoFrame(cardId, -1); };
+      var fwdBtn = document.createElement('button');
+      fwdBtn.textContent = 'Forward ▶';
+      fwdBtn.title = 'Step forward one frame (~1/30s)';
+      fwdBtn.style.cssText = BTN_CSS;
+      fwdBtn.onclick = function() { KanvazCards.stepVideoFrame(cardId, 1); };
+      stepBtns.appendChild(backBtn);
+      stepBtns.appendChild(fwdBtn);
+      stepRow.appendChild(stepLabel);
+      stepRow.appendChild(stepBtns);
+      body.appendChild(stepRow);
+
+      var onionRow = document.createElement('div');
+      onionRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;';
+      var onionLabel = document.createElement('div');
+      onionLabel.style.cssText = 'font-size:12px;color:var(--color-text-2);';
+      onionLabel.textContent = 'Onion skin';
+      onionLabel.title = 'Ghost the previous frame while stepping';
+      var onionBtn = document.createElement('button');
+      var onionOn = KanvazCards.isOnionSkinOn(cardId);
+      onionBtn.textContent = onionOn ? 'On' : 'Off';
+      onionBtn.style.cssText = 'padding:4px 10px;background:' + (onionOn ? 'var(--color-accent-bg)' : 'none') + ';border:1px solid ' + (onionOn ? 'var(--color-accent)' : 'var(--color-border-2)') + ';border-radius:5px;color:' + (onionOn ? 'var(--color-accent)' : 'var(--color-text-2)') + ';font-family:var(--font-ui);font-size:11px;cursor:pointer;';
+      onionBtn.onclick = function() {
+        KanvazCards.toggleOnionSkin(cardId);
+        if (panelEl) renderInto(panelEl);
+      };
+      onionRow.appendChild(onionLabel);
+      onionRow.appendChild(onionBtn);
+      body.appendChild(onionRow);
     }
 
     if (card.type === 'audio') {

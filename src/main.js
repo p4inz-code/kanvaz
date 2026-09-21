@@ -19,6 +19,41 @@ var spawn = require('child_process').spawn;
 var boardContainer = require('./board-container');
 var pluginLoader = require('./plugin-loader');
 var kanvazProfiles = require('./profiles');
+var netGuard = require('./net-guard');
+var blenderDetect = require('./blender-detect');
+var pathGuard = require('./path-guard');
+var mcpAuth = require('./mcp-auth');
+var crashLog = require('./crash-log');
+
+/* Local-only crash log (src/crash-log.js): nothing is ever uploaded. */
+function logCrash(kind, message, stack, detail) {
+  try {
+    crashLog.appendCrash(app.getPath('userData'), { kind: kind, message: message, stack: stack, detail: detail }, { version: app.getVersion() });
+  } catch (e) { /* app not ready yet — nothing to write to */ }
+}
+var shownUncaughtDialog = false;
+process.on('uncaughtException', function(err) {
+  logCrash('uncaughtException', err && err.message, err && err.stack);
+  if (!shownUncaughtDialog && app.isReady()) {
+    shownUncaughtDialog = true;
+    dialog.showErrorBox('Kanvaz hit an unexpected error', ((err && err.message) || 'Unknown error') + '\n\nDetails were saved to crash.log in the Kanvaz data folder. Save your board, then restart if things look wrong.');
+  }
+});
+process.on('unhandledRejection', function(reason) {
+  logCrash('unhandledRejection', reason && reason.message ? reason.message : String(reason), reason && reason.stack);
+});
+
+/* Board paths main itself has handed out (native dialogs, OS file-open/argv,
+   the recent list it wrote). file-read / file-write refuse everything else. */
+var boardGrants = pathGuard.createGrants();
+
+/* Every handler that takes a path from the renderer refuses remote (UNC /
+   device) and relative paths before touching the filesystem: a card path
+   like \\host\share\x.png would otherwise make Windows open an SMB
+   connection and leak the user's NTLM hash just by rendering the card. */
+function rejectNonLocal(filePath) {
+  return pathGuard.isLocalAbsolutePath(filePath) ? null : { ok: false, error: 'Only local file paths are allowed' };
+}
 
 /* electron-updater is a real dependency (see package.json), but it's
    wrapped in try/catch anyway — if it's ever missing (e.g. a stripped
@@ -79,6 +114,8 @@ var MAX_MODEL_SIZE_MB  = 150;
 var MCP_BRIDGE_PLUGIN_ID = 'studio.northbyte.mcp-bridge';
 var MCP_BRIDGE_TIMEOUT_MS = 15000;
 var mcpBridgeServer = null;
+/* Per-start random token every MCP request must carry (src/mcp-auth.js). */
+var mcpBridgeToken = null;
 var mcpBridgePending = {};
 var mcpBridgeRequestSeq = 0;
 
@@ -172,6 +209,12 @@ function handleMcpBridgeConnection(socket) {
           socket.write(JSON.stringify({ id: null, error: 'request must be a JSON object with method/params' }) + '\n');
           return;
         }
+        /* Every request must carry this start's token, or it is refused and
+           the connection dropped. Nothing reaches the renderer without it. */
+        if (!mcpAuth.verifyToken(req.token, mcpBridgeToken)) {
+          socket.end(JSON.stringify({ id: req.id === undefined ? null : req.id, error: 'unauthorized: missing or wrong MCP token. The MCP shim reads it from mcp-bridge.token in the Kanvaz data folder (or KANVAZ_MCP_TOKEN).' }) + '\n');
+          return;
+        }
         invokeRenderer(req.method, req.params).then(function(result) {
           socket.write(JSON.stringify({ id: req.id, result: result }) + '\n');
         }).catch(function(e) {
@@ -193,6 +236,18 @@ function startMcpBridgeServer() {
       var server = net.createServer(handleMcpBridgeConnection);
       server.on('error', function(e) { reject(e); });
       server.listen(socketPath, function() {
+        /* Token is created only once the listener is really up, and written
+           before we report success, so a shim never sees a live pipe with no
+           token file. A failure to write it fails the start (fail closed). */
+        var token = mcpAuth.generateToken();
+        try {
+          mcpAuth.writeTokenFile(app.getPath('userData'), token);
+        } catch (e) {
+          server.close();
+          reject(new Error('could not write the MCP token file: ' + e.message));
+          return;
+        }
+        mcpBridgeToken = token;
         mcpBridgeServer = server;
         resolve({ ok: true });
       });
@@ -319,6 +374,8 @@ function stopMcpBridgeServer() {
     mcpBridgePending[id].reject(new Error('MCP Bridge stopped'));
   }
   mcpBridgePending = {};
+  mcpBridgeToken = null;
+  try { mcpAuth.removeTokenFile(app.getPath('userData')); } catch (e) { /* app not ready — nothing to remove */ }
   if (!mcpBridgeServer) return Promise.resolve();
   var server = mcpBridgeServer;
   mcpBridgeServer = null;
@@ -346,9 +403,19 @@ function fetchUrlBuffer(urlStr, maxBytes, redirectsLeft) {
   if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
     return Promise.reject(new Error('only http/https URLs are supported'));
   }
+  /* SSRF guard (2026-09-20 audit): refuse loopback/private/link-local/
+     reserved targets. assertPublicHost() covers literal IPs and
+     "localhost" up front; `lookup: netGuard.safeLookup` below validates
+     the address actually CONNECTED to, so a public name that resolves
+     (or later re-resolves, DNS rebinding) to a private address is
+     refused too. Every redirect hop re-enters this function, so each
+     hop is re-checked — an open redirect on a public site can no
+     longer bounce the request into the local network. */
+  try { netGuard.assertPublicHost(parsed.hostname); }
+  catch (e) { return Promise.reject(e); }
   var mod = parsed.protocol === 'https:' ? https : http;
   return new Promise(function(resolve, reject) {
-    var req = mod.get(urlStr, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Kanvaz/1.0)' } }, function(res) {
+    var req = mod.get(urlStr, { lookup: netGuard.safeLookup, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Kanvaz/1.0)' } }, function(res) {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         res.resume();
         if (redirectsLeft <= 0) { reject(new Error('too many redirects')); return; }
@@ -406,11 +473,20 @@ function extractUrlMeta(html) {
 
 /* ── argv / file-open helper (BUG 5) ── */
 
-function findKanvazArg(argv) {
+function findKanvazArg(argv, cwd) {
   for (var i = 0; i < argv.length; i++) {
-    if (/\.kanvaz$/i.test(argv[i])) return argv[i];
+    if (/\.kanvaz$/i.test(argv[i])) return grantBoardPath(argv[i], cwd);
   }
   return null;
+}
+
+/* An OS-supplied board path (double-click, Open With, second instance) is
+   made absolute and granted; null if it is not a usable local .kanvaz path. */
+function grantBoardPath(p, cwd) {
+  if (typeof p !== 'string') return null;
+  var abs = /^[\\/]{2}/.test(p) ? p : path.resolve(cwd || process.cwd(), p);
+  if (!pathGuard.isBoardPath(abs)) return null;
+  return boardGrants.grant(abs) ? abs : null;
 }
 
 /* ── Single-instance lock (BUG 4) ──
@@ -476,11 +552,11 @@ if (!gotLock) {
      while Kanvaz is already open) fires this on the FIRST instance
      instead of opening a second window. Focus the existing window and
      open the file there if one was passed. */
-  app.on('second-instance', function(event, argv) {
+  app.on('second-instance', function(event, argv, workingDirectory) {
     if (!mainWindow) return;
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.focus();
-    var filePath = findKanvazArg(argv);
+    var filePath = findKanvazArg(argv, workingDirectory);
     if (filePath) mainWindow.webContents.send('open-file-from-argv', filePath);
   });
 
@@ -488,6 +564,8 @@ if (!gotLock) {
      app.whenReady) exists, so queue it via pendingFileOpen if so. */
   app.on('open-file', function(event, filePath) {
     event.preventDefault();
+    filePath = grantBoardPath(filePath);
+    if (!filePath) return;
     if (mainWindow) {
       mainWindow.webContents.send('open-file-from-argv', filePath);
     } else {
@@ -528,7 +606,15 @@ function createWindow(hasStartupFile) {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      /* Was `false`. The 2026-09-20 re-audit flagged it: with contextIsolation
+         + no nodeIntegration the contextBridge surface was the ONLY thing
+         between a compromised renderer and the OS, with Chromium's own OS
+         sandbox switched off underneath it. preload.js needs nothing a
+         sandboxed preload lacks — only require('electron') (contextBridge,
+         ipcRenderer) and process.argv, which sandboxed preloads provide —
+         so this costs nothing and restores the process-level containment
+         layer (matters more while Electron 22's Chromium is EOL). */
+      sandbox: true,
       webSecurity: true,
       /* Chromium's native spellcheck (red squiggle + inline correction
          bubble) is unstyled OS chrome that doesn't match Kanvaz's own
@@ -570,6 +656,7 @@ function createWindow(hasStartupFile) {
      point, so allow the close to proceed instead of hanging forever. */
   mainWindow.webContents.on('render-process-gone', function(event, details) {
     console.error('[Kanvaz] Renderer process gone:', details && details.reason);
+    logCrash('render-process-gone', details && details.reason, null, details && ('exitCode ' + details.exitCode));
     allowClose = true;
     if (mainWindow) mainWindow.close();
   });
@@ -709,7 +796,9 @@ function registerIPC() {
       filters: [{ name: 'Kanvaz Board', extensions: ['kanvaz'] }],
       properties: ['openFile']
     });
-    return result ? result[0] : null;
+    if (!result) return null;
+    boardGrants.grant(result[0]);
+    return result[0];
   });
 
   ipcMain.handle('dialog-save-file', function(event, defaultName) {
@@ -731,6 +820,7 @@ function registerIPC() {
     if (!/\.kanvaz$/i.test(result)) {
       result += '.kanvaz';
     }
+    boardGrants.grant(result);
     return result;
   });
 
@@ -809,13 +899,13 @@ function registerIPC() {
      rather than open something to look at/read — every legitimate
      reference use (docs, source files, PDFs, project files) is
      unaffected, only the actually dangerous case is closed off. */
-  var UNSAFE_OPEN_EXTENSIONS = ['exe','bat','cmd','com','scr','ps1','vbs','vbe','js','jse','wsf','wsh','msi','msp','jar','sh','app','apk','lnk','reg'];
+  /* Extension blocklist, remote-path refusal and the extensionless rule live in
+     src/path-guard.js (unit-tested). A widened blocklist rather than an
+     allowlist on purpose: the formats a professional references (.psd, .blend,
+     .kra, .clip, .zpr, .spp, ...) are open-ended. */
   ipcMain.handle('shell-open-path', function(event, filePath) {
-    if (typeof filePath !== 'string' || !filePath) return 'Invalid path';
-    var ext = path.extname(filePath).toLowerCase().replace('.', '');
-    if (UNSAFE_OPEN_EXTENSIONS.indexOf(ext) !== -1) {
-      return 'Kanvaz won\'t open ' + ext.toUpperCase() + ' files directly for safety — open it from Explorer if you trust the source.';
-    }
+    var chk = pathGuard.checkOpenable(filePath);
+    if (!chk.ok) return chk.reason;
     return shell.openPath(filePath);
   });
 
@@ -825,7 +915,7 @@ function registerIPC() {
      file's own default handler, so there's no "runs a script" risk to
      block regardless of what a shared board's saved path points at. */
   ipcMain.handle('shell-reveal-in-folder', function(event, filePath) {
-    if (typeof filePath !== 'string' || !filePath) return false;
+    if (!pathGuard.isLocalAbsolutePath(filePath)) return false;
     shell.showItemInFolder(filePath);
     return true;
   });
@@ -833,6 +923,9 @@ function registerIPC() {
   /* ── IPC: File read/write ── */
 
   ipcMain.handle('file-read', function(event, filePath) {
+    if (!pathGuard.isBoardPath(filePath) || !boardGrants.has(filePath)) {
+      return Promise.resolve({ ok: false, error: 'Kanvaz can only open board files you chose (Open, Recent, or double-click).' });
+    }
     return fs.promises.readFile(filePath)
       .then(function(buf) {
         if (boardContainer.looksLikeZip(buf)) return boardContainer.unpackBoard(buf);
@@ -843,6 +936,9 @@ function registerIPC() {
   });
 
   ipcMain.handle('file-write', function(event, filePath, data) {
+    if (!pathGuard.isBoardPath(filePath) || !boardGrants.has(filePath)) {
+      return Promise.resolve({ ok: false, error: 'Kanvaz can only save board files to a location you chose.' });
+    }
     var tmpPath = filePath + '.tmp';
     return boardContainer.packBoard(data)
       .then(function(zipBuf) { return fs.promises.writeFile(tmpPath, zipBuf); })
@@ -860,6 +956,8 @@ function registerIPC() {
   /* ── IPC: Media loading ── */
 
   ipcMain.handle('media-load', function(event, filePath) {
+    var nonLocal = rejectNonLocal(filePath);
+    if (nonLocal) return Promise.resolve(nonLocal);
     return fs.promises.stat(filePath).then(function(stats) {
       var sizeMB = stats.size / (1024 * 1024);
 
@@ -914,6 +1012,8 @@ function registerIPC() {
      read into a string across a Node<->Chromium IPC boundary needs a
      hard limit to stay safe. */
   ipcMain.handle('pdf-read-bytes', function(event, filePath) {
+    var nonLocal = rejectNonLocal(filePath);
+    if (nonLocal) return Promise.resolve(nonLocal);
     return fs.promises.stat(filePath).then(function(stats) {
       var sizeMB = stats.size / (1024 * 1024);
       if (sizeMB > MAX_FILE_SIZE_MB) {
@@ -930,6 +1030,42 @@ function registerIPC() {
     });
   });
 
+  /* Text-file preview for file-reference cards. Same shape as
+     pdf-read-bytes (own entry point, own allowlist) but BOUNDED: only the
+     first TEXT_PREVIEW_MAX_BYTES are ever read (fs.open + a fixed buffer),
+     so pointing a card at a multi-GB log can't stall or bloat the app. A
+     NUL byte in the sample means it isn't really text, so it is refused
+     instead of rendering garbage. */
+  var TEXT_PREVIEW_EXTS = ['.txt', '.md', '.markdown', '.log', '.json', '.csv', '.tsv', '.xml', '.yml', '.yaml', '.ini', '.toml', '.js', '.ts', '.py', '.html', '.css', '.c', '.cpp', '.h', '.rs', '.go', '.java', '.sh', '.bat', '.glsl', '.frag', '.vert', '.usda'];
+  var TEXT_PREVIEW_MAX_BYTES = 256 * 1024;
+  ipcMain.handle('text-read-preview', function(event, filePath) {
+    var nonLocal = rejectNonLocal(filePath);
+    if (nonLocal) return Promise.resolve(nonLocal);
+    if (typeof filePath !== 'string' || !filePath) return Promise.resolve({ ok: false, error: 'invalid path' });
+    if (TEXT_PREVIEW_EXTS.indexOf(path.extname(filePath).toLowerCase()) === -1) {
+      return Promise.resolve({ ok: false, error: 'not a previewable text file' });
+    }
+    var fh = null;
+    return fs.promises.open(filePath, 'r').then(function(handle) {
+      fh = handle;
+      return fh.stat();
+    }).then(function(stats) {
+      if (!stats.isFile()) return { ok: false, error: 'not a regular file' };
+      var len = Math.min(stats.size, TEXT_PREVIEW_MAX_BYTES);
+      var buf = Buffer.alloc(len);
+      return fh.read(buf, 0, len, 0).then(function(r) {
+        var sample = buf.slice(0, r.bytesRead);
+        if (sample.indexOf(0) !== -1) return { ok: false, error: 'binary file' };
+        return { ok: true, text: sample.toString('utf8'), truncated: stats.size > TEXT_PREVIEW_MAX_BYTES, totalBytes: stats.size };
+      });
+    }).catch(function(e) {
+      return { ok: false, error: e.message };
+    }).then(function(res) {
+      if (fh) { fh.close().catch(function() {}); }
+      return res;
+    });
+  });
+
   /* ── IPC: Recent files ── */
 
   /* v7.x — 3D model loading. Follows media-load's EMBED pattern (a
@@ -940,6 +1076,8 @@ function registerIPC() {
      card type with distinct constraints deserves a distinct, easy-to-audit
      entry point instead of one handler accreting special cases. */
   ipcMain.handle('model-load', function(event, filePath) {
+    var nonLocal = rejectNonLocal(filePath);
+    if (nonLocal) return Promise.resolve(nonLocal);
     return fs.promises.stat(filePath).then(function(stats) {
       var sizeMB = stats.size / (1024 * 1024);
 
@@ -995,50 +1133,22 @@ function registerIPC() {
      that risk (a crafted "output path" could otherwise overwrite an
      arbitrary file). This mechanism gets its own dedicated pass in the
      v8.x plan's 3-session audit gate, not a generic look-over. */
+  /* Detection lives in src/blender-detect.js (Node-only, unit-tested).
+     Found live 2026-09-20: this used to check only 14 hardcoded
+     C:Program FilesBlender FoundationBlender 3.0-5.0 paths and fall
+     back to a bare "blender" — so a Blender 5.2.1 at F:Blender was
+     invisible and the user got the "install Blender" toast while having
+     it installed. The result is cached (the lookup can spawn `reg`), and
+     re-validated so an uninstall/move is noticed. Returns null when not
+     found; the caller reports EXTERNAL_TOOL_NOT_FOUND directly. */
+  var blenderExeCache = null;
   function findBlenderExecutable() {
-    var candidates;
-    /* Direct feedback: "make it support 3+ or 4+ versions" — extended
-       from 5 candidates (4.3-3.6) to cover the full 3.x/4.x/5.x range
-       Blender's own default installer uses (a version-numbered folder
-       under "Blender Foundation"). This is on top of, not instead of,
-       the bare "blender" PATH fallback below, which already covers any
-       version this list doesn't guess (a portable install, a version
-       newer than whatever's hardcoded here, or a non-default install
-       location) — this list only ever helps the common case of "not
-       on PATH but installed at the default location" resolve faster/
-       without requiring PATH setup at all. */
-    if (process.platform === 'win32') {
-      candidates = [
-        'C:\\Program Files\\Blender Foundation\\Blender 5.0\\blender.exe',
-        'C:\\Program Files\\Blender Foundation\\Blender 4.5\\blender.exe',
-        'C:\\Program Files\\Blender Foundation\\Blender 4.4\\blender.exe',
-        'C:\\Program Files\\Blender Foundation\\Blender 4.3\\blender.exe',
-        'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe',
-        'C:\\Program Files\\Blender Foundation\\Blender 4.1\\blender.exe',
-        'C:\\Program Files\\Blender Foundation\\Blender 4.0\\blender.exe',
-        'C:\\Program Files\\Blender Foundation\\Blender 3.6\\blender.exe',
-        'C:\\Program Files\\Blender Foundation\\Blender 3.5\\blender.exe',
-        'C:\\Program Files\\Blender Foundation\\Blender 3.4\\blender.exe',
-        'C:\\Program Files\\Blender Foundation\\Blender 3.3\\blender.exe',
-        'C:\\Program Files\\Blender Foundation\\Blender 3.2\\blender.exe',
-        'C:\\Program Files\\Blender Foundation\\Blender 3.1\\blender.exe',
-        'C:\\Program Files\\Blender Foundation\\Blender 3.0\\blender.exe'
-      ];
-    } else if (process.platform === 'darwin') {
-      candidates = ['/Applications/Blender.app/Contents/MacOS/Blender'];
-    } else {
-      candidates = ['/usr/bin/blender', '/usr/local/bin/blender', '/snap/bin/blender'];
+    if (blenderExeCache) {
+      try { if (fs.statSync(blenderExeCache).isFile()) return blenderExeCache; } catch (e) { /* moved/uninstalled — re-detect below */ }
+      blenderExeCache = null;
     }
-    for (var i = 0; i < candidates.length; i++) {
-      if (fs.existsSync(candidates[i])) return candidates[i];
-    }
-    /* Not found at a known install path — fall back to a bare "blender"
-       command name, letting the OS resolve it via PATH if the user has
-       it there under a name/version this candidate list didn't guess.
-       spawn() below reports ENOENT cleanly if that also fails, which
-       convertBlendToGlb() turns into a clear "not found" error rather
-       than a confusing generic spawn failure. */
-    return 'blender';
+    blenderExeCache = blenderDetect.findBlenderExecutable(null);
+    return blenderExeCache;
   }
 
   /* Blender's own CLI convention: opening a .blend path as the first
@@ -1048,10 +1158,25 @@ function registerIPC() {
      arguments and hand the rest to the Python script via sys.argv —
      the standard, documented way to pass a script its own arguments
      through Blender's CLI, not a hack. */
+  /* Hardened 2026-09-20 (audit of this path): stdout is now drained (a
+     chatty Blender used to be able to fill the pipe buffer and hang
+     forever); a 3-minute timeout kills a wedged Blender instead of
+     leaving the drop spinning; --python-exit-code 1 makes a Python
+     exception in the export script a non-zero exit (it used to exit 0
+     and only get caught by the missing output file); and the OUTPUT
+     size is capped too — a 10MB .blend can export a 40MB+ GLB that then
+     crosses IPC as base64 (the input cap alone didn't bound that). It
+     must come BEFORE --python-expr on Blender's command line. */
+  var BLENDER_CONVERT_TIMEOUT_MS = 180000;
   function convertBlendToGlb(blenderExe, blendPath, outputGlbPath) {
     return new Promise(function(resolve, reject) {
       var pyScript = 'import bpy, sys; bpy.ops.export_scene.gltf(filepath=sys.argv[-1], export_format="GLB")';
-      var args = [blendPath, '--background', '--python-expr', pyScript, '--', outputGlbPath];
+      /* --disable-autoexec: a dropped .blend is untrusted, and Blender's own
+         "Auto Run Python Scripts" preference (on for many VFX users) would
+         otherwise run drivers/text-blocks embedded in it. --factory-startup
+         ignores the user's startup file and add-ons for the same reason and
+         makes the conversion reproducible. Both must precede the .blend. */
+      var args = ['--background', '--disable-autoexec', '--factory-startup', blendPath, '--python-exit-code', '1', '--python-expr', pyScript, '--', outputGlbPath];
       var proc;
       try {
         proc = spawn(blenderExe, args, { windowsHide: true });
@@ -1060,20 +1185,40 @@ function registerIPC() {
         return;
       }
       var stderr = '';
-      proc.stderr.on('data', function(d) { stderr += d.toString(); });
+      var settled = false;
+      var timer = setTimeout(function() {
+        if (settled) return;
+        settled = true;
+        try { proc.kill(); } catch (e) {}
+        reject(new Error('Blender took longer than ' + (BLENDER_CONVERT_TIMEOUT_MS / 1000) + 's and was stopped'));
+      }, BLENDER_CONVERT_TIMEOUT_MS);
+      proc.stdout.on('data', function() { /* drain only — never read, never buffered */ });
+      proc.stderr.on('data', function(d) { stderr = (stderr + d.toString()).slice(-4000); });
       proc.on('error', function(e) {
-        /* ENOENT here specifically means "blender" (or the candidate
-           path) doesn't exist/isn't runnable — the expected, common
-           case when Blender simply isn't installed, not a crash. */
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
         reject(e);
       });
       proc.on('close', function(code) {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
         if (code !== 0) {
           reject(new Error('Blender exited with code ' + code + (stderr ? ': ' + stderr.slice(-500) : '')));
           return;
         }
-        if (!fs.existsSync(outputGlbPath)) {
+        var outStat;
+        try { outStat = fs.statSync(outputGlbPath); } catch (e) { outStat = null; }
+        if (!outStat) {
           reject(new Error('Blender ran but did not produce an output file'));
+          return;
+        }
+        if (outStat.size / (1024 * 1024) > MAX_MODEL_SIZE_MB) {
+          try { fs.unlinkSync(outputGlbPath); } catch (e) {}
+          var big = new Error('converted model is larger than the ' + MAX_MODEL_SIZE_MB + 'MB limit');
+          big.code = 'OUTPUT_TOO_LARGE';
+          reject(big);
           return;
         }
         resolve();
@@ -1082,6 +1227,8 @@ function registerIPC() {
   }
 
   ipcMain.handle('model-convert-external', function(event, filePath) {
+    var nonLocal = rejectNonLocal(filePath);
+    if (nonLocal) return Promise.resolve(nonLocal);
     return fs.promises.stat(filePath).then(function(stats) {
       var sizeMB = stats.size / (1024 * 1024);
       if (sizeMB > MAX_MODEL_SIZE_MB) {
@@ -1096,6 +1243,7 @@ function registerIPC() {
         return { ok: false, error: 'EXTERNAL_FORMAT_NOT_YET_SUPPORTED', ext: ext };
       }
       var blenderExe = findBlenderExecutable();
+      if (!blenderExe) return { ok: false, error: 'EXTERNAL_TOOL_NOT_FOUND', ext: ext };
       var outputGlbPath = path.join(
         app.getPath('temp'),
         'kanvaz-external-' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.glb'
@@ -1116,9 +1264,10 @@ function registerIPC() {
         });
       }).catch(function(e) {
         var notFound = e && (e.code === 'ENOENT');
+        var tooBig = e && e.code === 'OUTPUT_TOO_LARGE';
         return {
           ok: false,
-          error: notFound ? 'EXTERNAL_TOOL_NOT_FOUND' : 'EXTERNAL_TOOL_FAILED',
+          error: notFound ? 'EXTERNAL_TOOL_NOT_FOUND' : (tooBig ? 'MODEL_TOO_LARGE' : 'EXTERNAL_TOOL_FAILED'),
           tool: 'blender',
           message: e.message
         };
@@ -1151,6 +1300,7 @@ function registerIPC() {
       for (var i = 0; i < paths.length; i++) {
         try {
           var stat = fs.statSync(paths[i]);
+          if (pathGuard.isBoardPath(paths[i])) boardGrants.grant(paths[i]);
           out.push({ path: paths[i], mtimeMs: stat.mtimeMs, thumbnailDataUrl: thumbs[paths[i]] || null });
         } catch (e) { /* file moved/deleted since it was added — drop it */ }
       }
@@ -1168,6 +1318,13 @@ function registerIPC() {
      a long-running profile that's saved hundreds of different boards. */
   ipcMain.handle('board-thumbnail-save', function(event, filePath, dataUrl) {
     if (!filePath || !dataUrl) return { ok: false };
+    /* Shown later as a CSS url(); only accept the small raster data URL the
+       renderer's own thumbnail generator produces, never an arbitrary string. */
+    if (typeof filePath !== 'string' || typeof dataUrl !== 'string' ||
+        !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(dataUrl) ||
+        dataUrl.length > 2 * 1024 * 1024) {
+      return { ok: false, error: 'invalid thumbnail' };
+    }
     var tp = getThumbnailsPath();
     var map = {};
     try {
@@ -1189,6 +1346,9 @@ function registerIPC() {
   });
 
   ipcMain.handle('recent-add', function(event, filePath) {
+    /* Only a path main already granted (dialog / save / OS open) can enter the
+       recent list, since recent-get re-grants everything in it. */
+    if (!pathGuard.isBoardPath(filePath) || !boardGrants.has(filePath)) return [];
     var p = getRecentFilesPath();
     try {
       var list = [];
@@ -1297,6 +1457,8 @@ function registerIPC() {
      rest of this file's async IPC handlers; error handling is unchanged
      per-entry (an unreadable path is skipped, never fails the whole drop). */
   ipcMain.handle('resolve-dropped-paths', function(event, paths) {
+    if (!Array.isArray(paths)) return Promise.resolve([]);
+    paths = paths.filter(pathGuard.isLocalAbsolutePath).slice(0, 5000);
     return Promise.all(paths.map(function(p) {
       return fs.promises.stat(p).then(function(stat) {
         if (stat.isDirectory()) {
@@ -1643,6 +1805,8 @@ function registerIPC() {
      parser's own internal caps don't catch; terminate() either way so the
      worker doesn't linger. */
   ipcMain.handle('pur-import', function(event, filePath) {
+    var nonLocal = rejectNonLocal(filePath);
+    if (nonLocal) return Promise.resolve(nonLocal);
     return fs.promises.readFile(filePath).then(function(buffer) {
       return new Promise(function(resolve) {
         var worker = new Worker(path.join(__dirname, 'pur-import-worker.js'));
@@ -2135,13 +2299,14 @@ function registerIPC() {
       defaultId: 0,
       cancelId: 0,
       title: 'Enable "' + manifest.name + '"?',
-      message: '"' + manifest.name + '" (v' + manifest.version + ') wants to: ' + permText + '.',
+      message: '"' + manifest.name + '" (v' + manifest.version + ') wants to: ' + permText + '.' +
+        (plugin.changedSinceApproval ? ' Its files have changed since you last approved it.' : ''),
       detail: 'Only approve this if you trust where it came from — like a browser extension, an approved plugin runs with the same access to your computer as Kanvaz itself, not just what\'s listed above. Kanvaz read this permission list directly from the plugin\'s own files, not from anything already running in the app.'
     }).then(function(result) {
       if (result.response !== 1) {
         return { ok: true, approved: false };
       }
-      pluginLoader.approvePlugin(statePath, manifest.id, manifest.version, manifest.permissions || []);
+      pluginLoader.approvePlugin(statePath, manifest.id, manifest.version, manifest.permissions || [], plugin.contentHash);
       return { ok: true, approved: true };
     });
   });

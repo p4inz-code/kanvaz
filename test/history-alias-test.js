@@ -137,5 +137,44 @@ restored.tags.push('mutated-after-restore'); /* simulates buildTagBar's in-place
 KanvazHistory.undo(); /* nothing earlier than S0 — should stay a no-op, not throw */
 check('mutating a restored card\'s tags array in place does not throw on a later undo', true);
 
+/* ── Field-drop regression (found live 2026-09-20): snapshot()/restore
+   used hand-maintained field whitelists, so every field added after
+   them (groupId, hidden, highlighted, modelFormat, renderMode, bgColor,
+   cameraPosition/Target, adjustments, volume, ...) was silently wiped by
+   ANY undo — an unrelated Ctrl+Z ungrouped cards, un-hid layers and left
+   3D cards with no modelFormat. Now every field survives, including one
+   that does not exist yet (proving no whitelist is left to go stale). ── */
+cards = { G: minimalCard('G', 0), M: minimalCard('M', 0) };
+cards.G.groupId = 'group-1';
+cards.G.hidden = true;
+cards.G.highlighted = true;
+cards.G.brightness = 130;
+cards.M.type = 'model3d';
+cards.M.modelFormat = 'glb';
+cards.M.renderMode = 'wireframe';
+cards.M.bgColor = '#112233';
+cards.M.cameraPosition = { x: 1, y: 2, z: 3 };
+cards.M.cameraTarget = { x: 0, y: 0, z: 0 };
+cards.M.someFutureField = { nested: [1, 2, 3] };
+KanvazHistory.init();                 /* S0 has every field */
+cards.G.x = 50;                       /* an UNRELATED edit */
+KanvazHistory.push();                 /* S1 */
+KanvazHistory.undo();                 /* back to S0 */
+var rg = sandbox.KanvazCards.getAll().G;
+var rm = sandbox.KanvazCards.getAll().M;
+check('undo keeps groupId', rg.groupId === 'group-1');
+check('undo keeps hidden', rg.hidden === true);
+check('undo keeps highlighted', rg.highlighted === true);
+check('undo keeps image adjustments (brightness)', rg.brightness === 130);
+check('undo keeps a 3D card\'s modelFormat', rm.modelFormat === 'glb');
+check('undo keeps a 3D card\'s renderMode', rm.renderMode === 'wireframe');
+check('undo keeps a 3D card\'s bgColor', rm.bgColor === '#112233');
+check('undo keeps a 3D card\'s camera position/target', rm.cameraPosition.z === 3 && rm.cameraTarget.x === 0);
+check('undo keeps a field that does not exist yet (no whitelist left to go stale)', rm.someFutureField && rm.someFutureField.nested[2] === 3);
+rm.cameraPosition.x = 999;            /* nested objects must not alias the stored snapshot */
+rm.someFutureField.nested.push(4);
+KanvazHistory.redo(); KanvazHistory.undo();
+check('nested object fields do not alias back into the undo stack', sandbox.KanvazCards.getAll().M.cameraPosition.x === 1 && sandbox.KanvazCards.getAll().M.someFutureField.nested.length === 3);
+
 console.log('\n' + (pass ? 'ALL HISTORY ALIAS TESTS PASSED' : 'HISTORY ALIAS TESTS FAILED'));
 process.exit(pass ? 0 : 1);

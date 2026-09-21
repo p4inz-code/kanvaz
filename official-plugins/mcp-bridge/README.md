@@ -68,6 +68,18 @@ If Kanvaz's `userData` directory isn't in the default location for your OS,
 set `KANVAZ_MCP_SOCKET` to the exact socket path before starting your MCP
 client. Not needed on Windows — named pipes don't depend on that at all.
 
+### Authentication token (added in 1.3.0)
+
+Every time MCP Bridge is switched on, Kanvaz generates a fresh random token
+and writes it to `mcp-bridge.token` in its own data folder (`%APPDATA%\Kanvaz`
+on Windows, `~/Library/Application Support/Kanvaz` on macOS, `~/.config/Kanvaz`
+on Linux); the file is deleted when the bridge stops. `server.js` reads it on
+every call and sends it with every request; Kanvaz refuses any request without
+it. Nothing to configure in the normal case. If your Kanvaz data folder is
+elsewhere, set `KANVAZ_MCP_TOKEN_FILE` to the file's path (or
+`KANVAZ_MCP_TOKEN` to the token itself). A shim from before 1.3.0 gets an
+"unauthorized" error until it is updated.
+
 ## Tools
 
 32 tools, covering nearly the whole app — everything except plugin
@@ -151,8 +163,11 @@ current limits around trusting other installed plugins once this one is on.
 
 ## Security note
 
-This plugin's local pipe/socket has no per-connection authentication beyond
-"you're a process on this machine" — and the `server` permission gate that
+The local pipe/socket now requires the per-start token described above. That
+stops other users, sandboxed apps that cannot read Kanvaz's data folder, and
+any stray local client that never read the token file. It does **not** stop
+malware already running as you, which can read the token file too — no local
+token can. Separately, the `server` permission gate that
 controls whether `KanvazPluginAPI.mcpBridge` is even visible to a plugin's
 script doesn't extend to the underlying `KanvazBridge` IPC transport, which
 every loaded plugin shares regardless of its own declared permissions. In

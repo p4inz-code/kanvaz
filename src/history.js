@@ -27,6 +27,34 @@ var KanvazHistory = (function() {
     }
   }
 
+  /* Copies EVERY field of a card record instead of a hand-maintained
+     whitelist. Found live 2026-09-20: snapshot() and cloneRefForRestore()
+     each listed fields by hand, so every field added since (groupId,
+     hidden, highlighted, modelFormat, renderMode, bgColor, cameraPosition/
+     Target, animationPlaying, volume, brightness/contrast/saturation,
+     pdf state, palette, ...) was silently DROPPED on every undo/redo —
+     an unrelated Ctrl+Z ungrouped cards, un-hid layers, cleared
+     highlights, and left 3D cards with no modelFormat ("Unknown 3D model
+     format"). Reproduced against the running app before this fix. A new
+     persisted card field now only needs buildFullCardRecord() +
+     deserialise() defaults in cards.js — history picks it up on its own.
+     Primitives (incl. the huge dataUrl STRING — immutable, so 50 undo
+     entries share one copy, no RAM multiplication) are copied by value;
+     object/array fields are deep-cloned because they ARE mutated in place
+     elsewhere (tag splice, annotation strokes, properties, camera,
+     mapPosition) — the same aliasing hazard cloneRefForRestore documents
+     below. cloneJsonSafe keeps one non-JSON-safe plugin blob from
+     breaking undo for the whole board. */
+  function copyCardRecord(c) {
+    var out = {};
+    for (var k in c) {
+      if (!Object.prototype.hasOwnProperty.call(c, k)) continue;
+      var v = c[k];
+      out[k] = (v !== null && typeof v === 'object') ? cloneJsonSafe(v) : v;
+    }
+    return out;
+  }
+
   /* ── Snapshot ──
      KanvazCards.serialise() includes each card's full dataUrl (base64
      media, can be tens of MB per card). A naive JSON.parse(JSON.stringify
@@ -49,61 +77,7 @@ var KanvazHistory = (function() {
        reasoning. Undo/redo needs the complete live record every time. */
     var src = KanvazCards.serialiseForHistory();
     var refs = [];
-    for (var i = 0; i < src.length; i++) {
-      var c = src[i];
-      refs.push({
-        /* Immutable — shared by reference */
-        id:       c.id,
-        type:     c.type,
-        dataUrl:  c.dataUrl,
-        name:     c.name,
-        path:     c.path,
-        naturalW: c.naturalW,
-        naturalH: c.naturalH,
-        url:      c.url,
-        color:    c.color,
-        mimeType: c.mimeType,
-        /* v6.4.0 — identity of a shared card; deliberately NOT cloned
-           (a plain string, immutable by nature like the fields above) */
-        sharedId: c.sharedId,
-        /* Mutable — cloned */
-        x:           c.x,
-        y:           c.y,
-        w:           c.w,
-        h:           c.h,
-        z:           c.z,
-        pinned:      c.pinned,
-        text:        c.text,
-        opacity:     c.opacity,
-        flipH:       c.flipH,
-        flipV:       c.flipV,
-        /* v4 fields — primitives, safe to copy by value like the rest
-           of this "Mutable" block. Without these, undo/redo would
-           silently strip image fit / video speed / audio loop / color
-           format on every single undo or redo, independent of the
-           save-file whitelist bug this mirrors in KanvazCards.serialise(). */
-        objectFit:    c.objectFit,
-        playbackRate: c.playbackRate,
-        audioLoop:    c.audioLoop,
-        colorFormat:  c.colorFormat,
-        muted:        c.muted,
-        annotations: JSON.parse(JSON.stringify(c.annotations || [])),
-        tags:        c.tags ? c.tags.slice() : [],
-        properties:  c.properties ? JSON.parse(JSON.stringify(c.properties)) : {},
-        mapPosition: c.mapPosition ? { x: c.mapPosition.x, y: c.mapPosition.y } : null,
-        /* Audit fix (CRITICAL): pluginData was added to KanvazCards.
-           serialise()'s save-file whitelist in 4.2.0 but never added
-           here — every undo snapshot silently omitted it, so a single
-           Ctrl+Z after ANY edit anywhere on the board (not just on a
-           plugin card) would call KanvazCards.deserialise() with
-           pluginData missing on every card, wiping it app-wide. Cloned
-           (not shared by reference) since a plugin's render() has
-           direct access to card.pluginData and can mutate it in place —
-           sharing a reference would allow a later in-place mutation to
-           retroactively corrupt earlier, already-pushed undo steps. */
-        pluginData: cloneJsonSafe(c.pluginData)
-      });
-    }
+    for (var i = 0; i < src.length; i++) refs.push(copyCardRecord(src[i]));
 
     /* Snapshot connections (lightweight — no large data) */
     var conns = [];
@@ -161,45 +135,7 @@ var KanvazHistory = (function() {
      stack's own — same immutable-share/mutable-clone split snapshot()
      itself already uses above, so this stays cheap for large dataUrls. */
   function cloneRefForRestore(ref) {
-    return {
-      id:       ref.id,
-      type:     ref.type,
-      dataUrl:  ref.dataUrl,
-      name:     ref.name,
-      path:     ref.path,
-      naturalW: ref.naturalW,
-      naturalH: ref.naturalH,
-      url:      ref.url,
-      color:    ref.color,
-      mimeType: ref.mimeType,
-      sharedId: ref.sharedId,
-      x:            ref.x,
-      y:            ref.y,
-      w:            ref.w,
-      h:            ref.h,
-      z:            ref.z,
-      pinned:       ref.pinned,
-      text:         ref.text,
-      opacity:      ref.opacity,
-      flipH:        ref.flipH,
-      flipV:        ref.flipV,
-      objectFit:    ref.objectFit,
-      playbackRate: ref.playbackRate,
-      audioLoop:    ref.audioLoop,
-      colorFormat:  ref.colorFormat,
-      muted:        ref.muted,
-      /* Object/array-typed fields get mutated IN PLACE elsewhere (tag
-         removal splices card.tags, annotation drawing pushes into
-         strokes, the Properties panel writes card.properties[key]
-         directly) — these must be fresh copies, not shared references,
-         or exactly the same aliasing bug this function exists to fix
-         would just move one level deeper. */
-      annotations: JSON.parse(JSON.stringify(ref.annotations || [])),
-      tags:        ref.tags ? ref.tags.slice() : [],
-      properties:  ref.properties ? JSON.parse(JSON.stringify(ref.properties)) : {},
-      mapPosition: ref.mapPosition ? { x: ref.mapPosition.x, y: ref.mapPosition.y } : null,
-      pluginData:  cloneJsonSafe(ref.pluginData)
-    };
+    return copyCardRecord(ref);
   }
 
   function cloneRefsForRestore(refs) {

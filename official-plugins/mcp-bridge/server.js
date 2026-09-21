@@ -22,6 +22,7 @@ import { z } from 'zod';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
+import fs from 'node:fs';
 
 const CONNECT_TIMEOUT_MS = 20000;
 
@@ -37,6 +38,24 @@ function getSocketPath() {
     return path.join(os.homedir(), 'Library', 'Application Support', 'Kanvaz', 'mcp-bridge.sock');
   }
   return path.join(os.homedir(), '.config', 'Kanvaz', 'mcp-bridge.sock');
+}
+
+/* Kanvaz generates a fresh random token each time MCP Bridge is enabled and
+   writes it to mcp-bridge.token in its data folder; every request must carry
+   it. Read fresh on every call, so re-enabling the bridge needs no shim
+   restart. KANVAZ_MCP_TOKEN (the value) or KANVAZ_MCP_TOKEN_FILE (a path)
+   override the default location, the same way KANVAZ_MCP_SOCKET does. */
+function getToken() {
+  if (process.env.KANVAZ_MCP_TOKEN) return process.env.KANVAZ_MCP_TOKEN;
+  let file = process.env.KANVAZ_MCP_TOKEN_FILE;
+  if (!file) {
+    let dir;
+    if (process.platform === 'win32') dir = path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'Kanvaz');
+    else if (process.platform === 'darwin') dir = path.join(os.homedir(), 'Library', 'Application Support', 'Kanvaz');
+    else dir = path.join(os.homedir(), '.config', 'Kanvaz');
+    file = path.join(dir, 'mcp-bridge.token');
+  }
+  try { return fs.readFileSync(file, 'utf8').trim(); } catch (e) { return undefined; }
 }
 
 /* One ephemeral connection per tool call — simpler and more robust than
@@ -58,7 +77,7 @@ function callKanvaz(method, params) {
 
     socket.setEncoding('utf8');
     socket.on('connect', () => {
-      socket.write(JSON.stringify({ id, method, params }) + '\n');
+      socket.write(JSON.stringify({ id, method, params, token: getToken() }) + '\n');
     });
     socket.on('data', (chunk) => {
       buffer += chunk;
@@ -105,7 +124,7 @@ function tool(method) {
   };
 }
 
-const server = new McpServer({ name: 'kanvaz-mcp-bridge', version: '1.2.0' });
+const server = new McpServer({ name: 'kanvaz-mcp-bridge', version: '1.3.0' });
 
 server.registerTool('getActiveBoard', {
   title: 'Get active board',

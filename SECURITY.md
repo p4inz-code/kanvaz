@@ -4,10 +4,12 @@
 
 | Version | Supported |
 |---------|-----------|
-| 7.13.x  | Yes       |
-| < 7.13  | No        |
+| 9.0.x   | Yes       |
+| < 9.0   | No        |
 
-Development continues past v6.6.2 as an ongoing side project — see `docs/ROADMAP.md`'s "The v7.x line" section.
+*(Table corrected 2026-09-20 — it previously still said 7.13.x.)*
+
+Development continues as an ongoing side project — see `docs/ROADMAP.md` (the "Security & platform hardening" section tracks every open item from the 2026-09-20 audit).
 
 Only the latest release receives security updates. Kanvaz is a solo-maintained
 open-source project — backporting fixes to older versions is not feasible.
@@ -245,6 +247,12 @@ official-plugins releases.
   (macOS/Linux) — never a TCP port. Nothing outside this machine's kernel can
   reach it, full stop; there is no "bound to the wrong interface"
   misconfiguration possible the way there would be with a TCP listener.
+- **Per-start authentication token (added 2026-09-20).** Every request must carry
+  a random 256-bit token that Kanvaz writes to `mcp-bridge.token` in its data
+  folder when the bridge starts and deletes when it stops. It stops other users
+  and sandboxed apps that cannot read that folder, and any client that never read
+  the file. It does not stop malware running as you (which can read the file
+  too).
 - **Card and connection edits land in undo history; board-level and settings
   actions do not.** The card/connection tool handlers call the exact same
   `KanvazCards`/`KanvazConnections` functions the UI itself uses — an
@@ -277,9 +285,79 @@ official-plugins releases.
   media-stripping bullet above rather than only being implied by the tool
   descriptions in `official-plugins/mcp-bridge/README.md`.
 
-## Known Build-Time Vulnerabilities
+## Known Dependency Advisories (updated 2026-09-20)
 
-`npm audit` reports 6 high-severity vulnerabilities. These are all in
-**build-time dependencies** (electron-builder toolchain) and do not affect the
-running application. They are intentionally tolerated because upgrading
-electron-builder would break the locked build system.
+An earlier version of this section said `npm audit` reported "6 high" issues
+and that they were all build-time-only. That was out of date: on 2026-09-20 the
+real count was **13 findings (1 critical, 12 high)**, including Electron 22 itself
+(end-of-life, Chromium 108, shipped inside every installer).
+
+**Now: Electron 44.4.3 (Chromium 152) and electron-builder 26.15.3, `npm audit`
+reports 0 vulnerabilities** for the app, and 0 for `official-plugins/mcp-bridge`.
+CI runs `npm audit --audit-level=high` as a blocking step, so a new advisory
+fails the build instead of going unnoticed. The upgrade was verified against the
+packaged Windows build, not just a dev run.
+
+**Consequences of the upgrade, stated plainly:**
+- **32-bit Windows is no longer supported** (Electron ships no ia32 build after
+  v22-era). Windows 10 or later, 64-bit.
+- **macOS 12 or later** (`minimumSystemVersion` raised from 10.13).
+- `File.path` no longer exists in Electron 32+, so dropped files are resolved
+  through `webUtils.getPathForFile` (with a fallback for older Electron).
+
+**Installers are currently unsigned** (no Windows Authenticode certificate, no
+Apple Developer ID / notarization). Windows SmartScreen and macOS Gatekeeper
+will warn on first run, and the auto-updater cannot verify a publisher
+signature; it relies on HTTPS to GitHub and the release checksums (`SHA256SUMS-*.txt`
+attached to each release). Signing is a release blocker on the roadmap.
+
+### Changes made in response to the 2026-09-20 audit
+
+- **Electron 22 to 44 and electron-builder 24 to 26** (see above).
+- **Renderer sandbox enabled** (`sandbox: true`; previously `false`).
+- **File IPC trust boundary** (`src/path-guard.js`, `test/path-guard-test.js`):
+  `file-read` / `file-write` only accept a `.kanvaz` path that main itself granted
+  (native Open/Save dialog, OS double-click / Open With, or the recent list it
+  wrote); the media, PDF, text, model, `.pur` and Blender handlers refuse
+  UNC / device / relative paths, which previously let a card path like
+  `\\host\share\x.png` make Windows open an SMB connection (NTLM hash leak) just
+  by rendering a shared board. `shell-open-path` blocks a much wider set of
+  launcher types (`.hta`, `.chm`, `.msc`, `.cpl`, `.py`, macro-enabled Office
+  files, `.url`, and more), Windows trailing-dot/space tricks, and NTFS alternate
+  data streams. It is a blocklist, not an allowlist, on purpose: professional
+  reference formats are open-ended.
+- **URL-card preview SSRF guard** (`src/net-guard.js`): loopback, private,
+  link-local, CGNAT and reserved addresses are refused, including names that
+  resolve to them (re-checked at connect time, so DNS rebinding does not bypass
+  it) and every redirect hop.
+- **MCP Bridge per-start token** (`src/mcp-auth.js`): every request must carry a
+  256-bit token that main generates each time the bridge starts. See the MCP
+  section above for what this does and does not protect against.
+- **Plugin approval bound to the exact code reviewed**: consent now records the
+  version and a SHA-256 of the plugin's whole folder. Any changed, added or
+  removed file re-asks for consent; a plugin containing a symlink is refused.
+  Plugins approved before this change are asked once more. Plugin ids
+  `__proto__`, `constructor` and `prototype` are rejected and plugin state is
+  null-prototype.
+- **Blender import** runs with `--disable-autoexec --factory-startup` (a hostile
+  `.blend` could otherwise run embedded Python if the user's Blender has Auto Run
+  enabled; proven with a real test file), with a 3-minute timeout, drained
+  output, and a cap on the converted model size.
+- **Board files**: a `.kanvaz` container is checked against decompression limits
+  before anything is inflated (zip-bomb defence); on load, embedded media must be
+  `data:` URLs, URL-preview images `data:image/`, and `objectFit` a real CSS
+  keyword. glTF/USD external URIs are rewritten to empty data URLs, so a hostile
+  model cannot make the viewer fetch a remote or `file://` resource.
+- **Thumbnails** are only stored if they are small raster `data:image` URLs.
+- **Local crash log** (`crash.log` in the data folder, rotating at 1 MB, home
+  directory masked, never uploaded).
+- **CI**: read-only default token, write access only on the build job, actions
+  pinned by commit SHA, blocking `npm audit`, an SBOM artifact, and SHA-256
+  checksums attached to releases.
+- `PRIVACY.md` corrected to list every network request.
+
+Still open (each is a roadmap item with a plan): code signing, plugin process
+isolation (approved plugins still run in the renderer with full bridge access),
+remaining unscoped IPC handlers (plugin storage, settings) and per-channel
+schemas, the `script-src file:` allowance in the Content-Security-Policy
+(needs a live-tested change), and SBOM/hash publication for vendored libraries.

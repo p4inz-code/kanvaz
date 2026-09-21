@@ -15,6 +15,7 @@
 var fs = require('fs');
 var path = require('path');
 var url = require('url');
+var crypto = require('crypto');
 
 var PLUGIN_API_VERSION = 1;
 /* 'server' (4.4.0) — run a local listener external tools can connect to.
@@ -92,13 +93,35 @@ function ensurePluginsDir(userDataPath) {
   return dir;
 }
 
+/* Ids that must never be usable as a plugin id — every state function
+   below does raw `state[pluginId]` bracket access, and on an ordinary
+   object `state["__proto__"] = {...}` reassigns the object's actual
+   prototype instead of creating an own key (real, standard JS
+   behavior). Found by the 2026-09-15 audit and confirmed still open
+   by the 2026-09-20 re-audit. Fixed two ways on purpose: readState()
+   below now returns a null-prototype object (so even a hand-edited
+   plugin-state.json or a renderer-supplied id can't reach
+   Object.prototype), AND validateManifest() rejects these ids outright
+   so a plugin can't even be installed under one. */
+var RESERVED_PLUGIN_IDS = ['__proto__', 'constructor', 'prototype'];
+
+function isReservedPluginId(id) {
+  return RESERVED_PLUGIN_IDS.indexOf(String(id)) !== -1;
+}
+
 function readState(statePath) {
+  var out = Object.create(null);
   try {
     var p = getStatePath(statePath);
-    if (!fs.existsSync(p)) return {};
-    return JSON.parse(fs.readFileSync(p, 'utf8'));
+    if (!fs.existsSync(p)) return out;
+    var parsed = JSON.parse(fs.readFileSync(p, 'utf8'));
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return out;
+    for (var k in parsed) {
+      if (Object.prototype.hasOwnProperty.call(parsed, k)) out[k] = parsed[k];
+    }
+    return out;
   } catch (e) {
-    return {};
+    return out;
   }
 }
 
@@ -118,6 +141,9 @@ function validateManifest(manifest) {
   }
   if (typeof manifest.id !== 'string' || !manifest.id) {
     return { ok: false, reason: 'missing required field: id' };
+  }
+  if (isReservedPluginId(manifest.id)) {
+    return { ok: false, reason: 'id "' + manifest.id + '" is reserved and cannot be used as a plugin id' };
   }
   if (typeof manifest.name !== 'string' || !manifest.name) {
     return { ok: false, reason: 'missing required field: name' };
@@ -156,6 +182,71 @@ function validateManifest(manifest) {
     return { ok: false, reason: 'entry must be a relative path within the plugin folder' };
   }
   return { ok: true };
+}
+
+/* Content hash of a plugin's whole folder (sorted relative paths + bytes).
+   Approval used to be bound only to id + version + permission list, so a
+   plugin folder whose CODE was swapped after approval (same id, same
+   version string, same permissions) stayed enabled with the user's old
+   consent, even though the consent dialog says an approved plugin has the
+   same access as Kanvaz itself. Now any change to any file re-asks.
+   Symlinks are refused (they could point at content outside the folder
+   that this hash never sees) and the walk is bounded so a hostile folder
+   can't stall the scan. Returns { hash } or { error }. */
+/* Limits sized from a real install: the official MCP Bridge folder ships its
+   own node_modules (3,500 files, 23 MB), and a first cut with a 2,000-file cap
+   marked it invalid (found live, 2026-09-20). node_modules is deliberately NOT
+   skipped: the entry could import code from it, and an unhashed folder would
+   be a place to hide a swap. */
+var HASH_MAX_FILES = 20000;
+var HASH_MAX_BYTES = 200 * 1024 * 1024;
+/* scanPlugins runs on every enable/list/open, so unchanged folders reuse the
+   previous result: the key is a hash of every file's path + size + mtime,
+   which is far cheaper than re-reading 23 MB. Any edit changes size or mtime
+   and forces a real re-hash. (A deliberate same-size, mtime-restored edit
+   could evade this cache within one app session; the approval dialog reads
+   the same hash, so it is bounded to that session.) */
+var hashCache = {};
+function hashPluginDir(dir) {
+  var files = [];
+  var total = 0;
+  var err = null;
+  function walk(d, rel) {
+    if (err) return;
+    var ents;
+    try { ents = fs.readdirSync(d, { withFileTypes: true }); } catch (e) { err = 'cannot read plugin folder'; return; }
+    ents.sort(function(a, b) { return a.name < b.name ? -1 : (a.name > b.name ? 1 : 0); });
+    for (var i = 0; i < ents.length && !err; i++) {
+      var e = ents[i];
+      var r = rel ? rel + '/' + e.name : e.name;
+      var full = path.join(d, e.name);
+      if (e.isSymbolicLink()) { err = 'plugin contains a symlink (' + r + '), which cannot be verified'; return; }
+      if (e.isDirectory()) { walk(full, r); continue; }
+      if (!e.isFile()) continue;
+      var st;
+      try { st = fs.statSync(full); } catch (e2) { err = 'cannot read ' + r; return; }
+      files.push({ rel: r, full: full, size: st.size, mtime: st.mtimeMs });
+      if (files.length > HASH_MAX_FILES) { err = 'plugin has too many files to verify'; return; }
+    }
+  }
+  walk(dir, '');
+  if (err) return { error: err };
+  var sig = crypto.createHash('sha256');
+  for (var si = 0; si < files.length; si++) sig.update(files[si].rel + '\0' + files[si].size + '\0' + files[si].mtime + '\n');
+  var sigKey = dir + '|' + sig.digest('hex');
+  if (hashCache[sigKey]) return { hash: hashCache[sigKey] };
+  var h = crypto.createHash('sha256');
+  for (var i = 0; i < files.length; i++) {
+    var buf;
+    try { buf = fs.readFileSync(files[i].full); } catch (e) { return { error: 'cannot read ' + files[i].rel }; }
+    total += buf.length;
+    if (total > HASH_MAX_BYTES) return { error: 'plugin is too large to verify' };
+    h.update(files[i].rel + '\0' + buf.length + '\0');
+    h.update(buf);
+  }
+  var digest = h.digest('hex');
+  hashCache[sigKey] = digest;
+  return { hash: digest };
 }
 
 /* Scans the plugins directory. Returns an array of descriptors, each
@@ -218,6 +309,12 @@ function scanPlugins(userDataPath, statePath) {
       continue;
     }
 
+    var hashed = hashPluginDir(pluginDir);
+    if (hashed.error) {
+      results.push({ folder: entry.name, valid: false, reason: hashed.error, manifest: manifest });
+      continue;
+    }
+
     var pluginState = state[manifest.id];
     var approvedPermissions = (pluginState && pluginState.approvedPermissions) || [];
     var everApproved = !!(pluginState && pluginState.approvedVersion);
@@ -225,7 +322,11 @@ function scanPlugins(userDataPath, statePath) {
     var hasNewPermission = requestedPermissions.some(function(p) {
       return approvedPermissions.indexOf(p) === -1;
     });
-    var needsConsent = !everApproved || hasNewPermission;
+    /* Consent is bound to the exact code that was reviewed: version AND the
+       content hash must both match what was approved. An approval recorded
+       before hashes existed has no approvedHash, so it is asked once more. */
+    var changedSinceApproval = !!pluginState && (pluginState.approvedVersion !== manifest.version || pluginState.approvedHash !== hashed.hash);
+    var needsConsent = !everApproved || hasNewPermission || changedSinceApproval;
     var enabled = !!(pluginState && pluginState.enabled) && !needsConsent;
 
     results.push({
@@ -237,6 +338,8 @@ function scanPlugins(userDataPath, statePath) {
       entryUrl: url.pathToFileURL(resolvedEntry).href,
       enabled: enabled,
       needsConsent: needsConsent,
+      changedSinceApproval: everApproved && changedSinceApproval,
+      contentHash: hashed.hash,
       approvedPermissions: approvedPermissions
     });
   }
@@ -246,17 +349,20 @@ function scanPlugins(userDataPath, statePath) {
 
 /* Records that the user approved a plugin at a given version with a
    given permission set, and enables it. */
-function approvePlugin(statePath, pluginId, version, permissions) {
+function approvePlugin(statePath, pluginId, version, permissions, contentHash) {
+  if (isReservedPluginId(pluginId)) return;
   var state = readState(statePath);
   state[pluginId] = {
     enabled: true,
     approvedPermissions: permissions || [],
-    approvedVersion: version
+    approvedVersion: version,
+    approvedHash: contentHash || null
   };
   writeState(statePath, state);
 }
 
 function setEnabled(statePath, pluginId, enabled) {
+  if (isReservedPluginId(pluginId)) return;
   var state = readState(statePath);
   if (!state[pluginId]) return;
   state[pluginId].enabled = !!enabled;
@@ -390,6 +496,7 @@ module.exports = {
   scanPlugins: scanPlugins,
   approvePlugin: approvePlugin,
   setEnabled: setEnabled,
+  hashPluginDir: hashPluginDir,
   removePlugin: removePlugin,
   describePermissions: describePermissions,
   readPluginStorage: readPluginStorage,

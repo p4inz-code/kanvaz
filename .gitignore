@@ -24,3 +24,6 @@ SESSION_MEMORY.md
 test/node_modules/
 *.mp4
 *.mov
+
+# Local test assets that must never be committed
+/*.fbx
