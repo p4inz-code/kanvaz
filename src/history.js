@@ -184,6 +184,15 @@ var KanvazHistory = (function() {
       KanvazInspector.refresh();
     }
 
+    /* The Properties panel shows values straight from the cards (render
+       mode, clip, opacity, tags...). Without this it kept showing the
+       pre-undo values until something else re-rendered it. Found live
+       2026-09-21: undoing a Matcap switch left Matcap highlighted. */
+    if (typeof KanvazProperties !== 'undefined' && KanvazProperties.isSectionVisible &&
+        KanvazProperties.isSectionVisible() && KanvazProperties.refresh) {
+      KanvazProperties.refresh();
+    }
+
     /* Re-render map view if active */
     if (typeof KanvazMapView !== 'undefined' && KanvazMapView.isActive()) {
       KanvazMapView.render();
