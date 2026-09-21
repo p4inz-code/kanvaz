@@ -3705,24 +3705,10 @@ var KanvazCards = (function() {
     }
   }
 
-  /* A small procedural gradient used as the Matcap render mode's shading
-     reference — a neutral studio-light look with no shipped asset file,
-     since the plan calls for Matcap without adding binary assets. */
+  /* The matcap shading reference and every render mode live in
+     model3d-modes.js (a data-driven registry) — see its header. */
   function buildMatcapTexture(THREE) {
-    var size = 128;
-    var canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
-    var ctx = canvas.getContext('2d');
-    var grad = ctx.createRadialGradient(size * 0.35, size * 0.32, size * 0.04, size * 0.5, size * 0.5, size * 0.68);
-    grad.addColorStop(0,   '#ffffff');
-    grad.addColorStop(0.5, '#8fa3c9');
-    grad.addColorStop(1,   '#1b2130');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, size, size);
-    var tex = new THREE.CanvasTexture(canvas);
-    tex.needsUpdate = true;
-    return tex;
+    return KanvazModel3DModes.buildMatcapTexture(THREE, document);
   }
 
   /* A mesh's .material is a single Material object UNLESS it has more
@@ -3771,62 +3757,20 @@ var KanvazCards = (function() {
       addMats(node.material);
       if (node.userData) {
         addMats(node.userData.kanvazOrigMaterial);
-        addMats(node.userData.kanvazWireframeMat);
-        addMats(node.userData.kanvazMatcapMat);
+        var built = KanvazModel3DModes.builtMaterials(node);
+        for (var bi = 0; bi < built.length; bi++) addMats(built[bi]);
       }
       for (var i = 0; i < mats.length; i++) model3dDisposeMaterial(mats[i]);
     });
   }
 
-  /* Switches every mesh in the scene between the three v1 render modes.
-     Normal = the material exactly as the file's own loader produced it
-     (baked textures included, per the "exact-file rendering" decision).
-     Wireframe/Matcap materials are built lazily, once per mesh, and
-     cached on the mesh's userData so toggling back and forth is instant
-     and doesn't keep allocating new GPU materials. */
+  /* Switches every mesh in the scene to a render mode. Shaded ('normal') is
+     the material exactly as the file's own loader produced it; every other
+     mode is built lazily, once per mesh, by the registry in
+     model3d-modes.js and cached, so toggling is instant. That module also
+     documents the multi-material (array) handling. */
   function applyRenderMode(THREE, root, mode, matcapTex) {
-    root.traverse(function(node) {
-      if (!node.isMesh) return;
-      if (!node.userData.kanvazOrigMaterial) node.userData.kanvazOrigMaterial = node.material;
-
-      /* Bug fix: a mesh with more than one material slot (multiple
-         geometry groups — routine in real-world multi-part exports, not
-         an edge case) has node.material as an ARRAY, not a single
-         Material. The old code called .clone()/read .map directly on
-         whatever node.material was, which threw on an array (no such
-         methods) — silently aborting this traverse callback for that
-         mesh, so wireframe/matcap never took effect on it (and, since
-         .traverse()'s callback errors aren't caught per-node, could stop
-         the WHOLE walk partway through the scene depending on traversal
-         order). Building the wireframe/matcap replacement as the SAME
-         shape (array in, array out; single in, single out) keeps every
-         later consumer of node.material — the renderer, disposal below —
-         working exactly like it does for a single-material mesh. */
-      var isMultiMat = Array.isArray(node.userData.kanvazOrigMaterial);
-      var origMats = model3dAsMaterialArray(node.userData.kanvazOrigMaterial);
-
-      if (mode === 'wireframe') {
-        if (!node.userData.kanvazWireframeMat) {
-          var wfMats = origMats.map(function(m) {
-            var wf = m.clone();
-            wf.wireframe = true;
-            return wf;
-          });
-          node.userData.kanvazWireframeMat = isMultiMat ? wfMats : wfMats[0];
-        }
-        node.material = node.userData.kanvazWireframeMat;
-      } else if (mode === 'matcap') {
-        if (!node.userData.kanvazMatcapMat) {
-          var mcMats = origMats.map(function(m) {
-            return new THREE.MeshMatcapMaterial({ matcap: matcapTex, map: m.map || null });
-          });
-          node.userData.kanvazMatcapMat = isMultiMat ? mcMats : mcMats[0];
-        }
-        node.material = node.userData.kanvazMatcapMat;
-      } else {
-        node.material = node.userData.kanvazOrigMaterial;
-      }
-    });
+    KanvazModel3DModes.applyToScene(THREE, root, mode, { matcapTex: matcapTex });
   }
 
   /* Frames the camera on the loaded object's bounding box — every load
@@ -4091,15 +4035,15 @@ var KanvazCards = (function() {
           emitCardEvent('cardUpdate', card);
         }
       }
-      var modes = [['normal', 'Normal'], ['wireframe', 'Wireframe'], ['matcap', 'Matcap']];
+      var modes = KanvazModel3DModes.list();
       var modeGroup = document.createElement('div');
       modeGroup.className = 'model3d-mode-group';
       for (var mi = 0; mi < modes.length; mi++) {
-        (function(modeKey, modeLabel) {
+        (function(modeKey, modeLabel, modeTitle) {
           var btn = document.createElement('button');
           btn.className = 'model3d-mode-btn';
           btn.textContent = modeLabel;
-          btn.title = modeLabel + ' shading';
+          btn.title = modeTitle;
           btn.addEventListener('click', function(e) {
             e.stopPropagation();
             setRenderMode(modeKey, true);
@@ -4107,7 +4051,7 @@ var KanvazCards = (function() {
           btn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
           modeButtons[modeKey] = btn;
           modeGroup.appendChild(btn);
-        })(modes[mi][0], modes[mi][1]);
+        })(modes[mi][0], modes[mi][1], modes[mi][2]);
       }
       toolbar.appendChild(modeGroup);
 
@@ -6355,8 +6299,8 @@ var KanvazCards = (function() {
     picker.appendChild(label);
 
     var modeRow = document.createElement('div');
-    modeRow.style.cssText = 'display:flex;gap:6px;margin-bottom:8px;';
-    var modes = [['normal', 'Normal'], ['wireframe', 'Wireframe'], ['matcap', 'Matcap']];
+    modeRow.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px;';
+    var modes = KanvazModel3DModes.list();
     for (var i = 0; i < modes.length; i++) {
       (function(modeKey, modeLabel) {
         var isOn = (card.renderMode || 'normal') === modeKey;
@@ -6674,6 +6618,7 @@ var KanvazCards = (function() {
     getSelected:       function() { return selectedId; },
     getSelectedIds:    getSelectedIds,
     getModel3DControls: getModel3DControls,
+    getRenderModes: function() { return KanvazModel3DModes.list(); },
     getModel3DThumbnail: function(id) { return model3DThumbCache[id] || null; }
   };
 
