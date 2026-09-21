@@ -195,6 +195,21 @@ if (fs.existsSync(path.join(__dirname, 'link-server-test.js'))) {
   console.log('  (skipped — test/link-server-test.js missing)');
 }
 
+/* 5i. Kanvaz Link controller — consent, drop dir, queue, delivery, off switch */
+section('5i. Kanvaz Link controller');
+if (fs.existsSync(path.join(__dirname, 'link-controller-test.js'))) {
+  try {
+    var lcOut = cp.execSync('node "' + path.join(__dirname, 'link-controller-test.js') + '"', { encoding: 'utf8', timeout: 120000 });
+    if (/ALL LINK CONTROLLER TESTS PASSED/.test(lcOut)) ok('native-consent flow, private drop dir, delivery to the renderer, hostile files refused, off switch');
+    else { bad('link controller test failed'); console.log(lcOut); }
+  } catch (e) {
+    bad('link controller test crashed');
+    console.log(e.stdout || e.message);
+  }
+} else {
+  console.log('  (skipped — test/link-controller-test.js missing)');
+}
+
 /* 5f. Blender export script — hidden objects / extra scenes excluded, alpha kept (real Blender if installed) */
 section('5f. Blender export script');
 if (fs.existsSync(path.join(__dirname, 'blender-export-test.js'))) {
