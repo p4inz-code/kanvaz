@@ -1573,6 +1573,7 @@ var KanvazUI_Extended = (function() {
           ['Ctrl + 1..9',      'Save current view to a numbered bookmark (session only)'],
           ['1..9',             'Jump to a saved view bookmark'],
           ['Shift + I',        'Isolate View — hide everything but the selection (Escape to exit too)'],
+          ['Shift + L',        'Show / hide the Layers panel (plain L switches theme)'],
           /* Audit fix: this row used to unconditionally say "New note",
              but doubleClickCreatesNote defaults to false (see settings
              default above) — for most users double-clicking the canvas

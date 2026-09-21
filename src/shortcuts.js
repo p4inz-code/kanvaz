@@ -206,6 +206,13 @@ var KanvazShortcuts = (function() {
        as before (a plugin theme still collapses to 'light' on press —
        cycling through every registered theme is a possible future
        enhancement, not attempted here). */
+    /* Layers panel — Shift+L (plain L is the theme toggle). The panel had a
+       rail icon but no keyboard way to open it. */
+    if (shift && (e.key === 'l' || e.key === 'L')) {
+      if (typeof KanvazSidePanel !== 'undefined') KanvazSidePanel.toggle('layers');
+      return;
+    }
+
     if (e.key === 'l' || e.key === 'L') {
       if (typeof KanvazUI_Extended !== 'undefined') {
         var s = KanvazUI_Extended.getSettings();
