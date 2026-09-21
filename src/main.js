@@ -27,6 +27,7 @@ var mcpAuth = require('./mcp-auth');
 var crashLog = require('./crash-log');
 var linkController = require('./link-controller');
 var adobePreview = require('./adobe-preview');
+var openableTypes = require('./openable-types');
 
 /* Local-only crash log (src/crash-log.js): nothing is ever uploaded. */
 function logCrash(kind, message, stack, detail) {
@@ -75,6 +76,10 @@ var mainWindow = null;
 var linkCtl = null;
 var allowClose = false;
 var pendingFileOpen = null;
+/* Files handed over by the OS ("Open with Kanvaz", or a path on the command
+   line) that are not boards: images, models, video, audio, PDF, Adobe files.
+   They become cards on the board, like a drop. See openable-types.js. */
+var pendingMediaOpen = [];
 /* Redesign v1 Phase 2: settings/recent/recovery are now owned by the
    ACTIVE PROFILE (docs/PROFILES_SYSTEM_PLAN.md), not fixed paths under
    userData directly — so these are functions, re-resolved on every
@@ -517,7 +522,9 @@ if (!gotLock) {
        creation time (see createWindow's additionalArguments) instead
        of only after 'did-finish-load'. */
     var startupFile = pendingFileOpen || findKanvazArg(process.argv);
-    createWindow(!!startupFile);
+    var startupMedia = startupFile ? [] : pendingMediaOpen.concat(openableTypes.filesFromArgv(process.argv.slice(1), process.cwd()));
+    pendingMediaOpen = [];
+    createWindow(!!startupFile || startupMedia.length > 0);
     registerIPC();
 
     /* Kanvaz Link: local listener the Blender add-on delivers models to.
@@ -541,6 +548,11 @@ if (!gotLock) {
     if (startupFile && mainWindow) {
       mainWindow.webContents.once('did-finish-load', function() {
         mainWindow.webContents.send('open-file-from-argv', startupFile);
+      });
+    }
+    if (startupMedia.length && mainWindow) {
+      mainWindow.webContents.once('did-finish-load', function() {
+        mainWindow.webContents.send('open-media-from-argv', startupMedia);
       });
     }
 
@@ -584,12 +596,24 @@ if (!gotLock) {
     mainWindow.focus();
     var filePath = findKanvazArg(argv, workingDirectory);
     if (filePath) mainWindow.webContents.send('open-file-from-argv', filePath);
+    else {
+      var media = openableTypes.filesFromArgv(argv.slice(1), workingDirectory);
+      if (media.length) mainWindow.webContents.send('open-media-from-argv', media);
+    }
   });
 
   /* BUG 5: macOS file-open event — can fire before the window (or even
      app.whenReady) exists, so queue it via pendingFileOpen if so. */
   app.on('open-file', function(event, filePath) {
     event.preventDefault();
+    /* Not a board: an image / model / video / etc. from Finder's "Open With". */
+    if (!/\.kanvaz$/i.test(String(filePath))) {
+      var media = openableTypes.filesFromArgv([filePath], process.cwd());
+      if (!media.length) return;
+      if (mainWindow) mainWindow.webContents.send('open-media-from-argv', media);
+      else pendingMediaOpen = pendingMediaOpen.concat(media);
+      return;
+    }
     filePath = grantBoardPath(filePath);
     if (!filePath) return;
     if (mainWindow) {
@@ -1507,7 +1531,7 @@ function registerIPC() {
      classic-script renderer file, not something this main-process
      module can require(). Non-recursive on purpose: "a folder of loose
      images," not an arbitrary directory tree walk. */
-  var DROP_MEDIA_EXTS = ['jpg', 'jpeg', 'png', 'bmp', 'webp', 'gif', 'mp4', 'webm', 'mov', 'mkv', 'avi', 'mp3', 'wav', 'ogg', 'm4a', 'glb', 'gltf', 'obj', 'fbx', 'stl', 'ply', 'vox', 'usd', 'usda', 'usdc', 'usdz', 'blend'];
+  var DROP_MEDIA_EXTS = ['jpg', 'jpeg', 'png', 'bmp', 'webp', 'gif', 'mp4', 'webm', 'mov', 'mkv', 'avi', 'mp3', 'wav', 'ogg', 'm4a', 'glb', 'gltf', 'obj', 'fbx', 'stl', 'ply', 'vox', 'usd', 'usda', 'usdc', 'usdz', 'blend', 'pdf', 'psd', 'psb', 'ai', 'xd', 'indd', 'indt'];
 
   /* Bug-bounty fix (v5.3.0): this used to be a synchronous statSync/
      readdirSync loop — one blocking syscall per top-level path, plus one

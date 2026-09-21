@@ -3295,9 +3295,26 @@ var KanvazCards = (function() {
     function renderPage() {
       if (!state.doc) return;
       state.doc.getPage(state.page).then(function(page) {
-        var viewport = page.getViewport({ scale: state.zoom });
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
+        /* First view of a PDF with no saved zoom: fit the page to the card's
+           width instead of opening at 1 CSS px per PDF point (which showed
+           only the top-left corner of anything larger than the card). Not
+           written to card.pdfZoom, so it re-fits if the card is resized and
+           reopened; a zoom the user picks IS saved as before. */
+        if (!card.pdfZoom && !state.fitDone) {
+          state.fitDone = true;
+          var base = page.getViewport({ scale: 1 });
+          var avail = (scrollArea.clientWidth || 300) - 24;
+          if (base.width > 0 && avail > 40) state.zoom = Math.max(0.25, Math.min(4, avail / base.width));
+        }
+        /* Draw at the screen's real pixel density so text and line art are
+           crisp on high-DPI displays; the canvas is then sized back down in
+           CSS pixels. */
+        var dpr = Math.min(window.devicePixelRatio || 1, 3);
+        var viewport = page.getViewport({ scale: state.zoom * dpr });
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+        canvas.style.width = Math.floor(viewport.width / dpr) + 'px';
+        canvas.style.height = Math.floor(viewport.height / dpr) + 'px';
         var ctx = canvas.getContext('2d');
         page.render({ canvasContext: ctx, viewport: viewport });
         pageLabel.textContent = state.page + ' / ' + state.numPages;
@@ -3437,6 +3454,11 @@ var KanvazCards = (function() {
       if (res && res.ok && res.kind === 'pdf') {
         wrap.remove();
         buildPdfPreview(el, card);
+        /* buildPdfPreview() appends, but this card's label row was already
+           added while the request was in flight; put the viewer back ahead of
+           it, where a .pdf card has it, or the label jumps to the top. */
+        var pv = el.querySelector('.pdf-preview'), lbl = el.querySelector('.url-body');
+        if (pv && lbl) el.insertBefore(pv, lbl);
         return;
       }
       if (!res || !res.ok || !res.dataUrl) {
@@ -3917,8 +3939,71 @@ var KanvazCards = (function() {
      mode is built lazily, once per mesh, by the registry in
      model3d-modes.js and cached, so toggling is instant. That module also
      documents the multi-material (array) handling. */
+  var model3dCheckerTex = null, model3dCheckerThree = null;
   function applyRenderMode(THREE, root, mode, matcapTex) {
-    KanvazModel3DModes.applyToScene(THREE, root, mode, { matcapTex: matcapTex });
+    var ctx = { matcapTex: matcapTex };
+    /* Only built when UV Grid is actually chosen; one texture shared by every card. */
+    if (mode === 'uv') {
+      if (!model3dCheckerTex || model3dCheckerThree !== THREE) {
+        model3dCheckerTex = KanvazModel3DModes.buildCheckerTexture(THREE, document);
+        model3dCheckerThree = THREE;
+      }
+      ctx.checkerTex = model3dCheckerTex;
+    }
+    KanvazModel3DModes.applyToScene(THREE, root, mode, ctx);
+  }
+
+  /* ── Small popup menu for the 3D strip (view mode, camera view) ──
+     items: { header:'Text' } | { label, title, active, disabled, run() }.
+     Closes on outside click, Escape, or picking an item. */
+  var model3dMenuEl = null;
+  function closeModel3DMenu() {
+    if (model3dMenuEl && model3dMenuEl.parentNode) model3dMenuEl.parentNode.removeChild(model3dMenuEl);
+    model3dMenuEl = null;
+    document.removeEventListener('mousedown', model3dMenuOutside, true);
+    document.removeEventListener('keydown', model3dMenuKey, true);
+  }
+  function model3dMenuOutside(e) { if (model3dMenuEl && !model3dMenuEl.contains(e.target)) closeModel3DMenu(); }
+  function model3dMenuKey(e) { if (e.key === 'Escape') { e.stopPropagation(); closeModel3DMenu(); } }
+  function openModel3DMenu(anchor, items) {
+    closeModel3DMenu();
+    var menu = document.createElement('div');
+    menu.className = 'model3d-menu';
+    menu.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+    menu.addEventListener('wheel', function(e) { e.stopPropagation(); });
+    for (var i = 0; i < items.length; i++) {
+      (function(it) {
+        var row = document.createElement('div');
+        if (it.header) {
+          row.className = 'model3d-menu-head';
+          row.textContent = it.header;
+        } else {
+          row.className = 'model3d-menu-item' + (it.active ? ' active' : '') + (it.disabled ? ' disabled' : '');
+          var dot = document.createElement('span');
+          dot.className = 'model3d-menu-dot';
+          row.appendChild(dot);
+          var lab = document.createElement('span');
+          lab.textContent = it.label;
+          row.appendChild(lab);
+          if (it.title) row.title = it.title;
+          if (!it.disabled) {
+            row.addEventListener('click', function(e) { e.stopPropagation(); closeModel3DMenu(); it.run(); });
+          }
+        }
+        menu.appendChild(row);
+      })(items[i]);
+    }
+    document.body.appendChild(menu);
+    var r = anchor.getBoundingClientRect();
+    var mh = menu.offsetHeight, mw = menu.offsetWidth;
+    var top = r.bottom + 4;
+    if (top + mh > window.innerHeight - 8) top = Math.max(8, r.top - mh - 4);   /* not enough room below: open above */
+    var left = Math.min(Math.max(8, r.left), window.innerWidth - mw - 8);
+    menu.style.top = top + 'px';
+    menu.style.left = left + 'px';
+    model3dMenuEl = menu;
+    document.addEventListener('mousedown', model3dMenuOutside, true);
+    document.addEventListener('keydown', model3dMenuKey, true);
   }
 
   /* Frames the camera on the loaded object's bounding box — every load
@@ -3961,7 +4046,7 @@ var KanvazCards = (function() {
   function model3dStats(THREE, root) {
     var tris = 0, verts = 0, meshes = 0, mats = [], texs = [];
     root.traverse(function(node) {
-      if (!node.isMesh || !node.geometry) return;
+      if (!node.isMesh || !node.geometry || (node.userData && node.userData.kanvazModeHelper)) return;
       meshes++;
       var g = node.geometry;
       var pos = g.attributes && g.attributes.position;
@@ -4124,8 +4209,10 @@ var KanvazCards = (function() {
         camera.updateProjectionMatrix();
       }
 
+      var contextLost = false;
+      var turntableOn = false;
       function renderFrame() {
-        if (disposed) return;
+        if (disposed || contextLost) return;
         renderer.render(scene, camera);
       }
 
@@ -4134,9 +4221,10 @@ var KanvazCards = (function() {
         clock.update();
         var delta = clock.getDelta();
         if (mixer && isPlaying) mixer.update(delta);
+        if (turntableOn) controls.update();   /* autoRotate advances inside update() */
         renderFrame();
         updateAnimUI(); /* no-ops until buildAnimationControls() exists — safe even before a model with clips has loaded */
-        if (isPlaying) {
+        if (isPlaying || turntableOn) {
           rafId = requestAnimationFrame(animateLoop);
         } else {
           rafId = null;
@@ -4144,7 +4232,7 @@ var KanvazCards = (function() {
       }
 
       function startLoopIfPlaying() {
-        if (isPlaying && rafId === null) {
+        if ((isPlaying || turntableOn) && rafId === null) {
           clock.update(); /* re-baseline so resuming doesn't jump the clip forward by the idle gap */
           rafId = requestAnimationFrame(animateLoop);
         }
@@ -4199,13 +4287,20 @@ var KanvazCards = (function() {
         }
       };
 
-      /* ── Toolbar: render mode buttons ── */
-      var modeButtons = {};
+      /* ── Toolbar: view mode picker + camera view ──
+         One button that opens a grouped list (Shading / Topology / Surface /
+         Texture) instead of a row of buttons: thirteen modes do not fit a
+         card-wide strip. Modes with nothing to show for this model are
+         greyed with the reason. */
+      var modeAvail = null;
+      var modeBtn = document.createElement('button');
+      modeBtn.className = 'model3d-mode-btn model3d-mode-picker';
       function setActiveModeButton(mode) {
-        var keys = Object.keys(modeButtons);
-        for (var i = 0; i < keys.length; i++) {
-          modeButtons[keys[i]].classList.toggle('active', keys[i] === mode);
-        }
+        var list = KanvazModel3DModes.list();
+        var label = 'Shaded';
+        for (var i = 0; i < list.length; i++) if (list[i][0] === mode) label = list[i][1];
+        modeBtn.textContent = label + ' \u25be';
+        modeBtn.title = 'Change how this model is drawn (shaded, wireframe, normals, UV grid, textures...)';
       }
       function setRenderMode(mode, persist) {
         card.renderMode = mode;
@@ -4218,24 +4313,33 @@ var KanvazCards = (function() {
           emitCardEvent('cardUpdate', card);
         }
       }
-      var modes = KanvazModel3DModes.list();
+      modeBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var list = KanvazModel3DModes.list(), items = [], group = null;
+        for (var i = 0; i < list.length; i++) {
+          (function(row) {
+            if (row[3] !== group) { group = row[3]; items.push({ header: group }); }
+            var av = modeAvail && modeAvail[row[0]];
+            items.push({
+              label: row[1], title: (av && !av.ok) ? av.reason : row[2],
+              active: (card.renderMode || 'normal') === row[0],
+              disabled: !!(av && !av.ok),
+              run: function() { setRenderMode(row[0], true); }
+            });
+          })(list[i]);
+        }
+        openModel3DMenu(modeBtn, items);
+      });
+      modeBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
       var modeGroup = document.createElement('div');
       modeGroup.className = 'model3d-mode-group';
-      for (var mi = 0; mi < modes.length; mi++) {
-        (function(modeKey, modeLabel, modeTitle) {
-          var btn = document.createElement('button');
-          btn.className = 'model3d-mode-btn';
-          btn.textContent = modeLabel;
-          btn.title = modeTitle;
-          btn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            setRenderMode(modeKey, true);
-          });
-          btn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
-          modeButtons[modeKey] = btn;
-          modeGroup.appendChild(btn);
-        })(modes[mi][0], modes[mi][1], modes[mi][2]);
-      }
+      modeGroup.appendChild(modeBtn);
+      var viewBtn = document.createElement('button');
+      viewBtn.className = 'model3d-mode-btn model3d-mode-picker';
+      viewBtn.textContent = 'View \u25be';
+      viewBtn.title = 'Camera: front, back, left, right, top, bottom, turntable';
+      viewBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+      modeGroup.appendChild(viewBtn);
       toolbar.appendChild(modeGroup);
 
       /* ── Toolbar: background color + reset view ──
@@ -4274,6 +4378,87 @@ var KanvazCards = (function() {
         renderFrame();
       }
 
+      /* Camera presets a modeler expects: the six orthogonal directions
+         (front looks down -Z, the way glTF/Blender exports face), framed the
+         same way "Reset view" frames the model. Perspective camera, so these
+         are the straight-on views, not a true orthographic projection. */
+      var VIEW_DIRS = {
+        front: [0, 0, 1], back: [0, 0, -1], right: [1, 0, 0], left: [-1, 0, 0],
+        top: [0, 1, 0.0001], bottom: [0, -1, 0.0001]
+      };
+      function setViewPreset(name) {
+        if (!root || !VIEW_DIRS[name]) return;
+        var box = new THREE.Box3().setFromObject(root);
+        if (!isFinite(box.min.x) || !isFinite(box.max.x)) return;
+        var size = box.getSize(new THREE.Vector3());
+        var center = box.getCenter(new THREE.Vector3());
+        var maxDim = Math.max(size.x, size.y, size.z) || 1;
+        var dist = (maxDim / 2) / Math.tan(camera.fov * (Math.PI / 180) / 2) * 1.6;
+        var d = VIEW_DIRS[name];
+        camera.position.set(center.x + d[0] * dist, center.y + d[1] * dist, center.z + d[2] * dist);
+        camera.up.set(0, 1, 0);
+        controls.target.copy(center);
+        controls.update();
+        card.cameraPosition = { x: camera.position.x, y: camera.position.y, z: camera.position.z };
+        card.cameraTarget   = { x: controls.target.x, y: controls.target.y, z: controls.target.z };
+        renderFrame();
+        KanvazApp.markDirty();
+        KanvazHistory.push();
+      }
+      function setTurntable(on) {
+        turntableOn = !!on;
+        controls.autoRotate = turntableOn;
+        controls.autoRotateSpeed = 2.0;
+        if (turntableOn) startLoopIfPlaying(); else renderFrame();
+      }
+      /* Grabbing the model stops the turntable, like every 3D viewer. */
+      controls.addEventListener('start', function() { if (turntableOn) setTurntable(false); });
+
+      viewBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var items = [{ header: 'Camera' }];
+        var views = [['Perspective (frame all)', null], ['Front', 'front'], ['Back', 'back'], ['Left', 'left'], ['Right', 'right'], ['Top', 'top'], ['Bottom', 'bottom']];
+        for (var vi = 0; vi < views.length; vi++) {
+          (function(v) { items.push({ label: v[0], run: function() { if (v[1]) setViewPreset(v[1]); else resetCamera(); } }); })(views[vi]);
+        }
+        items.push({ header: 'Presentation' });
+        items.push({ label: 'Turntable', active: turntableOn, title: 'Slowly rotate the model; grab it to stop', run: function() { setTurntable(!turntableOn); } });
+        openModel3DMenu(viewBtn, items);
+      });
+
+      /* If a view's shader fails to compile on this GPU, drop back to Shaded
+         with a message rather than leaving a blank card. */
+      var shaderFallbackDone = false;
+      renderer.debug.onShaderError = function() {
+        if (shaderFallbackDone || (card.renderMode || 'normal') === 'normal') return;
+        shaderFallbackDone = true;
+        setTimeout(function() {
+          if (disposed) return;
+          setRenderMode('normal', true);
+          KanvazUI.toast('That view is not available for this model on this graphics card, back to Shaded.', 'warning');
+          shaderFallbackDone = false;
+        }, 0);
+      };
+
+      /* A lost WebGL context (GPU reset, too many 3D cards, driver hiccup) used
+         to leave the card blank for good. preventDefault() lets the browser
+         restore it, and three.js re-uploads everything when it does. */
+      var lostNote = document.createElement('div');
+      lostNote.className = 'model3d-lost-note';
+      lostNote.textContent = 'Restoring 3D view\u2026';
+      lostNote.style.display = 'none';
+      viewport.appendChild(lostNote);
+      canvas.addEventListener('webglcontextlost', function(e) {
+        e.preventDefault();
+        contextLost = true;
+        lostNote.style.display = '';
+      });
+      canvas.addEventListener('webglcontextrestored', function() {
+        contextLost = false;
+        lostNote.style.display = 'none';
+        renderFrame();
+      });
+
       /* Exposed on the same per-card registry dispose() already lives
          on, so the Properties panel can drive this exact card's own
          toolbar controls (getModel3DControls() below) instead of a
@@ -4288,6 +4473,10 @@ var KanvazCards = (function() {
       model3dInstances[card.id].previewBgColor = function(hex) { setBgColor(hex, false); };
       model3dInstances[card.id].setBgColor     = function(hex) { setBgColor(hex, true); };
       model3dInstances[card.id].resetCamera    = resetCamera;
+      model3dInstances[card.id].setViewPreset  = setViewPreset;
+      model3dInstances[card.id].setTurntable   = setTurntable;
+      model3dInstances[card.id].getTurntable   = function() { return turntableOn; };
+      model3dInstances[card.id].getModeAvailability = function() { return modeAvail; };
 
       /* Animation clip picker + read-only model statistics (Properties,
          3D View). getClips() is empty for a model with no animation. */
@@ -4425,6 +4614,7 @@ var KanvazCards = (function() {
         root = loadedRoot;
         scene.add(root);
         applyRenderMode(THREE, root, card.renderMode || 'normal', matcapTex);
+        modeAvail = KanvazModel3DModes.availability(root);
         setActiveModeButton(card.renderMode || 'normal');
         sizeToCard();
         /* Restore a saved camera position/target if this card has one
@@ -6533,18 +6723,31 @@ var KanvazCards = (function() {
     var modeRow = document.createElement('div');
     modeRow.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px;';
     var modes = KanvazModel3DModes.list();
+    var pAvail = controls.getModeAvailability ? controls.getModeAvailability() : null;
+    var pGroup = null;
     for (var i = 0; i < modes.length; i++) {
-      (function(modeKey, modeLabel) {
+      (function(modeKey, modeLabel, modeTitle, modeGroup) {
+        if (modeGroup !== pGroup) {
+          pGroup = modeGroup;
+          var gh = document.createElement('div');
+          gh.textContent = modeGroup;
+          gh.style.cssText = 'grid-column:1 / -1;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:var(--color-text-3);';
+          modeRow.appendChild(gh);
+        }
         var isOn = (card.renderMode || 'normal') === modeKey;
+        var av = pAvail && pAvail[modeKey];
+        var off = !!(av && !av.ok);
         var btn = document.createElement('button');
         btn.textContent = modeLabel;
-        btn.style.cssText = 'flex:1;padding:5px 4px;background:' + (isOn ? 'var(--color-accent-bg)' : 'var(--color-surface-2)') + ';border:1px solid ' + (isOn ? 'var(--color-accent)' : 'var(--color-border-2)') + ';border-radius:5px;color:' + (isOn ? 'var(--color-accent)' : 'var(--color-text-2)') + ';font-family:var(--font-ui);font-size:11px;cursor:pointer;';
+        btn.title = off ? av.reason : modeTitle;
+        btn.disabled = off;
+        btn.style.cssText = 'padding:5px 4px;background:' + (isOn ? 'var(--color-accent-bg)' : 'var(--color-surface-2)') + ';border:1px solid ' + (isOn ? 'var(--color-accent)' : 'var(--color-border-2)') + ';border-radius:5px;color:' + (isOn ? 'var(--color-accent)' : 'var(--color-text-2)') + ';font-family:var(--font-ui);font-size:11px;cursor:' + (off ? 'not-allowed' : 'pointer') + ';' + (off ? 'opacity:0.4;' : '');
         btn.onclick = function() {
           controls.setRenderMode(modeKey);
           if (picker.parentNode) picker.parentNode.removeChild(picker);
         };
         modeRow.appendChild(btn);
-      })(modes[i][0], modes[i][1]);
+      })(modes[i][0], modes[i][1], modes[i][2], modes[i][3]);
     }
     picker.appendChild(modeRow);
 

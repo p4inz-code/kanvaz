@@ -28,10 +28,10 @@ async function run() {
   var ctx = { matcapTex: matcapTex };
 
   var keys = Modes.list().map(function(x) { return x[0]; });
-  assert.deepStrictEqual(keys, ['normal', 'normals', 'matcap', 'wireframe', 'albedo', 'alpha'], 'mode order');
+  assert.deepStrictEqual(keys, ['normal', 'clay', 'matcap', 'wireframe', 'shadedwire', 'normals', 'normalmap', 'albedo', 'uv', 'roughness', 'metalness', 'ao', 'alpha'], 'modes are grouped: Shading, Topology, Surface, Texture');
   assert.strictEqual(Modes.list()[0][1], 'Shaded', 'the lit view is labelled Shaded');
   assert(Modes.isKnown('normal') && !Modes.isKnown('bogus'), 'isKnown');
-  console.log('  ✓ registry: Shaded, Normals, Matcap, Wireframe, Albedo, Alpha (persisted key for the lit view stays "normal")');
+  console.log('  ✓ registry: 13 modes in 4 groups (persisted key for the lit view stays "normal")');
 
   var tex = new THREE.Texture();
   var aMap = new THREE.Texture();
@@ -57,20 +57,18 @@ async function run() {
   console.log('  ✓ matcap keeps colour, opacity, transparency, sidedness, textures; multi-material stays an array');
 
   Modes.applyToScene(THREE, root, 'wireframe', ctx);
-  assert.strictEqual(single.material.wireframe, true, 'wireframe is on');
-  assert(single.material.isMeshBasicMaterial, 'wireframe is unlit, so lighting cannot turn lines white or black');
-  assert.strictEqual(single.material.color.getHex(), 0xff8800, 'wireframe keeps the colour');
-  assert.strictEqual(single.material.map, tex, 'wireframe keeps the texture');
-  assert.strictEqual(single.material.opacity, 0.35, 'wireframe keeps the opacity');
+  var wf = single.material;
+  assert.strictEqual(wf.wireframe, true, 'wireframe is on');
+  assert(wf.isMeshBasicMaterial, 'wireframe is unlit');
+  assert.strictEqual(wf.color.getHex(), 0xdcdcec, 'lines are one neutral colour, not the material colour');
+  assert.strictEqual(wf.map, null, 'no texture in the lines');
+  assert.strictEqual(wf.alphaMap, null, 'no alpha map');
+  assert(wf.vertexColors === false, 'no vertex colours');
+  assert(wf.transparent === false && wf.opacity === 1, 'lines are opaque even for a see-through material');
+  assert.strictEqual(wf.side, THREE.DoubleSide, 'far edges show through');
+  assert.strictEqual(multi.material[1].color.getHex(), 0xdcdcec, 'every slot of a multi-material mesh gets the same neutral line');
   assert.strictEqual(glass.wireframe, false, 'the ORIGINAL material is never mutated');
-  var darkMat = new THREE.MeshStandardMaterial({ color: 0x101010 });
-  var droot = sceneWith(THREE, [darkMat]);
-  Modes.applyToScene(THREE, droot, 'wireframe', ctx);
-  var dh = { h: 0, s: 0, l: 0 };
-  droot.children[0].material.color.getHSL(dh);
-  assert(dh.l >= 0.49, 'a near-black colour is lifted so its lines are visible on the dark board');
-  assert.strictEqual(darkMat.color.getHex(), 0x101010, 'and the original stays as it was');
-  console.log('  ✓ wireframe keeps colour/opacity and leaves the original material alone');
+  console.log('  ✓ wireframe is neutral, opaque lines: no colour, texture or transparency; original material untouched');
 
   Modes.applyToScene(THREE, root, 'normals', ctx);
   assert(single.material.isMeshNormalMaterial, 'normals builds a normal material');
@@ -109,6 +107,83 @@ async function run() {
   assert.strictEqual(multi.material[0], glass, 'and restores each slot of a multi-material mesh');
   Modes.applyToScene(THREE, root, 'not-a-mode', ctx);
   assert.strictEqual(single.material, glass, 'an unknown mode falls back to the original instead of a blank model');
+  /* hidden-line removal helpers for wireframe */
+  var hroot = sceneWith(THREE, [new THREE.MeshStandardMaterial({ color: 0x336699 })]);
+  var skinned = new THREE.SkinnedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial());
+  hroot.add(skinned);
+  var morph = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial());
+  morph.morphTargetInfluences = [0];
+  hroot.add(morph);
+  var plain = hroot.children[0];
+  var count = function(m) { return m.children.filter(function(c) { return c.userData.kanvazModeHelper; }).length; };
+  Modes.applyToScene(THREE, hroot, 'wireframe', ctx);
+  assert.strictEqual(count(plain), 1, 'a plain mesh gets one depth-only helper in wireframe');
+  var helper = plain.children.filter(function(c) { return c.userData.kanvazModeHelper; })[0];
+  assert(helper.material.colorWrite === false && helper.material.depthWrite === true && helper.material.polygonOffset === true, 'the helper draws no colour, only depth, pushed back');
+  assert.strictEqual(helper.geometry, plain.geometry, 'it shares the geometry (no copy)');
+  assert.strictEqual(count(skinned), 0, 'a skinned mesh gets no helper (it would not follow the skeleton)');
+  assert.strictEqual(count(morph), 0, 'a morphing mesh gets no helper');
+  Modes.applyToScene(THREE, hroot, 'wireframe', ctx);
+  assert.strictEqual(count(plain), 1, 'applying wireframe twice does not stack helpers');
+  assert.strictEqual(helper.material, plain.material === helper.material ? null : helper.material, 'helper material is separate from the wire material');
+  Modes.applyToScene(THREE, hroot, 'matcap', ctx);
+  assert.strictEqual(count(plain), 0, 'leaving wireframe removes the helper');
+  assert.strictEqual(plain.material.isMeshMatcapMaterial, true, 'and the helper never gets its material swapped');
+  Modes.applyToScene(THREE, hroot, 'wireframe', ctx);
+  Modes.applyToScene(THREE, hroot, 'normal', ctx);
+  assert.strictEqual(count(plain), 0, 'Shaded has no helpers either');
+  console.log('  ✓ wireframe hides back lines with a depth-only helper (skipped for skinned/morph meshes), removed again on leaving');
+  /* the modeler's modes */
+  var nm = new THREE.Texture(), rmap = new THREE.Texture(), amap = new THREE.Texture();
+  var pbr = new THREE.MeshStandardMaterial({ color: 0xff0000, roughness: 0.3, metalness: 0.9, normalMap: nm, roughnessMap: rmap, metalnessMap: rmap, aoMap: amap });
+  var proot = sceneWith(THREE, [pbr]);
+  var pm = proot.children[0];
+  Modes.applyToScene(THREE, proot, 'clay', ctx);
+  assert(pm.material.isMeshStandardMaterial && pm.material.color.getHex() === 0xb9b9c6 && pm.material.map === null, 'clay is neutral grey with no colour or texture');
+  assert.strictEqual(pm.material.normalMap, nm, 'clay keeps the normal map (sculpted detail)');
+  Modes.applyToScene(THREE, proot, 'shadedwire', ctx);
+  assert.strictEqual(pm.material, pbr, 'wire on shaded keeps the model\'s own material');
+  var ov = pm.children.filter(function(c) { return c.userData.kanvazModeHelper; });
+  assert(ov.length === 1 && ov[0].material.wireframe === true && ov[0].material.transparent === true && ov[0].material.depthWrite === false && ov[0].material.polygonOffsetFactor < 0, 'a translucent wire overlay pulled toward the camera, not writing depth');
+  Modes.applyToScene(THREE, proot, 'normal', ctx);
+  assert.strictEqual(pm.children.filter(function(c) { return c.userData.kanvazModeHelper; }).length, 0, 'the overlay is removed again');
+  Modes.applyToScene(THREE, proot, 'normalmap', ctx);
+  assert(pm.material.map === nm && pm.material.isMeshBasicMaterial, 'normal map view shows the normal texture unlit');
+  var fake = { fragmentShader: '#include <opaque_fragment>\n#include <tonemapping_fragment>\n#include <colorspace_fragment>' };
+  pm.material.onBeforeCompile(fake);
+  assert(fake.fragmentShader.indexOf('diffuseColor.rgb') !== -1 && fake.fragmentShader.indexOf('colorspace') === -1, 'raw texture values, no colour-space step');
+  var plainRoot = sceneWith(THREE, [new THREE.MeshStandardMaterial()]);
+  Modes.applyToScene(THREE, plainRoot, 'normalmap', ctx);
+  var f2 = { fragmentShader: '#include <opaque_fragment>' };
+  plainRoot.children[0].material.onBeforeCompile(f2);
+  assert(f2.fragmentShader.indexOf('0.5, 0.5, 1.0') !== -1, 'no normal map: flat "up" blue');
+  Modes.applyToScene(THREE, proot, 'roughness', ctx);
+  assert(pm.material.map === rmap && Math.abs(pm.material.color.r - 0.3) < 1e-6, 'roughness view: green channel of the map x the roughness factor');
+  var f3 = { fragmentShader: '#include <opaque_fragment>' }; pm.material.onBeforeCompile(f3);
+  assert(f3.fragmentShader.indexOf('diffuseColor.g') !== -1, 'roughness reads green');
+  Modes.applyToScene(THREE, proot, 'metalness', ctx);
+  var f4 = { fragmentShader: '#include <opaque_fragment>' }; pm.material.onBeforeCompile(f4);
+  assert(f4.fragmentShader.indexOf('diffuseColor.b') !== -1 && Math.abs(pm.material.color.r - 0.9) < 1e-6, 'metalness reads blue x the metalness factor');
+  Modes.applyToScene(THREE, proot, 'ao', ctx);
+  var f5 = { fragmentShader: '#include <opaque_fragment>' }; pm.material.onBeforeCompile(f5);
+  assert(pm.material.map === amap && f5.fragmentShader.indexOf('diffuseColor.r') !== -1, 'occlusion reads red of the AO map');
+  var keysUsed = ['rough', 'metal', 'ao'].map(function() { return 1; });
+  Modes.applyToScene(THREE, proot, 'uv', { matcapTex: matcapTex, checkerTex: rmap });
+  assert.strictEqual(pm.material.map, rmap, 'UV grid uses the checker texture');
+  console.log('  ✓ Clay, Wire on Shaded, Normal Map, UV Grid, Roughness, Metalness, Occlusion build the right materials');
+
+  /* availability: modes with nothing to show are greyed with a reason */
+  var av = Modes.availability(proot);
+  assert(av.normalmap.ok && av.ao.ok && av.uv.ok && av.clay.ok, 'a fully textured model offers everything');
+  var bare = sceneWith(THREE, [new THREE.MeshStandardMaterial({ color: 0x888888 })]);
+  var ab = Modes.availability(bare);
+  assert(ab.normalmap.ok === false && /normal map/i.test(ab.normalmap.reason), 'no normal map: Normal Map is unavailable and says why');
+  assert(ab.ao.ok === false && /occlusion/i.test(ab.ao.reason), 'no AO texture: Occlusion is unavailable and says why');
+  assert(ab.uv.ok === true, 'a BoxGeometry has UVs');
+  bare.children[0].geometry.deleteAttribute('uv');
+  assert(Modes.availability(bare).uv.ok === false, 'no UVs: UV Grid is unavailable');
+  assert(ab.roughness.ok && ab.metalness.ok && ab.wireframe.ok && ab.shadedwire.ok, 'factor views and wire modes are always available');
+  console.log('  ✓ availability: unusable modes are reported with a plain reason');
   console.log('  ✓ cache reuse, disposal list, restore to Shaded, unknown mode falls back');
 }
 

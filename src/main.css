@@ -1800,6 +1800,37 @@ body.presentation-mode-active #side-panel {
   flex-shrink: 0;
 }
 
+/* Found by a real hit test (2026-09-22): on a file card with a preview the
+   label row (name + Change file + Open) sat underneath the card's own name
+   bar, so BOTH buttons were covered and could not be clicked, on PDF, image
+   and text cards too. The name is already in the bar, so the label is hidden
+   and the two buttons become a small control in the preview's top-right
+   corner, shown on hover or when the card is selected. */
+.card-file.has-file-preview .url-body {
+  position: absolute;
+  top: 30px;
+  right: 8px;
+  left: auto;
+  margin: 0;
+  padding: 3px 4px;
+  z-index: 5;
+  display: flex;
+  gap: 2px;
+  background: var(--color-chrome);
+  border-radius: 8px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.card-file.has-file-preview:hover .url-body,
+.card-file.has-file-preview.selected .url-body {
+  opacity: 1;
+}
+
+.card-file.has-file-preview .url-body .url-label {
+  display: none;
+}
+
 .pdf-preview {
   flex: 1;
   min-height: 0;
@@ -1835,10 +1866,11 @@ body.presentation-mode-active #side-panel {
    preview, never over the name/meta row. */
 .file-preview-note {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 3px 8px;
+  left: 8px;
+  top: 6px;
+  max-width: calc(100% - 96px);
+  padding: 2px 7px;
+  border-radius: 999px;
   font-size: 10px;
   color: var(--color-text-2);
   background: var(--color-chrome);
@@ -2508,6 +2540,73 @@ body.presentation-mode-active #side-panel {
   background: var(--color-accent);
   border-color: var(--color-accent);
   color: var(--color-accent-contrast, #fff);
+}
+
+.model3d-mode-picker {
+  padding: 3px 9px;
+  font-size: 11px;
+}
+
+/* Popup list for the 3D strip's view-mode and camera menus. */
+.model3d-menu {
+  position: fixed;
+  z-index: 100000;
+  min-width: 168px;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--color-chrome);
+  border: 1px solid var(--color-border-2);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  font-family: var(--font-ui);
+  user-select: none;
+}
+
+.model3d-menu-head {
+  padding: 6px 8px 3px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-3);
+}
+
+.model3d-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  font-size: 12px;
+  color: var(--color-text-2);
+  cursor: pointer;
+}
+
+.model3d-menu-item:hover { background: var(--color-surface-2); color: var(--color-text); }
+.model3d-menu-item.active { color: var(--color-accent); }
+.model3d-menu-item.disabled { opacity: 0.4; cursor: not-allowed; }
+.model3d-menu-item.disabled:hover { background: none; color: var(--color-text-2); }
+
+.model3d-menu-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: transparent;
+  flex-shrink: 0;
+}
+
+.model3d-menu-item.active .model3d-menu-dot { background: var(--color-accent); }
+
+.model3d-lost-note {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--color-text-2);
+  background: rgba(10, 10, 16, 0.55);
+  pointer-events: none;
 }
 
 .model3d-bg-swatch {

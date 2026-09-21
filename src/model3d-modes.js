@@ -37,10 +37,43 @@ var KanvazModel3DModes = (function() {
     return (m && m.color && m.color.isColor) ? m.color.clone() : new THREE.Color(0xffffff);
   }
 
-  var MODES = [
-    { key: 'normal', label: 'Shaded', title: 'Shaded: the model as the file describes it', build: null },
+  /* Shows a texture's raw channel as grey, the way an image editor would:
+     colour-space conversion and tone mapping are dropped from the shader, so
+     the value on screen is the value in the file. channel is 'r', 'g' or 'b'
+     of the mixed diffuseColor the standard shader builds from colour x map. */
+  function rawChannelView(mat, channel, cacheKey) {
+    mat.onBeforeCompile = function(shader) {
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <opaque_fragment>', 'gl_FragColor = vec4( vec3( diffuseColor.' + channel + ' ), 1.0 );')
+        .replace('#include <tonemapping_fragment>', '')
+        .replace('#include <colorspace_fragment>', '');
+    };
+    mat.customProgramCacheKey = function() { return cacheKey; };
+    return mat;
+  }
 
-    { key: 'normals', label: 'Normals', title: 'Normals: surface direction as colour',
+  /* A flat scalar (roughness / metalness factor) as an exact grey. */
+  function scalarColor(THREE, v) {
+    var c = new THREE.Color();
+    c.setRGB(v, v, v, THREE.LinearSRGBColorSpace);
+    return c;
+  }
+
+  var MODES = [
+    { key: 'normal', label: 'Shaded', group: 'Shading', title: 'Shaded: the model as the file describes it', build: null },
+
+    /* Neutral untextured surface with soft studio lighting: judge form and
+       silhouette without colour or texture getting in the way. Normal maps are
+       kept because they are part of the sculpted detail. */
+    { key: 'clay', label: 'Clay', group: 'Shading', title: 'Clay: neutral grey material, lit, keeps normal-map detail',
+      build: function(THREE, m) {
+        var mat = new THREE.MeshStandardMaterial({ color: 0xb9b9c6, roughness: 0.82, metalness: 0, normalMap: m.normalMap || null });
+        if (m.normalScale && mat.normalScale) mat.normalScale.copy(m.normalScale);
+        mat.side = m.side;
+        return mat;
+      } },
+
+    { key: 'normals', label: 'Normals', group: 'Surface', title: 'Normals: surface direction as colour (view space, like the normal matcap in Blender)',
       build: function(THREE, m) {
         var mat = new THREE.MeshNormalMaterial({
           normalMap: m.normalMap || null,
@@ -50,7 +83,7 @@ var KanvazModel3DModes = (function() {
         return copySurface(mat, m);
       } },
 
-    { key: 'matcap', label: 'Matcap', title: 'Matcap: studio shading that keeps colour and transparency',
+    { key: 'matcap', label: 'Matcap', group: 'Shading', title: 'Matcap: studio shading that keeps colour and transparency',
       build: function(THREE, m, ctx) {
         var mat = new THREE.MeshMatcapMaterial({
           matcap: ctx.matcapTex,
@@ -64,28 +97,85 @@ var KanvazModel3DModes = (function() {
         return copySurface(mat, m);
       } },
 
-    { key: 'wireframe', label: 'Wireframe', title: 'Wireframe: mesh edges in the material colour, unlit',
-      /* Was a lit clone of the material, so faces facing the light drew
-         white lines and faces turned away drew black ones, whatever the
-         real colour was. Now unlit: every line is the material's own colour
-         (or its texture). A very dark colour would vanish on the dark
-         board, so it is lifted to a readable lightness. */
+    { key: 'wireframe', label: 'Wireframe', group: 'Topology', title: 'Wireframe: clean mesh edges, no colour or texture', hideBackLines: true,
+      /* Pure structure. It ignores the material's colour, texture and
+         transparency on purpose: the first version was a lit clone (lines came
+         out white or black by lighting), the second kept the material colour
+         (tinted, and a textured model drew a noisy texture in the lines). What
+         reads best on the dark board is one neutral light line colour, opaque,
+         both sides drawn so the far edges show through. */
       build: function(THREE, m) {
-        var col = colorOf(THREE, m);
-        var hsl = { h: 0, s: 0, l: 0 };
-        col.getHSL(hsl);
-        if (hsl.l < 0.5) col.setHSL(hsl.h, hsl.s, 0.5);
-        var mat = new THREE.MeshBasicMaterial({
-          color: col,
-          map: m.map || null,
-          vertexColors: !!m.vertexColors,
-          wireframe: true
+        return new THREE.MeshBasicMaterial({
+          color: 0xdcdcec,
+          wireframe: true,
+          side: THREE.DoubleSide,
+          transparent: false,
+          opacity: 1
         });
-        return copySurface(mat, m);
+      } },
+
+    /* Topology check on the real surface: the file's own materials stay, with
+       the mesh edges drawn over them (light, semi-transparent, pulled toward
+       the camera so they do not z-fight). The view a modeler keeps on. */
+    { key: 'shadedwire', label: 'Wire on Shaded', group: 'Topology', overlayWire: true, title: 'Wire on Shaded: the model with its mesh edges over it',
+      build: null },
+
+    /* The normal map itself, raw, as an image editor shows it. Flat blue means
+       "no normal map on this material". A green that looks inverted (flipped Y
+       between OpenGL and DirectX) is the classic thing this is for. */
+    { key: 'normalmap', label: 'Normal Map', group: 'Surface', title: 'Normal Map: the tangent-space normal texture as stored',
+      needs: 'normalMap',
+      build: function(THREE, m) {
+        var mat = new THREE.MeshBasicMaterial({ color: 0xffffff, map: m.normalMap || null });
+        mat.side = m.side;
+        var flat = !m.normalMap;
+        mat.onBeforeCompile = function(shader) {
+          shader.fragmentShader = shader.fragmentShader
+            .replace('#include <opaque_fragment>', flat ? 'gl_FragColor = vec4( 0.5, 0.5, 1.0, 1.0 );' : 'gl_FragColor = vec4( diffuseColor.rgb, 1.0 );')
+            .replace('#include <tonemapping_fragment>', '')
+            .replace('#include <colorspace_fragment>', '');
+        };
+        mat.customProgramCacheKey = function() { return flat ? 'kanvaz-nmap-flat' : 'kanvaz-nmap'; };
+        return mat;
+      } },
+
+    /* UV layout check: a coloured, lettered checker. Squares that stretch into
+       rectangles or shear are stretched UVs; squares of different sizes on
+       different parts mean uneven texel density. */
+    { key: 'uv', label: 'UV Grid', group: 'Texture', title: 'UV Grid: checker pattern to spot stretched UVs and uneven texel density',
+      needs: 'uv',
+      build: function(THREE, m, ctx) {
+        var mat = new THREE.MeshBasicMaterial({ map: ctx.checkerTex || null, color: 0xffffff });
+        mat.side = m.side;
+        return mat;
+      } },
+
+    /* Texture channels, raw. Roughness is the green channel of a glTF
+       metallic-roughness texture, metalness the blue, occlusion the red of the
+       AO texture; each is multiplied by the material's own factor, as the
+       renderer does. With no texture the factor shows as one flat grey. */
+    { key: 'roughness', label: 'Roughness', group: 'Texture', title: 'Roughness: white = rough, black = glossy',
+      build: function(THREE, m) {
+        var mat = new THREE.MeshBasicMaterial({ map: m.roughnessMap || null, color: scalarColor(THREE, m.roughness === undefined ? 1 : m.roughness) });
+        mat.side = m.side;
+        return rawChannelView(mat, 'g', 'kanvaz-rough');
+      } },
+    { key: 'metalness', label: 'Metalness', group: 'Texture', title: 'Metalness: white = metal, black = non-metal',
+      build: function(THREE, m) {
+        var mat = new THREE.MeshBasicMaterial({ map: m.metalnessMap || null, color: scalarColor(THREE, m.metalness === undefined ? 0 : m.metalness) });
+        mat.side = m.side;
+        return rawChannelView(mat, 'b', 'kanvaz-metal');
+      } },
+    { key: 'ao', label: 'Occlusion', group: 'Texture', title: 'Ambient occlusion: the baked AO texture (white = open, black = occluded)',
+      needs: 'aoMap',
+      build: function(THREE, m) {
+        var mat = new THREE.MeshBasicMaterial({ map: m.aoMap || null, color: 0xffffff });
+        mat.side = m.side;
+        return rawChannelView(mat, 'r', 'kanvaz-ao');
       } },
 
     /* Base colour with no lighting at all: what the artist painted. */
-    { key: 'albedo', label: 'Albedo', title: 'Albedo: base colour and texture, unlit',
+    { key: 'albedo', label: 'Albedo', group: 'Texture', title: 'Albedo: base colour and texture, unlit',
       build: function(THREE, m) {
         var mat = new THREE.MeshBasicMaterial({
           color: colorOf(THREE, m),
@@ -102,7 +192,7 @@ var KanvazModel3DModes = (function() {
        shader compute diffuseColor.a, then writing that as the colour. The
        colour-space and tone-mapping steps are dropped so the ramp is the
        raw value rather than a gamma-lifted one. */
-    { key: 'alpha', label: 'Alpha', title: 'Alpha: opacity as black (clear) to white (solid)',
+    { key: 'alpha', label: 'Alpha', group: 'Texture', title: 'Alpha: opacity as black (clear) to white (solid)',
       build: function(THREE, m) {
         var mat = new THREE.MeshBasicMaterial({
           color: 0xffffff,
@@ -126,15 +216,135 @@ var KanvazModel3DModes = (function() {
       } }
   ];
 
+  /* Hidden-line removal for wireframe. A dense mesh (a subdivided head, a
+     sphere) drew the far side's lines through the near side, which piled up
+     into a solid white blob. Each mesh gets an invisible child that writes
+     depth only (pushed slightly back with polygon offset, so the lines on the
+     surface still pass the depth test); the far lines then fail the test and
+     disappear, exactly like a wireframe view in a 3D package.
+     Skipped for skinned, instanced and morphing meshes: a child sharing only
+     the geometry would not follow their deformation and would hide the wrong
+     lines. Those keep the plain see-through wire. */
+  var occluderCache = null;
+  function occluderFor(THREE) {
+    if (!occluderCache || occluderCache.THREE !== THREE) {
+      occluderCache = {
+        THREE: THREE,
+        material: new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: true, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1, side: THREE.DoubleSide })
+      };
+    }
+    return occluderCache.material;
+  }
+  function canOcclude(node) {
+    return !node.isSkinnedMesh && !node.isInstancedMesh && !(node.morphTargetInfluences && node.morphTargetInfluences.length);
+  }
+  /* Wire drawn over the model's own surface (Wire on Shaded). */
+  var overlayCache = null;
+  function overlayMaterial(THREE) {
+    if (!overlayCache || overlayCache.THREE !== THREE) {
+      overlayCache = {
+        THREE: THREE,
+        material: new THREE.MeshBasicMaterial({ color: 0xf2f2ff, wireframe: true, transparent: true, opacity: 0.55, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })
+      };
+    }
+    return overlayCache.material;
+  }
+  function addOverlays(THREE, root) {
+    var targets = [];
+    root.traverse(function(n) { if (n.isMesh && !(n.userData && n.userData.kanvazModeHelper) && canOcclude(n)) targets.push(n); });
+    for (var i = 0; i < targets.length; i++) {
+      var h = new THREE.Mesh(targets[i].geometry, overlayMaterial(THREE));
+      h.userData.kanvazModeHelper = true;
+      h.renderOrder = 1;
+      h.matrixAutoUpdate = false;
+      h.raycast = function() {};
+      targets[i].add(h);
+    }
+  }
+
+  /* Which modes have something to show for this model, so the UI can grey out
+     the rest with a reason instead of offering a mode that draws nothing.
+     Reads the original materials. */
+  function availability(root) {
+    var has = { normalMap: false, aoMap: false, uv: false };
+    root.traverse(function(n) {
+      if (!n.isMesh || (n.userData && n.userData.kanvazModeHelper)) return;
+      if (n.geometry && n.geometry.attributes && n.geometry.attributes.uv) has.uv = true;
+      var mats = asArray((n.userData && n.userData.kanvazOrigMaterial) || n.material);
+      for (var i = 0; i < mats.length; i++) {
+        if (mats[i] && mats[i].normalMap) has.normalMap = true;
+        if (mats[i] && mats[i].aoMap) has.aoMap = true;
+      }
+    });
+    var reasons = { normalMap: 'This model has no normal map.', aoMap: 'This model has no ambient-occlusion texture.', uv: 'This model has no UV coordinates.' };
+    var out = {};
+    for (var m = 0; m < MODES.length; m++) {
+      var need = MODES[m].needs;
+      out[MODES[m].key] = (!need || has[need]) ? { ok: true } : { ok: false, reason: reasons[need] };
+    }
+    return out;
+  }
+
+  /* Coloured, lettered checker for UV Grid. */
+  function buildCheckerTexture(THREE, doc) {
+    var size = 1024, cells = 16, cs = size / cells;
+    var canvas = (doc || document).createElement('canvas');
+    canvas.width = size; canvas.height = size;
+    var c = canvas.getContext('2d');
+    for (var y = 0; y < cells; y++) {
+      for (var x = 0; x < cells; x++) {
+        var hue = (x / cells) * 300;
+        var light = ((x + y) % 2) ? 62 : 38;
+        c.fillStyle = 'hsl(' + Math.round(hue) + ',55%,' + light + '%)';
+        c.fillRect(x * cs, y * cs, cs, cs);
+      }
+    }
+    c.fillStyle = 'rgba(255,255,255,0.9)';
+    c.font = 'bold ' + Math.round(cs * 0.34) + 'px sans-serif';
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    for (var yy = 0; yy < cells; yy += 2) {
+      for (var xx = 0; xx < cells; xx += 2) c.fillText(String.fromCharCode(65 + xx / 2) + (yy / 2 + 1), xx * cs + cs, yy * cs + cs);
+    }
+    var tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.anisotropy = 8;
+    tex.needsUpdate = true;
+    return tex;
+  }
+
+  function removeHelpers(root) {
+    var found = [];
+    root.traverse(function(n) { if (n.userData && n.userData.kanvazModeHelper) found.push(n); });
+    for (var i = 0; i < found.length; i++) if (found[i].parent) found[i].parent.remove(found[i]);
+  }
+  function addHelpers(THREE, root) {
+    var targets = [];
+    root.traverse(function(n) { if (n.isMesh && !(n.userData && n.userData.kanvazModeHelper) && canOcclude(n)) targets.push(n); });
+    for (var i = 0; i < targets.length; i++) {
+      var h = new THREE.Mesh(targets[i].geometry, occluderFor(THREE));
+      h.userData.kanvazModeHelper = true;
+      h.renderOrder = -1;
+      h.matrixAutoUpdate = false;   /* identity: it sits exactly on its parent */
+      h.raycast = function() {};    /* never pickable */
+      targets[i].add(h);
+    }
+  }
+
   function find(key) {
     for (var i = 0; i < MODES.length; i++) if (MODES[i].key === key) return MODES[i];
     return null;
   }
 
-  /* [[key, label, title], ...] in display order. */
+  /* [[key, label, title, group], ...] in display order. */
   function list() {
     var out = [];
-    for (var i = 0; i < MODES.length; i++) out.push([MODES[i].key, MODES[i].label, MODES[i].title]);
+    /* The picker's order, grouped by what a modeler reaches for. */
+    var order = ['normal', 'clay', 'matcap', 'wireframe', 'shadedwire', 'normals', 'normalmap', 'albedo', 'uv', 'roughness', 'metalness', 'ao', 'alpha'];
+    for (var i = 0; i < order.length; i++) {
+      var m = find(order[i]);
+      if (m) out.push([m.key, m.label, m.title, m.group || 'Other']);
+    }
     return out;
   }
 
@@ -148,8 +358,11 @@ var KanvazModel3DModes = (function() {
      original materials rather than leaving the model blank. */
   function applyToScene(THREE, root, key, ctx) {
     var mode = find(key) || find('normal');
+    removeHelpers(root);
+    if (mode.hideBackLines) addHelpers(THREE, root);
+    if (mode.overlayWire) addOverlays(THREE, root);
     root.traverse(function(node) {
-      if (!node.isMesh) return;
+      if (!node.isMesh || (node.userData && node.userData.kanvazModeHelper)) return;
       var ud = node.userData;
       if (!ud.kanvazOrigMaterial) ud.kanvazOrigMaterial = node.material;
       if (!mode.build) { node.material = ud.kanvazOrigMaterial; return; }
@@ -204,6 +417,8 @@ var KanvazModel3DModes = (function() {
   return {
     list: list,
     isKnown: isKnown,
+    availability: availability,
+    buildCheckerTexture: buildCheckerTexture,
     applyToScene: applyToScene,
     builtMaterials: builtMaterials,
     buildMatcapTexture: buildMatcapTexture

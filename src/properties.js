@@ -797,24 +797,71 @@ var KanvazProperties = (function() {
     title.textContent = '3D View';
     body.appendChild(title);
 
+    /* View modes, grouped (Shading / Topology / Surface / Texture). A mode with
+       nothing to show for this model (no normal map, no AO texture, no UVs) is
+       greyed out and says why on hover. */
     var modeRow = document.createElement('div');
     modeRow.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;';
     var modes = KanvazCards.getRenderModes();
+    var avail = controls.getModeAvailability ? controls.getModeAvailability() : null;
+    var lastGroup = null;
     for (var i = 0; i < modes.length; i++) {
-      (function(modeKey, modeLabel, modeTitle) {
+      (function(modeKey, modeLabel, modeTitle, modeGroup) {
+        if (modeGroup !== lastGroup) {
+          lastGroup = modeGroup;
+          var gh = document.createElement('div');
+          gh.textContent = modeGroup;
+          gh.style.cssText = 'grid-column:1 / -1;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:var(--color-text-3);margin-top:' + (i === 0 ? '0' : '4px') + ';';
+          modeRow.appendChild(gh);
+        }
         var isOn = (card.renderMode || 'normal') === modeKey;
+        var av = avail && avail[modeKey];
+        var off = !!(av && !av.ok);
         var btn = document.createElement('button');
         btn.textContent = modeLabel;
-        btn.title = modeTitle;
-        btn.style.cssText = 'flex:1;padding:5px 4px;background:' + (isOn ? 'var(--color-accent-bg)' : 'var(--color-surface-2)') + ';border:1px solid ' + (isOn ? 'var(--color-accent)' : 'var(--color-border-2)') + ';border-radius:5px;color:' + (isOn ? 'var(--color-accent)' : 'var(--color-text-2)') + ';font-family:var(--font-ui);font-size:11px;cursor:pointer;';
+        btn.title = off ? av.reason : modeTitle;
+        btn.disabled = off;
+        btn.style.cssText = 'padding:5px 4px;background:' + (isOn ? 'var(--color-accent-bg)' : 'var(--color-surface-2)') + ';border:1px solid ' + (isOn ? 'var(--color-accent)' : 'var(--color-border-2)') + ';border-radius:5px;color:' + (isOn ? 'var(--color-accent)' : 'var(--color-text-2)') + ';font-family:var(--font-ui);font-size:11px;cursor:' + (off ? 'not-allowed' : 'pointer') + ';' + (off ? 'opacity:0.4;' : '');
         btn.onclick = function() {
           controls.setRenderMode(modeKey);
           if (panelEl) renderInto(panelEl);
         };
         modeRow.appendChild(btn);
-      })(modes[i][0], modes[i][1], modes[i][2]);
+      })(modes[i][0], modes[i][1], modes[i][2], modes[i][3]);
     }
     body.appendChild(modeRow);
+
+    /* Camera: the six straight-on views a modeler checks a model from, plus a
+       turntable. */
+    if (controls.setViewPreset) {
+      var camTitle = document.createElement('div');
+      camTitle.textContent = 'Camera';
+      camTitle.style.cssText = 'font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:var(--color-text-3);margin-bottom:6px;';
+      body.appendChild(camTitle);
+      var camRow = document.createElement('div');
+      camRow.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px;';
+      var camViews = [['Front', 'front'], ['Back', 'back'], ['Left', 'left'], ['Right', 'right'], ['Top', 'top'], ['Bottom', 'bottom']];
+      for (var ci = 0; ci < camViews.length; ci++) {
+        (function(v) {
+          var cb = document.createElement('button');
+          cb.textContent = v[0];
+          cb.title = v[0] + ' view, framed on the whole model';
+          cb.style.cssText = 'padding:5px 4px;background:var(--color-surface-2);border:1px solid var(--color-border-2);border-radius:5px;color:var(--color-text-2);font-family:var(--font-ui);font-size:11px;cursor:pointer;';
+          cb.onclick = function() { controls.setViewPreset(v[1]); };
+          camRow.appendChild(cb);
+        })(camViews[ci]);
+      }
+      body.appendChild(camRow);
+      var ttRow = document.createElement('label');
+      ttRow.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:11px;color:var(--color-text-2);margin-bottom:10px;cursor:pointer;';
+      var tt = document.createElement('input');
+      tt.type = 'checkbox';
+      tt.checked = !!(controls.getTurntable && controls.getTurntable());
+      tt.onchange = function() { controls.setTurntable(tt.checked); };
+      ttRow.appendChild(tt);
+      ttRow.appendChild(document.createTextNode('Turntable (slowly rotate; grab the model to stop)'));
+      body.appendChild(ttRow);
+    }
 
     var bgRow = document.createElement('div');
     bgRow.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:10px;';

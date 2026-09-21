@@ -225,6 +225,21 @@ if (fs.existsSync(path.join(__dirname, 'adobe-preview-test.js'))) {
   console.log('  (skipped — test/adobe-preview-test.js missing)');
 }
 
+/* 5k. Open with Kanvaz — launch-argument filter, and that package.json registers exactly the supported types */
+section('5k. Open with Kanvaz (OS integration)');
+if (fs.existsSync(path.join(__dirname, 'openable-types-test.js'))) {
+  try {
+    var otOut = cp.execSync('node "' + path.join(__dirname, 'openable-types-test.js') + '"', { encoding: 'utf8', timeout: 60000 });
+    if (/ALL OPENABLE TYPES TESTS PASSED/.test(otOut)) ok('argv filter safe; package.json fileAssociations + Linux MIME types match the supported types exactly');
+    else { bad('openable types test failed'); console.log(otOut); }
+  } catch (e) {
+    bad('openable types test crashed');
+    console.log(e.stdout || e.message);
+  }
+} else {
+  console.log('  (skipped — test/openable-types-test.js missing)');
+}
+
 /* 5f. Blender export script — hidden objects / extra scenes excluded, alpha kept (real Blender if installed) */
 section('5f. Blender export script');
 if (fs.existsSync(path.join(__dirname, 'blender-export-test.js'))) {
