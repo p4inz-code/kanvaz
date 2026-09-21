@@ -22,6 +22,8 @@
    ES5/var-only like the rest of src/. */
 
 var path = require('path');
+var fs = require('fs');
+var crypto = require('crypto');
 
 /* Extensions whose default handler EXECUTES the file or a script inside it
    (or, for .url/.library-ms/.searchConnector-ms/.theme etc., can reach out
@@ -122,10 +124,103 @@ function isBoardPath(p) {
   return isLocalAbsolutePath(p) && extOf(p) === 'kanvaz';
 }
 
+/* ── Kanvaz Link: files handed over by a local client (the Blender add-on) ──
+   A delivery names a file inside Kanvaz's private drop directory. These
+   checks make sure the path really is one regular file in that directory and
+   nothing else: not a symlink or junction pointing elsewhere, not a hard link
+   to another file, not an alternate data stream, not swapped between the
+   check and the read. */
+
+/* True when p (an existing path) really resolves to somewhere inside baseDir.
+   Both sides go through realpath, so a symlink out of the directory fails. */
+function isWithinDir(baseDir, p, platform) {
+  if (!isString(baseDir) || !isString(p)) return false;
+  var realBase, realP;
+  try {
+    realBase = fs.realpathSync(baseDir);
+    realP = fs.realpathSync(p);
+  } catch (e) { return false; }
+  var fold = function(x) { return (platform || process.platform) === 'win32' ? x.toLowerCase() : x; };
+  var base = fold(realBase);
+  if (base.charAt(base.length - 1) !== path.sep) base += path.sep;
+  var cand = fold(realP);
+  return cand.length > base.length && cand.indexOf(base) === 0;
+}
+
+/* Validates then reads one delivered file. Returns { ok:true, data:Buffer }
+   or { ok:false, reason }. opts: { formats:[ext,...], maxBytes, expectedSize,
+   sha256 }. The read goes through an open handle that is compared with the
+   lstat taken first, so a file swapped in between is refused. */
+function readDropFile(dropDir, p, opts) {
+  opts = opts || {};
+  if (!isLocalAbsolutePath(p)) return { ok: false, reason: 'not a local absolute path' };
+  if (process.platform === 'win32' && p.indexOf(':', 2) !== -1) return { ok: false, reason: 'alternate data streams are not allowed' };
+  var ext = extOf(p);
+  if (opts.formats && opts.formats.indexOf(ext) === -1) return { ok: false, reason: 'format not allowed: ' + (ext || 'none') };
+  var st;
+  try { st = fs.lstatSync(p, { bigint: true }); } catch (e) { return { ok: false, reason: 'file not found' }; }
+  if (st.isSymbolicLink()) return { ok: false, reason: 'symbolic links are not allowed' };
+  if (!st.isFile()) return { ok: false, reason: 'not a regular file' };
+  if (Number(st.nlink) > 1) return { ok: false, reason: 'hard links are not allowed' };
+  if (!isWithinDir(dropDir, p)) return { ok: false, reason: 'outside the drop directory' };
+  var size = Number(st.size);
+  if (opts.maxBytes && size > opts.maxBytes) return { ok: false, reason: 'file too large' };
+  if (typeof opts.expectedSize === 'number' && size !== opts.expectedSize) return { ok: false, reason: 'size does not match (file still being written?)' };
+  var fd = null;
+  try {
+    fd = fs.openSync(p, 'r');
+    var fst = fs.fstatSync(fd, { bigint: true });
+    if (!fst.isFile() || fst.ino !== st.ino || fst.dev !== st.dev) { fs.closeSync(fd); return { ok: false, reason: 'file changed while being checked' }; }
+    var buf = Buffer.alloc(size);
+    var off = 0;
+    while (off < size) {
+      var n = fs.readSync(fd, buf, off, size - off, off);
+      if (n <= 0) break;
+      off += n;
+    }
+    fs.closeSync(fd);
+    fd = null;
+    if (off !== size) return { ok: false, reason: 'short read' };
+  } catch (e) {
+    if (fd !== null) { try { fs.closeSync(fd); } catch (e2) { /* already closed */ } }
+    return { ok: false, reason: 'could not read file' };
+  }
+  if (opts.sha256) {
+    var got = crypto.createHash('sha256').update(buf).digest('hex');
+    if (got !== String(opts.sha256).toLowerCase()) return { ok: false, reason: 'checksum does not match' };
+  }
+  return { ok: true, data: buf };
+}
+
+/* Single-use, expiring permission to read one named file. take() succeeds
+   once per grant, and never after ttlMs. */
+function createDeliveryGrants(ttlMs, platform, nowFn) {
+  var map = Object.create(null);
+  var now = nowFn || Date.now;
+  return {
+    grant: function(p) {
+      if (!isLocalAbsolutePath(p)) return false;
+      map[grantKey(p, platform)] = now() + ttlMs;
+      return true;
+    },
+    take: function(p) {
+      if (!isLocalAbsolutePath(p)) return false;
+      var k = grantKey(p, platform);
+      var exp = map[k];
+      delete map[k];
+      return typeof exp === 'number' && exp >= now();
+    },
+    size: function() { return Object.keys(map).length; }
+  };
+}
+
 module.exports = {
   UNSAFE_OPEN_EXTENSIONS: UNSAFE_OPEN_EXTENSIONS,
   isLocalAbsolutePath: isLocalAbsolutePath,
   checkOpenable: checkOpenable,
   isBoardPath: isBoardPath,
-  createGrants: createGrants
+  createGrants: createGrants,
+  isWithinDir: isWithinDir,
+  readDropFile: readDropFile,
+  createDeliveryGrants: createDeliveryGrants
 };
