@@ -343,5 +343,7 @@ I make these tools on my own and keep them free. If one helped you, you can chip
 
 On your phone? [Open the donation page](https://p4inz-code.github.io/donate/).
 
+Prefer a card? [Buy me a coffee](https://buymeacoffee.com/p4inz).
+
 </div>
 <!-- SUPPORT-BLOCK:END -->
