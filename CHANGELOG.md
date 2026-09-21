@@ -2,6 +2,63 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [Unreleased] — 3D render modes, Blender import fixes, clip picker
+
+*Committed locally after 9.0.0, not released. Checked against the running app
+(Electron 44 dev run, scratch profile) with a real `.blend` built for the purpose.*
+
+### Fixed
+- **The 3D hover strip (render modes, background, reset) never showed.** It is drawn
+  below the card, but cards clip their contents, so it was cut off. A DOM check said
+  "visible, opacity 1"; only a screenshot showed it missing. 3D cards now overflow and
+  round their own children, and their resize handles are no longer half-clipped.
+- **Matcap threw away colour and transparency.** It rebuilt every material from scratch
+  (only the texture survived), so a coloured or see-through model became an opaque
+  blue-grey blob. Every mode now carries colour, opacity, alpha map, texture and
+  double-sidedness across. The matcap itself is neutral grey now instead of blue.
+- **`.blend` preview showed things you had hidden.** Objects hidden in the viewport or
+  render, and objects from other scenes in the file, were exported. Now only visible
+  objects of the active scene. If the converted model is over the size limit (large PNG
+  textures are the usual cause) it is retried once with WebP textures, which keep alpha.
+- The Properties panel now refreshes after undo/redo (undoing a Matcap switch left
+  Matcap highlighted) and once a 3D viewer finishes loading (its 3D section was missing
+  after a rebuild).
+- Clicking into a note or text card and back out added an identical undo step every
+  time, so the first Ctrl+Z looked like it did nothing.
+- Map View connection labels no longer print on top of each other when several
+  connections share a pair of cards or their midpoints coincide.
+- **Tag editor (Properties):** focus stays in the "+ tag" box after Enter, so several tags
+  can be typed in a row (it used to drop focus every time); "a, b, c" adds three tags;
+  a very long tag is one line with an ellipsis and a tooltip instead of a two-line blob;
+  the remove × is a bigger target. Text typed and then clicked away from still commits,
+  without pulling focus back.
+
+### Added
+- **Render modes are a registry now** (`src/model3d-modes.js`): **Shaded** (the old
+  "Normal"; the saved key is still `normal`, so existing boards are unaffected),
+  **Normals**, **Matcap**, **Wireframe**, **Albedo** (base colour and texture, unlit)
+  and **Alpha** (opacity as a black-to-white ramp: material opacity, texture alpha and
+  alpha maps). Six buttons on the strip, in Properties and in the right-click 3D View.
+- **Animation clip picker.** Models with several animations (a Blender file with more than
+  one action) get a dropdown in Properties, 3D View. Before, only the first clip could
+  play. The choice is saved with the card and survives undo.
+- Read-only model statistics in Properties: triangles, vertices, meshes, materials,
+  textures and size.
+- **Shift+L** opens and closes the Layers panel (plain L still switches theme).
+
+### Tests
+- `test/model3d-modes-test.js` runs the real vendored Three.js and checks colour, opacity,
+  sidedness and textures survive every mode, and that original materials are never mutated.
+- `test/blender-export-test.js` builds a real `.blend` (skipped where Blender is not
+  installed, as on CI) and asserts hidden objects and other scenes are left out and alpha
+  blending survives.
+
+### Known, not fixed
+- Materials built from procedural nodes (noise, gradients) have no image to export, so
+  they come through as a flat colour. Baking them would need a much heavier conversion.
+- One unexplained hang of the test instance was seen once while driving the app over the
+  debug port; a reload with Map View active did not reproduce it.
+
 ## [9.0.0] — 2026-09-21 — Security & platform hardening
 
 *Major version because it drops 32-bit Windows and macOS before 12. Everything

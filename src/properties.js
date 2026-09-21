@@ -537,14 +537,21 @@ var KanvazProperties = (function() {
     for (var i = 0; i < tags.length; i++) {
       (function(tag) {
         var chip = document.createElement('span');
-        chip.style.cssText = 'display:flex;align-items:center;gap:4px;padding:3px 8px;background:var(--color-surface-2);border:1px solid var(--color-border-2);border-radius:999px;font-size:11px;color:var(--color-text-2);';
+        chip.style.cssText = 'display:flex;align-items:center;gap:4px;padding:3px 6px 3px 9px;max-width:100%;box-sizing:border-box;background:var(--color-surface-2);border:1px solid var(--color-border-2);border-radius:999px;font-size:11px;color:var(--color-text-2);';
+        /* One line with an ellipsis: a long tag used to wrap into a
+           two-line blob inside its pill. The full text is in the tooltip. */
         var label = document.createElement('span');
         label.textContent = tag;
+        label.title = tag;
+        label.style.cssText = 'min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
         chip.appendChild(label);
         var rm = document.createElement('span');
         rm.textContent = '×';
         rm.title = 'Remove tag';
-        rm.style.cssText = 'cursor:pointer;color:var(--color-text-3);line-height:1;';
+        /* Bigger hit area than the bare glyph, and it lights up on hover. */
+        rm.style.cssText = 'cursor:pointer;color:var(--color-text-3);font-size:14px;line-height:1;padding:2px 3px;margin:-2px 0;border-radius:50%;flex-shrink:0;';
+        rm.onmouseenter = function() { rm.style.color = 'var(--color-text)'; };
+        rm.onmouseleave = function() { rm.style.color = 'var(--color-text-3)'; };
         rm.onclick = function() {
           var next = (card.tags || []).filter(function(t) { return t !== tag; });
           if (typeof KanvazCards !== 'undefined') KanvazCards.setTags(cardId, next);
@@ -558,6 +565,7 @@ var KanvazProperties = (function() {
     var addInput = document.createElement('input');
     addInput.type = 'text';
     addInput.placeholder = '+ tag';
+    addInput.setAttribute('data-tag-add', cardId);
     addInput.style.cssText = 'width:60px;padding:3px 8px;background:transparent;border:1px dashed var(--color-border-2);border-radius:999px;color:var(--color-text);font-family:var(--font-ui);font-size:11px;outline:none;';
 
     /* Direct feedback: "remove the tag stuff [from cards], keep it in
@@ -595,22 +603,41 @@ var KanvazProperties = (function() {
       }
     }
 
-    function commitTag() {
-      var val = addInput.value.trim().toLowerCase();
-      if (!val) return;
-      if ((card.tags || []).indexOf(val) !== -1) { addInput.value = ''; return; }
-      if (typeof KanvazCards !== 'undefined') KanvazCards.setTags(cardId, (card.tags || []).concat([val]));
+    /* Accepts "a, b, c" as several tags. keepFocus is true only for Enter:
+       the panel re-renders after every add, which used to drop focus, so
+       adding several tags meant clicking "+ tag" again each time. It is NOT
+       set for the blur/'change' path, or clicking away would pull focus
+       back into the input. */
+    function commitTag(keepFocus) {
+      var have = card.tags || [];
+      var next = have.slice();
+      var parts = addInput.value.split(',');
+      for (var pi = 0; pi < parts.length; pi++) {
+        var val = parts[pi].trim().toLowerCase();
+        if (val && next.indexOf(val) === -1) next.push(val);
+      }
+      if (next.length === have.length) { addInput.value = ''; return; }
+      if (typeof KanvazCards !== 'undefined') KanvazCards.setTags(cardId, next);
       if (panelEl) renderInto(panelEl);
+      /* setTags() re-renders the panel itself and so does the line above, so
+         the input that exists right now is about to be replaced again. Look
+         the new one up after those synchronous renders have finished. */
+      if (keepFocus === true) {
+        setTimeout(function() {
+          var fresh = document.querySelector('input[data-tag-add="' + cardId + '"]');
+          if (fresh) fresh.focus();
+        }, 0);
+      }
     }
     addInput.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') commitTag();
+      if (e.key === 'Enter') commitTag(true);
     });
     /* A datalist option click fires 'change' on the input (not
        'keydown'), so picking a suggestion with the mouse needs its own
        commit path — without this, clicking a suggestion filled the
        input but never actually added the tag until Enter was also
        pressed. */
-    addInput.addEventListener('change', commitTag);
+    addInput.addEventListener('change', function() { commitTag(false); });
     wrap.appendChild(addInput);
     body.appendChild(wrap);
   }

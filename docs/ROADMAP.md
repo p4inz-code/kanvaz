@@ -555,29 +555,28 @@ Design constraints to plan around:
 - **Extension points to leave room for:** `registerRenderMode` (below),
   `registerPropertyFieldType`, custom card types, and export formats.
 
-## 3D render modes: plan (needed the history fix first, now done)
+## 3D render modes: plan (Phases A and B done, C started, D open)
 
 Feedback: matcap and wireframe lose color, so they need alpha and normal
 differentiators, and more modes overall.
 
-- **Phase A: stock-material modes.** Keep current modes and add **Normals**
-  (normal as color). Decision needed: today's mode named "Normal" is really
-  the lit/textured view, so rename it **Shaded** to avoid clashing with a
-  true normals view.
-- **Phase B: color-preserving variants.** Matcap and wireframe tinted by the
-  base color/texture, plus an alpha/opacity view.
-- **Phase C: onBeforeCompile patches** for depth, UV checker and AO-style
-  views, behind a small render-mode registry so each mode is data instead of
-  branches in `cards.js`.
-- **Phase D: registry opened to plugins** (the `registerRenderMode`
-  extension point above), where a paid mode pack could plug in.
+- **Phase A: stock-material modes. DONE (unreleased, 2026-09-21).** "Normal" is now
+  labelled **Shaded** (the saved key stays `normal`), and **Normals** was added.
+- **Phase B: color-preserving variants. DONE.** Matcap keeps colour, opacity, alpha map,
+  textures and sidedness (and uses a neutral matcap); wireframe keeps its material; plus
+  an **Alpha** view and an unlit **Albedo** view.
+- **Phase C: registry. DONE; more modes OPEN.** The modes live in `src/model3d-modes.js`
+  as data (key, label, build). Still to add through it: depth, UV checker, AO-style views.
+- **Phase D: registry opened to plugins** (the `registerRenderMode` extension point above),
+  where a paid mode pack could plug in. OPEN.
 
-## Tag UI: deep recon (queued)
+## Tag UI: recon done, fixes made (2026-09-21)
 
-Feedback: the tag-adding bar looks bad. Not yet investigated. Plan: audit the
-current bar in the live app with screenshots at several card sizes, list
-concrete problems (spacing, contrast, overflow, keyboard flow), then propose
-one redesign for approval before building it.
+The in-card tag bar was removed in 8.9.0, so "the tag bar" is the Properties tag
+editor. Audited live with real keyboard input: focus was lost after every Enter (each
+tag needed a re-click), a long tag wrapped into a two-line blob, and the remove ×
+was tiny. Fixed (see CHANGELOG, Unreleased). Not done, and not proposed without a
+decision: backspace-to-remove-last-tag and a tag colour system.
 
 ## Card feature backlog (3D and text)
 
@@ -600,6 +599,6 @@ and a 3D mode strip below the card with a right-click "3D View" picker.
 | Code signing (Windows Authenticode, Apple notarization) | Open, needs the owner's certificates/accounts |
 | Plugin process isolation, per-channel IPC schemas, remaining unscoped handlers, CSP `script-src file:` | Open |
 | Licence decision (MIT core vs source-available), paid-plugin API v2 | Open, waiting on the owner (plugin API deliberately not frozen) |
-| 3D render modes (Shaded, Normals, color-preserving matcap/wireframe, alpha), tag-bar redesign, more 3D/text card features | Planned, not started |
-| Map View label overlap where connection midpoints coincide | Open |
-| Release | **Not started.** No commit, push or publish until the owner says. Release needs: catalog.json update, MCP plugin 1.3.0 zip, first real CI run of the new steps |
+| 3D render modes (Shaded, Normals, color-preserving matcap/wireframe, alpha, albedo), animation clip picker, model stats, tag editor fixes | Done, unreleased, live-verified (2026-09-21). More 3D/text card features still open |
+| Map View label overlap where connection midpoints coincide | Done, unreleased, live-verified |
+| Release | **9.0.0 published 2026-09-21** (draft:false, checked). Later work is committed locally on `main`, NOT pushed and NOT released |
