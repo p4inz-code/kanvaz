@@ -54,6 +54,11 @@ var KanvazApp = (function() {
         if (filePath) KanvazBoards.openFilePath(filePath);
       });
 
+      /* "Open with Kanvaz" from the OS (Explorer, Finder, a Linux file
+         manager) or a path on the command line, for anything that is not a
+         board. Handled exactly like a drop: same type detection, same cards. */
+      KanvazBridge.on('open-media-from-argv', function(paths) { handleOpenedFiles(paths); });
+
       /* Kanvaz Link: a 3D model sent from the Blender add-on. main.js has
          already checked consent, read the file from Kanvaz's private drop
          folder and deleted it; this only places the card and reports back.
@@ -352,6 +357,43 @@ var KanvazApp = (function() {
     placeDroppedFiles(files, worldPos);
   }
 
+  /* Files the OS asked Kanvaz to open (see openable-types.js and main.js).
+     Starts a fresh board first when only the Home Screen is showing, then
+     places the files around the middle of the view like a drop would. */
+  function handleOpenedFiles(paths) {
+    if (!paths || !paths.length) return;
+    var place = function() {
+      var c = document.getElementById('canvas-container');
+      var r = c ? c.getBoundingClientRect() : { left: 0, top: 0, width: 800, height: 600 };
+      var center = KanvazCanvas.screenToWorld(r.left + r.width / 2, r.top + r.height / 2);
+      var files = [];
+      for (var i = 0; i < paths.length; i++) {
+        var sep = Math.max(paths[i].lastIndexOf('/'), paths[i].lastIndexOf('\\'));
+        files.push({ path: paths[i], name: sep === -1 ? paths[i] : paths[i].slice(sep + 1) });
+      }
+      /* Each launch from the OS arrives on its own, so successive opens would
+         all land on the same spot. On a board that already has cards the new
+         file goes in the next free space to the right of them (top aligned
+         with the topmost card); on an empty board it goes to the middle. A
+         batch within one launch is laid out in a grid by placeDroppedFiles. */
+      var all = KanvazCards.getAll(), ids = Object.keys(all);
+      var anchor = { x: center.x - 150, y: center.y - 110 };
+      if (ids.length) {
+        var maxRight = -Infinity, minTop = Infinity;
+        for (var ci = 0; ci < ids.length; ci++) {
+          var cd = all[ids[ci]];
+          if (cd.x + cd.w > maxRight) maxRight = cd.x + cd.w;
+          if (cd.y < minTop) minTop = cd.y;
+        }
+        anchor = { x: maxRight + 40, y: minTop };
+      }
+      placeDroppedFiles(files, anchor);
+      KanvazUI.toast(files.length === 1 ? 'Opened ' + files[0].name : 'Opened ' + files.length + ' files', 'success');
+    };
+    if (document.getElementById('startup-screen')) { KanvazBoards.newBoard(); setTimeout(place, 500); }
+    else place();
+  }
+
   function placeDroppedFiles(files, worldPos) {
     /* Grid-arrange the drop instead of a small diagonal cascade — a
        24px-per-file offset barely separates cards that are ~200-300px,
@@ -373,11 +415,11 @@ var KanvazApp = (function() {
               KanvazUI.toast((isModelFile || isExternalConvertFile)
                 ? 'Model too large for Kanvaz (max 150MB). Try a decimated/compressed export.'
                 : 'File too large for Kanvaz (max 500MB). Use a smaller preview or proxy file.', 'error');
-            } else if (err === 'FILE_TYPE_INVALID' && KanvazCards.isTextPreviewPath && (KanvazCards.isTextPreviewPath(file.path) || KanvazCards.isPdfPath(file.path))) {
-              /* Text-like files and PDFs become a file-reference card whose body renders the content. */
+            } else if (err === 'FILE_TYPE_INVALID' && KanvazCards.isTextPreviewPath && (KanvazCards.isTextPreviewPath(file.path) || KanvazCards.isPdfPath(file.path) || KanvazCards.isAdobePath(file.path))) {
+              /* Text-like files, PDFs and Adobe files (PSD, AI, XD...) become a file-reference card whose body renders the content. */
               KanvazCards.createFileRefCardAtPath(pos.x, pos.y, file.path);
             } else if (err === 'FILE_TYPE_INVALID') {
-              KanvazUI.toast('"' + file.name + '" is not supported. Supported: JPG, PNG, GIF, BMP, WEBP, MP4, WEBM, MOV, MP3, WAV, OGG, M4A, GLB, GLTF, OBJ, FBX, STL, PLY, VOX, USD, USDZ, BLEND, PDF and text files', 'error');
+              KanvazUI.toast('"' + file.name + '" is not supported. Supported: JPG, PNG, GIF, BMP, WEBP, MP4, WEBM, MOV, MP3, WAV, OGG, M4A, GLB, GLTF, OBJ, FBX, STL, PLY, VOX, USD, USDZ, BLEND, PDF, PSD, AI, XD, INDD and text files', 'error');
             } else if (err === 'EXTERNAL_TOOL_NOT_FOUND') {
               /* Blender genuinely not installed is the expected, common
                  case for most users, not a bug — fall back to a plain
