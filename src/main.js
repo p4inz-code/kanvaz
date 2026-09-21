@@ -25,6 +25,7 @@ var blenderExport = require('./blender-export');
 var pathGuard = require('./path-guard');
 var mcpAuth = require('./mcp-auth');
 var crashLog = require('./crash-log');
+var linkController = require('./link-controller');
 
 /* Local-only crash log (src/crash-log.js): nothing is ever uploaded. */
 function logCrash(kind, message, stack, detail) {
@@ -68,6 +69,9 @@ try {
 }
 
 var mainWindow = null;
+/* Kanvaz Link connector (see link-controller.js). Created after the window;
+   a failure there must never stop the app from starting. */
+var linkCtl = null;
 var allowClose = false;
 var pendingFileOpen = null;
 /* Redesign v1 Phase 2: settings/recent/recovery are now owned by the
@@ -515,6 +519,24 @@ if (!gotLock) {
     createWindow(!!startupFile);
     registerIPC();
 
+    /* Kanvaz Link: local listener the Blender add-on delivers models to.
+       Nothing is accepted until the user answers a native prompt. */
+    try {
+      linkCtl = linkController.createLinkController({
+        dataDir: app.getPath('userData'),
+        appVersion: app.getVersion(),
+        dialog: dialog,
+        ipcMain: ipcMain,
+        maxModelBytes: MAX_MODEL_SIZE_MB * 1024 * 1024,
+        log: function(m) { console.log('[Kanvaz] ' + m); }
+      });
+      linkCtl.attachWindow(mainWindow);
+      linkCtl.start(function(err) { if (err) console.warn('[Kanvaz] Kanvaz Link did not start: ' + err.message); });
+    } catch (e) {
+      console.warn('[Kanvaz] Kanvaz Link unavailable: ' + e.message);
+      linkCtl = null;
+    }
+
     if (startupFile && mainWindow) {
       mainWindow.webContents.once('did-finish-load', function() {
         mainWindow.webContents.send('open-file-from-argv', startupFile);
@@ -533,6 +555,7 @@ if (!gotLock) {
 
   app.on('window-all-closed', function() {
     stopMcpBridgeServer();
+    if (linkCtl) linkCtl.stop();
     if (process.platform !== 'darwin') app.quit();
   });
 
@@ -542,6 +565,7 @@ if (!gotLock) {
      be a genuinely confusing state for the next launch to find. */
   app.on('before-quit', function() {
     stopMcpBridgeServer();
+    if (linkCtl) linkCtl.stop();
     if (smartSearchWorker) { smartSearchWorker.terminate(); smartSearchWorker = null; }
   });
 
@@ -630,6 +654,7 @@ function createWindow(hasStartupFile) {
   });
 
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
+  if (linkCtl) linkCtl.attachWindow(mainWindow);
 
   mainWindow.once('ready-to-show', function() {
     mainWindow.show();
@@ -637,6 +662,7 @@ function createWindow(hasStartupFile) {
 
   mainWindow.on('closed', function() {
     mainWindow = null;
+    if (linkCtl) linkCtl.detachWindow();
   });
 
   /* BUG 1 fix: intercept close — ask renderer whether there are unsaved

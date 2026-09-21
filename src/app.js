@@ -54,6 +54,39 @@ var KanvazApp = (function() {
         if (filePath) KanvazBoards.openFilePath(filePath);
       });
 
+      /* Kanvaz Link: a 3D model sent from the Blender add-on. main.js has
+         already checked consent, read the file from Kanvaz's private drop
+         folder and deleted it; this only places the card and reports back.
+         Cards land near the middle of the current view, cascading so several
+         sends do not stack exactly. If the Home Screen is showing, a fresh
+         board is started first. */
+      var linkPlaced = 0;
+      KanvazBridge.on('link-deliver', function(p) {
+        var report = function(ok, cardId, reason) {
+          if (KanvazBridge.linkResult) KanvazBridge.linkResult({ deliveryId: p && p.deliveryId, ok: ok, cardId: cardId || null, reason: reason || null });
+        };
+        try {
+          if (!p || typeof p.dataUrl !== 'string' || typeof p.deliveryId !== 'string') { report(false, null, 'malformed delivery'); return; }
+          if (document.getElementById('startup-screen')) KanvazBoards.newBoard();
+          var place = function() {
+            try {
+              var c = document.getElementById('canvas-container');
+              var r = c ? c.getBoundingClientRect() : { left: 0, top: 0, width: 800, height: 600 };
+              var pos = KanvazCanvas.screenToWorld(r.left + r.width / 2, r.top + r.height / 2);
+              var off = (linkPlaced++ % 8) * 28;
+              var card = KanvazCards.createModelFromLink(p, { x: Math.round(pos.x - 210 + off), y: Math.round(pos.y - 170 + off) });
+              KanvazCards.selectCard(card.id);
+              report(true, card.id);
+            } catch (e) { report(false, null, 'could not create the card: ' + e.message); }
+          };
+          /* newBoard() swaps the screen asynchronously. */
+          if (document.getElementById('startup-screen')) setTimeout(place, 400); else place();
+        } catch (e) { report(false, null, e.message); }
+      });
+      /* Tell main the listener above exists. Anything queued while the page
+         was loading is delivered now. */
+      if (KanvazBridge.linkRendererReady) KanvazBridge.linkRendererReady();
+
       /* Audit fix (live-tested): this used to fire a "found —
          downloading…" toast and silently start the download right
          then, with no way to say no — main.js's autoDownload flag is
