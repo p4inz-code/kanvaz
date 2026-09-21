@@ -115,10 +115,10 @@ async function run() {
   morph.morphTargetInfluences = [0];
   hroot.add(morph);
   var plain = hroot.children[0];
-  var count = function(m) { return m.children.filter(function(c) { return c.userData.kanvazModeHelper; }).length; };
+  var count = function(m) { return m.children.filter(function(c) { return Modes.isHelper(c); }).length; };
   Modes.applyToScene(THREE, hroot, 'wireframe', ctx);
   assert.strictEqual(count(plain), 1, 'a plain mesh gets one depth-only helper in wireframe');
-  var helper = plain.children.filter(function(c) { return c.userData.kanvazModeHelper; })[0];
+  var helper = plain.children.filter(function(c) { return Modes.isHelper(c); })[0];
   assert(helper.material.colorWrite === false && helper.material.depthWrite === true && helper.material.polygonOffset === true, 'the helper draws no colour, only depth, pushed back');
   assert.strictEqual(helper.geometry, plain.geometry, 'it shares the geometry (no copy)');
   assert.strictEqual(count(skinned), 0, 'a skinned mesh gets no helper (it would not follow the skeleton)');
@@ -143,10 +143,10 @@ async function run() {
   assert.strictEqual(pm.material.normalMap, nm, 'clay keeps the normal map (sculpted detail)');
   Modes.applyToScene(THREE, proot, 'shadedwire', ctx);
   assert.strictEqual(pm.material, pbr, 'wire on shaded keeps the model\'s own material');
-  var ov = pm.children.filter(function(c) { return c.userData.kanvazModeHelper; });
+  var ov = pm.children.filter(function(c) { return Modes.isHelper(c); });
   assert(ov.length === 1 && ov[0].material.wireframe === true && ov[0].material.transparent === true && ov[0].material.depthWrite === false && ov[0].material.polygonOffsetFactor < 0, 'a translucent wire overlay pulled toward the camera, not writing depth');
   Modes.applyToScene(THREE, proot, 'normal', ctx);
-  assert.strictEqual(pm.children.filter(function(c) { return c.userData.kanvazModeHelper; }).length, 0, 'the overlay is removed again');
+  assert.strictEqual(pm.children.filter(function(c) { return Modes.isHelper(c); }).length, 0, 'the overlay is removed again');
   Modes.applyToScene(THREE, proot, 'normalmap', ctx);
   assert(pm.material.map === nm && pm.material.isMeshBasicMaterial, 'normal map view shows the normal texture unlit');
   var fake = { fragmentShader: '#include <opaque_fragment>\n#include <tonemapping_fragment>\n#include <colorspace_fragment>' };

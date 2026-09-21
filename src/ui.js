@@ -1497,6 +1497,7 @@ var KanvazUI_Extended = (function() {
   }
 
   function macifyShortcutLabel(label) {
+    if (typeof KanvazPlatform !== 'undefined') return KanvazPlatform.label(label);
     if (!isMacPlatform()) return label;
     return label.replace(/Ctrl/g, '⌘').replace(/Alt/g, '⌥').replace(/Shift/g, '⇧');
   }

@@ -79,6 +79,69 @@ function parseRegInstallLocations(text) {
   return out;
 }
 
+/* Pure parsers (exported for the test) for Windows' own record of which program
+   opens .blend files. Wherever Blender really is, however it was installed
+   (portable copy, another drive, Steam, a custom folder), this points at it.
+   `reg query HKCR\.blend /ve` prints the ProgID; `reg query
+   HKCR\<ProgID>\shell\open\command /ve` prints e.g.
+   "F:\Blender\blender-launcher.exe" "%1". */
+function parseAssocProgId(text) {
+  var m = /^\s+\(Default\)\s+REG_SZ\s+(\S.*?)\s*$/m.exec(String(text || ''));
+  return m ? m[1] : null;
+}
+
+function parseOpenCommand(text) {
+  var m = /^\s+\(Default\)\s+REG_SZ\s+(.+?)\s*$/m.exec(String(text || ''));
+  if (!m) return null;
+  var cmd = m[1];
+  var q = /^"([^"]+)"/.exec(cmd);
+  var exe = q ? q[1] : (/^(\S+\.exe)/i.exec(cmd) || [null, null])[1];
+  return exe || null;
+}
+
+/* Candidates from the .blend association: the launcher's own folder, preferring
+   blender.exe next to it (the launcher detaches and breaks stdio). */
+function windowsAssociation(out) {
+  var roots = ['HKCU\\SOFTWARE\\Classes', 'HKCR'];
+  for (var i = 0; i < roots.length; i++) {
+    try {
+      var t1 = execFileSync('reg', ['query', roots[i] + '\\.blend', '/ve'], { encoding: 'utf8', windowsHide: true, timeout: 3000, stdio: ['ignore', 'pipe', 'ignore'] });
+      var prog = parseAssocProgId(t1);
+      if (!prog || /[\\\/"]/.test(prog)) continue;
+      var t2 = execFileSync('reg', ['query', roots[i] + '\\' + prog + '\\shell\\open\\command', '/ve'], { encoding: 'utf8', windowsHide: true, timeout: 3000, stdio: ['ignore', 'pipe', 'ignore'] });
+      var exe = parseOpenCommand(t2);
+      if (!exe) continue;
+      var dir = path.dirname(exe);
+      out.push(path.join(dir, 'blender.exe'));
+      out.push(exe);
+    } catch (e) { /* not registered under this root */ }
+  }
+}
+
+/* macOS: Spotlight knows where every .app is, wherever the user put it. */
+function macSpotlight(out) {
+  try {
+    var txt = execFileSync('mdfind', ['kMDItemCFBundleIdentifier == "org.blenderfoundation.blender"'], { encoding: 'utf8', timeout: 3000, stdio: ['ignore', 'pipe', 'ignore'] });
+    var lines = txt.split(/\r?\n/);
+    for (var i = 0; i < lines.length; i++) {
+      if (/\.app$/i.test(lines[i])) out.push(path.join(lines[i], 'Contents', 'MacOS', 'Blender'));
+    }
+  } catch (e) { /* no Spotlight index */ }
+}
+
+/* Asks the executable itself: runs `blender --version` (array args, short
+   timeout) and returns "5.2.1" or null. This is how a user-chosen file is
+   proven to be Blender before it is remembered, and what the Settings status
+   shows. */
+function blenderVersion(exe) {
+  if (!exe || !isFile(exe)) return null;
+  try {
+    var txt = execFileSync(exe, ['--version'], { encoding: 'utf8', windowsHide: true, timeout: 15000, stdio: ['ignore', 'pipe', 'ignore'] });
+    var m = /Blender\s+(\d+(?:\.\d+){1,2})/i.exec(txt);
+    return m ? m[1] : null;
+  } catch (e) { return null; }
+}
+
 function windowsRegistryInstalls(out) {
   var hives = [
     'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',
@@ -145,6 +208,9 @@ function findBlenderExecutable(userOverride, opts) {
     if (hit) return hit;
 
     c = [];
+    /* The .blend association first (it names the Blender that actually opens
+       .blend files, wherever it lives), then the uninstall keys. */
+    if (opts.noRegistry !== true) windowsAssociation(c);
     windowsRegistryInstalls(c);                                                                 /* any drive, custom dir */
     hit = firstExisting(c);
     if (hit) return hit;
@@ -164,6 +230,7 @@ function findBlenderExecutable(userOverride, opts) {
   c = [];
   if (platform === 'darwin') {
     c.push('/Applications/Blender.app/Contents/MacOS/Blender');
+    if (opts.noRegistry !== true) macSpotlight(c);
     if (env.HOME) c.push(path.join(env.HOME, 'Applications', 'Blender.app', 'Contents', 'MacOS', 'Blender'));
     c.push('/opt/homebrew/bin/blender', '/usr/local/bin/blender');
   } else {
@@ -180,5 +247,8 @@ module.exports = {
   versionKey: versionKey,
   cmpVersionDesc: cmpVersionDesc,
   scanVersioned: scanVersioned,
-  parseRegInstallLocations: parseRegInstallLocations
+  parseRegInstallLocations: parseRegInstallLocations,
+  parseAssocProgId: parseAssocProgId,
+  parseOpenCommand: parseOpenCommand,
+  blenderVersion: blenderVersion
 };

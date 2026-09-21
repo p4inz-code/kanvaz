@@ -361,3 +361,28 @@ isolation (approved plugins still run in the renderer with full bridge access),
 remaining unscoped IPC handlers (plugin storage, settings) and per-channel
 schemas, the `script-src file:` allowance in the Content-Security-Policy
 (needs a live-tested change), and SBOM/hash publication for vendored libraries.
+
+
+## Kanvaz Link listener (added after 9.0.0, unreleased)
+
+A local connector for the Kanvaz Link Blender add-on. Design and limits:
+- **Local only.** A named pipe (Windows) or Unix socket in a 0700 folder (macOS/Linux), never a TCP port.
+- **Four methods** (`hello`, `deliver`, `status`, `ping`), a 64 KB line cap, at most 4 connections and 8 queued
+  deliveries. Every request carries a per-start 256-bit token; a wrong token closes the connection.
+- **The client can verify Kanvaz:** `hello` returns an HMAC of the client's nonce under the token.
+- **Nothing is accepted without consent.** The first request from a program shows a native dialog (default
+  button: Don't allow). The answer is stored in `link-config.json`; "this session only" is never written.
+- **Files, not bytes.** A delivery names a file inside Kanvaz's private drop folder. Main reads it through
+  `path-guard.readDropFile` (refuses symlinks, hard links, alternate data streams, non-regular files, anything
+  outside the folder, wrong size or checksum, and a file swapped during the read), deletes it, and sends the
+  bytes to the renderer. The renderer is never given a path.
+- **Honest limit:** the token and consent stop other users, sandboxed apps and confused clients. Malware already
+  running as you can read the discovery file and write to the drop folder, and no local mechanism can prevent that.
+- The Windows pipe's default access rules are set explicitly (not readable or writable by other users) but that
+  has not been verified with a second Windows account.
+
+## Adobe previews (added after 9.0.0, unreleased)
+
+PSD/PSB/XD/InDesign files are parsed in the main process from files the user pointed a card at. The reader is
+streaming and bounded (header size checked, rows clipped, output capped at 90 MB) and refuses truncated or
+malformed files; see `test/adobe-preview-test.js`. No network access.

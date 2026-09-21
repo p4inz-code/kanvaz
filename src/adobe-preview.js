@@ -169,7 +169,12 @@ function readPsd(filePath, opts) {
     var big = version === 2;
     f.read(6);
     var channels = f.u16(), height = f.u32(), width = f.u32(), depth = f.u16(), mode = f.u16();
-    if (!width || !height || width * height > MAX_PIXELS) return { ok: false, reason: 'unreasonable image size' };
+    /* Limits from the format itself: a PSD is at most 30,000 x 30,000 px, a PSB
+       300,000, and a file has at most 56 channels. Checked BEFORE anything is
+       sized from these numbers (a 46-byte file used to be able to ask for gigabytes). */
+    var sideMax = big ? 300000 : 30000;
+    if (!width || !height || width > sideMax || height > sideMax || width * height > MAX_PIXELS) return { ok: false, reason: 'unreasonable image size' };
+    if (channels < 1 || channels > 56) return { ok: false, reason: 'unreasonable channel count' };
 
     var modeLen = f.u32();
     var palette = modeLen ? f.read(modeLen) : null;
@@ -222,6 +227,7 @@ function readPsd(filePath, opts) {
     var compression = f.u16();
     if (compression !== 0 && compression !== 1) return fallback('The flattened image uses compression ' + compression + ', which the preview cannot decode.');
 
+    if (compression === 0 && st.size - f.pos < keep * height * width * (depth / 8)) return fallback('The file is shorter than its header says (damaged or cut off).');
     var scale = Math.min(1, maxSide / Math.max(width, height));
     var sw = Math.max(1, Math.round(width * scale)), sh = Math.max(1, Math.round(height * scale));
     var bps = depth / 8;
@@ -273,7 +279,7 @@ function readPsd(filePath, opts) {
     /* average, then convert to RGBA */
     var out = Buffer.alloc(sw * sh * 4);
     var div = depth === 16 ? 257 : 1;
-    var minV = 255, maxV = 0, hasAlpha = false;
+    var minV = 255, maxV = 0, hasAlpha = false, colourful = false;
     function chan(c, idx, cell) {
       if (nearest) return acc[c][idx];
       return acc[c][idx] / (nx[cell % sw] * ny[Math.floor(cell / sw)]) / div;
@@ -292,12 +298,17 @@ function readPsd(filePath, opts) {
       }
       if (wantAlpha) { al = chan(colorChannels, p, p); if (al < 255) hasAlpha = true; }
       var o = p * 4;
+      r = Math.round(r); g = Math.round(g); b = Math.round(b); al = Math.round(al);
       out[o] = r; out[o + 1] = g; out[o + 2] = b; out[o + 3] = al;
-      if (r < minV) minV = r; if (r > maxV) maxV = r;
+      /* "blank" means every colour channel is flat, not just red */
+      var lo = r < g ? (r < b ? r : b) : (g < b ? g : b), hi = r > g ? (r > b ? r : b) : (g > b ? g : b);
+      if (lo < minV) minV = lo;
+      if (hi > maxV) maxV = hi;
+      if (r !== g || g !== b) colourful = true;
     }
     /* A layered file saved without Maximize Compatibility has a blank
        composite: one flat colour. Fall back to the thumbnail and say why. */
-    var blank = layerCount > 0 && (maxV - minV) < 1;
+    var blank = layerCount > 0 && (maxV - minV) < 1 && !colourful;
     if (blank && thumb) return fallback('This file was saved without "Maximize Compatibility", so it has no flattened image. Showing its small embedded thumbnail; re-save with Maximize Compatibility on for a full preview.');
     return {
       ok: true, kind: 'composite', width: sw, height: sh, srcWidth: width, srcHeight: height,
@@ -325,7 +336,8 @@ function xmpThumbnail(buf) {
   try { jpeg = Buffer.from(b64, 'base64'); } catch (e) { return null; }
   if (jpeg.length < 100 || jpeg[0] !== 0xFF || jpeg[1] !== 0xD8) return null;
   var w = null, h = null;
-  var wm = /<xmpGImg:width>(\d+)</.exec(text.slice(a, b + 200)), hm = /<xmpGImg:height>(\d+)</.exec(text.slice(a, b + 200));
+  var near = text.slice(Math.max(0, a - 600), b + 200);
+  var wm = /<xmpGImg:width>(\d+)</.exec(near), hm = /<xmpGImg:height>(\d+)</.exec(near);
   if (wm) w = parseInt(wm[1], 10); if (hm) h = parseInt(hm[1], 10);
   return { jpeg: jpeg, width: w, height: h };
 }
@@ -342,15 +354,24 @@ function readHead(filePath, n) {
 
 /* ── XD ────────────────────────────────────────────────────── */
 
+var XD_MAX_FILE = 300 * 1024 * 1024;      /* the whole archive is read into memory */
+var XD_MAX_ENTRY = 60 * 1024 * 1024;      /* one preview image, uncompressed */
+var XD_MAX_ENTRIES = 5000;
 async function readXd(filePath, maxBytes) {
   var st = fs.statSync(filePath);
-  if (st.size > (maxBytes || 1024 * 1024 * 1024)) return { ok: false, reason: 'file too large to preview' };
+  if (st.size > (maxBytes || XD_MAX_FILE)) return { ok: false, reason: 'file too large to preview' };
   var zip = await JSZip.loadAsync(fs.readFileSync(filePath));
   var best = null, bestArea = -1;
   var names = Object.keys(zip.files);
+  if (names.length > XD_MAX_ENTRIES) return { ok: false, reason: 'this XD file has too many entries' };
   for (var ni = 0; ni < names.length; ni++) {
     var name = names[ni], entry = zip.files[name];
-    if (entry.dir || !/\.(png|jpe?g)$/i.test(name)) continue;
+    /* very long names are never real renditions, and would make the pattern below slow */
+    if (entry.dir || name.length > 200 || !/\.(png|jpe?g)$/i.test(name)) continue;
+    /* skip anything that would inflate past the limit: the size is read from the
+       archive's own directory, before a single byte is inflated */
+    var declared = entry._data && entry._data.uncompressedSize;
+    if (typeof declared !== 'number' || declared > XD_MAX_ENTRY) continue;
     var area = -1;
     var m = /(\d+)-(\d+)\.(png|jpe?g)$/i.exec(name);
     if (/^renditions\//i.test(name) && m) area = parseInt(m[1], 10) * parseInt(m[2], 10);
@@ -377,6 +398,8 @@ async function previewFile(filePath, opts) {
   var ext = String(filePath).toLowerCase().replace(/^.*\./, '');
   try {
     if (ext === 'fresco') return { ok: false, reason: FRESCO_MSG };
+    /* A named pipe or device with an Adobe extension would block a read forever. */
+    if (!fs.statSync(filePath).isFile()) return { ok: false, reason: 'not a regular file' };
 
     if (ext === 'psd' || ext === 'psb') {
       var r = readPsd(filePath, opts);

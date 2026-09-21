@@ -668,6 +668,18 @@ body.presentation-mode-active #side-panel {
   z-index: 100;
 }
 
+/* macOS: the native traffic lights sit at the left of the titlebar, so the
+   Windows-style buttons go and the logo moves clear of the lights. */
+.platform-mac #btn-minimize,
+.platform-mac #btn-maximize,
+.platform-mac #btn-close {
+  display: none;
+}
+
+.platform-mac #titlebar-logo {
+  padding-left: 84px;
+}
+
 #titlebar-logo {
   display: flex;
   align-items: center;

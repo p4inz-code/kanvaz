@@ -22,6 +22,16 @@
 
 var KanvazModel3DModes = (function() {
 
+  /* Bookkeeping lives in module-private WeakSet/WeakMaps, NOT in node.userData:
+     GLTFLoader copies a file's node "extras" into userData, so a hostile glTF
+     could otherwise set "kanvazModeHelper" (making real meshes get deleted) or
+     "kanvazOrigMaterial" (making a mesh render with junk). */
+  var HELPERS = new WeakSet();
+  var ORIG = new WeakMap();        /* mesh -> its material(s) as the file made them */
+  var BUILT = new WeakMap();       /* mesh -> { modeKey: replacement material(s) } */
+  var SHARED_BY_SRC = {};          /* modeKey -> WeakMap(source material -> replacement) */
+  function isHelper(n) { return HELPERS.has(n); }
+
   /* Copies the properties that decide whether and how a surface is see-
      through or double-sided, so a replacement material keeps them. */
   function copySurface(dst, src) {
@@ -194,6 +204,9 @@ var KanvazModel3DModes = (function() {
        raw value rather than a gamma-lifted one. */
     { key: 'alpha', label: 'Alpha', group: 'Texture', title: 'Alpha: opacity as black (clear) to white (solid)',
       build: function(THREE, m) {
+        /* A glTF OPAQUE material ignores its texture's alpha when rendered (the
+           renderer forces 1.0), so show it solid here too instead of black holes. */
+        var solid = !m.transparent && !(m.alphaTest > 0);
         var mat = new THREE.MeshBasicMaterial({
           color: 0xffffff,
           map: m.map || null,
@@ -205,13 +218,13 @@ var KanvazModel3DModes = (function() {
         mat.alphaTest = 0;
         mat.onBeforeCompile = function(shader) {
           shader.fragmentShader = shader.fragmentShader
-            .replace('#include <opaque_fragment>', 'gl_FragColor = vec4( vec3( diffuseColor.a ), 1.0 );')
+            .replace('#include <opaque_fragment>', solid ? 'gl_FragColor = vec4( 1.0, 1.0, 1.0, 1.0 );' : 'gl_FragColor = vec4( vec3( diffuseColor.a ), 1.0 );')
             .replace('#include <tonemapping_fragment>', '')
             .replace('#include <colorspace_fragment>', '');
         };
         /* Without this key the renderer would reuse one compiled program
            for this and a plain Albedo material. */
-        mat.customProgramCacheKey = function() { return 'kanvaz-alpha-view'; };
+        mat.customProgramCacheKey = function() { return solid ? 'kanvaz-alpha-view-solid' : 'kanvaz-alpha-view'; };
         return mat;
       } }
   ];
@@ -251,10 +264,10 @@ var KanvazModel3DModes = (function() {
   }
   function addOverlays(THREE, root) {
     var targets = [];
-    root.traverse(function(n) { if (n.isMesh && !(n.userData && n.userData.kanvazModeHelper) && canOcclude(n)) targets.push(n); });
+    root.traverse(function(n) { if (n.isMesh && !HELPERS.has(n) && canOcclude(n)) targets.push(n); });
     for (var i = 0; i < targets.length; i++) {
       var h = new THREE.Mesh(targets[i].geometry, overlayMaterial(THREE));
-      h.userData.kanvazModeHelper = true;
+      HELPERS.add(h);
       h.renderOrder = 1;
       h.matrixAutoUpdate = false;
       h.raycast = function() {};
@@ -268,9 +281,9 @@ var KanvazModel3DModes = (function() {
   function availability(root) {
     var has = { normalMap: false, aoMap: false, uv: false };
     root.traverse(function(n) {
-      if (!n.isMesh || (n.userData && n.userData.kanvazModeHelper)) return;
+      if (!n.isMesh || HELPERS.has(n)) return;
       if (n.geometry && n.geometry.attributes && n.geometry.attributes.uv) has.uv = true;
-      var mats = asArray((n.userData && n.userData.kanvazOrigMaterial) || n.material);
+      var mats = asArray(ORIG.get(n) || n.material);
       for (var i = 0; i < mats.length; i++) {
         if (mats[i] && mats[i].normalMap) has.normalMap = true;
         if (mats[i] && mats[i].aoMap) has.aoMap = true;
@@ -307,6 +320,7 @@ var KanvazModel3DModes = (function() {
     }
     var tex = new THREE.CanvasTexture(canvas);
     tex.colorSpace = THREE.SRGBColorSpace;
+    tex.userData = { kanvazShared: true };   /* one texture for every card: never disposed by a single card's teardown */
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
     tex.anisotropy = 8;
     tex.needsUpdate = true;
@@ -315,15 +329,15 @@ var KanvazModel3DModes = (function() {
 
   function removeHelpers(root) {
     var found = [];
-    root.traverse(function(n) { if (n.userData && n.userData.kanvazModeHelper) found.push(n); });
+    root.traverse(function(n) { if (HELPERS.has(n)) found.push(n); });
     for (var i = 0; i < found.length; i++) if (found[i].parent) found[i].parent.remove(found[i]);
   }
   function addHelpers(THREE, root) {
     var targets = [];
-    root.traverse(function(n) { if (n.isMesh && !(n.userData && n.userData.kanvazModeHelper) && canOcclude(n)) targets.push(n); });
+    root.traverse(function(n) { if (n.isMesh && !HELPERS.has(n) && canOcclude(n)) targets.push(n); });
     for (var i = 0; i < targets.length; i++) {
       var h = new THREE.Mesh(targets[i].geometry, occluderFor(THREE));
-      h.userData.kanvazModeHelper = true;
+      HELPERS.add(h);
       h.renderOrder = -1;
       h.matrixAutoUpdate = false;   /* identity: it sits exactly on its parent */
       h.raycast = function() {};    /* never pickable */
@@ -362,17 +376,25 @@ var KanvazModel3DModes = (function() {
     if (mode.hideBackLines) addHelpers(THREE, root);
     if (mode.overlayWire) addOverlays(THREE, root);
     root.traverse(function(node) {
-      if (!node.isMesh || (node.userData && node.userData.kanvazModeHelper)) return;
-      var ud = node.userData;
-      if (!ud.kanvazOrigMaterial) ud.kanvazOrigMaterial = node.material;
-      if (!mode.build) { node.material = ud.kanvazOrigMaterial; return; }
-      if (!ud.kanvazModeMats) ud.kanvazModeMats = {};
-      if (!ud.kanvazModeMats[mode.key]) {
-        var orig = ud.kanvazOrigMaterial;
-        var built = asArray(orig).map(function(m) { return mode.build(THREE, m, ctx || {}); });
-        ud.kanvazModeMats[mode.key] = Array.isArray(orig) ? built : built[0];
+      if (!node.isMesh || HELPERS.has(node)) return;
+      if (!ORIG.has(node)) ORIG.set(node, node.material);
+      var orig = ORIG.get(node);
+      if (!mode.build) { node.material = orig; return; }
+      var cache = BUILT.get(node);
+      if (!cache) { cache = {}; BUILT.set(node, cache); }
+      if (!cache[mode.key]) {
+        /* Meshes that share one source material share one replacement too
+           (a model with hundreds of instances of the same material used to get
+           hundreds of copies). */
+        var perSrc = SHARED_BY_SRC[mode.key] || (SHARED_BY_SRC[mode.key] = new WeakMap());
+        var built = asArray(orig).map(function(m) {
+          var b = perSrc.get(m);
+          if (!b) { b = mode.build(THREE, m, ctx || {}); perSrc.set(m, b); }
+          return b;
+        });
+        cache[mode.key] = Array.isArray(orig) ? built : built[0];
       }
-      node.material = ud.kanvazModeMats[mode.key];
+      node.material = cache[mode.key];
     });
   }
 
@@ -380,7 +402,7 @@ var KanvazModel3DModes = (function() {
      can dispose them when the card is deleted. */
   function builtMaterials(node) {
     var out = [];
-    var cache = node.userData && node.userData.kanvazModeMats;
+    var cache = BUILT.get(node);
     if (!cache) return out;
     var keys = Object.keys(cache);
     for (var i = 0; i < keys.length; i++) {
@@ -417,6 +439,8 @@ var KanvazModel3DModes = (function() {
   return {
     list: list,
     isKnown: isKnown,
+    isHelper: isHelper,
+    originalMaterial: function(node) { return ORIG.get(node) || null; },
     availability: availability,
     buildCheckerTexture: buildCheckerTexture,
     applyToScene: applyToScene,

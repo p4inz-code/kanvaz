@@ -423,7 +423,7 @@ var KanvazCommands = (function() {
              showed the wrong modifier word. Not worth a shared helper
              for a two-line, platform-check-plus-replace — see the
              other copy's own comment for the fuller writeup. */
-          sc.textContent = /Mac/.test(navigator.platform || '') ? cmd.shortcut.replace(/Ctrl/g, '⌘') : cmd.shortcut;
+          sc.textContent = (typeof KanvazPlatform !== 'undefined') ? KanvazPlatform.label(cmd.shortcut) : cmd.shortcut;
           sc.style.cssText = 'font-family:var(--font-mono);font-size:11px;color:var(--color-text-3);flex-shrink:0;';
           row.appendChild(sc);
         }

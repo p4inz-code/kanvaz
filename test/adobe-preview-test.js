@@ -229,6 +229,36 @@ async function run() {
   var fr = await ap.previewFile(write('paint.fresco', Buffer.from('x')));
   assert(fr.ok === false && /Creative Cloud/.test(fr.reason) && /PSD/.test(fr.reason), 'Fresco: explains the export route');
   console.log('  ✓ Fresco: explains why and how to export (PSD/PDF), no pretending');
+
+  /* regression tests for the bug-bounty findings */
+  var t0 = Date.now();
+  var lie = Buffer.from(buildPsd(4, 4, planes.map(function() { return rows(4, 4, function() { return 1; }); }), { rle: true }));
+  lie.writeUInt32BE(1000000000, 18);   /* width = 1e9 in a tiny file */
+  var rl = await ap.previewFile(write('lie-w.psd', lie));
+  assert(rl.ok === false && /unreasonable/.test(rl.reason), 'a header claiming a billion pixels of width is refused before any allocation');
+  var lieC = Buffer.from(full); lieC.writeUInt16BE(65535, 12);
+  assert.strictEqual((await ap.previewFile(write('lie-c.psd', lieC))).ok, false, '65535 channels is refused (the format allows 56)');
+  var lieB = Buffer.from(buildPsd(2, 2, [rows(2, 2, function() { return 1; })], { psb: false })); lieB.writeUInt32BE(30001, 14);
+  assert.strictEqual((await ap.previewFile(write('lie-h.psd', lieB))).ok, false, 'a PSD taller than 30,000 px is refused');
+  var raw = Buffer.from(buildPsd(W, H, planes, { rle: false }));
+  assert.strictEqual((await ap.previewFile(write('cut.psd', raw.slice(0, raw.length - 200)))).ok, false, 'raw data shorter than the header says is refused up front');
+  assert(Date.now() - t0 < 3000, 'all of those are refused quickly');
+  var bomb = new JSZip(); bomb.file('mimetype', 'x'); bomb.file('preview.png', Buffer.alloc(80 * 1024 * 1024), { compression: 'DEFLATE', compressionOptions: { level: 9 } });
+  var bomb1 = await ap.previewFile(write('bomb.xd', await bomb.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' })));
+  assert(bomb1.ok === false, 'an XD whose preview would inflate past the limit is skipped, not inflated');
+  var longName = new JSZip(); longName.file('mimetype', 'x'); longName.file('9'.repeat(30000) + '.png', pngSmall); longName.file('preview.png', pngSmall);
+  var t1 = Date.now();
+  var ln = await ap.previewFile(write('long.xd', await longName.generateAsync({ type: 'nodebuffer' })));
+  assert(ln.ok && ln.bytes.equals(pngSmall) && Date.now() - t1 < 1500, 'a 30,000-character entry name cannot stall the reader');
+  var redRows = [rows(4, 4, function() { return 0; }), rows(4, 4, function(x) { return x * 60; }), rows(4, 4, function() { return 200; })];
+  var red = await ap.previewFile(write('nored.psd', buildPsd(4, 4, redRows, { layers: 1, thumb: { jpeg: jpeg, width: 8, height: 8 } })));
+  assert(red.ok && red.mime === 'image/png', 'artwork with constant red is NOT mistaken for a missing composite');
+  var white16 = [0, 1, 2].map(function() { var r = []; for (var y = 0; y < 2; y++) { var b = Buffer.alloc(4); b.writeUInt16BE(65535, 0); b.writeUInt16BE(65535, 2); r.push(b); } return r; });
+  var w16 = ap.readPsd(write('w16.psd', buildPsd(2, 2, white16, { depth: 16 })));
+  assert.strictEqual(w16.rgba[0], 255, 'a full-white 16-bit channel is 255, not 254');
+  var fifoLike = await ap.previewFile(TMP);
+  assert.strictEqual(fifoLike.ok, false, 'a directory (or any non-regular file) with an Adobe name is refused');
+  console.log('  ✓ hostile headers, cut-off files, zip bombs and pathological names are refused fast; red-free art and 16-bit white are exact');
 }
 
 run().then(function() {

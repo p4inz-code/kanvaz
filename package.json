@@ -52,6 +52,112 @@
         "mimeType": "application/x-kanvaz",
         "role": "Editor",
         "icon": "assets/icons/icon"
+      },
+      {
+        "ext": [
+          "jpg",
+          "jpeg",
+          "png",
+          "bmp",
+          "webp"
+        ],
+        "name": "Image",
+        "description": "Image (opens as a card on a Kanvaz board)",
+        "role": "Viewer",
+        "rank": "Alternate",
+        "icon": "assets/icons/icon"
+      },
+      {
+        "ext": [
+          "gif"
+        ],
+        "name": "Animated GIF",
+        "description": "Animated GIF (opens as a card on a Kanvaz board)",
+        "role": "Viewer",
+        "rank": "Alternate",
+        "icon": "assets/icons/icon"
+      },
+      {
+        "ext": [
+          "mp4",
+          "webm",
+          "mov",
+          "mkv",
+          "avi"
+        ],
+        "name": "Video",
+        "description": "Video (opens as a card on a Kanvaz board)",
+        "role": "Viewer",
+        "rank": "Alternate",
+        "icon": "assets/icons/icon"
+      },
+      {
+        "ext": [
+          "mp3",
+          "wav",
+          "ogg",
+          "m4a"
+        ],
+        "name": "Audio",
+        "description": "Audio (opens as a card on a Kanvaz board)",
+        "role": "Viewer",
+        "rank": "Alternate",
+        "icon": "assets/icons/icon"
+      },
+      {
+        "ext": [
+          "glb",
+          "gltf",
+          "obj",
+          "fbx",
+          "stl",
+          "ply",
+          "vox",
+          "usd",
+          "usda",
+          "usdc",
+          "usdz"
+        ],
+        "name": "3D Model",
+        "description": "3D Model (opens as a card on a Kanvaz board)",
+        "role": "Viewer",
+        "rank": "Alternate",
+        "icon": "assets/icons/icon"
+      },
+      {
+        "ext": [
+          "blend"
+        ],
+        "name": "Blender File",
+        "description": "Blender File (opens as a card on a Kanvaz board)",
+        "role": "Viewer",
+        "rank": "Alternate",
+        "icon": "assets/icons/icon"
+      },
+      {
+        "ext": [
+          "pdf"
+        ],
+        "name": "PDF Document",
+        "description": "PDF Document (opens as a card on a Kanvaz board)",
+        "role": "Viewer",
+        "rank": "Alternate",
+        "icon": "assets/icons/icon"
+      },
+      {
+        "ext": [
+          "psd",
+          "psb",
+          "ai",
+          "xd",
+          "indd",
+          "indt"
+        ],
+        "name": "Adobe File",
+        "description": "Adobe File (opens as a card on a Kanvaz board)",
+        "role": "Viewer",
+        "rank": "Alternate",
+        "icon": "assets/icons/icon"
       }
     ],
     "win": {
@@ -78,7 +184,36 @@
     },
     "linux": {
       "target": "AppImage",
-      "icon": "assets/icons/icon.png"
+      "icon": "assets/icons/icon.png",
+      "mimeTypes": [
+        "application/x-kanvaz",
+        "image/jpeg",
+        "image/png",
+        "image/bmp",
+        "image/webp",
+        "image/gif",
+        "video/mp4",
+        "video/webm",
+        "video/quicktime",
+        "video/x-matroska",
+        "video/x-msvideo",
+        "audio/mpeg",
+        "audio/wav",
+        "audio/x-wav",
+        "audio/ogg",
+        "audio/mp4",
+        "model/gltf-binary",
+        "model/gltf+json",
+        "model/obj",
+        "model/stl",
+        "model/vnd.usdz+zip",
+        "application/x-blender",
+        "application/pdf",
+        "image/vnd.adobe.photoshop",
+        "application/vnd.adobe.illustrator",
+        "application/vnd.adobe.xd",
+        "application/x-indesign"
+      ]
     },
     "nsis": {
       "oneClick": false,

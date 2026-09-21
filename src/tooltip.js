@@ -91,7 +91,7 @@ var KanvazTooltip = (function() {
   function showTooltip(target, text) {
     if (currentEl !== target) return; /* hovered off before the delay elapsed */
     var el = ensureTooltipEl();
-    el.textContent = text;
+    el.textContent = (typeof KanvazPlatform !== 'undefined') ? KanvazPlatform.label(text) : text;
     el.classList.add('visible');
     /* Two-step: the element must be in the DOM and have its final text
        before measuring for position (offsetWidth needs real layout). */

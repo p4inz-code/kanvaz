@@ -3896,12 +3896,13 @@ var KanvazCards = (function() {
   }
 
   function model3dDisposeMaterial(mat) {
-    if (!mat) return;
+    if (!mat || typeof mat.dispose !== 'function') return;   /* a hostile file can put anything in a material slot */
     var mapSlots = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap',
       'emissiveMap', 'bumpMap', 'displacementMap', 'alphaMap', 'envMap', 'matcap'];
     for (var i = 0; i < mapSlots.length; i++) {
       var tex = mat[mapSlots[i]];
-      if (tex && typeof tex.dispose === 'function') tex.dispose();
+      /* the UV checker texture is shared by every card */
+      if (tex && typeof tex.dispose === 'function' && !(tex.userData && tex.userData.kanvazShared)) tex.dispose();
     }
     mat.dispose();
   }
@@ -3915,6 +3916,10 @@ var KanvazCards = (function() {
      .dispose() calls actually free that memory. */
   function disposeModel3DScene(root) {
     root.traverse(function(node) {
+      /* helper meshes (wireframe / overlay) share the parent's geometry and a
+         module-wide material: the parent disposes its own geometry, and the
+         shared materials must outlive any single card */
+      if (KanvazModel3DModes.isHelper(node)) return;
       if (node.geometry) node.geometry.dispose();
       var mats = [];
       function addMats(m) {
@@ -3925,11 +3930,9 @@ var KanvazCards = (function() {
         }
       }
       addMats(node.material);
-      if (node.userData) {
-        addMats(node.userData.kanvazOrigMaterial);
-        var built = KanvazModel3DModes.builtMaterials(node);
-        for (var bi = 0; bi < built.length; bi++) addMats(built[bi]);
-      }
+      addMats(KanvazModel3DModes.originalMaterial(node));
+      var built = KanvazModel3DModes.builtMaterials(node);
+      for (var bi = 0; bi < built.length; bi++) addMats(built[bi]);
       for (var i = 0; i < mats.length; i++) model3dDisposeMaterial(mats[i]);
     });
   }
@@ -4046,13 +4049,13 @@ var KanvazCards = (function() {
   function model3dStats(THREE, root) {
     var tris = 0, verts = 0, meshes = 0, mats = [], texs = [];
     root.traverse(function(node) {
-      if (!node.isMesh || !node.geometry || (node.userData && node.userData.kanvazModeHelper)) return;
+      if (!node.isMesh || !node.geometry || KanvazModel3DModes.isHelper(node)) return;
       meshes++;
       var g = node.geometry;
       var pos = g.attributes && g.attributes.position;
       if (pos) verts += pos.count;
       tris += g.index ? Math.floor(g.index.count / 3) : (pos ? Math.floor(pos.count / 3) : 0);
-      var list = model3dAsMaterialArray(node.userData.kanvazOrigMaterial || node.material);
+      var list = model3dAsMaterialArray(KanvazModel3DModes.originalMaterial(node) || node.material);
       for (var i = 0; i < list.length; i++) {
         var m = list[i];
         if (!m) continue;
@@ -4072,6 +4075,18 @@ var KanvazCards = (function() {
       materials: mats.length, textures: texs.length,
       size: finite ? { x: size.x, y: size.y, z: size.z } : null
     };
+  }
+
+  /* near/far follow the model's size: a saved or preset camera used to keep the
+     default 0.01..1000, which clipped a big model away entirely (edge 1000) or
+     a tiny one (edge 0.004) once it was restored by undo, rename or reload. */
+  function fitClipPlanes(THREE, root, camera) {
+    var box = new THREE.Box3().setFromObject(root);
+    if (!isFinite(box.min.x) || !isFinite(box.max.x)) return;
+    var maxDim = Math.max.apply(null, [box.max.x - box.min.x, box.max.y - box.min.y, box.max.z - box.min.z]) || 1;
+    camera.near = Math.max(maxDim / 1000, 1e-6);
+    camera.far = Math.max(maxDim * 200, 100);
+    camera.updateProjectionMatrix();
   }
 
   function buildModel3DCard(el, card) {
@@ -4221,7 +4236,7 @@ var KanvazCards = (function() {
         clock.update();
         var delta = clock.getDelta();
         if (mixer && isPlaying) mixer.update(delta);
-        if (turntableOn) controls.update();   /* autoRotate advances inside update() */
+        if (turntableOn) controls.update(delta);   /* delta-based, so the spin is the same on a 60 and a 144 Hz screen */
         renderFrame();
         updateAnimUI(); /* no-ops until buildAnimationControls() exists — safe even before a model with clips has loaded */
         if (isPlaying || turntableOn) {
@@ -4239,7 +4254,7 @@ var KanvazCards = (function() {
       }
 
       controls.addEventListener('change', function() {
-        if (!isPlaying) renderFrame();
+        if (!isPlaying && !turntableOn) renderFrame();   /* the loop already draws while the turntable runs */
       });
 
       /* v8.x polish item: persist camera orbit position across saves/
@@ -4277,6 +4292,7 @@ var KanvazCards = (function() {
       model3dInstances[card.id] = {
         dispose: function() {
           disposed = true;
+          closeModel3DMenu();
           isPlaying = false;
           if (rafId !== null) cancelAnimationFrame(rafId);
           resizeObserver.disconnect();
@@ -4284,6 +4300,9 @@ var KanvazCards = (function() {
           if (root) disposeModel3DScene(root);
           matcapTex.dispose();
           renderer.dispose();
+          /* free the GPU context now instead of waiting for garbage collection:
+             the browser allows only about 16 live WebGL contexts */
+          try { renderer.forceContextLoss(); } catch (e) { /* already lost */ }
         }
       };
 
@@ -4303,6 +4322,7 @@ var KanvazCards = (function() {
         modeBtn.title = 'Change how this model is drawn (shaded, wireframe, normals, UV grid, textures...)';
       }
       function setRenderMode(mode, persist) {
+        if (disposed) return;
         card.renderMode = mode;
         if (root) applyRenderMode(THREE, root, mode, matcapTex);
         setActiveModeButton(mode);
@@ -4373,9 +4393,19 @@ var KanvazCards = (function() {
       bgSwatch.addEventListener('mousedown', function(e) { e.stopPropagation(); });
       toolbar.appendChild(bgSwatch);
 
+      /* Saves where the camera is (the OrbitControls 'end' handler does this for
+         mouse gestures; Reset view, presets and the turntable move it too). */
+      function persistCamera(withHistory) {
+        card.cameraPosition = { x: camera.position.x, y: camera.position.y, z: camera.position.z };
+        card.cameraTarget   = { x: controls.target.x, y: controls.target.y, z: controls.target.z };
+        KanvazApp.markDirty();
+        if (withHistory) KanvazHistory.push();
+      }
       function resetCamera() {
-        if (root) frameModel3DCamera(THREE, root, camera, controls);
+        if (disposed || !root) return;
+        frameModel3DCamera(THREE, root, camera, controls);
         renderFrame();
+        persistCamera(true);
       }
 
       /* Camera presets a modeler expects: the six orthogonal directions
@@ -4387,7 +4417,7 @@ var KanvazCards = (function() {
         top: [0, 1, 0.0001], bottom: [0, -1, 0.0001]
       };
       function setViewPreset(name) {
-        if (!root || !VIEW_DIRS[name]) return;
+        if (disposed || !root || !VIEW_DIRS[name]) return;
         var box = new THREE.Box3().setFromObject(root);
         if (!isFinite(box.min.x) || !isFinite(box.max.x)) return;
         var size = box.getSize(new THREE.Vector3());
@@ -4398,18 +4428,20 @@ var KanvazCards = (function() {
         camera.position.set(center.x + d[0] * dist, center.y + d[1] * dist, center.z + d[2] * dist);
         camera.up.set(0, 1, 0);
         controls.target.copy(center);
+        fitClipPlanes(THREE, root, camera);
         controls.update();
-        card.cameraPosition = { x: camera.position.x, y: camera.position.y, z: camera.position.z };
-        card.cameraTarget   = { x: controls.target.x, y: controls.target.y, z: controls.target.z };
         renderFrame();
-        KanvazApp.markDirty();
-        KanvazHistory.push();
+        persistCamera(true);
       }
       function setTurntable(on) {
+        if (disposed) return;
+        var was = turntableOn;
         turntableOn = !!on;
         controls.autoRotate = turntableOn;
         controls.autoRotateSpeed = 2.0;
-        if (turntableOn) startLoopIfPlaying(); else renderFrame();
+        if (turntableOn) startLoopIfPlaying(); else { renderFrame(); if (was) persistCamera(false); }
+        /* the Properties checkbox must follow (it goes stale when a grab stops the turntable) */
+        if (was !== turntableOn && typeof KanvazProperties !== 'undefined' && KanvazProperties.isSectionVisible && KanvazProperties.isSectionVisible() && KanvazProperties.refresh) KanvazProperties.refresh();
       }
       /* Grabbing the model stops the turntable, like every 3D viewer. */
       controls.addEventListener('start', function() { if (turntableOn) setTurntable(false); });
@@ -4627,7 +4659,7 @@ var KanvazCards = (function() {
         if (card.cameraPosition && card.cameraTarget) {
           camera.position.set(card.cameraPosition.x, card.cameraPosition.y, card.cameraPosition.z);
           controls.target.set(card.cameraTarget.x, card.cameraTarget.y, card.cameraTarget.z);
-          camera.updateProjectionMatrix();
+          fitClipPlanes(THREE, root, camera);
           controls.update();
         } else {
           frameModel3DCamera(THREE, root, camera, controls);
