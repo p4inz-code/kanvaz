@@ -835,11 +835,66 @@ var KanvazProperties = (function() {
     })(upOpts[ui]);
     body.appendChild(upRow);
 
+    /* Animation clip: only shown when the file has more than one, since a
+       single clip needs no choosing (its play/scrub bar is on the card). */
+    var clipList = controls.getClips ? controls.getClips() : [];
+    if (clipList.length > 1) {
+      var clipRow = document.createElement('div');
+      clipRow.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:10px;';
+      var clipLabel = document.createElement('div');
+      clipLabel.style.cssText = LABEL_CSS + 'flex-shrink:0;width:60px;';
+      clipLabel.textContent = 'Animation';
+      var clipSel = document.createElement('select');
+      clipSel.style.cssText = 'flex:1;min-width:0;padding:5px 6px;background:var(--color-surface-2);border:1px solid var(--color-border-2);border-radius:5px;color:var(--color-text-2);font-family:var(--font-ui);font-size:11px;';
+      var curClip = controls.getClipIndex();
+      for (var ci = 0; ci < clipList.length; ci++) {
+        var opt = document.createElement('option');
+        opt.value = String(clipList[ci].index);
+        opt.textContent = clipList[ci].name + ' (' + KanvazMedia.formatTime(clipList[ci].duration) + ')';
+        if (clipList[ci].index === curClip) opt.selected = true;
+        clipSel.appendChild(opt);
+      }
+      clipSel.addEventListener('change', function() { controls.setClip(parseInt(clipSel.value, 10)); });
+      clipSel.addEventListener('keydown', function(e) { e.stopPropagation(); });
+      clipRow.appendChild(clipLabel);
+      clipRow.appendChild(clipSel);
+      body.appendChild(clipRow);
+    }
+
     var resetBtn = document.createElement('button');
     resetBtn.textContent = 'Reset Camera';
-    resetBtn.style.cssText = 'width:100%;padding:6px;background:none;border:1px solid var(--color-border-2);border-radius:5px;color:var(--color-text-2);font-family:var(--font-ui);font-size:12px;cursor:pointer;margin-bottom:16px;';
+    resetBtn.style.cssText = 'width:100%;padding:6px;background:none;border:1px solid var(--color-border-2);border-radius:5px;color:var(--color-text-2);font-family:var(--font-ui);font-size:12px;cursor:pointer;margin-bottom:10px;';
     resetBtn.onclick = function() { controls.resetCamera(); };
     body.appendChild(resetBtn);
+
+    /* Read-only model statistics. */
+    var st = controls.getStats ? controls.getStats() : null;
+    if (st) {
+      var fmt = function(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
+      var dim = function(n) { return (Math.round(n * 100) / 100).toString(); };
+      var lines = [
+        ['Triangles', fmt(st.triangles)],
+        ['Vertices', fmt(st.vertices)],
+        ['Meshes', fmt(st.meshes)],
+        ['Materials', fmt(st.materials) + (st.textures ? ' (' + fmt(st.textures) + ' textures)' : '')]
+      ];
+      if (st.size) lines.push(['Size', dim(st.size.x) + ' × ' + dim(st.size.y) + ' × ' + dim(st.size.z)]);
+      var stBox = document.createElement('div');
+      stBox.style.cssText = 'display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin-bottom:16px;font-size:11px;';
+      for (var li = 0; li < lines.length; li++) {
+        var k = document.createElement('div');
+        k.style.cssText = 'color:var(--color-text-3);';
+        k.textContent = lines[li][0];
+        var v = document.createElement('div');
+        v.style.cssText = 'color:var(--color-text-2);text-align:right;font-family:var(--font-mono, monospace);';
+        v.textContent = lines[li][1];
+        stBox.appendChild(k);
+        stBox.appendChild(v);
+      }
+      body.appendChild(stBox);
+    } else {
+      resetBtn.style.marginBottom = '16px';
+    }
   }
 
   /* ── Playback (video/audio) — volume, speed, loop surfaced here too,

@@ -1022,6 +1022,7 @@ var KanvazCards = (function() {
       card.renderMode = 'normal';
       card.bgColor = null;
       card.animationPlaying = false;
+      card.animationClip = 0;
     }
 
     cards[id] = card;
@@ -3807,6 +3808,40 @@ var KanvazCards = (function() {
     controls.update();
   }
 
+  /* Read-only numbers for the Properties panel: geometry size and how many
+     distinct materials/textures the model carries. Counts what is loaded,
+     so it reflects the file as Kanvaz sees it (a converted .blend included). */
+  function model3dStats(THREE, root) {
+    var tris = 0, verts = 0, meshes = 0, mats = [], texs = [];
+    root.traverse(function(node) {
+      if (!node.isMesh || !node.geometry) return;
+      meshes++;
+      var g = node.geometry;
+      var pos = g.attributes && g.attributes.position;
+      if (pos) verts += pos.count;
+      tris += g.index ? Math.floor(g.index.count / 3) : (pos ? Math.floor(pos.count / 3) : 0);
+      var list = model3dAsMaterialArray(node.userData.kanvazOrigMaterial || node.material);
+      for (var i = 0; i < list.length; i++) {
+        var m = list[i];
+        if (!m) continue;
+        if (mats.indexOf(m) === -1) mats.push(m);
+        var slots = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'alphaMap'];
+        for (var k = 0; k < slots.length; k++) {
+          var t = m[slots[k]];
+          if (t && texs.indexOf(t) === -1) texs.push(t);
+        }
+      }
+    });
+    var box = new THREE.Box3().setFromObject(root);
+    var size = box.getSize(new THREE.Vector3());
+    var finite = isFinite(size.x) && isFinite(size.y) && isFinite(size.z);
+    return {
+      triangles: tris, vertices: verts, meshes: meshes,
+      materials: mats.length, textures: texs.length,
+      size: finite ? { x: size.x, y: size.y, z: size.z } : null
+    };
+  }
+
   function buildModel3DCard(el, card) {
     el.classList.add('card-model3d-loading');
 
@@ -3927,6 +3962,7 @@ var KanvazCards = (function() {
       var root = null;
       var mixer = null;
       var clip = null;
+      var clips = null; /* every AnimationClip the file carries, for the clip picker */
       var action = null;
       var isPlaying = false;
       var rafId = null;
@@ -4106,6 +4142,40 @@ var KanvazCards = (function() {
       model3dInstances[card.id].setBgColor     = function(hex) { setBgColor(hex, true); };
       model3dInstances[card.id].resetCamera    = resetCamera;
 
+      /* Animation clip picker + read-only model statistics (Properties,
+         3D View). getClips() is empty for a model with no animation. */
+      function getClipList() {
+        var out = [];
+        if (!clips) return out;
+        for (var ci = 0; ci < clips.length; ci++) {
+          out.push({ index: ci, name: clips[ci].name || ('Clip ' + (ci + 1)), duration: clips[ci].duration });
+        }
+        return out;
+      }
+      function setClip(index, persist) {
+        if (!mixer || !clips || !clips[index]) return;
+        mixer.stopAllAction();
+        clip = clips[index];
+        action = mixer.clipAction(clip);
+        action.reset();
+        action.play();
+        action.paused = !isPlaying;
+        card.animationClip = index;
+        mixer.update(0);
+        updateAnimUI();
+        startLoopIfPlaying();
+        renderFrame();
+        if (persist) {
+          KanvazApp.markDirty();
+          KanvazHistory.push();
+          emitCardEvent('cardUpdate', card);
+        }
+      }
+      model3dInstances[card.id].getClips     = getClipList;
+      model3dInstances[card.id].getClipIndex = function() { return clips ? clips.indexOf(clip) : -1; };
+      model3dInstances[card.id].setClip      = function(i) { setClip(i, true); };
+      model3dInstances[card.id].getStats     = function() { return root ? model3dStats(THREE, root) : null; };
+
       var resetBtn = document.createElement('button');
       resetBtn.className = 'model3d-reset-btn';
       resetBtn.title = 'Reset view';
@@ -4225,23 +4295,21 @@ var KanvazCards = (function() {
         }
 
         if (animations && animations.length) {
-          /* Disclosed limitation (audit finding, v1 scope): only the
-             FIRST clip plays — a multi-clip-authored model (e.g. separate
-             "idle"/"walk"/"run" actions baked into one file) has no clip
-             picker in this plain/functional v1 UI. Matches the plan's
-             "just render" scope for animation; a picker is exactly the
-             kind of control surface meant to wait for the real Figma-
-             designed UI rather than bolt one in ahead of it. */
+          /* Every clip is kept; the picker in Properties (3D View) switches
+             between them and the choice is saved on the card
+             (card.animationClip). A saved index that no longer exists
+             (file relinked to a model with fewer clips) falls back to 0. */
+          clips = animations;
           mixer = new THREE.AnimationMixer(root);
-          clip = animations[0];
+          var startClip = (typeof card.animationClip === 'number' && card.animationClip >= 0 && card.animationClip < clips.length) ? card.animationClip : 0;
+          clip = clips[startClip];
           action = mixer.clipAction(clip);
           action.play();
           isPlaying = !!card.animationPlaying;
           action.paused = !isPlaying;
           buildAnimationControls();
-          if (animations.length > 1 && animTimeEl) {
-            animTimeEl.title = 'This model has ' + animations.length + ' animation clips — only the first ("' +
-              (clip.name || 'Clip 1') + '") plays. Clip selection isn\'t supported yet.';
+          if (clips.length > 1 && animTimeEl) {
+            animTimeEl.title = clips.length + ' animation clips. Choose one in Properties, 3D View.';
           }
           updateAnimUI();
           startLoopIfPlaying();
@@ -4250,6 +4318,19 @@ var KanvazCards = (function() {
         el.classList.remove('card-model3d-loading');
         clearLoadingState(el);
         renderFrame();
+
+        /* The Properties panel's 3D View section needs this viewer's
+           controls, which only exist now (Three.js loads asynchronously).
+           If the panel was drawn for this card before that — right after a
+           drop, or straight after an undo/redo rebuilt the card — it has no
+           3D section until something re-renders it. */
+        if (typeof KanvazProperties !== 'undefined' && KanvazProperties.isSectionVisible && KanvazProperties.isSectionVisible() &&
+            KanvazProperties.refresh && !document.querySelector('.prop-add-form')) {
+          /* Not refreshPropertiesIfOpen(): that skips a card that is not the
+             current selection, and undo/redo clears the selection while the
+             panel keeps showing the card it was on. */
+          KanvazProperties.refresh();
+        }
 
         /* Capture a thumbnail for Map View right after this first real
            frame — camera is already correctly framed (restored or
@@ -5386,6 +5467,7 @@ var KanvazCards = (function() {
       upAxis:           c.upAxis           || null,
       bgColor:          c.bgColor          || null,
       animationPlaying: c.animationPlaying || false,
+      animationClip:    (typeof c.animationClip === 'number') ? c.animationClip : 0,
       /* v8.x — camera orbit position, now persisted (was deliberately
          NOT saved through v7.4.0-v8.2.0: "every load resets to a framed
          default view"). Revisited once 3D became this line's flagship
@@ -5571,6 +5653,7 @@ var KanvazCards = (function() {
         if (!c.renderMode)  c.renderMode  = 'normal';
         if (!c.bgColor)     c.bgColor     = null;
         if (c.animationPlaying === undefined) c.animationPlaying = false;
+        if (typeof c.animationClip !== 'number') c.animationClip = 0;
         if (!c.cameraPosition) c.cameraPosition = null;
         if (!c.cameraTarget)   c.cameraTarget   = null;
         if (c.sharedId === undefined) c.sharedId = null;
