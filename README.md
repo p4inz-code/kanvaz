@@ -34,8 +34,8 @@ No account. No cloud. No subscription. Just a canvas that's actually yours.
 
 </p>
 
-> **Note:** Kanvaz isn't code-signed (certificates cost money; this app doesn't). Windows will likely show **"Windows protected your PC."** Click **"More info" → "Run anyway."** That's normal for unsigned indie software, not a red flag.
-> Prebuilt installers are cross platform.see [Build installers](#build-installers).
+> **Note:** Kanvaz isn't code-signed (certificates cost money; this app doesn't). Windows will likely show **"Windows protected your PC."** Click **"More info" → "Run anyway."** On macOS, Gatekeeper will say the app "cannot be opened" the first time — right-click (or Control-click) the app and choose **Open**, then confirm once, and it will launch normally after that. Both are normal for unsigned indie software, not a red flag.
+> Prebuilt installers are cross platform. See [Build installers](#build-installers).
 
 If you've used PureRef and wanted more than static images, or tried a cloud moodboard tool and didn't want an account standing between you and your own files, this is built for exactly that gap.
 
@@ -302,8 +302,10 @@ Files saved by 4.0.1 and earlier (plain JSON, base64 media) still open exactly a
 
 ## Roadmap
 
-Kanvaz keeps getting developed as an ongoing side project, no fixed deadline, mostly driven by real feedback. The living plan lives in [docs/ROADMAP.md](docs/ROADMAP.md); the current batch in progress:
+Kanvaz keeps getting developed as an ongoing side project, no fixed deadline, mostly driven by real feedback. The living plan lives in [docs/ROADMAP.md](docs/ROADMAP.md); right after 9.1.0:
 
+- Preview quality gates (low/medium/high, with a friendly warning before a heavy setting) and a Settings-panel Blender picker (Choose…/Auto-detect/status)
+- Presentation Mode stepping through cards in reading order instead of creation order
 - Select, move, and delete an individual existing annotation stroke (today "Clear annotations" is all-or-nothing)
 - A first-run "Set up your profile" screen and a profile picker built into the Start Screen itself
 - Font and HDRI/EXR preview support
