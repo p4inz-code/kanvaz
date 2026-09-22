@@ -2,11 +2,13 @@
 
 *For a fresh Claude session picking this project up. Read this first.*
 
-> **Newest full recap: `docs/SESSION_HANDOFF_2026-09-21.md`** (hardening pass, Kanvaz Link, donation and profile work, complete remaining-work list). Read it before the sections below.
+> **Newest full recap: `docs/SESSION_HANDOFF_2026-09-22.md`** (this release's session: auto-update UX overhaul, installer default-handler-hijack fix, Link/Open-with/3D bounty fixes, release-notes tool). Read it before the sections below.
 
-## Current state (2026-09-21) — read before anything else below
+## Current state (2026-09-23) — read before anything else below
 
-The version history further down describes older work. **The hardening work shipped as v9.0.0 (published 2026-09-21, `draft:false`, 15 assets).** Work after it (3D render modes, Blender import fixes, clip picker, tag editor, Map labels, Shift+L) is committed locally on `main` and is NOT pushed or released yet — see `CHANGELOG.md` "[Unreleased]". See `CHANGELOG.md` and `docs/ROADMAP.md`'s "Security & platform hardening" section for the full list and the reconciled audit table.
+**v9.1.0 is the latest release** — 13 3D render modes (up from 6) with camera-view presets and a turntable, Adobe file previews (PSD/PSB/AI/XD/INDD), the Kanvaz Link connector (Kanvaz side only — nothing on the Blender side exists yet), "Open with Kanvaz" from the OS for every previewable type, a much simpler/faster "Check for updates" flow, and a significant installer fix (Windows no longer takes over the default handler for every previewable file type on install — see `SECURITY.md`'s "Open with Kanvaz" section). Full details in `CHANGELOG.md`'s `[9.1.0]` entry.
+
+Planned but deliberately deferred to next session (see `CHANGELOG.md`'s "Known, not fixed" under 9.1.0 and `docs/ROADMAP.md`): preview quality gates (low/medium/high, 3D pixel-ratio cap) with a Settings-panel UI, a Settings-panel Blender picker (Choose…/Auto-detect/status — the detection and persisted-choice logic already exists in `src/blender-detect.js`/`main.js`, just no UI row yet), Presentation Mode stepping in reading order instead of creation order.
 
 - **Runtime is now Electron 44.4.3 / electron-builder 26.15.3** (was 22 / 24). `npm audit` = 0. 32-bit Windows and macOS < 12 are dropped. `File.path` is gone, so drops use `webUtils.getPathForFile` (`preload.js` `getPathForFile`, `app.js` `normalizeDroppedFiles`).
 - **New trust-boundary modules, each with a Node-only test registered in `test/validate.js`:** `src/path-guard.js` (file IPC grants, UNC refusal, launcher blocklist), `src/net-guard.js` (SSRF), `src/mcp-auth.js` (MCP token), `src/crash-log.js` (local crash log), `src/blender-detect.js`; plus zip limits in `src/board-container.js`.
