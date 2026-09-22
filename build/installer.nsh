@@ -1,0 +1,90 @@
+; Kanvaz — Windows "Open with" registration, generated file, do not hand-edit.
+; Regenerate with: node tools/gen-nsis-associations.js
+; Source of truth: src/openable-types.js (see that file's and this script's own
+; header comments for why this exists as a separate, default-handler-safe path).
+
+!macro KANVAZ_OPEN_WITH EXT PROGID DESCRIPTION
+  WriteRegStr SHELL_CONTEXT "Software\Classes\${PROGID}" "" "${DESCRIPTION}"
+  WriteRegStr SHELL_CONTEXT "Software\Classes\${PROGID}\DefaultIcon" "" "$appExe,0"
+  WriteRegStr SHELL_CONTEXT "Software\Classes\${PROGID}\shell\open\command" "" '"$appExe" "%1"'
+  WriteRegNone SHELL_CONTEXT "Software\Classes\.${EXT}\OpenWithProgids" "${PROGID}"
+!macroend
+
+!macro KANVAZ_OPEN_WITH_REMOVE EXT PROGID
+  DeleteRegKey SHELL_CONTEXT "Software\Classes\${PROGID}"
+  DeleteRegValue SHELL_CONTEXT "Software\Classes\.${EXT}\OpenWithProgids" "${PROGID}"
+!macroend
+
+!macro customInstall
+  !insertmacro KANVAZ_OPEN_WITH "ai" "Kanvaz.Adobe" "Adobe File (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "indd" "Kanvaz.Adobe" "Adobe File (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "indt" "Kanvaz.Adobe" "Adobe File (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "psb" "Kanvaz.Adobe" "Adobe File (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "psd" "Kanvaz.Adobe" "Adobe File (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "xd" "Kanvaz.Adobe" "Adobe File (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "m4a" "Kanvaz.Audio" "Audio (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "mp3" "Kanvaz.Audio" "Audio (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "ogg" "Kanvaz.Audio" "Audio (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "wav" "Kanvaz.Audio" "Audio (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "blend" "Kanvaz.Blender" "Blender File (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "gif" "Kanvaz.Gif" "Animated GIF (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "bmp" "Kanvaz.Image" "Image (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "jpeg" "Kanvaz.Image" "Image (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "jpg" "Kanvaz.Image" "Image (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "png" "Kanvaz.Image" "Image (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "webp" "Kanvaz.Image" "Image (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "fbx" "Kanvaz.Model" "3D Model (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "glb" "Kanvaz.Model" "3D Model (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "gltf" "Kanvaz.Model" "3D Model (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "obj" "Kanvaz.Model" "3D Model (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "ply" "Kanvaz.Model" "3D Model (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "stl" "Kanvaz.Model" "3D Model (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "usd" "Kanvaz.Model" "3D Model (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "usda" "Kanvaz.Model" "3D Model (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "usdc" "Kanvaz.Model" "3D Model (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "usdz" "Kanvaz.Model" "3D Model (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "vox" "Kanvaz.Model" "3D Model (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "pdf" "Kanvaz.Pdf" "PDF Document (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "avi" "Kanvaz.Video" "Video (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "mkv" "Kanvaz.Video" "Video (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "mov" "Kanvaz.Video" "Video (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "mp4" "Kanvaz.Video" "Video (opens as a card on a Kanvaz board)"
+  !insertmacro KANVAZ_OPEN_WITH "webm" "Kanvaz.Video" "Video (opens as a card on a Kanvaz board)"
+!macroend
+
+!macro customUnInstall
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "ai" "Kanvaz.Adobe"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "indd" "Kanvaz.Adobe"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "indt" "Kanvaz.Adobe"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "psb" "Kanvaz.Adobe"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "psd" "Kanvaz.Adobe"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "xd" "Kanvaz.Adobe"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "m4a" "Kanvaz.Audio"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "mp3" "Kanvaz.Audio"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "ogg" "Kanvaz.Audio"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "wav" "Kanvaz.Audio"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "blend" "Kanvaz.Blender"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "gif" "Kanvaz.Gif"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "bmp" "Kanvaz.Image"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "jpeg" "Kanvaz.Image"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "jpg" "Kanvaz.Image"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "png" "Kanvaz.Image"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "webp" "Kanvaz.Image"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "fbx" "Kanvaz.Model"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "glb" "Kanvaz.Model"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "gltf" "Kanvaz.Model"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "obj" "Kanvaz.Model"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "ply" "Kanvaz.Model"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "stl" "Kanvaz.Model"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "usd" "Kanvaz.Model"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "usda" "Kanvaz.Model"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "usdc" "Kanvaz.Model"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "usdz" "Kanvaz.Model"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "vox" "Kanvaz.Model"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "pdf" "Kanvaz.Pdf"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "avi" "Kanvaz.Video"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "mkv" "Kanvaz.Video"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "mov" "Kanvaz.Video"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "mp4" "Kanvaz.Video"
+  !insertmacro KANVAZ_OPEN_WITH_REMOVE "webm" "Kanvaz.Video"
+!macroend

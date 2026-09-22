@@ -44,23 +44,69 @@ function run() {
   assert.strictEqual(ot.filesFromArgv(many, TMP).length, ot.MAX_FILES_PER_LAUNCH, 'a launch cannot add more than ' + ot.MAX_FILES_PER_LAUNCH + ' files');
   console.log('  ✓ launch arguments: flags, the app itself, folders, missing files, UNC/remote paths, executables and duplicates are all skipped; capped at ' + ot.MAX_FILES_PER_LAUNCH);
 
-  /* 3. package.json associations cover exactly these types */
+  /* 2b. alternate data streams — only exercised where they can actually be
+     created (Windows); elsewhere the platform-gated check in
+     filesFromArgv never runs, so there is nothing to prove. */
+  if (process.platform === 'win32') {
+    var adsBase = touch('ads-carrier.png');
+    var adsPath = adsBase + ':payload.png';
+    try { fs.writeFileSync(adsPath, 'x'); } catch (e) { /* stream creation unsupported on this filesystem */ }
+    if (fs.existsSync(adsPath)) {
+      assert.deepStrictEqual(ot.filesFromArgv([adsPath], TMP), [], 'a path naming an alternate data stream is refused even though its basename looks like a plain .png');
+      console.log('  ✓ alternate data stream paths (file.png:stream.png) are refused, not read as an image');
+    } else {
+      console.log('  (skipped ADS check — this filesystem would not create the stream)');
+    }
+  }
+
+  /* 2c. case-fold dedupe — a path handed to us twice with different casing
+     (Windows/macOS are case-insensitive) must still be one card. Only
+     meaningful where the filesystem itself is case-insensitive. */
+  var pngUpper = png.toUpperCase();
+  if (pngUpper !== png && fs.existsSync(pngUpper)) {
+    assert.deepStrictEqual(ot.filesFromArgv([png, pngUpper], TMP), [png], 'the same file named with different casing is only added once');
+    console.log('  ✓ the same path in different casing (case-insensitive filesystem) is deduplicated');
+  }
+
+  /* 3. package.json's fileAssociations registers ONLY .kanvaz. electron-builder's
+     NSIS target ignores role/rank (they are documented macOS-only in its own
+     FileAssociation.d.ts) and unconditionally sets Kanvaz as the Windows
+     default handler for every listed extension — so every other type Kanvaz
+     can preview is deliberately kept OUT of this shared list. Those are
+     registered per-platform instead, in ways that cannot set a default:
+     mac.extendInfo.CFBundleDocumentTypes (LSHandlerRank Alternate, a real
+     macOS-only guarantee) and the generated build/installer.nsh (Windows
+     OpenWithProgids only, see tools/gen-nsis-associations.js). Linux's
+     AppImage MimeType= list (checked below) never sets a default either. */
   var assoc = pkg.build.fileAssociations;
-  var board = assoc.filter(function(a) { return a.ext === 'kanvaz'; })[0];
-  assert(board && board.role === 'Editor', 'boards stay an Editor association');
-  var registered = [];
-  assoc.forEach(function(a) {
-    if (a.ext === 'kanvaz') return;
-    var list = Array.isArray(a.ext) ? a.ext : [a.ext];
-    registered = registered.concat(list);
-    assert.strictEqual(a.role, 'Viewer', a.name + ' is registered as a viewer, not the owner of the file type');
-    assert.strictEqual(a.rank, 'Alternate', a.name + ': macOS rank is Alternate, so Kanvaz shows in "Open With" without taking over the default app');
-    assert(a.name && a.description && a.icon, a.name + ' has a name, description and icon');
+  assert.strictEqual(assoc.length, 1, 'fileAssociations has only the board type — see this test\'s comment for why');
+  var board = assoc[0];
+  assert(board.ext === 'kanvaz' && board.role === 'Editor', 'boards stay an Editor association');
+
+  /* macOS: CFBundleDocumentTypes, Viewer/Alternate, covers every other type */
+  var cfTypes = pkg.build.mac.extendInfo.CFBundleDocumentTypes;
+  var macRegistered = [];
+  cfTypes.forEach(function(t) {
+    macRegistered = macRegistered.concat(t.CFBundleTypeExtensions);
+    assert.strictEqual(t.CFBundleTypeRole, 'Viewer', t.CFBundleTypeName + ' is registered as a viewer, not the owner of the file type');
+    assert.strictEqual(t.LSHandlerRank, 'Alternate', t.CFBundleTypeName + ': rank is Alternate, so Kanvaz shows in "Open With" without taking over the default app');
   });
-  registered.sort(); var expected = ot.ALL.slice().sort();
-  assert.deepStrictEqual(registered, expected, 'package.json fileAssociations and openable-types.js list exactly the same extensions');
-  assert.strictEqual(registered.length, new Set(registered).size, 'no extension is registered twice');
-  console.log('  ✓ package.json registers exactly the same ' + registered.length + ' extensions, as viewer/alternate (Kanvaz is offered, never forced as default)');
+  macRegistered.sort(); var expected = ot.ALL.slice().sort();
+  assert.deepStrictEqual(macRegistered, expected, 'mac.extendInfo.CFBundleDocumentTypes and openable-types.js list exactly the same extensions');
+  assert.strictEqual(macRegistered.length, new Set(macRegistered).size, 'no extension is registered twice on mac');
+  console.log('  ✓ macOS registers exactly the same ' + macRegistered.length + ' extensions via CFBundleDocumentTypes, as viewer/alternate');
+
+  /* Windows: the generated NSIS include must be committed AND in sync with
+     openable-types.js right now (this is what a stale, hand-edited, or
+     forgotten-to-regenerate build/installer.nsh would fail on in CI). */
+  var genNsis = require('../tools/gen-nsis-associations');
+  var current = fs.readFileSync(genNsis.OUT_PATH, 'utf8');
+  assert.strictEqual(current, genNsis.generate(), 'build/installer.nsh is stale — run node tools/gen-nsis-associations.js');
+  assert(!/Software\\\\Classes\\\\\.\$\{EXT\}"\s+""\s+"\$\{PROGID\}"/.test(current), 'the generated script must never write the extension\'s own default-handler key');
+  ot.ALL.forEach(function(e) {
+    assert(new RegExp('KANVAZ_OPEN_WITH "' + e + '"').test(current), 'installer.nsh registers "Open with Kanvaz" for .' + e);
+  });
+  console.log('  ✓ Windows: build/installer.nsh is in sync, registers every type for "Open with" only, never as the default');
 
   var mimes = pkg.build.linux.mimeTypes;
   Object.keys(ot.GROUPS).forEach(function(k) {

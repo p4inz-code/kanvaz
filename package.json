@@ -16,11 +16,12 @@
   "homepage": "https://github.com/p4inz-code/kanvaz#readme",
   "scripts": {
     "start": "electron .",
-    "build:win": "electron-builder --win",
+    "gen:nsis-associations": "node tools/gen-nsis-associations.js",
+    "build:win": "npm run gen:nsis-associations && electron-builder --win",
     "build:mac": "electron-builder --mac",
     "build:linux": "electron-builder --linux",
-    "build:all": "electron-builder --win --mac --linux",
-    "dist": "electron-builder --win",
+    "build:all": "npm run gen:nsis-associations && electron-builder --win --mac --linux",
+    "dist": "npm run gen:nsis-associations && electron-builder --win",
     "lint": "node test/lint.js",
     "validate": "node test/validate.js",
     "test:ports": "node test/run-port-test.js",
@@ -52,112 +53,6 @@
         "mimeType": "application/x-kanvaz",
         "role": "Editor",
         "icon": "assets/icons/icon"
-      },
-      {
-        "ext": [
-          "jpg",
-          "jpeg",
-          "png",
-          "bmp",
-          "webp"
-        ],
-        "name": "Image",
-        "description": "Image (opens as a card on a Kanvaz board)",
-        "role": "Viewer",
-        "rank": "Alternate",
-        "icon": "assets/icons/icon"
-      },
-      {
-        "ext": [
-          "gif"
-        ],
-        "name": "Animated GIF",
-        "description": "Animated GIF (opens as a card on a Kanvaz board)",
-        "role": "Viewer",
-        "rank": "Alternate",
-        "icon": "assets/icons/icon"
-      },
-      {
-        "ext": [
-          "mp4",
-          "webm",
-          "mov",
-          "mkv",
-          "avi"
-        ],
-        "name": "Video",
-        "description": "Video (opens as a card on a Kanvaz board)",
-        "role": "Viewer",
-        "rank": "Alternate",
-        "icon": "assets/icons/icon"
-      },
-      {
-        "ext": [
-          "mp3",
-          "wav",
-          "ogg",
-          "m4a"
-        ],
-        "name": "Audio",
-        "description": "Audio (opens as a card on a Kanvaz board)",
-        "role": "Viewer",
-        "rank": "Alternate",
-        "icon": "assets/icons/icon"
-      },
-      {
-        "ext": [
-          "glb",
-          "gltf",
-          "obj",
-          "fbx",
-          "stl",
-          "ply",
-          "vox",
-          "usd",
-          "usda",
-          "usdc",
-          "usdz"
-        ],
-        "name": "3D Model",
-        "description": "3D Model (opens as a card on a Kanvaz board)",
-        "role": "Viewer",
-        "rank": "Alternate",
-        "icon": "assets/icons/icon"
-      },
-      {
-        "ext": [
-          "blend"
-        ],
-        "name": "Blender File",
-        "description": "Blender File (opens as a card on a Kanvaz board)",
-        "role": "Viewer",
-        "rank": "Alternate",
-        "icon": "assets/icons/icon"
-      },
-      {
-        "ext": [
-          "pdf"
-        ],
-        "name": "PDF Document",
-        "description": "PDF Document (opens as a card on a Kanvaz board)",
-        "role": "Viewer",
-        "rank": "Alternate",
-        "icon": "assets/icons/icon"
-      },
-      {
-        "ext": [
-          "psd",
-          "psb",
-          "ai",
-          "xd",
-          "indd",
-          "indt"
-        ],
-        "name": "Adobe File",
-        "description": "Adobe File (opens as a card on a Kanvaz board)",
-        "role": "Viewer",
-        "rank": "Alternate",
-        "icon": "assets/icons/icon"
       }
     ],
     "win": {
@@ -180,7 +75,59 @@
     "mac": {
       "target": "dmg",
       "icon": "assets/icons/icon.icns",
-      "minimumSystemVersion": "12.0.0"
+      "minimumSystemVersion": "12.0.0",
+      "extendInfo": {
+        "CFBundleDocumentTypes": [
+          {
+            "CFBundleTypeName": "Image",
+            "CFBundleTypeExtensions": ["jpg", "jpeg", "png", "bmp", "webp"],
+            "CFBundleTypeRole": "Viewer",
+            "LSHandlerRank": "Alternate"
+          },
+          {
+            "CFBundleTypeName": "Animated GIF",
+            "CFBundleTypeExtensions": ["gif"],
+            "CFBundleTypeRole": "Viewer",
+            "LSHandlerRank": "Alternate"
+          },
+          {
+            "CFBundleTypeName": "Video",
+            "CFBundleTypeExtensions": ["mp4", "webm", "mov", "mkv", "avi"],
+            "CFBundleTypeRole": "Viewer",
+            "LSHandlerRank": "Alternate"
+          },
+          {
+            "CFBundleTypeName": "Audio",
+            "CFBundleTypeExtensions": ["mp3", "wav", "ogg", "m4a"],
+            "CFBundleTypeRole": "Viewer",
+            "LSHandlerRank": "Alternate"
+          },
+          {
+            "CFBundleTypeName": "3D Model",
+            "CFBundleTypeExtensions": ["glb", "gltf", "obj", "fbx", "stl", "ply", "vox", "usd", "usda", "usdc", "usdz"],
+            "CFBundleTypeRole": "Viewer",
+            "LSHandlerRank": "Alternate"
+          },
+          {
+            "CFBundleTypeName": "Blender File",
+            "CFBundleTypeExtensions": ["blend"],
+            "CFBundleTypeRole": "Viewer",
+            "LSHandlerRank": "Alternate"
+          },
+          {
+            "CFBundleTypeName": "PDF Document",
+            "CFBundleTypeExtensions": ["pdf"],
+            "CFBundleTypeRole": "Viewer",
+            "LSHandlerRank": "Alternate"
+          },
+          {
+            "CFBundleTypeName": "Adobe File",
+            "CFBundleTypeExtensions": ["psd", "psb", "ai", "xd", "indd", "indt"],
+            "CFBundleTypeRole": "Viewer",
+            "LSHandlerRank": "Alternate"
+          }
+        ]
+      }
     },
     "linux": {
       "target": "AppImage",
@@ -225,7 +172,8 @@
       "uninstallerSidebar": "assets/installer-sidebar.bmp",
       "license": "LICENSE",
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "include": "build/installer.nsh"
     },
     "publish": {
       "provider": "github",
