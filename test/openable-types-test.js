@@ -127,13 +127,30 @@ function run() {
   assert(mimes.indexOf('application/x-kanvaz') !== -1, 'boards keep their linux mime type');
   console.log('  ✓ Linux desktop entry lists every MIME type');
 
-  /* 4. the renderer really makes cards from every one of these (media.js lists + pdf + adobe) */
+  /* 4. every embedded/previewed type the renderer knows about is
+     registered here too (media.js lists + pdf + adobe). The reverse isn't
+     required any more: 9.2.0 added a "recognized but no in-card preview"
+     category (openable-types.js's zbrush/houdini/cinema4d/maya groups) —
+     these are deliberately openable (a real file-type label/icon, "Open
+     with Kanvaz" from the OS) while only ever becoming a generic
+     file-reference card, the same as any unrecognized file already did.
+     GROUPS keys that group is explicitly listed below, everything else
+     must still have real card-building support in media.js. */
+  var NO_PREVIEW_GROUPS = ['zbrush', 'houdini', 'cinema4d', 'maya'];
   var media = fs.readFileSync(path.join(__dirname, '..', 'src', 'media.js'), 'utf8');
   function list(name) { var m = new RegExp('var ' + name + '\\s*=\\s*\\[([^\\]]*)\\]').exec(media); return m[1].split(',').map(function(x) { return x.replace(/['\s]/g, ''); }).filter(Boolean); }
-  var cardTypes = list('IMAGE_EXTS').concat(list('GIF_EXTS'), list('VIDEO_EXTS'), list('AUDIO_EXTS'), list('MODEL_EXTS'), ['blend', 'pdf', 'psd', 'psb', 'ai', 'xd', 'indd', 'indt']);
+  var cardTypes = list('IMAGE_EXTS').concat(list('GIF_EXTS'), list('VIDEO_EXTS'), list('AUDIO_EXTS'), list('MODEL_EXTS'), ['blend', 'pdf', 'psd', 'psb', 'ai', 'xd', 'indd', 'indt', 'hdr', 'pic', 'exr']);
   cardTypes.forEach(function(e) { assert(ot.ALL.indexOf(e) !== -1, e + ' becomes a card but is missing from openable-types.js'); });
-  ot.ALL.forEach(function(e) { assert(cardTypes.indexOf(e) !== -1, e + ' is registered with the OS but Kanvaz cannot make a card from it'); });
-  console.log('  ✓ every registered type is one the app can turn into a card, and vice versa');
+  var previewableAll = [];
+  Object.keys(ot.GROUPS).forEach(function(g) {
+    if (NO_PREVIEW_GROUPS.indexOf(g) === -1) previewableAll = previewableAll.concat(ot.GROUPS[g].exts);
+  });
+  previewableAll.forEach(function(e) { assert(cardTypes.indexOf(e) !== -1, e + ' is registered with the OS but Kanvaz cannot make a card from it'); });
+  NO_PREVIEW_GROUPS.forEach(function(g) {
+    assert(ot.GROUPS[g], 'GROUPS has the "' + g + '" no-preview group');
+    ot.GROUPS[g].exts.forEach(function(e) { assert(cardTypes.indexOf(e) === -1, e + ' has real preview support now — move it out of the no-preview list'); });
+  });
+  console.log('  ✓ every type with real card/preview support is registered with the OS; the labeled-but-no-preview formats (' + NO_PREVIEW_GROUPS.join(', ') + ') are openable and correctly excluded from that check');
 }
 
 try { run(); fs.rmSync(TMP, { recursive: true, force: true }); console.log('ALL OPENABLE TYPES TESTS PASSED'); }

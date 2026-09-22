@@ -2,6 +2,90 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [9.3.0] — 2026-09-23 — OBJ material support, HDR/EXR previews, more recognized formats
+
+*Verified with real, spec-built test files (not just synthetic fixtures) run
+through the actual decoders: an OBJ+MTL round-tripped through the real
+Three.js MTLLoader and rendered red as specified (screenshot-verified before
+this session's later work went static-only), and Radiance HDR / OpenEXR
+files built from the public file-format specs decode back to their source
+pixel values within expected quantization error (`test/hdr-preview-test.js`).
+The renderer-side preview UI for HDR/EXR (the actual `<img>`/worker-thread/
+IPC wiring, `src/hdr-worker.js` → `hdr-preview` IPC → `buildHdrPreview`) is
+unit-tested at the decode layer and consistency-checked end to end (every
+IPC channel name, function export and CSS class cross-referenced statically)
+but not yet live-screenshotted — flagged honestly rather than claimed done;
+first thing to confirm next session.*
+
+### Added
+- **`.obj` files now respect a companion `.mtl`** — diffuse/specular/
+  ambient colour, opacity and shininess (not texture maps referenced by
+  the `.mtl`, for the same reason external FBX textures already aren't
+  loaded — see Known limitations). `main.js`'s `findCompanionMtl` reads
+  the real `mtllib` reference from the `.obj` text (falling back to a
+  same-basename guess), embeds it as text alongside the model the same
+  way the model itself is embedded, and `MTLLoader` (newly vendored,
+  Three.js r186, same local-only network guard as every other loader)
+  builds the materials before the `.obj` is parsed.
+- **HDR/EXR previews**: Radiance `.hdr`/`.pic` and OpenEXR `.exr` files
+  now show a real in-card preview — decoded, auto-exposed and tone-mapped
+  (Reinhard) down to a normal image, the same "reference thumbnail, not a
+  colour-managed viewer" honesty as everywhere else previews are built
+  from scratch in this app. OpenEXR support covers uncompressed and
+  RLE-compressed files; ZIP/PIZ/PXR24/B44/DWA-compressed EXRs are refused
+  with a specific, honest reason naming the compression method, not a
+  silent misread — PIZ alone is roughly a thousand lines of wavelet+
+  Huffman decoding in Three.js's own EXRLoader, more risk than this round
+  was worth taking on blind. Same Low/Medium/High quality control and
+  per-card override as PDF/Adobe previews already have.
+- **Four more recognized-but-unsupported formats**: ZBrush (`.ztl`),
+  Houdini (`.hip`/`.hipnc`), Cinema 4D (`.c4d`) and Maya (`.ma`/`.mb`) now
+  get "Open with Kanvaz" from the OS and a real file-type label/icon
+  instead of a generic unknown-file badge — none of the four have a
+  command-line export path the way Blender does, so there's no route to
+  an actual preview yet, but a VFX/game pipeline lives among these
+  formats daily and "recognized, opens with the default app" beats
+  pretending Kanvaz doesn't know what they are.
+
+### Fixed
+- Two "second whitelist" bugs from 9.2.0's preview-quality work:
+  `buildFullCardRecord()` (board save) and `createFromMedia()` (card
+  creation) both needed `previewQuality` added — a card's per-card
+  quality override was being silently dropped on save, and read as
+  never-set on every fresh creation, because adding a new card field to
+  only ONE of the several places card fields are whitelisted isn't
+  enough. Same bug pattern, caught a third time while building `.mtl`
+  support and building the habit of checking every copy site, not just
+  the first one found: `relinkCard()` (Properties → Relink) also has its
+  own independent field-copy list and was missing `mtlText` — relinking
+  an `.obj` card to a different file kept rendering the *previous*
+  file's material until this was added.
+- `findCompanionMtl()` now stats a candidate `.mtl` before reading it
+  (a same-named or `mtllib`-referenced file that happened to be huge —
+  plausible in a downloaded asset pack — would otherwise be fully read
+  into memory before its size was ever checked), strips a UTF-8 BOM some
+  Windows exporters write, and rejects a colon in the referenced name
+  (blocks an NTFS alternate-data-stream reference, closing the same class
+  of gap `openable-types.js`'s own ADS check exists for).
+- A genuine bug in `src/hdr-preview.js`'s own EXR RLE codec, caught by
+  its own test suite before ever shipping: the byte-deinterleave step
+  used `length >> 1` (floor) to split reordered bytes back in half, which
+  is wrong for an odd-length buffer (OpenEXR's real per-scanline byte
+  counts are always even — every sample is 2 or 4 bytes — so no real file
+  would have hit this, but the function is still correct now for any
+  input, not just the common case).
+
+### Tests
+- `test/hdr-preview-test.js`: builds real, spec-valid HDR (RLE-encoded)
+  and EXR (NONE and RLE compression, channels deliberately written
+  out-of-order to prove the reader sorts them) files from scratch and
+  round-trips them through the real decoder; verifies an unsupported EXR
+  compression is refused with a specific reason; stress-tests the EXR RLE
+  codec against 0–4096-byte random buffers including every odd length;
+  checks tone-mapping stays in valid 8-bit range (including an all-black
+  input, which used to be a plausible divide-by-zero) and that downscale
+  respects its max side without upscaling a smaller image.
+
 ## [9.2.0] — 2026-09-23 — Preview quality gates, Blender picker in Settings
 
 *Checked against the running app (Electron scratch profile): built every card

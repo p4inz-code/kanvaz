@@ -1257,12 +1257,13 @@ var KanvazProperties = (function() {
 
     body.appendChild(btnRow);
 
-    /* Only PDF and Adobe-file previews actually have a "quality" to tune
-       (a plain text/unsupported file reference has no rendered preview at
-       all, just this path/buttons block above). */
+    /* Only PDF, Adobe-file and HDR/EXR previews actually have a "quality"
+       to tune (a plain text/unsupported file reference has no rendered
+       preview at all, just this path/buttons block above). */
     if (typeof KanvazCards !== 'undefined' && card.path &&
         ((KanvazCards.isPdfPath && KanvazCards.isPdfPath(card.path)) ||
-         (KanvazCards.isAdobePath && KanvazCards.isAdobePath(card.path)))) {
+         (KanvazCards.isAdobePath && KanvazCards.isAdobePath(card.path)) ||
+         (KanvazCards.isHdrPath && KanvazCards.isHdrPath(card.path)))) {
       renderPreviewQualityRow(body, card, function() {
         /* No live in-place re-render for PDF/Adobe (unlike 3D's cheap
            setPixelRatio + redraw) — the straightforward, already-battle-

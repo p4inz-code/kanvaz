@@ -27,6 +27,7 @@ var mcpAuth = require('./mcp-auth');
 var crashLog = require('./crash-log');
 var linkController = require('./link-controller');
 var adobePreview = require('./adobe-preview');
+var hdrPreview = require('./hdr-preview');
 var openableTypes = require('./openable-types');
 
 /* Local-only crash log (src/crash-log.js): nothing is ever uploaded. */
@@ -1178,6 +1179,41 @@ function registerIPC() {
     }).catch(function(e) { return { ok: false, reason: e.message }; });
   });
 
+  /* HDR/EXR previews (9.2.0) — same worker-thread isolation as Adobe
+     previews above: a huge or malformed file can only stall its own
+     request, never the main process. */
+  var HDR_WORKER_MS = 25000;
+  var HDR_MAX_OUT_BYTES = 90 * 1024 * 1024;
+  function runHdrWorker(filePath, maxSide) {
+    return new Promise(function(resolve) {
+      var w;
+      var done = false;
+      function finish(v) { if (done) return; done = true; clearTimeout(timer); try { w.terminate(); } catch (e) { /* gone */ } resolve(v); }
+      try {
+        w = new Worker(path.join(__dirname, 'hdr-worker.js'), { workerData: { filePath: filePath, maxSide: maxSide }, resourceLimits: { maxOldGenerationSizeMb: 1536 } });
+      } catch (e) { resolve({ ok: false, reason: 'could not start the preview: ' + e.message }); return; }
+      var timer = setTimeout(function() { finish({ ok: false, reason: 'This file took too long to preview, so it was stopped.' }); }, HDR_WORKER_MS);
+      w.on('message', function(m) { finish(m); });
+      w.on('error', function(e) { finish({ ok: false, reason: 'the preview failed: ' + (e && e.message || e) }); });
+      w.on('exit', function() { finish({ ok: false, reason: 'the preview stopped unexpectedly' }); });
+    });
+  }
+  ipcMain.handle('hdr-preview', function(event, filePath, quality) {
+    var nonLocal = rejectNonLocal(filePath);
+    if (nonLocal) return Promise.resolve(nonLocal);
+    if (typeof filePath !== 'string' || !filePath) return Promise.resolve({ ok: false, reason: 'invalid path' });
+    var hext = path.extname(filePath).toLowerCase().replace('.', '');
+    if (hdrPreview.EXTENSIONS.indexOf(hext) === -1) return Promise.resolve({ ok: false, reason: 'not an HDR/EXR file Kanvaz previews' });
+    return runHdrWorker(filePath, PreviewQuality.adobeMaxSide(quality)).then(function(r) {
+      if (!r || !r.ok) return { ok: false, reason: (r && r.reason) || 'no preview' };
+      if (r.bytes.length > HDR_MAX_OUT_BYTES) return { ok: false, reason: 'the preview image is too large' };
+      return {
+        ok: true, kind: 'image', width: r.width || null, height: r.height || null, note: r.note || null,
+        dataUrl: 'data:' + r.mime + ';base64,' + r.bytes.toString('base64')
+      };
+    }).catch(function(e) { return { ok: false, reason: e.message }; });
+  });
+
   /* Text-file preview for file-reference cards. Same shape as
      pdf-read-bytes (own entry point, own allowlist) but BOUNDED: only the
      first TEXT_PREVIEW_MAX_BYTES are ever read (fs.open + a fixed buffer),
@@ -1216,6 +1252,89 @@ function registerIPC() {
 
   /* ── IPC: Recent files ── */
 
+  /* 9.2.0 — an .obj's material file. Real workflow: most OBJ exporters
+     (Substance Painter, Maya, ZBrush's GoZ, Blender) write a companion
+     .mtl alongside the .obj and reference it with an "mtllib <name>" line
+     — that name isn't guaranteed to match the .obj's own basename, so the
+     real reference is checked first and a same-basename guess is only the
+     fallback. Read here (not by the renderer) because it's a filesystem
+     lookup relative to the .obj's own path, same "main process touches
+     disk, renderer only gets bytes" boundary every other loader here
+     already respects. Texture maps the .mtl references (map_Kd, etc.) are
+     NOT embedded or resolved — same disclosed limitation as FBX's external
+     textures (see README's Known limitations) — cards.js's MTLLoader is
+     given a local-only LoadingManager so it can't attempt to fetch them
+     from anywhere either. */
+  function findCompanionMtl(objPath, objText) {
+    /* path.resolve() (not just dirname()) so this comparison is robust to
+       the input using forward slashes on Windows — path.join always
+       normalises to the platform separator, so comparing an un-resolved
+       forward-slash dirname() against a join()'d, backslash-normalised
+       candidate could never match, silently finding nothing even for a
+       real, same-directory .mtl. Found live: a forward-slash test path
+       (drag-drop and dialog paths are backslash-style on Windows in
+       practice, but nothing guarantees every caller is). */
+    var dir = path.resolve(path.dirname(objPath));
+    var m = /^\s*mtllib\s+(.+?)\s*$/m.exec(objText);
+    var candidates = [];
+    if (m && m[1]) {
+      /* mtllib can list several names on one line, space-separated */
+      var names = m[1].split(/\s+/);
+      for (var i = 0; i < names.length; i++) {
+        var n = names[i].replace(/^["']|["']$/g, '');
+        /* No separator (blocks "../evil.mtl"), no colon (blocks an NTFS
+           alternate-data-stream reference like "C:evil.mtl" — a bare drive
+           letter isn't a separator, so the check above alone wouldn't
+           catch it), and not a bare "." or ".." (path.join(dir, '..')
+           would otherwise walk up a directory with no separator in sight
+           to catch above). */
+        if (n && n !== '.' && n !== '..' && !/[\\/:]/.test(n)) candidates.push(path.resolve(path.join(dir, n)));
+      }
+    }
+    var guess = path.resolve(path.join(dir, path.basename(objPath, path.extname(objPath)) + '.mtl'));
+    if (candidates.indexOf(guess) === -1) candidates.push(guess);
+
+    var MAX_MTL_BYTES = 5 * 1024 * 1024;   /* a real .mtl is tiny; this is a generous ceiling, not a target */
+    /* Attempts exactly ONE candidate, never recursing itself — resolves
+       null for "not this one" (wrong path, too big, unreadable) or the
+       file's text. Kept separate from tryNext()'s recursion so a single
+       .catch here can never also swallow/re-trigger a FAILURE surfacing
+       from a later candidate's own attempt (attaching one catch around a
+       whole recursive chain, tried first, could double-advance or retry
+       candidates unpredictably whenever a deeper attempt itself rejected). */
+    function tryOne(p) {
+      /* Same local-path discipline as the .obj itself: never follow a
+         reference outside the model's own directory. */
+      if (!pathGuard.isLocalAbsolutePath(p) || path.dirname(p) !== dir) return Promise.resolve(null);
+      /* Bug-bounty fix: this used to read the whole candidate file into
+         memory FIRST and only check its size afterward — a same-named
+         (or mtllib-referenced) file that happens to be huge (a stray
+         multi-GB file sitting next to a dropped .obj, plausible in a
+         downloaded asset pack) would make the main process try to read
+         and UTF-8-decode all of it before the size ever got checked,
+         risking an OOM stall on what looks like an ordinary drop. Stat
+         first, exactly like model-load's own MAX_MODEL_SIZE_MB check
+         above does for the .obj itself. */
+      return fs.promises.stat(p).then(function(st) {
+        if (!st.isFile() || st.size > MAX_MTL_BYTES) return null;
+        return fs.promises.readFile(p, 'utf8').then(function(text) {
+          /* Strip a UTF-8 BOM: some Windows DCC exporters write one, and
+             a stray leading U+FEFF glued onto the first line would
+             otherwise silently corrupt parsing of the very first
+             newmtl/comment directive. */
+          return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+        });
+      }).catch(function() { return null; });
+    }
+    function tryNext(i) {
+      if (i >= candidates.length) return Promise.resolve(null);
+      return tryOne(candidates[i]).then(function(text) {
+        return text !== null ? text : tryNext(i + 1);
+      });
+    }
+    return tryNext(0);
+  }
+
   /* v7.x — 3D model loading. Follows media-load's EMBED pattern (a
      model3d card is self-contained like image/video/audio, not a
      file-reference), but kept as its own handler with its own size cap
@@ -1247,7 +1366,7 @@ function registerIPC() {
           stl: 'model/stl', ply: 'application/octet-stream', vox: 'application/octet-stream',
           usd: 'model/vnd.usd', usda: 'model/vnd.usda', usdc: 'model/vnd.usd+usdc', usdz: 'model/vnd.usdz+zip'
         };
-        return {
+        var result = {
           ok: true,
           dataUrl: 'data:' + mimeMap[ext] + ';base64,' + b64,
           modelFormat: ext,
@@ -1255,6 +1374,11 @@ function registerIPC() {
           name: path.basename(filePath),
           originalPath: filePath
         };
+        if (ext !== 'obj') return result;
+        return findCompanionMtl(filePath, data.toString('utf8')).then(function(mtlText) {
+          if (mtlText) result.mtlText = mtlText;
+          return result;
+        });
       });
     }).catch(function(e) {
       return { ok: false, error: e.message };

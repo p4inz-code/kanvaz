@@ -40,6 +40,7 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
   readPdfBytes: function(filePath) { return ipcRenderer.invoke('pdf-read-bytes', filePath); },
   readTextPreview: function(filePath) { return ipcRenderer.invoke('text-read-preview', filePath); },
   adobePreview:   function(filePath, quality) { return ipcRenderer.invoke('adobe-preview', filePath, quality); },
+  hdrPreview:     function(filePath, quality) { return ipcRenderer.invoke('hdr-preview', filePath, quality); },
   blenderStatus:  function() { return ipcRenderer.invoke('blender-status'); },
   blenderChoose:  function() { return ipcRenderer.invoke('blender-choose'); },
   blenderClear:   function() { return ipcRenderer.invoke('blender-clear'); },

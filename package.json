@@ -1,6 +1,6 @@
 {
   "name": "kanvaz",
-  "version": "9.2.0",
+  "version": "9.3.0",
   "description": "Reference Operating System — collect, organize, connect, and understand your references.",
   "private": true,
   "main": "src/main.js",
@@ -125,6 +125,36 @@
             "CFBundleTypeExtensions": ["psd", "psb", "ai", "xd", "indd", "indt"],
             "CFBundleTypeRole": "Viewer",
             "LSHandlerRank": "Alternate"
+          },
+          {
+            "CFBundleTypeName": "HDR/EXR Image",
+            "CFBundleTypeExtensions": ["hdr", "pic", "exr"],
+            "CFBundleTypeRole": "Viewer",
+            "LSHandlerRank": "Alternate"
+          },
+          {
+            "CFBundleTypeName": "ZBrush File",
+            "CFBundleTypeExtensions": ["ztl"],
+            "CFBundleTypeRole": "Viewer",
+            "LSHandlerRank": "Alternate"
+          },
+          {
+            "CFBundleTypeName": "Houdini Scene",
+            "CFBundleTypeExtensions": ["hip", "hipnc"],
+            "CFBundleTypeRole": "Viewer",
+            "LSHandlerRank": "Alternate"
+          },
+          {
+            "CFBundleTypeName": "Cinema 4D Project",
+            "CFBundleTypeExtensions": ["c4d"],
+            "CFBundleTypeRole": "Viewer",
+            "LSHandlerRank": "Alternate"
+          },
+          {
+            "CFBundleTypeName": "Maya Scene",
+            "CFBundleTypeExtensions": ["ma", "mb"],
+            "CFBundleTypeRole": "Viewer",
+            "LSHandlerRank": "Alternate"
           }
         ]
       }
@@ -159,7 +189,13 @@
         "image/vnd.adobe.photoshop",
         "application/vnd.adobe.illustrator",
         "application/vnd.adobe.xd",
-        "application/x-indesign"
+        "application/x-indesign",
+        "image/vnd.radiance",
+        "image/x-exr",
+        "application/x-zbrush",
+        "application/x-houdini",
+        "application/x-cinema4d",
+        "application/x-maya"
       ]
     },
     "nsis": {

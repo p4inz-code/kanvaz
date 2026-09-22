@@ -1023,6 +1023,15 @@ var KanvazCards = (function() {
       card.bgColor = null;
       card.animationPlaying = false;
       card.animationClip = 0;
+      /* 9.2.0 — an .obj's companion .mtl, found and embedded as text by
+         main.js's model-load handler (findCompanionMtl). Bug caught live:
+         this whitelist (same idea as buildFullCardRecord's own, a
+         SEPARATE list) didn't copy it from mediaResult either — the field
+         reached the renderer in the load result but never made it onto
+         the actual card object, so loadModelIntoScene's "if (card.mtlText)"
+         check never fired and every OBJ rendered with its default grey
+         material regardless of a real, correctly-found .mtl. */
+      card.mtlText = mediaResult.mtlText || null;
     }
 
     cards[id] = card;
@@ -1287,7 +1296,7 @@ var KanvazCards = (function() {
        with it — you don't want a big image preview's remembered size
        forcing a plain-icon .zip card to also default huge, or vice
        versa. */
-    var isPreviewable = isPdfPath(p) || isImagePath(p) || isTextPreviewPath(p) || isAdobePath(p);
+    var isPreviewable = isPdfPath(p) || isImagePath(p) || isTextPreviewPath(p) || isAdobePath(p) || isHdrPath(p);
     var size = isPreviewable ? sizeFor('file-preview', 340, 260) : sizeFor('file', 220, 90);
     var card = {
       id:       id,
@@ -1656,7 +1665,18 @@ var KanvazCards = (function() {
         card.path     = result.originalPath;
         card.naturalW = result.naturalW;
         card.naturalH = result.naturalH;
-        if (result.type === 'model3d') card.modelFormat = result.modelFormat;
+        if (result.type === 'model3d') {
+          card.modelFormat = result.modelFormat;
+          /* Bug-bounty fix: this is a third, independent field-copy list
+             (buildFullCardRecord and createFromMedia are the other two,
+             both already caught missing new card fields this session) —
+             missed here too. Without it, Relinking an .obj to a DIFFERENT
+             file kept card.modelFormat === 'obj' (so the 'obj' loader
+             branch still runs) while card.mtlText stayed the PREVIOUS
+             file's material text, silently applying a stale, unrelated
+             material to the newly relinked model. */
+          card.mtlText = result.mtlText || null;
+        }
 
         var el = document.getElementById(id);
         if (el) {
@@ -3119,7 +3139,22 @@ var KanvazCards = (function() {
     xls:  ['xls', 'xlsx', 'csv', 'ods'],
     ppt:  ['ppt', 'pptx', 'odp'],
     code: ['js', 'ts', 'py', 'json', 'html', 'css', 'c', 'cpp', 'rs', 'go', 'java'],
-    text: ['txt', 'md']
+    text: ['txt', 'md'],
+    /* 9.2.0 — recognized-but-unsupported 3D pipeline formats (see
+       openable-types.js's own comment on the same list): a real group
+       label reads better than the generic "any short extension" fallback
+       below, and keeps this consistent with how every other listed
+       format's badge is a group name, not a bare extension. */
+    zbrush:  ['ztl'],
+    houdini: ['hip', 'hipnc'],
+    maya:    ['ma', 'mb']
+    /* .c4d deliberately has no entry here: the fallback below already
+       prints "C4D" (a short, real-looking badge) for any <=4-char
+       extension with no group match. A "cinema4d" entry would only make
+       that badge worse — "CINEMA4D" instead of "C4D" — for no benefit,
+       unlike zbrush/houdini/maya above where the group name IS the
+       better badge over the bare extension ("ZTL"/"HIP"/"MA" read as
+       less real than "ZBRUSH"/"HOUDINI"/"MAYA"). */
   };
 
   function fileIconLabel(path) {
@@ -3170,6 +3205,12 @@ var KanvazCards = (function() {
      can actually be drawn. */
   function isAdobePath(p) {
     return /\.(psd|psb|ai|xd|indd|indt|fresco)$/i.test((p || '').trim());
+  }
+
+  /* 9.2.0 — Radiance HDR (.hdr/.pic) and OpenEXR (.exr): matches
+     hdr-preview.js's own EXTENSIONS list. */
+  function isHdrPath(p) {
+    return /\.(hdr|pic|exr)$/i.test((p || '').trim());
   }
 
   /* Text-like files that get a rendered in-card preview (main.js's
@@ -3530,6 +3571,57 @@ var KanvazCards = (function() {
     });
   }
 
+  /* In-card preview for a Radiance HDR / OpenEXR file. main.js decodes and
+     tone-maps it down to a normal PNG (hdr-preview.js — auto-exposure +
+     Reinhard, not colour-managed, see that module's own comment); shown
+     the same way an Adobe preview is, including the same quality control
+     and "no preview possible" fallback text for a compression scheme this
+     round doesn't decode (PIZ/ZIP/etc. on an .exr). */
+  function buildHdrPreview(el, card) {
+    var wrap = document.createElement('div');
+    wrap.className = 'file-image-preview';
+
+    var statusEl = document.createElement('div');
+    statusEl.className = 'pdf-status';
+    statusEl.textContent = 'Loading preview…';
+    wrap.appendChild(statusEl);
+
+    var img = document.createElement('img');
+    img.style.display = 'none';
+    img.draggable = false;
+    wrap.appendChild(img);
+
+    var noteEl = document.createElement('div');
+    noteEl.className = 'file-preview-note';
+    noteEl.style.display = 'none';
+    wrap.appendChild(noteEl);
+
+    el.appendChild(wrap);
+
+    if (typeof KanvazBridge === 'undefined' || !KanvazBridge.hdrPreview) return;
+    KanvazBridge.hdrPreview(card.path, currentPreviewQuality(card)).then(function(res) {
+      if (!document.body.contains(el)) return; /* card deleted while loading */
+      if (!res || !res.ok || !res.dataUrl) {
+        statusEl.textContent = (res && res.reason) || 'No preview available for this file.';
+        statusEl.classList.add('file-preview-reason');
+        return;
+      }
+      img.src = res.dataUrl;
+      img.onload = function() {
+        statusEl.style.display = 'none';
+        img.style.display = '';
+        var bits = [];
+        if (res.width && res.height) bits.push(res.width + ' × ' + res.height + ' px');
+        if (res.note) bits.push(res.note);
+        if (bits.length) { noteEl.textContent = bits.join(' · '); noteEl.title = noteEl.textContent; noteEl.style.display = ''; }
+      };
+      img.onerror = function() { statusEl.textContent = 'Could not show the preview image'; };
+    }).catch(function(e) {
+      if (!document.body.contains(el)) return;
+      statusEl.textContent = 'Could not preview this file: ' + e.message;
+    });
+  }
+
   /* Rendered text preview for a file-ref card ("text files must come in a
      side window in the canvas with text rendered"). Same contract as the
      PDF/image previews: read fresh per render, never persisted onto the
@@ -3608,6 +3700,9 @@ var KanvazCards = (function() {
     } else if (isAdobePath(card.path)) {
       el.classList.add('has-file-preview');
       buildAdobePreview(el, card);
+    } else if (isHdrPath(card.path)) {
+      el.classList.add('has-file-preview');
+      buildHdrPreview(el, card);
     }
 
     var body = document.createElement('div');
@@ -3699,6 +3794,10 @@ var KanvazCards = (function() {
       if (existingPreview) existingPreview.remove();
       el.classList.add('has-file-preview');
       buildAdobePreview(el, card);
+    } else if (isHdrPath(card.path)) {
+      if (existingPreview) existingPreview.remove();
+      el.classList.add('has-file-preview');
+      buildHdrPreview(el, card);
     } else if (existingPreview) {
       el.classList.remove('has-file-preview');
       existingPreview.remove();
@@ -3783,6 +3882,7 @@ var KanvazCards = (function() {
         import('./vendor/three/three.module.js'),
         import('./vendor/three/loaders/GLTFLoader.js'),
         import('./vendor/three/loaders/OBJLoader.js'),
+        import('./vendor/three/loaders/MTLLoader.js'),
         import('./vendor/three/loaders/FBXLoader.js'),
         import('./vendor/three/loaders/STLLoader.js'),
         import('./vendor/three/loaders/PLYLoader.js'),
@@ -3794,13 +3894,14 @@ var KanvazCards = (function() {
           THREE:          mods[0],
           GLTFLoader:     mods[1].GLTFLoader,
           OBJLoader:      mods[2].OBJLoader,
-          FBXLoader:      mods[3].FBXLoader,
-          STLLoader:      mods[4].STLLoader,
-          PLYLoader:      mods[5].PLYLoader,
-          VOXLoader:      mods[6].VOXLoader,
-          buildVoxMesh:   mods[6].buildMesh,
-          USDLoader:      mods[7].USDLoader,
-          OrbitControls:  mods[8].OrbitControls
+          MTLLoader:      mods[3].MTLLoader,
+          FBXLoader:      mods[4].FBXLoader,
+          STLLoader:      mods[5].STLLoader,
+          PLYLoader:      mods[6].PLYLoader,
+          VOXLoader:      mods[7].VOXLoader,
+          buildVoxMesh:   mods[7].buildMesh,
+          USDLoader:      mods[8].USDLoader,
+          OrbitControls:  mods[9].OrbitControls
         };
       });
     }
@@ -3890,6 +3991,27 @@ var KanvazCards = (function() {
         }, onError);
       } else if (format === 'obj') {
         var objLoader = new three.OBJLoader();
+        /* 9.2.0 — a companion .mtl (found and embedded as text at import
+           time by main.js's model-load handler; see findCompanionMtl's own
+           comment there for why texture maps it references are never
+           resolved). MTLLoader.setMaterials() on the OBJLoader before
+           parsing is the documented three.js pairing — same
+           local-only LoadingManager as every other loader here, so any
+           map_Kd/map_Ks etc. texture reference is rewritten to an empty
+           data URL instead of attempting to fetch it from anywhere. A
+           malformed .mtl fails parse() and is caught below; the OBJ still
+           loads with its default material rather than failing the whole
+           card. */
+        if (card.mtlText) {
+          try {
+            var mtlLoader = new three.MTLLoader(makeLocalOnlyLoadingManager(three));
+            var materials = mtlLoader.parse(card.mtlText, '');
+            materials.preload();
+            objLoader.setMaterials(materials);
+          } catch (e) {
+            console.warn('[Kanvaz] .mtl parse failed, using default material:', e.message);
+          }
+        }
         var obj = objLoader.parse(model3dDataToText(card.dataUrl));
         onLoad(obj, []);
       } else if (format === 'fbx') {
@@ -5983,7 +6105,20 @@ var KanvazCards = (function() {
          side effects of its own. */
       highlighted:  c.highlighted  || false,
       /* v6.4.0 */
-      sharedId:     c.sharedId     || null
+      sharedId:     c.sharedId     || null,
+      /* 9.2.0 — per-card preview-quality override (Properties). Bug caught
+         before shipping any further: this field was written by
+         properties.js and read live by cards.js/main.js, but never added
+         here — every override would have been silently dropped on the
+         very next save/reload, since this function is the actual
+         whitelist of what persists (dataUrl and everything else above
+         only survives because it's listed; nothing here is automatic). */
+      previewQuality: c.previewQuality || null,
+      /* 9.2.0 — an .obj's companion .mtl, embedded as plain text at import
+         time (see main.js's findCompanionMtl) so the card stays
+         self-contained like every other embedded model, no live file
+         access needed to re-render it later. */
+      mtlText: c.mtlText || null
     };
   }
 
@@ -7133,6 +7268,7 @@ var KanvazCards = (function() {
     isPdfPath: isPdfPath,
     rebuildFileCardPreview: rebuildFileCardPreview,
     isAdobePath: isAdobePath,
+    isHdrPath: isHdrPath,
     createPluginCard: createPluginCard,
     generateTestCards: generateTestCards,
     selectCard:        selectCard,

@@ -44,7 +44,28 @@ var GROUPS = {
   blender: { name: 'Blender File',    exts: ['blend'], mimes: ['application/x-blender'] },
   pdf:    { name: 'PDF Document',     exts: ['pdf'], mimes: ['application/pdf'] },
   adobe:  { name: 'Adobe File',       exts: ['psd', 'psb', 'ai', 'xd', 'indd', 'indt'],
-            mimes: ['image/vnd.adobe.photoshop', 'application/vnd.adobe.illustrator', 'application/vnd.adobe.xd', 'application/x-indesign'] }
+            mimes: ['image/vnd.adobe.photoshop', 'application/vnd.adobe.illustrator', 'application/vnd.adobe.xd', 'application/x-indesign'] },
+  /* 9.2.0 — Radiance HDR/.pic and OpenEXR: real in-card previews
+     (hdr-preview.js — tone-mapped, not a colour-managed viewer; some EXR
+     compression methods aren't decoded yet, see that module's own
+     comment), same "real preview" tier as Adobe/PDF above. */
+  hdr:    { name: 'HDR/EXR Image',    exts: ['hdr', 'pic', 'exr'],
+            mimes: ['image/vnd.radiance', 'image/x-exr'] },
+  /* 9.2.0 — recognized but no in-card preview: none of these four have a
+     command-line/headless export the way Blender does (see .blend's own
+     handling in main.js/blender-detect.js), so there is no path to a real
+     preview the way PSD/PDF/glTF get one. They still get "Open with
+     Kanvaz" and a real file-type label/icon instead of a generic unknown-
+     file badge — a VFX/game pipeline where Kanvaz is used lives among
+     these formats daily, and "recognized, opens with the default app" is
+     honest and still useful even with zero preview. Dropped or opened,
+     they land as an ordinary file-reference card (createFileRefCardAtPath
+     doesn't care what extension it's given) — nothing card-type-specific
+     to build for them. */
+  zbrush:   { name: 'ZBrush File',       exts: ['ztl'], mimes: ['application/x-zbrush'] },
+  houdini:  { name: 'Houdini Scene',     exts: ['hip', 'hipnc'], mimes: ['application/x-houdini'] },
+  cinema4d: { name: 'Cinema 4D Project', exts: ['c4d'], mimes: ['application/x-cinema4d'] },
+  maya:     { name: 'Maya Scene',        exts: ['ma', 'mb'], mimes: ['application/x-maya'] }
 };
 
 var MAX_FILES_PER_LAUNCH = 50;

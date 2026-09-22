@@ -315,6 +315,21 @@ if (fs.existsSync(path.join(__dirname, 'preview-quality-test.js'))) {
   console.log('  (skipped — test/preview-quality-test.js missing)');
 }
 
+/* 5o. HDR/EXR previews — Radiance RGBE and OpenEXR (NONE/RLE) decoding, tone-mapping, downscale */
+section('5o. HDR/EXR previews');
+if (fs.existsSync(path.join(__dirname, 'hdr-preview-test.js'))) {
+  try {
+    var hdrOut = cp.execSync('node "' + path.join(__dirname, 'hdr-preview-test.js') + '"', { encoding: 'utf8', timeout: 30000 });
+    if (/ALL HDR\/EXR PREVIEW TESTS PASSED/.test(hdrOut)) ok('real spec-built HDR (RLE) and EXR (NONE + RLE) files round-trip correctly; unsupported EXR compression and malformed files are refused with a clear reason; tone-mapping and downscale stay in range');
+    else { bad('hdr/exr preview test failed'); console.log(hdrOut); }
+  } catch (e) {
+    bad('hdr/exr preview test crashed');
+    console.log(e.stdout || e.message);
+  }
+} else {
+  console.log('  (skipped — test/hdr-preview-test.js missing)');
+}
+
 /* 6. Command registry — registration validation, palette filtering, fuzzy match */
 section('6. Command registry');
 if (fs.existsSync(path.join(__dirname, 'command-registry-test.js'))) {
