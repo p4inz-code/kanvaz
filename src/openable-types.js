@@ -57,16 +57,26 @@ function isOpenable(p) { return ALL.indexOf(extOf(p)) !== -1; }
    skipped. At most MAX_FILES_PER_LAUNCH are returned. */
 function filesFromArgv(argv, cwd, exists) {
   var out = [];
+  var seen = Object.create(null);   /* case-folded on Windows, so a path handed to us twice with different casing (a shortcut vs. a second-instance re-send, say) is still one card, not two */
   var isFile = exists || function(p) { try { return require('fs').statSync(p).isFile(); } catch (e) { return false; } };
   for (var i = 0; i < argv.length && out.length < MAX_FILES_PER_LAUNCH; i++) {
     var a = argv[i];
     if (typeof a !== 'string' || !a || a.charAt(0) === '-') continue;
     if (/^[\\/]{2}/.test(a)) continue;                       /* UNC / device path */
+    /* NTFS alternate data streams: "photo.png:payload.exe" reads as an
+       innocent-looking basename via path.extname, but resolves through
+       fs.statSync/readFileSync to a hidden stream that can hold anything —
+       same reasoning as path-guard.js's checkOpenable, applied here too
+       since this path never goes through that check. */
+    if (process.platform === 'win32' && a.indexOf(':', 2) !== -1) continue;
     if (!isOpenable(a)) continue;
     var abs = path.resolve(cwd || process.cwd(), a);
     if (!pathGuard.isLocalAbsolutePath(abs)) continue;
     if (!isFile(abs)) continue;
-    if (out.indexOf(abs) === -1) out.push(abs);
+    var key = process.platform === 'win32' ? abs.toLowerCase() : abs;
+    if (seen[key]) continue;
+    seen[key] = true;
+    out.push(abs);
   }
   return out;
 }
