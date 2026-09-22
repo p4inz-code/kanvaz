@@ -69,6 +69,7 @@ try {
 } catch (e) {
   autoUpdater = null;
 }
+var AutoUpdateSupport = require('./auto-update-support');
 
 var mainWindow = null;
 /* Kanvaz Link connector (see link-controller.js). Created after the window;
@@ -1922,7 +1923,44 @@ function registerIPC() {
   /* ── IPC: Auto-updater ── */
 
   ipcMain.on('check-for-updates', function() {
-    if (autoUpdater && app.isPackaged) autoUpdater.checkForUpdates();
+    if (!mainWindow) return;
+
+    /* Dev/unbuilt checkout, or electron-updater missing entirely — say
+       so immediately instead of leaving the About screen on "Checking…"
+       forever (nothing else would ever answer it). */
+    if (!autoUpdater || !app.isPackaged) {
+      mainWindow.webContents.send('update-unsupported', { reason: 'dev' });
+      return;
+    }
+
+    /* Portable Windows exe / unsigned mac build: the real download-and-
+       install path can't work here (see auto-update-support.js) — tell
+       the user right away, pointing them at the release page instead,
+       rather than firing a check that will only error or hang. */
+    var support = AutoUpdateSupport.supportFor(process.platform, !!process.env.PORTABLE_EXECUTABLE_FILE);
+    if (!support.ok) {
+      mainWindow.webContents.send('update-unsupported', { reason: support.reason });
+      return;
+    }
+
+    clearUpdateCheckTimer();
+    updateCheckTimer = setTimeout(function() {
+      updateCheckTimer = null;
+      if (mainWindow) mainWindow.webContents.send('update-error', { message: 'Timed out contacting GitHub — check your connection and try again' });
+    }, 15000);
+
+    try {
+      var pending = autoUpdater.checkForUpdates();
+      if (pending && typeof pending.catch === 'function') {
+        pending.catch(function(err) {
+          clearUpdateCheckTimer();
+          if (mainWindow) mainWindow.webContents.send('update-error', { message: AutoUpdateSupport.friendlyError(err) });
+        });
+      }
+    } catch (err) {
+      clearUpdateCheckTimer();
+      mainWindow.webContents.send('update-error', { message: AutoUpdateSupport.friendlyError(err) });
+    }
   });
 
   /* Audit fix: autoDownload used to be true, so a newer version started
@@ -2843,7 +2881,26 @@ function registerIPC() {
    IPC handler, which only fires when the user clicks the button. Once
    they've asked, autoDownload quietly finishes the job in the background
    and installs only on their explicit "Restart & Install" — never a
-   surprise relaunch while someone's mid-edit. */
+   surprise relaunch while someone's mid-edit.
+
+   Usability fix (2026-09-22): the click used to fire two independent
+   checks — this real one, and a second raw GitHub-API fetch from the
+   renderer (ui.js) that answered fast — with no listener at all for
+   electron-updater's own 'checking-for-update' / 'update-not-available'
+   events and no timeout on the network call. The renderer's fast path
+   would already say "you're up to date" and the user would move on,
+   then this slower path could pop an "Update available" dialog out of
+   nowhere up to a minute later, or hang silently forever with no
+   listener ever telling it to stop. Fixed by making this the ONE path:
+   every outcome (checking / available / not available / error) is now
+   forwarded to the renderer, a 15s ceiling guarantees one of them always
+   fires, and the renderer's own manual fetch is gone (see ui.js). */
+var updateCheckTimer = null;
+
+function clearUpdateCheckTimer() {
+  if (updateCheckTimer) { clearTimeout(updateCheckTimer); updateCheckTimer = null; }
+}
+
 function wireAutoUpdaterEvents() {
   if (!autoUpdater) return;
 
@@ -2851,28 +2908,22 @@ function wireAutoUpdaterEvents() {
      the instant a newer version was found, with no way to say no. Now
      the renderer asks the user first (see app.js's 'update-available'
      handler) and only calls the new 'download-update' IPC (above) once
-     they've actually said yes.
-
-     Also: electron-builder's win.target here builds BOTH nsis and
-     portable — only the NSIS installer is auto-updatable at all
-     (electron-updater has no concept of a portable Windows build; there
-     is no installed copy for quitAndInstall() to silently replace).
-     Live-tested this session: running the PORTABLE .exe still found and
-     "downloaded" an update and offered "Restart & Install" as if it
-     were the installed build — misleading, since there's no well-defined
-     in-place update for a portable exe to apply. isPortable below is
-     electron-builder's own documented signal (the portable launcher sets
-     this env var on the process it spawns) — when true, the renderer
-     skips the auto-download option entirely and only offers the release
-     page link. */
+     they've actually said yes. */
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
-  var isPortable = !!process.env.PORTABLE_EXECUTABLE_FILE;
+
+  autoUpdater.on('checking-for-update', function() {
+    if (mainWindow) mainWindow.webContents.send('checking-for-update');
+  });
 
   autoUpdater.on('update-available', function(info) {
-    if (mainWindow) {
-      mainWindow.webContents.send('update-available', { version: info && info.version, isPortable: isPortable });
-    }
+    clearUpdateCheckTimer();
+    if (mainWindow) mainWindow.webContents.send('update-available', { version: info && info.version });
+  });
+
+  autoUpdater.on('update-not-available', function() {
+    clearUpdateCheckTimer();
+    if (mainWindow) mainWindow.webContents.send('update-not-available');
   });
 
   /* Progress feedback during the download itself (4.9.0) — the flow
@@ -2893,9 +2944,9 @@ function wireAutoUpdaterEvents() {
   });
 
   autoUpdater.on('error', function(err) {
-    /* Check failures (no internet, feed unreachable, etc.) are expected
-       and shouldn't interrupt the user — log only. */
+    clearUpdateCheckTimer();
     console.error('[Kanvaz] auto-updater error:', err ? err.message : err);
+    if (mainWindow) mainWindow.webContents.send('update-error', { message: AutoUpdateSupport.friendlyError(err) });
   });
 }
 

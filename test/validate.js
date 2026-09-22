@@ -270,6 +270,36 @@ if (fs.existsSync(path.join(__dirname, 'model3d-modes-test.js'))) {
   console.log('  (skipped — test/model3d-modes-test.js missing)');
 }
 
+/* 5l. Platform labels — Mac/Linux/Windows shortcut wording and modifier keys */
+section('5l. Platform labels (Mac/Linux shortcut wording)');
+if (fs.existsSync(path.join(__dirname, 'platform-test.js'))) {
+  try {
+    var plOut = cp.execSync('node "' + path.join(__dirname, 'platform-test.js') + '"', { encoding: 'utf8', timeout: 30000 });
+    if (/ALL PLATFORM TESTS PASSED/.test(plOut)) ok('Apple modifier glyphs on mac, Ctrl elsewhere; mac window flags correct');
+    else { bad('platform test failed'); console.log(plOut); }
+  } catch (e) {
+    bad('platform test crashed');
+    console.log(e.stdout || e.message);
+  }
+} else {
+  console.log('  (skipped — test/platform-test.js missing)');
+}
+
+/* 5m. Auto-update support — platform rules (Windows/Linux real update, portable/mac fall back) and error wording */
+section('5m. Auto-update support (Check for updates flow)');
+if (fs.existsSync(path.join(__dirname, 'auto-update-support-test.js'))) {
+  try {
+    var auOut = cp.execSync('node "' + path.join(__dirname, 'auto-update-support-test.js') + '"', { encoding: 'utf8', timeout: 30000 });
+    if (/ALL AUTO-UPDATE SUPPORT TESTS PASSED/.test(auOut)) ok('installed Windows + Linux get the real check; portable/mac fall back to the release page; error text is plain-language');
+    else { bad('auto-update support test failed'); console.log(auOut); }
+  } catch (e) {
+    bad('auto-update support test crashed');
+    console.log(e.stdout || e.message);
+  }
+} else {
+  console.log('  (skipped — test/auto-update-support-test.js missing)');
+}
+
 /* 6. Command registry — registration validation, palette filtering, fuzzy match */
 section('6. Command registry');
 if (fs.existsSync(path.join(__dirname, 'command-registry-test.js'))) {
