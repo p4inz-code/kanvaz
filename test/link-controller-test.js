@@ -243,6 +243,96 @@ async function run() {
   c4.close();
   await new Promise(function(res) { ctl4.stop(res); });
   console.log('  ✓ a page reload pauses delivery until the renderer is ready again');
+
+  /* a hostile client name cannot pollute Object.prototype: consent is kept
+     in null-prototype maps (Object.create(null)) keyed by the lower-cased
+     name specifically so "__proto__" is an ordinary entry, never a write
+     through the prototype chain. */
+  var dir5 = path.join(TMP, 'k5'); fs.mkdirSync(dir5);
+  var f5 = fakes(0);
+  var ctl5 = await startCtl(dir5, f5);
+  var i5 = discovery(dir5);
+  var c5 = await connect(i5.endpoint);
+  await c5.send({ token: i5.token, id: 1, method: 'hello', nonce: nonce, client: { name: '__proto__' } });
+  await until(function() { return f5.dialogs.length === 1; }, 'dialog for __proto__');
+  await sleep(100);
+  var h5 = await c5.send({ token: i5.token, id: 2, method: 'hello', nonce: nonce, client: { name: '__proto__' } });
+  assert.strictEqual(h5.consent, 'granted', '"__proto__" as a name is treated like any other string');
+  assert.strictEqual(({}).polluted, undefined, 'Object.prototype was never touched');
+  assert(!Object.prototype.hasOwnProperty.call({}, 'polluted'), 'plain objects remain unaffected');
+  await c5.send({ token: i5.token, id: 3, method: 'hello', nonce: nonce, client: { name: 'constructor' } });
+  await until(function() { return f5.dialogs.length === 2; }, 'dialog for constructor');
+  await sleep(100);
+  var stt5 = await f5.handlers['link-get-status'](f5.fromWin);
+  var names5 = stt5.clients.map(function(c) { return c.name; }).sort();
+  assert.deepStrictEqual(names5, ['__proto__', 'constructor'], 'both are stored as ordinary, independent entries');
+  c5.close();
+  await new Promise(function(res) { ctl5.stop(res); });
+  console.log('  ✓ a client named "__proto__" or "constructor" is just a string key, never touches Object.prototype');
+
+  /* name-variant spoofing: casing/whitespace/hidden characters must not let
+     a denied program back in under a "different" name, and must not split
+     one program's consent across several dialog prompts. */
+  var dir6 = path.join(TMP, 'k6'); fs.mkdirSync(dir6);
+  var f6 = fakes(2);   /* 2 = don't allow */
+  var ctl6 = await startCtl(dir6, f6);
+  var i6 = discovery(dir6);
+  var c6a = await connect(i6.endpoint);
+  await c6a.send({ token: i6.token, id: 1, method: 'hello', nonce: nonce, client: { name: 'Kanvaz Link for Blender' } });
+  await until(function() { return f6.dialogs.length === 1; }, 'first dialog');
+  await sleep(100);
+  assert.strictEqual(ctl6._config().consent['kanvaz link for blender'], 'denied', 'denied under the normalised name');
+  var c6b = await connect(i6.endpoint);
+  var spoof = await c6b.send({ token: i6.token, id: 2, method: 'hello', nonce: nonce, client: { name: '  KANVAZ LINK   FOR BLENDER  ' } });
+  assert.strictEqual(spoof.consent, 'denied', 'a case/whitespace variant of a denied name is still denied');
+  assert.strictEqual(f6.dialogs.length, 1, 'no second prompt for a variant of an already-answered name');
+  c6a.close(); c6b.close();
+  await new Promise(function(res) { ctl6.stop(res); });
+  console.log('  ✓ name variants (case, whitespace) share one consent answer and cannot re-prompt or bypass a denial');
+
+  /* consent flood cap: a stream of distinct client names must not grow the
+     remembered list without bound — trimConsent() keeps it at
+     MAX_CLIENTS_REMEMBERED (20), dropping denials first. */
+  var dir7 = path.join(TMP, 'k7'); fs.mkdirSync(dir7);
+  var f7 = fakes(2);   /* 2 = don't allow, so every flood entry is a denial */
+  var ctl7 = await startCtl(dir7, f7);
+  var i7 = discovery(dir7);
+  for (var fl = 0; fl < 30; fl++) {
+    var cf = await connect(i7.endpoint);
+    var nonceF = crypto.randomBytes(16).toString('hex');
+    await cf.send({ token: i7.token, id: 1, method: 'hello', nonce: nonceF, client: { name: 'flood-client-' + fl } });
+    await until((function(n) { return function() { return f7.dialogs.length === n; }; })(fl + 1), 'flood dialog ' + fl);
+    await sleep(20);
+    cf.close();
+  }
+  var keys7 = Object.keys(ctl7._config().consent);
+  assert(keys7.length <= 20, 'the remembered consent list never exceeds MAX_CLIENTS_REMEMBERED (has ' + keys7.length + ')');
+  assert(fs.existsSync(path.join(dir7, 'link-config.json')), 'trimmed list is still persisted');
+  var onDisk7 = JSON.parse(fs.readFileSync(path.join(dir7, 'link-config.json'), 'utf8')).consent;
+  assert(Object.keys(onDisk7).length <= 20, 'the file on disk is bounded too');
+  await new Promise(function(res) { ctl7.stop(res); });
+  console.log('  ✓ consent flood: 30 distinct clients never push the remembered list past 20');
+
+  /* overlapping start(): two callers racing to start the same controller
+     (e.g. the app.js init path firing twice) must not split the token from
+     the listener or leave it half-started. */
+  var dir8 = path.join(TMP, 'k8'); fs.mkdirSync(dir8);
+  var f8 = fakes(0);
+  var ctl8 = lc.createLinkController({ dataDir: dir8, appVersion: '9.9.9', dialog: f8.dialog, ipcMain: f8.ipcMain, log: function() {} });
+  ctl8.attachWindow(f8.win);
+  var results8 = await Promise.all([
+    new Promise(function(res) { ctl8.start(function(e) { res(e || null); }); }),
+    new Promise(function(res) { ctl8.start(function(e) { res(e || null); }); })
+  ]);
+  assert(results8[0] === null && results8[1] === null, 'both overlapping start() calls report success, neither errors');
+  assert(ctl8.isRunning(), 'the controller ends up running');
+  var i8 = discovery(dir8);
+  var c8 = await connect(i8.endpoint);
+  var pong8 = await c8.send({ token: i8.token, id: 1, method: 'ping' });
+  assert.strictEqual(pong8.pong, true, 'the token that was written matches the listener that is actually running');
+  c8.close();
+  await new Promise(function(res) { ctl8.stop(res); });
+  console.log('  ✓ overlapping start() calls never split the token from the listener');
 }
 
 run().then(function() {

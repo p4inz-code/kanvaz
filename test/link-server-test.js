@@ -52,6 +52,21 @@ function partOne() {
   });
   console.log('  ✓ token required on every request; only hello/deliver/status/ping exist');
 
+  /* normalizeName: the same safety net the consent dialog and consent
+     store both rely on — two names that look the same to a person must
+     come out identical, so a denied program cannot sneak back in as
+     "Name ", "name", or with a hidden formatting character. */
+  assert.strictEqual(ls.normalizeName('Kanvaz Link for Blender'), 'Kanvaz Link for Blender', 'ordinary name passes through');
+  assert.strictEqual(ls.normalizeName('  Kanvaz Link   for Blender  '), 'Kanvaz Link for Blender', 'whitespace collapsed and trimmed');
+  assert.strictEqual(ls.normalizeName('Kanvaz​Link​for​Blender'), 'KanvazLinkforBlender', 'zero-width joiners stripped');
+  assert.strictEqual(ls.normalizeName('Kanvaz\u0000Link\u001fBlender'), 'KanvazLinkBlender', 'control characters stripped');
+  assert.strictEqual(ls.normalizeName('‮Kanvaz'), 'Kanvaz', 'bidi override stripped');
+  assert.strictEqual(ls.normalizeName('x'.repeat(200)), 'x'.repeat(64), 'capped at 64 characters');
+  assert.strictEqual(ls.normalizeName(''), 'unknown client', 'empty name falls back');
+  assert.strictEqual(ls.normalizeName(42), 'unknown client', 'non-string falls back');
+  assert.strictEqual(ls.normalizeName(null), 'unknown client', 'null falls back');
+  console.log('  ✓ normalizeName: whitespace/control/bidi/zero-width stripped, length capped, non-strings fall back');
+
   /* hello */
   assert.strictEqual(p.handle({ token: TOKEN, id: 4, method: 'hello' }).error, 'bad-request', 'hello needs a nonce');
   assert.strictEqual(p.handle({ token: TOKEN, id: 4, method: 'hello', nonce: 'nothex!!nothex!!' }).error, 'bad-request', 'non-hex nonce refused');
@@ -261,6 +276,31 @@ async function partTwo() {
   });
   if (!W) assert(!fs.existsSync(endpoint), 'the socket file is removed on stop');
   console.log('  ✓ stop closes the listener' + (W ? '' : ' and removes the socket'));
+
+  /* auth timeout: a connection that never proves it has the token must not
+     be able to sit on one of the (few) connection slots forever — it gets
+     dropped after authTimeoutMs regardless of the idle timer, which only
+     starts counting once a request has actually authenticated. */
+  var endpoint2 = ls.defaultEndpoint(process.platform, TMP) + '2';
+  var t2 = deps(); t2.state.consent = 'granted';
+  var srv2 = ls.createServer({ endpoint: endpoint2, deps: t2.deps, authTimeoutMs: 200 });
+  await new Promise(function(res, rej) { srv2.start(function(e) { e ? rej(e) : res(); }); });
+  var silent = await client(endpoint2);
+  assert(!silent.closed(), 'not dropped immediately');
+  await silent.waitClose();
+  assert(silent.closed(), 'a connection that never authenticates is dropped once authTimeoutMs elapses');
+  /* an authenticated connection is unaffected by the same deadline: it must
+     prove the token WITHIN the window (a ping right away), then survive
+     long past it. */
+  var real = await client(endpoint2);
+  var pingNow = await real.send({ token: TOKEN, id: 1, method: 'ping' });
+  assert.strictEqual(pingNow.pong, true, 'authenticates immediately');
+  await new Promise(function(r) { setTimeout(r, 250); });   /* past authTimeoutMs, but already authenticated */
+  var pingAfter = await real.send({ token: TOKEN, id: 2, method: 'ping' });
+  assert.strictEqual(pingAfter.pong, true, 'a client that authenticated before the deadline is never dropped for it');
+  real.sock.destroy();
+  await new Promise(function(res) { srv2.stop(res); });
+  console.log('  ✓ auth timeout: silent connections are dropped, authenticated ones are unaffected');
 }
 
 (async function() {
