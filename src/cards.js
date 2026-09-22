@@ -3227,10 +3227,25 @@ var KanvazCards = (function() {
      decoders in removeCardCore/clearAll. */
   var pdfPreviewDocs = {};
 
+  /* Card id -> a counter bumped every time a load starts or is disposed for
+     that id, so an in-flight load that's been superseded (delete-while-
+     loading then undo recreating the same id; rapid "Change file") can tell
+     it's stale and destroy itself instead of overwriting the current entry.
+     buildAdobePreview's PDF-compatible .ai path only reaches buildPdfPreview
+     after its own async IPC round-trip, so it races this way more easily
+     than a direct .pdf card does — same guard covers both since they share
+     this one function. */
+  var pdfPreviewGen = {};
+
   function disposePdfPreview(id) {
+    pdfPreviewGen[id] = (pdfPreviewGen[id] || 0) + 1;
     var doc = pdfPreviewDocs[id];
     if (!doc) return;
     delete pdfPreviewDocs[id];
+    if (typeof doc.destroy !== 'function') {
+      console.warn('[Kanvaz] pdf.js document dispose skipped: stored value for card ' + id + ' has no destroy() — was never a real pdf.js document.');
+      return;
+    }
     try { doc.destroy(); } catch (e) { console.warn('[Kanvaz] pdf.js document dispose failed:', e); }
   }
 
@@ -3358,6 +3373,14 @@ var KanvazCards = (function() {
       return;
     }
 
+    /* Claims this load as the current one for card.id — see pdfPreviewGen's
+       comment above. Bumped (not just read) here, not only in
+       disposePdfPreview(), so two buildPdfPreview() calls racing for the
+       same still-attached el (e.g. "Change file" fired twice before the
+       first load finishes) also resolve in favor of whichever started
+       last, instead of whichever's IPC round-trip happens to finish last. */
+    var myGen = (pdfPreviewGen[card.id] = (pdfPreviewGen[card.id] || 0) + 1);
+
     KanvazBridge.readPdfBytes(card.path).then(function(res) {
       if (!res || !res.ok) {
         statusEl.textContent = 'Could not read PDF: ' + ((res && res.error) || 'unknown error');
@@ -3368,7 +3391,20 @@ var KanvazCards = (function() {
         return lib.getDocument({ data: bytes }).promise;
       });
     }).then(function(doc) {
-      if (!document.body.contains(el)) { doc.destroy(); return; } /* card deleted while loading */
+      /* Stale if the card element was torn down (deleted, or a full
+         clearAll()/deserialise() rebuild from undo/redo) or if a newer
+         load for this same id has since started — either way this doc
+         must never enter pdfPreviewDocs, only be released right away. A
+         non-conforming resolved value (defensive: should always be a
+         real pdf.js PDFDocumentProxy, but never trust an async result
+         blindly) gets the same treatment instead of being stored. */
+      var stale = !document.body.contains(el) || pdfPreviewGen[card.id] !== myGen;
+      var isRealDoc = doc && typeof doc.destroy === 'function';
+      if (stale || !isRealDoc) {
+        if (isRealDoc) doc.destroy();
+        else if (doc) console.warn('[Kanvaz] pdf.js load for card ' + card.id + ' resolved with an unexpected object; not stored.');
+        return;
+      }
       state.doc = doc;
       pdfPreviewDocs[card.id] = doc;
       state.numPages = doc.numPages;
