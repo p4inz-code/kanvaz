@@ -1409,15 +1409,21 @@ function registerIPC() {
          it was writing. Left alone, these accumulate in the OS temp
          directory forever; every reject() here clears whatever is there
          first. */
-      function cleanupOutput() { try { fs.unlinkSync(outputGlbPath); } catch (e) { /* never existed */ } }
+      function cleanupOutput() { try { fs.unlinkSync(outputGlbPath); } catch (e) { /* never existed, or not released yet — see the timeout path below */ } }
       var stderr = '';
       var settled = false;
       var timer = setTimeout(function() {
         if (settled) return;
         settled = true;
         untrack();
-        try { proc.kill(); } catch (e) {}
-        cleanupOutput();
+        /* Killing the process does not release its open handle on
+           outputGlbPath instantly (measured on Windows especially) — an
+           unlink right here can lose the race and silently fail, which is
+           exactly the leak this function exists to prevent. proc.kill()
+           guarantees an eventual 'exit', so clean up there instead, once
+           the OS has actually confirmed the file handle is gone. */
+        proc.once('exit', cleanupOutput);
+        try { proc.kill(); } catch (e) { cleanupOutput(); }   /* already gone: no 'exit' coming, so clean up now */
         reject(new Error('Blender took longer than ' + (BLENDER_CONVERT_TIMEOUT_MS / 1000) + 's and was stopped'));
       }, BLENDER_CONVERT_TIMEOUT_MS);
       proc.stdout.on('data', function() { /* drain only — never read, never buffered */ });
@@ -2034,14 +2040,18 @@ function registerIPC() {
       if (mainWindow) mainWindow.webContents.send('update-error', { message: 'Timed out contacting GitHub — check your connection and try again' });
     }, 15000);
 
+    /* electron-updater both emits its own 'error' event AND rejects this
+       promise for the same failure (verified in electron-updater's own
+       AppUpdater.js) — wireAutoUpdaterEvents' autoUpdater.on('error', ...)
+       already forwards that as 'update-error' and clears the timer, so
+       nothing here needs to duplicate it. The rejection is still caught
+       (a bare .catch keeps Node from logging an unhandled-rejection
+       warning); only a SYNCHRONOUS throw from calling checkForUpdates()
+       itself — before electron-updater's own machinery could ever emit
+       'error' — needs its own path. */
     try {
       var pending = autoUpdater.checkForUpdates();
-      if (pending && typeof pending.catch === 'function') {
-        pending.catch(function(err) {
-          clearUpdateCheckTimer();
-          if (mainWindow) mainWindow.webContents.send('update-error', { message: AutoUpdateSupport.friendlyError(err) });
-        });
-      }
+      if (pending && typeof pending.catch === 'function') pending.catch(function() { /* handled via the 'error' event */ });
     } catch (err) {
       clearUpdateCheckTimer();
       mainWindow.webContents.send('update-error', { message: AutoUpdateSupport.friendlyError(err) });

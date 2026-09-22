@@ -3960,16 +3960,29 @@ var KanvazCards = (function() {
      items: { header:'Text' } | { label, title, active, disabled, run() }.
      Closes on outside click, Escape, or picking an item. */
   var model3dMenuEl = null;
+  var model3dMenuAnchor = null;   /* the button that opened it — lets a card's dispose() tell whether THIS menu is its own */
   function closeModel3DMenu() {
     if (model3dMenuEl && model3dMenuEl.parentNode) model3dMenuEl.parentNode.removeChild(model3dMenuEl);
     model3dMenuEl = null;
+    model3dMenuAnchor = null;
     document.removeEventListener('mousedown', model3dMenuOutside, true);
     document.removeEventListener('keydown', model3dMenuKey, true);
+  }
+  /* Bug-bounty fix (live-verified): this popup is a single module-global
+     element shared by every 3D card on the board, not one per card. A
+     card's dispose() used to call closeModel3DMenu() unconditionally, so
+     deleting/undoing 3D card A while an unrelated 3D card B's mode menu
+     happened to be open would snap B's menu shut with no interaction from
+     the user. Only close it here if the open menu actually belongs to the
+     card that's tearing down. */
+  function closeModel3DMenuIfOwnedBy(container) {
+    if (model3dMenuAnchor && container.contains(model3dMenuAnchor)) closeModel3DMenu();
   }
   function model3dMenuOutside(e) { if (model3dMenuEl && !model3dMenuEl.contains(e.target)) closeModel3DMenu(); }
   function model3dMenuKey(e) { if (e.key === 'Escape') { e.stopPropagation(); closeModel3DMenu(); } }
   function openModel3DMenu(anchor, items) {
     closeModel3DMenu();
+    model3dMenuAnchor = anchor;
     var menu = document.createElement('div');
     menu.className = 'model3d-menu';
     menu.addEventListener('mousedown', function(e) { e.stopPropagation(); });
@@ -4009,6 +4022,20 @@ var KanvazCards = (function() {
     document.addEventListener('keydown', model3dMenuKey, true);
   }
 
+  /* A Box3 is only trustworthy for camera math when every axis is finite —
+     min=+Infinity/max=-Infinity (no real geometry) is the documented empty
+     state, but a malformed/hostile accessor (a corrupt min/max on just the
+     Y or Z axis, say) can leave exactly one axis non-finite while the
+     others look fine. Checking only .x (an earlier version of this check,
+     here and at its two other call sites) allowed that through as
+     "finite enough," producing an Infinity/NaN camera near/far or position
+     that "Reset view" — which recomputes the very same box — cannot itself
+     recover from. */
+  function isFiniteBox(box) {
+    return isFinite(box.min.x) && isFinite(box.min.y) && isFinite(box.min.z) &&
+           isFinite(box.max.x) && isFinite(box.max.y) && isFinite(box.max.z);
+  }
+
   /* Frames the camera on the loaded object's bounding box — every load
      (and every "Reset view" click) starts from the same predictable
      framed shot. Camera orbit state is deliberately NOT persisted across
@@ -4026,7 +4053,7 @@ var KanvazCards = (function() {
        never renders anything and that "Reset view" (which calls this
        same function) can't recover from either. isFinite() catches both
        the NaN and Infinite cases the old falsy-check missed. */
-    if (!isFinite(box.min.x) || !isFinite(box.max.x)) {
+    if (!isFiniteBox(box)) {
       box.min.set(-0.5, -0.5, -0.5);
       box.max.set(0.5, 0.5, 0.5);
     }
@@ -4082,7 +4109,7 @@ var KanvazCards = (function() {
      a tiny one (edge 0.004) once it was restored by undo, rename or reload. */
   function fitClipPlanes(THREE, root, camera) {
     var box = new THREE.Box3().setFromObject(root);
-    if (!isFinite(box.min.x) || !isFinite(box.max.x)) return;
+    if (!isFiniteBox(box)) return;
     var maxDim = Math.max.apply(null, [box.max.x - box.min.x, box.max.y - box.min.y, box.max.z - box.min.z]) || 1;
     camera.near = Math.max(maxDim / 1000, 1e-6);
     camera.far = Math.max(maxDim * 200, 100);
@@ -4292,7 +4319,7 @@ var KanvazCards = (function() {
       model3dInstances[card.id] = {
         dispose: function() {
           disposed = true;
-          closeModel3DMenu();
+          closeModel3DMenuIfOwnedBy(el);
           isPlaying = false;
           if (rafId !== null) cancelAnimationFrame(rafId);
           resizeObserver.disconnect();
@@ -4419,7 +4446,7 @@ var KanvazCards = (function() {
       function setViewPreset(name) {
         if (disposed || !root || !VIEW_DIRS[name]) return;
         var box = new THREE.Box3().setFromObject(root);
-        if (!isFinite(box.min.x) || !isFinite(box.max.x)) return;
+        if (!isFiniteBox(box)) return;
         var size = box.getSize(new THREE.Vector3());
         var center = box.getCenter(new THREE.Vector3());
         var maxDim = Math.max(size.x, size.y, size.z) || 1;

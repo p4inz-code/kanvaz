@@ -102,11 +102,23 @@ function run() {
   var genNsis = require('../tools/gen-nsis-associations');
   var current = fs.readFileSync(genNsis.OUT_PATH, 'utf8');
   assert.strictEqual(current, genNsis.generate(), 'build/installer.nsh is stale — run node tools/gen-nsis-associations.js');
-  assert(!/Software\\\\Classes\\\\\.\$\{EXT\}"\s+""\s+"\$\{PROGID\}"/.test(current), 'the generated script must never write the extension\'s own default-handler key');
+
+  /* Bug-bounty fix: this assertion used to require two literal backslashes
+     ("\\\\") between path segments, but the real .nsh has one ("\") — the
+     regex could never match, so this never actually tested anything (empty
+     bodyContent... appending the real dangerous line and re-running still
+     passed). Self-test the pattern against a deliberately reintroduced
+     copy of the dangerous line first, so a future edit to the regex can't
+     silently go dead the same way again. */
+  var DEFAULT_HANDLER_LINE = /WriteRegStr\s+SHELL_CONTEXT\s+"Software\\Classes\\\.\$\{EXT\}"\s+""\s+"\$\{PROGID\}"/;
+  var reintroduced = current + '\n  WriteRegStr SHELL_CONTEXT "Software\\Classes\\.${EXT}" "" "${PROGID}"\n';
+  assert(DEFAULT_HANDLER_LINE.test(reintroduced), 'self-test: the pattern must actually catch the dangerous line when present');
+  assert(!DEFAULT_HANDLER_LINE.test(current), 'the generated script must never write the extension\'s own default-handler key');
+
   ot.ALL.forEach(function(e) {
     assert(new RegExp('KANVAZ_OPEN_WITH "' + e + '"').test(current), 'installer.nsh registers "Open with Kanvaz" for .' + e);
   });
-  console.log('  ✓ Windows: build/installer.nsh is in sync, registers every type for "Open with" only, never as the default');
+  console.log('  ✓ Windows: build/installer.nsh is in sync, registers every type for "Open with" only, never as the default (regex self-tested)');
 
   var mimes = pkg.build.linux.mimeTypes;
   Object.keys(ot.GROUPS).forEach(function(k) {

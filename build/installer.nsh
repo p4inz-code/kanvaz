@@ -53,6 +53,7 @@
 !macroend
 
 !macro customUnInstall
+  DeleteRegKey SHELL_CONTEXT "Software\Classes\.kanvaz"
   !insertmacro KANVAZ_OPEN_WITH_REMOVE "ai" "Kanvaz.Adobe"
   !insertmacro KANVAZ_OPEN_WITH_REMOVE "indd" "Kanvaz.Adobe"
   !insertmacro KANVAZ_OPEN_WITH_REMOVE "indt" "Kanvaz.Adobe"

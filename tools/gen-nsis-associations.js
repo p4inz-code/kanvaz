@@ -69,7 +69,15 @@ function generate() {
 
   var groupKeys = Object.keys(openable.GROUPS).sort();   /* stable order -> stable diffs */
   var installLines = ['!macro customInstall'];
-  var uninstallLines = ['!macro customUnInstall'];
+  /* electron-builder's own built-in APP_UNASSOCIATE (used for .kanvaz, the
+     one real fileAssociations entry) only removes the OpenWithProgids entry
+     and the ProgID key — verified live (install, inspect the registry,
+     uninstall, inspect again): Software\Classes\.kanvaz's own default value
+     is left pointing at that now-deleted ProgID. Not a hijack risk (.kanvaz
+     files just show a broken/generic icon until Windows re-associates them),
+     but a real leftover. Clean it up ourselves since this is the one
+     extension electron-builder's uninstaller doesn't fully cover. */
+  var uninstallLines = ['!macro customUnInstall', '  DeleteRegKey SHELL_CONTEXT "Software\\Classes\\.kanvaz"'];
   for (var gi = 0; gi < groupKeys.length; gi++) {
     var key = groupKeys[gi];
     var group = openable.GROUPS[key];
