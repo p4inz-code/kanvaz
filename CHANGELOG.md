@@ -169,6 +169,28 @@ real `.blend` and every card type built for the purpose, over two sessions.*
   case-fold dedupe, and checks `build/installer.nsh` is committed and in
   sync with `src/openable-types.js`.
 
+### Fixed (2026-09-23, final pass before release)
+- Blender export now warns in the log (`KANVAZ_TEXTURE_MISSING:`) when a
+  material references a texture Blender's sandboxed conversion process
+  can't reach (a UNC network path, most commonly) instead of silently
+  exporting it blank.
+- A `file://` URI in a launch argument (some Linux file managers/`xdg-open`
+  hand the app one instead of a plain path) is now decoded the same as a
+  bare path, on both the media and `.kanvaz`-board argv paths.
+- Launching with both a `.kanvaz` board and loose media now logs which
+  media files were ignored, instead of silently dropping them.
+- Fixed 6 findings from a same-session bug-bounty pass on the night's own
+  diff: a Blender-conversion-timeout temp-file cleanup that could lose a
+  race against the killed process's file handle; a regression-test regex
+  that could never match (so it never actually tested anything — now
+  self-tested against a deliberately reintroduced copy of the bug it
+  guards); a 3D-card bounding-box finite-check that only validated one
+  axis; the shared 3D mode-picker popup closing when an unrelated card
+  was deleted; a duplicate `update-error` IPC send for one failure; and
+  `.kanvaz`'s own default-handler registry key surviving an uninstall
+  (found via a real install → registry inspection → uninstall → registry
+  inspection pass, not just reasoning about the code).
+
 ### Known, not fixed (see `docs/ROADMAP.md` for the fuller list)
 - Materials built from procedural nodes (noise, gradients) have no image to
   export, so they come through as a flat colour.
