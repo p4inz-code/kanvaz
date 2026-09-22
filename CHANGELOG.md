@@ -2,10 +2,187 @@
 
 All notable changes to Kanvaz are documented here.
 
-## [Unreleased] — 3D render modes, Blender import fixes, clip picker
+## [9.1.0] — 2026-09-23 — 13 render modes, Kanvaz Link, Adobe previews, Open With, auto-update UX
 
-*Committed locally after 9.0.0, not released. Checked against the running app
-(Electron 44 dev run, scratch profile) with a real `.blend` built for the purpose.*
+*Checked against the running app (Electron 44 dev run, scratch profile) with a
+real `.blend` and every card type built for the purpose, over two sessions.*
+
+### Added (2026-09-22/23)
+- **13 render modes** (up from 6): Clay, Wire on Shaded, Normal Map, UV Grid,
+  Roughness, Metalness and Occlusion joined Shaded/Normals/Matcap/Wireframe/
+  Albedo/Alpha, grouped (Shading/Topology/Surface/Texture) in one picker with
+  unavailable modes greyed and reasoned ("no UV map", "no roughness texture").
+  Camera view presets (front/back/left/right/top/bottom) and a turntable
+  toggle live in the same picker.
+- **"Open with Kanvaz" from the OS** for every previewable type — Explorer's
+  right-click "Open with", macOS Finder, Linux file managers — not just
+  `.kanvaz` boards. `src/openable-types.js` is the single list every part of
+  this shares; `src/platform.js` gives Mac and Linux their own correct
+  shortcut wording (Apple notation on macOS) instead of Windows-only labels.
+- **Blender auto-detection** now checks the Windows registry, PATH, package
+  managers and every drive, not just `C:\Program Files\Blender Foundation`;
+  a manually-chosen Blender install is remembered across restarts.
+- Shader-compile-error fallback and WebGL context-loss recovery for 3D cards
+  (a crashed GPU driver used to leave the card permanently blank).
+- `tools/release-notes.js` fills a GitHub release's body from its matching
+  `CHANGELOG.md` section — used to patch v8.8.5, the one release out of 65
+  that actually shipped with an empty body.
+
+### Fixed (2026-09-22/23) — "Check for updates" was slow and confusing
+- The click used to fire two independent checks: a real `electron-updater`
+  one, and a second raw GitHub-API fetch that answered fast. Nothing
+  listened for `electron-updater`'s own "checking"/"not available" events
+  and the real check had no timeout — the fast path would already say
+  "you're up to date," the user would move on, and the slow path could pop
+  an "Update available" dialog out of nowhere up to a minute later, or hang
+  silently. Now there is one path: every outcome is forwarded over IPC, a
+  15-second ceiling guarantees one of them always fires, and the manual
+  fetch is gone.
+- **Mac/Windows parity:** the unsigned macOS build (no Apple Developer ID
+  yet) and the portable Windows `.exe` both get the same fast, honest
+  fallback — a direct link to the release page — instead of a check that
+  could only error or hang trying to auto-install where there's nothing to
+  replace.
+
+### Fixed (2026-09-22/23) — installer no longer hijacks Windows file defaults
+- `electron-builder`'s NSIS target ignores `role`/`rank` entirely (its own
+  docs call both macOS-only) and unconditionally sets every listed
+  extension's Windows *default* handler. Every previewable type — PNG, JPG,
+  MP4, MP3, PDF, PSD, GLB, `.blend`, etc. — was in that shared list, so
+  installing Kanvaz silently took over the default photo/video/audio/PDF
+  viewer from whatever the user already had, on every install. Only
+  `.kanvaz` (which really should be Kanvaz's own) is in `fileAssociations`
+  now; every other type is registered per platform in ways that cannot set
+  a default — macOS via its own `CFBundleDocumentTypes` (a real
+  `LSHandlerRank: Alternate` guarantee there), Windows via a generated NSIS
+  include (`build/installer.nsh`, from `tools/gen-nsis-associations.js`)
+  that only adds Kanvaz to `OpenWithProgids`. Linux was already independent
+  and never set a default.
+- Alternate-data-stream paths (`photo.png:payload.exe`) passed as a launch
+  argument are now refused, matching the same check the Kanvaz Link file
+  reader already had.
+- A launch argument ending in `.kanvaz` used to open even as part of a flag
+  (`--something=x.kanvaz`) — the `.kanvaz`-specific argv path lacked the
+  same "skip anything starting with `-`" guard `openable-types.js`'s own
+  filter already had.
+- macOS: all windows can close while Kanvaz keeps running; a Finder "Open
+  With" that arrived with none open queued the file, but clicking the dock
+  icon to reopen never delivered the queue — the new window opened with
+  nothing in it. Reactivating now drains it.
+- `.blend` → `.glb` conversion now runs one at a time instead of spawning a
+  full Blender process per concurrent request; every failure path (not just
+  the oversize case) now deletes its partial output instead of leaking a
+  temp file; a conversion still running when Kanvaz quits is killed instead
+  of orphaned.
+
+### Fixed (2026-09-22/23) — Kanvaz Link hardening
+- An unauthenticated connection is now dropped after a fixed timeout
+  instead of being able to hold a connection slot indefinitely.
+- Client names are Unicode-normalised and case-folded before being used as
+  a consent key, so whitespace, control characters, bidi overrides and
+  case variants of an already-denied name can't slip back in as "new."
+- Consent is kept in null-prototype maps — a program naming itself
+  `__proto__` or `constructor` is just an ordinary string key now, never a
+  write through the prototype chain.
+- The remembered consent list is now trimmed while the app is running, not
+  only when its file is loaded — a flood of distinct client names can no
+  longer push it past its cap.
+- Two overlapping `start()` calls (e.g. a double-fired init path) can no
+  longer split the listener's token from the listener that's actually
+  running.
+
+### Added (2026-09-21/22, same arc as the [Unreleased] work below)
+- **Adobe previews in file cards** (`src/adobe-preview.js`): PSD/PSB show
+  the full flattened image decoded straight from the file; AI files that
+  are PDF-compatible use the PDF viewer; XD shows its largest rendition;
+  InDesign its embedded thumbnail; Fresco explains it can't be previewed
+  locally. Decoding runs on a worker thread so a large file never blocks
+  the UI.
+- **Kanvaz Link connector** (the Kanvaz side of the not-yet-built Blender
+  add-on): a local listener (named pipe / Unix socket, no network), a
+  per-start token, a native permission prompt the first time a program
+  asks (default: don't allow), a private drop folder, the renderer never
+  receiving a file path.
+- **Render modes are a registry** (`src/model3d-modes.js`), module-private
+  bookkeeping via `WeakMap`/`WeakSet` rather than `node.userData` (a
+  hostile glTF's `extras` could otherwise forge helper/material state
+  through `userData`), source materials shared across meshes that reuse
+  one material, the UV-grid checker texture shared across every 3D card.
+- Animation clip picker, read-only model statistics (triangles, vertices,
+  meshes, materials, textures, size) in Properties.
+- **Shift+L** opens and closes the Layers panel.
+
+### Fixed (2026-09-21/22)
+- Camera near/far clip planes now refit to the model's actual size on
+  restore and on every view preset — a saved or preset camera used to keep
+  a fixed 0.01–1000 range, clipping a large model away entirely or a tiny
+  one down to a speck.
+- The camera position is now saved on "Reset view", a view preset, and
+  when the turntable stops — previously only a manual orbit/pan/zoom saved it.
+- Turntable rotation is now delta-based (same speed at 60 Hz and 144 Hz);
+  the Properties panel's turntable checkbox now follows if a drag
+  interrupts it.
+- Alpha mode now renders solid white for an opaque material instead of
+  black — an OPAQUE material's texture alpha is ignored by the real
+  renderer too, so the view matched what was rendered, not what the raw
+  channel data said.
+- The 3D card's popup menu (render mode / camera view) now closes when the
+  card is deleted or disposed, instead of staying open pointing at nothing.
+- 3D card teardown no longer disposes materials/textures shared with other
+  cards (the UV-grid checker, the wireframe occluder), and now calls
+  `forceContextLoss()` so a closed card's GPU context is freed immediately
+  rather than waiting on garbage collection — a page can hold roughly 16
+  live WebGL contexts before new ones start failing.
+- The animation play bar no longer overlaps the viewport or the card name
+  (moved into the hover strip below the card).
+- Wireframe is unlit and colour-true instead of a lit copy of the material
+  (lines used to render white or black regardless of the model's colour).
+- Colour card contrast chips show the real WCAG ratio of white/black text
+  on that colour instead of two unlabelled samples.
+- PDF preview fits the page to the card width and draws at the screen's
+  pixel density (was 1 CSS pixel per PDF point, top-left corner only).
+- File cards with a preview: "Open with default app" / "Change file" are
+  now reachable (were hidden under the card's name bar).
+- The 3D hover strip is no longer clipped by the card's own overflow.
+- Matcap keeps colour, opacity, texture and double-sidedness (used to
+  rebuild every material from scratch, losing all of it).
+- `.blend` preview no longer exports hidden objects or other scenes; an
+  export over the size limit retries once with WebP textures.
+- Properties panel refreshes after undo/redo and once a 3D viewer finishes
+  loading.
+- A note/text card's edit-then-click-away no longer adds a no-op undo step.
+- Map View connection labels no longer overlap when several connections
+  share a pair of cards.
+- Tag editor: focus stays in the "+ tag" box after Enter; a comma list adds
+  several tags at once; long tags truncate with a tooltip.
+
+### Tests
+- `test/model3d-modes-test.js`, `test/auto-update-support-test.js`,
+  `test/platform-test.js`, `test/blender-export-test.js` run against the
+  real vendored Three.js / real Blender (skipped where Blender isn't
+  installed, as on CI).
+- `test/link-server-test.js` / `test/link-controller-test.js` add
+  regression coverage for `normalizeName`, the auth timeout, a client named
+  `__proto__`, name-variant spoofing, a 30-client consent flood, and two
+  overlapping `start()` calls.
+- `test/openable-types-test.js` adds alternate-data-stream refusal,
+  case-fold dedupe, and checks `build/installer.nsh` is committed and in
+  sync with `src/openable-types.js`.
+
+### Known, not fixed (see `docs/ROADMAP.md` for the fuller list)
+- Materials built from procedural nodes (noise, gradients) have no image to
+  export, so they come through as a flat colour.
+- Preview quality gates (low/medium/high, with a friendly warning on high)
+  and a Settings-panel Blender picker (Choose…/Auto-detect/status) were
+  planned this cycle but not built — next.
+- Presentation Mode still steps through cards in creation order, not
+  reading order.
+- A `.blend` texture referenced via a UNC network path can export as a
+  blank/missing texture (Blender's own behaviour in the sandboxed
+  conversion context, not yet worked around).
+- A launch argument list containing both a `.kanvaz` board and loose media
+  files opens only the board; the media is silently dropped rather than
+  placed on it.
 
 ### Added (later the same day)
 - **Adobe previews in file cards** (`src/adobe-preview.js`, tested with PSD/PSB/XD files built to the

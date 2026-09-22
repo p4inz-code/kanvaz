@@ -472,6 +472,35 @@ whether that's actually a distinct enough use case to justify).
 
 ---
 
+# 9.1.0 audit pass, 2026-09-22/23 — status and what's deferred
+
+Shipped in 9.1.0: 13 render modes with grouped picker/camera presets/turntable,
+Adobe previews, the Kanvaz Link connector (Kanvaz side), "Open with Kanvaz" for
+every previewable type, a rebuilt "Check for updates" flow (one path instead of
+two racing ones, bounded by a 15s timeout, honest mac/portable fallback), and a
+significant fix: the Windows installer no longer takes over the default file
+handler for every previewable type (see `SECURITY.md`'s "Open with Kanvaz"
+section for the mechanism). Full list in `CHANGELOG.md`'s `[9.1.0]` entry.
+
+**Deliberately deferred to the next session** (scoped, not forgotten):
+- **Preview quality gates** — a `previewQuality` setting (low/medium/high)
+  capping the 3D renderer's pixel ratio, PDF render DPI, and Adobe preview
+  `maxSide`, with a friendly "this can be slow" note on High. No plumbing
+  exists yet (no setting key, no cap wired into `cards.js`/`adobe-preview.js`).
+- **Settings-panel Blender row** — `src/blender-detect.js` and `main.js`'s
+  `blender-status`/`blender-choose`/`blender-clear` IPC already exist and are
+  tested; there is just no Settings UI (Choose…/Auto-detect/status text) that
+  calls them yet.
+- **Presentation Mode step order** — currently creation order; should be
+  reading order (rows, then left-to-right).
+- Three narrower Open-with items flagged during this pass but not chased
+  down: UNC-referenced textures exporting blank from `.blend` (a Blender
+  behaviour in the sandboxed conversion context, not a Kanvaz bug per se),
+  `file://` URIs in Linux launch arguments (unclear whether any Linux file
+  manager actually sends these to an AppImage — needs checking on a real
+  Linux box), and a `.kanvaz` board + loose media in the same launch
+  silently dropping the media instead of placing it on the opened board.
+
 # Security & platform hardening: reconciled audit, 2026-09-20
 
 Two external reports (DeepSeek and a second agent) said Kanvaz has a strong

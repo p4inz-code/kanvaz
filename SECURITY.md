@@ -4,8 +4,8 @@
 
 | Version | Supported |
 |---------|-----------|
-| 9.0.x   | Yes       |
-| < 9.0   | No        |
+| 9.1.x   | Yes       |
+| < 9.1   | No        |
 
 *(Table corrected 2026-09-20 — it previously still said 7.13.x.)*
 
@@ -363,15 +363,22 @@ schemas, the `script-src file:` allowance in the Content-Security-Policy
 (needs a live-tested change), and SBOM/hash publication for vendored libraries.
 
 
-## Kanvaz Link listener (added after 9.0.0, unreleased)
+## Kanvaz Link listener (added after 9.0.0, released 9.1.0)
 
 A local connector for the Kanvaz Link Blender add-on. Design and limits:
 - **Local only.** A named pipe (Windows) or Unix socket in a 0700 folder (macOS/Linux), never a TCP port.
 - **Four methods** (`hello`, `deliver`, `status`, `ping`), a 64 KB line cap, at most 4 connections and 8 queued
-  deliveries. Every request carries a per-start 256-bit token; a wrong token closes the connection.
+  deliveries. Every request carries a per-start 256-bit token; a wrong token closes the connection. A connection
+  that never authenticates is dropped after a fixed timeout, so it cannot hold one of those few connection slots
+  indefinitely.
 - **The client can verify Kanvaz:** `hello` returns an HMAC of the client's nonce under the token.
 - **Nothing is accepted without consent.** The first request from a program shows a native dialog (default
-  button: Don't allow). The answer is stored in `link-config.json`; "this session only" is never written.
+  button: Don't allow). The answer is stored in `link-config.json` keyed by a Unicode-normalised, case-folded,
+  control/bidi/zero-width-stripped version of the program's self-reported name — so a program named `__proto__`
+  or `constructor` is just an ordinary string key (consent is kept in null-prototype maps), and whitespace/case/
+  hidden-character variants of an already-denied name can't slip back in as "new." "This session only" is never
+  written to disk. The remembered list is trimmed to a fixed cap while the app is running, not only when its
+  file is loaded, so a flood of distinct client names can't grow it without bound.
 - **Files, not bytes.** A delivery names a file inside Kanvaz's private drop folder. Main reads it through
   `path-guard.readDropFile` (refuses symlinks, hard links, alternate data streams, non-regular files, anything
   outside the folder, wrong size or checksum, and a file swapped during the read), deletes it, and sends the
@@ -381,8 +388,36 @@ A local connector for the Kanvaz Link Blender add-on. Design and limits:
 - The Windows pipe's default access rules are set explicitly (not readable or writable by other users) but that
   has not been verified with a second Windows account.
 
-## Adobe previews (added after 9.0.0, unreleased)
+## Adobe previews (added after 9.0.0, released 9.1.0)
 
 PSD/PSB/XD/InDesign files are parsed in the main process from files the user pointed a card at. The reader is
 streaming and bounded (header size checked, rows clipped, output capped at 90 MB) and refuses truncated or
-malformed files; see `test/adobe-preview-test.js`. No network access.
+malformed files; see `test/adobe-preview-test.js`. Decoding runs on a worker thread (`src/adobe-worker.js`), not
+the main process, so a pathological file can't block the UI while it's being parsed. No network access.
+
+## "Open with Kanvaz" / file associations (hardened in 9.1.0)
+
+Kanvaz can be launched by the OS with a file path (double-click, Explorer/Finder/file-manager "Open with", a
+second instance, macOS's `open-file` event). `src/openable-types.js`'s `filesFromArgv` is the one filter every
+one of those paths goes through:
+- Only a fixed allowlist of extensions Kanvaz actually turns into a card; anything starting with `-` (a flag),
+  a UNC/device path, or a path naming an NTFS alternate data stream (`photo.png:payload.exe` — looks like a
+  plain image by extension, resolves through the filesystem APIs to a hidden stream that could be anything) is
+  refused before the path is ever touched.
+- Real, local, regular files only — resolved relative to the launch's own working directory, deduplicated
+  case-insensitively on Windows/macOS, capped at 50 files per launch.
+- The `.kanvaz`-board-specific argv path (`findKanvazArg`, separate from the above since a board isn't in the
+  media allowlist) has the same leading-`-` guard, closing a gap where a launch flag that happened to end in
+  `.kanvaz` (`--something=x.kanvaz`) could have been treated as a real board to open.
+
+**Installer-level fix (the significant one):** `electron-builder`'s NSIS target ignores the `role`/`rank` fields
+entirely (its own `FileAssociation.d.ts` documents both as macOS-only) and unconditionally writes every listed
+extension's Windows *default*-handler registry key. Every previewable type was in the shared `fileAssociations`
+list before 9.1.0 — installing Kanvaz would have silently taken over the Windows default photo/video/audio/PDF
+viewer from whatever the user already had, on every install, for every type. Only `.kanvaz` is in
+`fileAssociations` now; every other type is registered per platform in a way that cannot set a default — macOS
+via its own `CFBundleDocumentTypes` (`LSHandlerRank: Alternate` is a real guarantee there), Windows via a
+generated NSIS include (`build/installer.nsh`, from `tools/gen-nsis-associations.js`) that only adds Kanvaz to
+`OpenWithProgids`, never the extension's own default key. Linux's AppImage `MimeType=` list was already
+independent and never set a default. `test/openable-types-test.js` fails if the committed `installer.nsh` drifts
+from `openable-types.js`, or if the dangerous default-setting line ever reappears in it.

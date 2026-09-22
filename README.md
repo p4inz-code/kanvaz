@@ -118,7 +118,9 @@ Built as an ongoing side project, no fixed roadmap, mostly driven by whatever fe
 **Canvas & organization**
 - Infinite pan/zoom canvas (8%–500%), multiple boards per file
 - Real board thumbnails on the Home Screen (generated from the actual card layout at save time)
-- 3D model cards (`.glb`/`.gltf`/`.obj`/`.fbx`/`.stl`/`.ply`/`.vox`/`.usd`/`.usdz`, up to 150MB, plus `.blend` if Blender is installed): orbit with the mouse, Normal/Wireframe/Matcap shading, animation playback with a scrub bar, background color picker. Alt+drag or Ctrl/Cmd+middle-mouse pans the whole board even with the cursor over the model — you're never trapped inside its orbit controls
+- 3D model cards (`.glb`/`.gltf`/`.obj`/`.fbx`/`.stl`/`.ply`/`.vox`/`.usd`/`.usdz`, up to 150MB, plus `.blend` if Blender is installed — auto-detected across drives, PATH, the registry and package managers, or chosen once and remembered): orbit with the mouse, 13 render modes (Shaded, Clay, Matcap, Wireframe, Wire on Shaded, Normals, Normal Map, Albedo, UV Grid, Roughness, Metalness, Occlusion, Alpha) grouped in one picker with unavailable modes greyed and explained, camera view presets and a turntable, animation playback with a clip picker and scrub bar, background color picker, read-only model stats (tris/verts/materials/textures/size). Alt+drag or Ctrl/Cmd+middle-mouse pans the whole board even with the cursor over the model — you're never trapped inside its orbit controls
+- Adobe file previews (PSD/PSB/AI/XD/INDD): a real decoded preview inside the card, not just an icon — full flattened image for PSD/PSB, the PDF-compatible view for AI, the largest rendition for XD
+- Open any supported file type from your OS's own "Open with" (Explorer, Finder, Linux file managers) — Kanvaz never takes over as the default handler for anything but its own `.kanvaz` boards
 - Image, GIF, video, and audio cards with full playback controls and a real volume slider
 - Note, text, color, URL, and file-reference card types. A file reference pointing at a `.pdf` or image gets a real inline preview inside the resizable card
 - Shared cards across boards: same content, no duplication, edit anywhere
@@ -216,7 +218,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 9.0.0.exe` and `dist/Kanvaz 9.0.0.exe`
+Output: `dist/Kanvaz Setup 9.1.0.exe` and `dist/Kanvaz 9.1.0.exe`
 
 **macOS:**
 ```bash
@@ -231,6 +233,8 @@ npm run build:linux
 ---
 
 ## Keyboard shortcuts
+
+Shown here in Windows/Linux notation (`Ctrl`); on macOS every `Ctrl` below is `Cmd (⌘)` and the app itself shows the real Apple glyphs (⌘, ⇧, ⌥) throughout the UI, not the Windows spelling.
 
 | Key | Action |
 |-----|--------|
@@ -256,6 +260,7 @@ npm run build:linux
 | E | Properties panel |
 | M | Toggle Board / Map view |
 | H | Hide annotations |
+| Shift+L | Toggle Layers panel |
 | Arrow keys | Nudge card 1px |
 | Shift+Arrow | Nudge card 10px |
 | Shift (while resizing) | Lock aspect ratio |
@@ -289,6 +294,9 @@ Files saved by 4.0.1 and earlier (plain JSON, base64 media) still open exactly a
 - `registerPropertyFieldType` (custom Properties panel field types via a plugin) is still unimplemented.
 - 3D model cards embed the file (like image/video/audio) rather than pointing at it. A `.gltf` that references external `.bin`/texture files by relative path won't fully resolve (only a self-contained `.gltf` or a `.glb` is guaranteed to render everything); `.fbx` support is best-effort, since it's the most complex and least standardized of the four formats. Custom user-swappable textures aren't supported yet (planned as a future plugin).
 - Per-profile plugin *storage* is isolated, but installed plugin code is still shared across all profiles on one machine, since installing a plugin is treated as a machine-level action, not a per-profile one.
+- Materials built from procedural nodes (noise, gradients) have no image to export from `.blend`, so they come through as a flat colour.
+- Presentation Mode steps through cards in the order they were created, not left-to-right/top-to-bottom reading order.
+- The macOS build isn't code-signed yet (no Apple Developer ID), so it can't auto-install updates or register as a default file handler the way the Windows build can — "Check for updates" and "Open with" both fall back to a direct link/manual step there instead.
 
 ---
 
