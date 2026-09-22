@@ -487,7 +487,15 @@ function extractUrlMeta(html) {
 
 function findKanvazArg(argv, cwd) {
   for (var i = 0; i < argv.length; i++) {
-    if (/\.kanvaz$/i.test(argv[i])) return grantBoardPath(argv[i], cwd);
+    var a = argv[i];
+    /* A flag can end in ".kanvaz" too ("--recent-file=x.kanvaz", or any
+       future/third-party flag) without being one — openable-types.js's own
+       argv filter already skips anything starting with "-" for exactly
+       this reason; this older, .kanvaz-specific path needs the same
+       guard, or a crafted launch argument could make Kanvaz silently open
+       an arbitrary attacker-chosen board path. */
+    if (typeof a !== 'string' || !a || a.charAt(0) === '-') continue;
+    if (/\.kanvaz$/i.test(a)) return grantBoardPath(a, cwd);
   }
   return null;
 }
@@ -581,10 +589,30 @@ if (!gotLock) {
     stopMcpBridgeServer();
     if (linkCtl) linkCtl.stop();
     if (smartSearchWorker) { smartSearchWorker.terminate(); smartSearchWorker = null; }
+    /* A Blender conversion mid-flight when the user quits Kanvaz used to be
+       left running: no window, no parent process, quietly holding a scene
+       open until it happened to finish (or never did). */
+    killLiveBlenderProcs();
   });
 
+  /* macOS: all windows can close while the app stays running (see
+     window-all-closed above); clicking the dock icon reopens one. If a
+     Finder "Open With" arrived while there was no window to receive it,
+     'open-file' (below) queued it into pendingFileOpen/pendingMediaOpen
+     instead of dropping it — this is where that queue actually gets
+     delivered. Without this, the new window opened fine but whatever the
+     user double-clicked to get here never appeared, silently. */
   app.on('activate', function() {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow(false);
+    if (BrowserWindow.getAllWindows().length !== 0) return;
+    var file = pendingFileOpen; pendingFileOpen = null;
+    var media = pendingMediaOpen; pendingMediaOpen = [];
+    createWindow(!!file || media.length > 0);
+    if ((file || media.length) && mainWindow) {
+      mainWindow.webContents.once('did-finish-load', function() {
+        if (file) mainWindow.webContents.send('open-file-from-argv', file);
+        if (media.length) mainWindow.webContents.send('open-media-from-argv', media);
+      });
+    }
   });
 
   /* BUG 4: a second launch (e.g. double-clicking another .kanvaz file
@@ -1317,7 +1345,33 @@ function registerIPC() {
      crosses IPC as base64 (the input cap alone didn't bound that). It
      must come BEFORE --python-expr on Blender's command line. */
   var BLENDER_CONVERT_TIMEOUT_MS = 180000;
-  function convertBlendToGlb(blenderExe, blendPath, outputGlbPath, exportOpts) {
+
+  /* Live Blender child processes, so before-quit can kill them instead of
+     leaving orphaned Blender.exe processes running after Kanvaz itself has
+     exited (they have no window and no parent left to report back to). */
+  var liveBlenderProcs = [];
+  function killLiveBlenderProcs() {
+    for (var i = 0; i < liveBlenderProcs.length; i++) {
+      try { liveBlenderProcs[i].kill(); } catch (e) { /* already gone */ }
+    }
+    liveBlenderProcs = [];
+  }
+
+  /* Blender conversions run one at a time. Each instance is a real, heavy
+     process (its own Python interpreter, full scene load); a user who drops
+     in several .blend files at once — or "Open with Kanvaz" on a multi-select
+     — used to spawn one Blender per file simultaneously, which on a modest
+     machine is a good way to make all of them time out together instead of
+     finishing one after another. */
+  var blenderQueue = Promise.resolve();
+  function queueBlenderConvert(blenderExe, blendPath, outputGlbPath, exportOpts) {
+    var run = function() { return runBlenderConvert(blenderExe, blendPath, outputGlbPath, exportOpts); };
+    var result = blenderQueue.then(run, run);   /* run next regardless of whether the previous one failed */
+    blenderQueue = result.catch(function() { /* keep the queue alive past a failure */ });
+    return result;
+  }
+
+  function runBlenderConvert(blenderExe, blendPath, outputGlbPath, exportOpts) {
     return new Promise(function(resolve, reject) {
       /* Script text and its reasoning live in blender-export.js. */
       var pyScript = blenderExport.buildExportScript(exportOpts);
@@ -1334,12 +1388,25 @@ function registerIPC() {
         reject(e);
         return;
       }
+      liveBlenderProcs.push(proc);
+      function untrack() {
+        var i = liveBlenderProcs.indexOf(proc);
+        if (i !== -1) liveBlenderProcs.splice(i, 1);
+      }
+      /* Any failure path below can still have written a partial output
+         file — Blender crashing mid-export, or the timeout killing it while
+         it was writing. Left alone, these accumulate in the OS temp
+         directory forever; every reject() here clears whatever is there
+         first. */
+      function cleanupOutput() { try { fs.unlinkSync(outputGlbPath); } catch (e) { /* never existed */ } }
       var stderr = '';
       var settled = false;
       var timer = setTimeout(function() {
         if (settled) return;
         settled = true;
+        untrack();
         try { proc.kill(); } catch (e) {}
+        cleanupOutput();
         reject(new Error('Blender took longer than ' + (BLENDER_CONVERT_TIMEOUT_MS / 1000) + 's and was stopped'));
       }, BLENDER_CONVERT_TIMEOUT_MS);
       proc.stdout.on('data', function() { /* drain only — never read, never buffered */ });
@@ -1347,14 +1414,18 @@ function registerIPC() {
       proc.on('error', function(e) {
         if (settled) return;
         settled = true;
+        untrack();
         clearTimeout(timer);
+        cleanupOutput();
         reject(e);
       });
       proc.on('close', function(code) {
         if (settled) return;
         settled = true;
+        untrack();
         clearTimeout(timer);
         if (code !== 0) {
+          cleanupOutput();
           reject(new Error('Blender exited with code ' + code + (stderr ? ': ' + stderr.slice(-500) : '')));
           return;
         }
@@ -1365,7 +1436,7 @@ function registerIPC() {
           return;
         }
         if (outStat.size / (1024 * 1024) > MAX_MODEL_SIZE_MB) {
-          try { fs.unlinkSync(outputGlbPath); } catch (e) {}
+          cleanupOutput();
           var big = new Error('converted model is larger than the ' + MAX_MODEL_SIZE_MB + 'MB limit');
           big.code = 'OUTPUT_TOO_LARGE';
           reject(big);
@@ -1401,9 +1472,9 @@ function registerIPC() {
       /* A photo-textured scene can export a GLB over the size limit almost
          entirely because of PNG textures. Retry once with WebP textures
          (alpha survives) before giving up on the preview. */
-      return convertBlendToGlb(blenderExe, filePath, outputGlbPath).catch(function(e) {
+      return queueBlenderConvert(blenderExe, filePath, outputGlbPath).catch(function(e) {
         if (!(e && e.code === 'OUTPUT_TOO_LARGE')) throw e;
-        return convertBlendToGlb(blenderExe, filePath, outputGlbPath, { smallTextures: true });
+        return queueBlenderConvert(blenderExe, filePath, outputGlbPath, { smallTextures: true });
       }).then(function() {
         return fs.promises.readFile(outputGlbPath).then(function(data) {
           return fs.promises.unlink(outputGlbPath).catch(function() {}).then(function() {
