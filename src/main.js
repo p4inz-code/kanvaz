@@ -495,6 +495,7 @@ function findKanvazArg(argv, cwd) {
        guard, or a crafted launch argument could make Kanvaz silently open
        an arbitrary attacker-chosen board path. */
     if (typeof a !== 'string' || !a || a.charAt(0) === '-') continue;
+    a = openableTypes.fromFileUrl(a);
     if (/\.kanvaz$/i.test(a)) return grantBoardPath(a, cwd);
   }
   return null;
@@ -531,7 +532,17 @@ if (!gotLock) {
        creation time (see createWindow's additionalArguments) instead
        of only after 'did-finish-load'. */
     var startupFile = pendingFileOpen || findKanvazArg(process.argv);
-    var startupMedia = startupFile ? [] : pendingMediaOpen.concat(openableTypes.filesFromArgv(process.argv.slice(1), process.cwd()));
+    var startupMediaCandidates = pendingMediaOpen.concat(openableTypes.filesFromArgv(process.argv.slice(1), process.cwd()));
+    /* A board takes priority (only one thing can open at startup), so any
+       media launched alongside one is dropped rather than merged onto it —
+       merging would race the board's own async load (see openFilePath),
+       which can clobber cards added before it finishes. Not silent, at
+       least: log so a multi-select "Open With" that mixed a board in with
+       loose media isn't a mystery. */
+    var startupMedia = startupFile ? [] : startupMediaCandidates;
+    if (startupFile && startupMediaCandidates.length) {
+      console.warn('[Kanvaz] Startup launched with both a board and ' + startupMediaCandidates.length + ' media file(s); opening the board only, media ignored: ' + startupMediaCandidates.join(', '));
+    }
     pendingMediaOpen = [];
     createWindow(!!startupFile || startupMedia.length > 0);
     registerIPC();
@@ -1441,6 +1452,9 @@ function registerIPC() {
           big.code = 'OUTPUT_TOO_LARGE';
           reject(big);
           return;
+        }
+        if (stderr.indexOf('KANVAZ_TEXTURE_MISSING:') !== -1) {
+          console.warn('[Kanvaz] Blender export had unreachable texture(s):\n' + stderr);
         }
         resolve();
       });

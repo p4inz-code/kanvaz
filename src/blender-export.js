@@ -35,7 +35,23 @@ function buildExportScript(opts) {
     extra.push("'export_image_quality': 70");
   }
   return [
-    'import bpy, sys',
+    'import bpy, sys, os',
+    /* The exporter does not error on an unreachable texture (a UNC path
+       Blender's --factory-startup invocation cannot see, or a relinked
+       file that moved) — it just silently exports a blank/missing
+       texture. Warn on stderr (main.js captures it) so a broken texture
+       shows up somewhere instead of only as "why does this card look
+       wrong". Packed images are always fine, so only unpacked ones with
+       a real filepath are checked. */
+    'for img in bpy.data.images:',
+    '    if img.packed_file or not img.filepath:',
+    '        continue',
+    '    try:',
+    '        resolved = bpy.path.abspath(img.filepath)',
+    '    except Exception:',
+    '        resolved = img.filepath',
+    '    if not os.path.isfile(resolved):',
+    "        sys.stderr.write('KANVAZ_TEXTURE_MISSING: ' + img.name + ' -> ' + str(resolved) + chr(10))",
     'op = bpy.ops.export_scene.gltf',
     'known = set(op.get_rna_type().properties.keys())',
     "kw = {'filepath': sys.argv[-1], 'export_format': 'GLB'}",

@@ -18,7 +18,18 @@
 'use strict';
 
 var path = require('path');
+var url = require('url');
 var pathGuard = require('./path-guard');
+
+/* Some Linux file managers / xdg-open hand a launched app a file:// URI
+   in argv instead of a plain path. Decode it back to a filesystem path so
+   it is recognised the same way a bare path is; anything that is not a
+   file:// URI (including a non-file:// URL, which is never openable) is
+   returned unchanged. */
+function fromFileUrl(a) {
+  if (typeof a !== 'string' || !/^file:\/\//i.test(a)) return a;
+  try { return url.fileURLToPath(a); } catch (e) { return a; }
+}
 
 var GROUPS = {
   image:  { name: 'Image',            exts: ['jpg', 'jpeg', 'png', 'bmp', 'webp'],
@@ -62,6 +73,7 @@ function filesFromArgv(argv, cwd, exists) {
   for (var i = 0; i < argv.length && out.length < MAX_FILES_PER_LAUNCH; i++) {
     var a = argv[i];
     if (typeof a !== 'string' || !a || a.charAt(0) === '-') continue;
+    a = fromFileUrl(a);
     if (/^[\\/]{2}/.test(a)) continue;                       /* UNC / device path */
     /* NTFS alternate data streams: "photo.png:payload.exe" reads as an
        innocent-looking basename via path.extname, but resolves through
@@ -87,5 +99,6 @@ module.exports = {
   MAX_FILES_PER_LAUNCH: MAX_FILES_PER_LAUNCH,
   extOf: extOf,
   isOpenable: isOpenable,
-  filesFromArgv: filesFromArgv
+  filesFromArgv: filesFromArgv,
+  fromFileUrl: fromFileUrl
 };
