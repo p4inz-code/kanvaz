@@ -300,6 +300,21 @@ if (fs.existsSync(path.join(__dirname, 'auto-update-support-test.js'))) {
   console.log('  (skipped — test/auto-update-support-test.js missing)');
 }
 
+/* 5n. Preview quality — Low/Medium/High numbers shared by main.js (Adobe worker), cards.js (3D/PDF) and Properties */
+section('5n. Preview quality (Low/Medium/High)');
+if (fs.existsSync(path.join(__dirname, 'preview-quality-test.js'))) {
+  try {
+    var pqOut = cp.execSync('node "' + path.join(__dirname, 'preview-quality-test.js') + '"', { encoding: 'utf8', timeout: 30000 });
+    if (/ALL PREVIEW QUALITY TESTS PASSED/.test(pqOut)) ok('resolve() prefers a card override over the global setting; pixel-ratio/DPI/maxSide climb low->high consistently');
+    else { bad('preview quality test failed'); console.log(pqOut); }
+  } catch (e) {
+    bad('preview quality test crashed');
+    console.log(e.stdout || e.message);
+  }
+} else {
+  console.log('  (skipped — test/preview-quality-test.js missing)');
+}
+
 /* 6. Command registry — registration validation, palette filtering, fuzzy match */
 section('6. Command registry');
 if (fs.existsSync(path.join(__dirname, 'command-registry-test.js'))) {

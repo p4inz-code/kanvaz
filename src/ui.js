@@ -189,7 +189,15 @@ var KanvazUI_Extended = (function() {
        known settings/cache files) actually resets this too instead of
        leaving stray state behind. */
     sidePanelOpen:    false,
-    sidePanelSection: 'boards'
+    sidePanelSection: 'boards',
+    /* 9.2.0 — Low/Medium/High preview quality for 3D cards (renderer pixel
+       ratio), PDF cards (canvas DPI) and Adobe file previews (decoded image
+       size). Default Low, deliberately: unlike everything else in this
+       list, this one trades visual sharpness for real GPU/CPU cost on a
+       board with several heavy cards, so it opts up rather than down. See
+       preview-quality.js for the actual numbers and a card's own
+       Properties → "Preview quality" for the per-card override. */
+    previewQuality:   'low'
   };
 
   /* ── Settings migrations ──
@@ -327,6 +335,14 @@ var KanvazUI_Extended = (function() {
       hint.innerHTML = settings.doubleClickCreatesNote
         ? 'Double-click to add a note · Ctrl+V to paste an image'
         : 'Right-click for options · Ctrl+V to paste an image';
+    }
+
+    /* Preview quality (9.2.0) — re-apply to every already-open 3D/PDF card
+       immediately, so changing this in Settings doesn't need a reload to
+       take effect. Adobe file previews pick it up next time they render
+       (see KanvazCards.applyPreviewQuality's own comment). */
+    if (typeof KanvazCards !== 'undefined' && KanvazCards.applyPreviewQuality) {
+      KanvazCards.applyPreviewQuality();
     }
 
     /* Always on top — apply persisted value. Goes through KanvazApp's
@@ -687,7 +703,17 @@ var KanvazUI_Extended = (function() {
       { section: 'Files & Search' },
       { key: 'autosaveInterval',label: 'Autosave (seconds)',    type: 'number', min: 10, max: 300 },
       { key: 'defaultCardW',    label: 'Default card width (px)',type: 'number', min: 80, max: 1200 },
-      { key: 'smartSearchEnabled', label: 'Smart Search (on-device NLP, off by default)', type: 'toggle' }
+      { key: 'smartSearchEnabled', label: 'Smart Search (on-device NLP, off by default)', type: 'toggle' },
+      { section: 'Preview Quality' },
+      { key: 'previewQuality', label: 'Default quality (3D, PDF, Adobe files)', type: 'select', options: [
+        ['low',    'Low (default)'],
+        ['medium', 'Medium'],
+        ['high',   'High']
+      ], onSelect: function(v) {
+        if (v === 'high' && typeof KanvazUI !== 'undefined' && KanvazUI.toast) {
+          KanvazUI.toast(KanvazPreviewQuality.HIGH_WARNING, 'warning');
+        }
+      } }
     ];
 
     /* Split into sub-groups (Diagnostics / Plugin Dev / Reset) rather
@@ -813,6 +839,7 @@ var KanvazUI_Extended = (function() {
           sel.onchange = function() {
             settings[row.key] = sel.value;
             saveSettings();
+            if (row.onSelect) row.onSelect(sel.value);
           };
           el.appendChild(sel);
 
@@ -830,6 +857,89 @@ var KanvazUI_Extended = (function() {
     }
 
     for (var i = 0; i < rows.length; i++) { buildRow(rows[i]); }
+
+    /* Blender section (9.2.0) — not part of the generic rows[] renderer
+       above for the same reason Plugins isn't: its content (found/not
+       found, version, path) is async (blender-status IPC), and Choose…/
+       Auto-detect are actions, not a settings key with a fixed value.
+       main.js's blender-status/blender-choose/blender-clear IPC and the
+       persisted-choice logic in blender-detect.js already existed; this is
+       just the first UI that calls them. */
+    var blenderHdr = document.createElement('div');
+    blenderHdr.style.cssText = 'font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--color-text);margin:16px 0 6px;padding-bottom:5px;border-bottom:1px solid var(--color-border);';
+    blenderHdr.textContent = 'Blender (.blend preview)';
+    panel.appendChild(blenderHdr);
+
+    var blenderRow = document.createElement('div');
+    blenderRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--color-border);gap:8px;';
+    var blenderStatusEl = document.createElement('span');
+    blenderStatusEl.style.cssText = 'color:var(--color-text-2);font-size:12px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    blenderStatusEl.textContent = 'Checking…';
+    blenderStatusEl.title = '';
+    blenderRow.appendChild(blenderStatusEl);
+
+    var blenderBtns = document.createElement('div');
+    blenderBtns.style.cssText = 'display:flex;gap:6px;flex-shrink:0;';
+
+    function miniBtn(label) {
+      var b = document.createElement('button');
+      b.textContent = label;
+      b.style.cssText = 'background:transparent;border:1px solid var(--color-border);border-radius:4px;color:var(--color-text-2);padding:4px 8px;font-size:11px;font-family:var(--font-ui);cursor:pointer;transition:background 0.1s;';
+      b.onmouseenter = function() { b.style.background = 'var(--color-surface-2)'; };
+      b.onmouseleave = function() { b.style.background = 'transparent'; };
+      return b;
+    }
+
+    function refreshBlenderStatus() {
+      if (typeof KanvazBridge === 'undefined' || !KanvazBridge.blenderStatus) {
+        blenderStatusEl.textContent = 'Not available in this build';
+        return;
+      }
+      KanvazBridge.blenderStatus().then(function(r) {
+        if (!r || !r.ok) { blenderStatusEl.textContent = 'Could not check'; return; }
+        if (r.found) {
+          var label = (r.custom ? 'Chosen: ' : 'Found: ') + r.path + (r.version ? ' (v' + r.version + ')' : '');
+          blenderStatusEl.textContent = label;
+          blenderStatusEl.title = r.path;
+          clearBtn.style.display = r.custom ? '' : 'none';
+        } else if (r.chosenMissing) {
+          blenderStatusEl.textContent = 'The Blender you chose can’t be found anymore — choose again or clear it';
+          blenderStatusEl.title = '';
+          clearBtn.style.display = '';
+        } else {
+          blenderStatusEl.textContent = 'Not found — .blend files will open as plain file cards';
+          blenderStatusEl.title = '';
+          clearBtn.style.display = 'none';
+        }
+      }).catch(function() { blenderStatusEl.textContent = 'Could not check'; });
+    }
+
+    var chooseBtn = miniBtn('Choose…');
+    chooseBtn.onclick = function() {
+      if (typeof KanvazBridge === 'undefined' || !KanvazBridge.blenderChoose) return;
+      KanvazBridge.blenderChoose().then(function(r) {
+        if (!r) return;
+        if (r.canceled) return;
+        if (!r.ok) { KanvazUI.toast(r.error || 'Could not use that file', 'error'); return; }
+        KanvazUI.toast('Blender set: v' + (r.version || '?'));
+        refreshBlenderStatus();
+      });
+    };
+    var clearBtn = miniBtn('Auto-detect');
+    clearBtn.title = 'Forget the chosen Blender and go back to searching PATH, the registry and standard install locations';
+    clearBtn.style.display = 'none';
+    clearBtn.onclick = function() {
+      if (typeof KanvazBridge === 'undefined' || !KanvazBridge.blenderClear) return;
+      KanvazBridge.blenderClear().then(function(r) {
+        KanvazUI.toast(r && r.found ? 'Back to auto-detect — found v' + (r.version || '?') : 'Back to auto-detect — none found');
+        refreshBlenderStatus();
+      });
+    };
+    blenderBtns.appendChild(chooseBtn);
+    blenderBtns.appendChild(clearBtn);
+    blenderRow.appendChild(blenderBtns);
+    panel.appendChild(blenderRow);
+    refreshBlenderStatus();
 
     /* Plugins section (4.2.0) — not part of the generic rows[] renderer
        above since its content is async (comes from a scan IPC call) and

@@ -780,6 +780,46 @@ var KanvazProperties = (function() {
     body.appendChild(resetBtn);
   }
 
+  /* Per-card "Preview quality" override (9.2.0) — shared by the 3D, PDF and
+     Adobe-file sections below. Blank/default means "use the global Settings
+     value" (see preview-quality.js); a card can only ever push its own
+     quality UP or DOWN from that, never lie about what it's set to. A
+     display preference, not board content, so it doesn't push an undo step
+     — same reasoning as a PDF card's own zoom/page (KanvazApp.markDirty()
+     only). onApply, if given, re-renders that specific card immediately
+     (the 3D controls object has one; PDF/Adobe just rebuild their own
+     preview). */
+  function renderPreviewQualityRow(body, card, onApply) {
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;';
+    var label = document.createElement('div');
+    label.style.cssText = LABEL_CSS;
+    label.textContent = 'Preview quality';
+    row.appendChild(label);
+
+    var sel = document.createElement('select');
+    sel.style.cssText = 'background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:4px;color:var(--color-text);padding:3px 6px;font-size:11px;font-family:var(--font-ui);outline:none;';
+    var opts = [['', 'Use default'], ['low', 'Low'], ['medium', 'Medium'], ['high', 'High']];
+    for (var i = 0; i < opts.length; i++) {
+      var o = document.createElement('option');
+      o.value = opts[i][0];
+      o.textContent = opts[i][1];
+      if ((card.previewQuality || '') === opts[i][0]) o.selected = true;
+      sel.appendChild(o);
+    }
+    sel.title = 'Overrides Settings → Preview Quality for just this card';
+    sel.onchange = function() {
+      card.previewQuality = sel.value || undefined;
+      KanvazApp.markDirty();
+      if (sel.value === 'high' && typeof KanvazUI !== 'undefined' && KanvazUI.toast && typeof KanvazPreviewQuality !== 'undefined') {
+        KanvazUI.toast(KanvazPreviewQuality.HIGH_WARNING, 'warning');
+      }
+      if (onApply) onApply();
+    };
+    row.appendChild(sel);
+    body.appendChild(row);
+  }
+
   /* ── 3D model — mirrors the card's own on-canvas toolbar (shading
      mode, background, reset view) via KanvazCards.getModel3DControls(),
      the same live render-mode/background state the toolbar itself
@@ -969,6 +1009,10 @@ var KanvazProperties = (function() {
     } else {
       resetBtn.style.marginBottom = '16px';
     }
+
+    renderPreviewQualityRow(body, card, function() {
+      if (controls.applyPreviewQuality) controls.applyPreviewQuality();
+    });
   }
 
   /* ── Playback (video/audio) — volume, speed, loop surfaced here too,
@@ -1212,6 +1256,23 @@ var KanvazProperties = (function() {
     btnRow.appendChild(copyBtn);
 
     body.appendChild(btnRow);
+
+    /* Only PDF and Adobe-file previews actually have a "quality" to tune
+       (a plain text/unsupported file reference has no rendered preview at
+       all, just this path/buttons block above). */
+    if (typeof KanvazCards !== 'undefined' && card.path &&
+        ((KanvazCards.isPdfPath && KanvazCards.isPdfPath(card.path)) ||
+         (KanvazCards.isAdobePath && KanvazCards.isAdobePath(card.path)))) {
+      renderPreviewQualityRow(body, card, function() {
+        /* No live in-place re-render for PDF/Adobe (unlike 3D's cheap
+           setPixelRatio + redraw) — the straightforward, already-battle-
+           tested way to get a fresh preview at the new quality is the same
+           full rebuild "Change file" already does when the path itself
+           changes (see rebuildFileCardPreview's own comment in cards.js). */
+        var cardEl = document.getElementById(cardId);
+        if (cardEl && KanvazCards.rebuildFileCardPreview) KanvazCards.rebuildFileCardPreview(cardEl, card);
+      });
+    }
   }
 
   /* ── Annotate — draw straight from the panel, no right-click needed.

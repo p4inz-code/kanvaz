@@ -2,6 +2,46 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [9.2.0] — 2026-09-23 — Preview quality gates, Blender picker in Settings
+
+*Checked against the running app (Electron scratch profile): built every card
+type, toggled the global setting live (High's warning toast fires, an
+already-open 3D card re-renders at the new pixel-ratio cap immediately), set
+a per-card override on a 3D, a PDF and a PSD card from Properties, and
+confirmed a real local Blender install is found and shown in the new
+Settings row.*
+
+### Added
+- **Preview quality: Low / Medium / High**, in Settings → Preview Quality.
+  Caps the 3D renderer's pixel ratio, the PDF preview canvas's DPI, and the
+  decoded size of a PSD/PSB/etc. preview. Default is **Low** — a deliberate,
+  conservative default, since (unlike every other setting in this list) this
+  one trades sharpness for real GPU/CPU cost on a board with several heavy
+  cards; High shows a specific, friendly warning ("may run slower or get
+  warm on a laptop") instead of a bare toggle. Changing it live re-renders
+  every already-open 3D and PDF card immediately — no reload needed.
+- **Per-card override**, in Properties → "Preview quality" (3D, PDF and
+  Adobe-file cards): the one heavy model or scan that needs to look sharper
+  (or lighter) than the rest of the board, without changing the global
+  default. `src/preview-quality.js` is the single source of truth for the
+  actual numbers, shared by main.js (the Adobe-preview worker), cards.js
+  (3D/PDF) and Properties, and is unit tested directly.
+- **A Blender row in Settings** ("Blender (.blend preview)"): shows what
+  Kanvaz found (or didn't) with its version, a **Choose…** button to point
+  at a specific Blender install, and **Auto-detect** to forget that choice
+  and go back to searching PATH/the registry/standard locations. The
+  detection and persisted-choice logic already existed (`src/blender-
+  detect.js`, `main.js`'s `blender-status`/`blender-choose`/`blender-clear`
+  IPC) — this is the first UI that actually calls it.
+
+### Fixed
+- Merged in a same-day fix from a separate session: `doc.destroy is not a
+  function` on PDF/AI-preview cards after a delete-while-loading followed
+  by undo (a per-card-id generation counter now refuses to let a
+  superseded load register its document).
+
+Co-authored with a background session's fix cherry-picked in as `6bbcf72`.
+
 ## [9.1.0] — 2026-09-23 — 13 render modes, Kanvaz Link, Adobe previews, Open With, auto-update UX
 
 *Checked against the running app (Electron 44 dev run, scratch profile) with a

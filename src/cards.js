@@ -3237,8 +3237,17 @@ var KanvazCards = (function() {
      this one function. */
   var pdfPreviewGen = {};
 
+  /* Card id -> that card's own renderPage(), so changing the global preview-
+     quality setting (or a per-card override) can re-render already-open PDF
+     previews at the new DPI immediately, instead of only taking effect the
+     next time the card happens to rebuild (reload, undo/redo, reopening the
+     board). See applyPreviewQuality() near the 3D card code, which drives
+     both this and the 3D renderers' pixel ratio from one place. */
+  var pdfPreviewRerender = {};
+
   function disposePdfPreview(id) {
     pdfPreviewGen[id] = (pdfPreviewGen[id] || 0) + 1;
+    delete pdfPreviewRerender[id];
     var doc = pdfPreviewDocs[id];
     if (!doc) return;
     delete pdfPreviewDocs[id];
@@ -3306,6 +3315,7 @@ var KanvazCards = (function() {
       zoom: card.pdfZoom || 1,
       numPages: 0
     };
+    pdfPreviewRerender[card.id] = function() { renderPage(); };
 
     function renderPage() {
       if (!state.doc) return;
@@ -3323,8 +3333,10 @@ var KanvazCards = (function() {
         }
         /* Draw at the screen's real pixel density so text and line art are
            crisp on high-DPI displays; the canvas is then sized back down in
-           CSS pixels. */
-        var dpr = Math.min(window.devicePixelRatio || 1, 3);
+           CSS pixels. Capped by the preview-quality setting (Low/Medium/
+           High, global default or this card's own override) rather than
+           always going straight to the sharpest — see preview-quality.js. */
+        var dpr = Math.min(window.devicePixelRatio || 1, KanvazPreviewQuality.pdfDprCap(currentPreviewQuality(card)));
         var viewport = page.getViewport({ scale: state.zoom * dpr });
         canvas.width = Math.floor(viewport.width);
         canvas.height = Math.floor(viewport.height);
@@ -3485,7 +3497,7 @@ var KanvazCards = (function() {
     el.appendChild(wrap);
 
     if (typeof KanvazBridge === 'undefined' || !KanvazBridge.adobePreview) return;
-    KanvazBridge.adobePreview(card.path).then(function(res) {
+    KanvazBridge.adobePreview(card.path, currentPreviewQuality(card)).then(function(res) {
       if (!document.body.contains(el)) return; /* card deleted while loading */
       if (res && res.ok && res.kind === 'pdf') {
         wrap.remove();
@@ -3643,44 +3655,7 @@ var KanvazCards = (function() {
         var barName = el.querySelector('.card-bar-title');
         if (barName) barName.textContent = card.name;
 
-        /* v7.x — re-point may cross the PDF/image/plain-file lines: add,
-           remove, or rebuild the in-card preview to match, rather than
-           leaving a stale preview (or a missing one) until the next
-           full reload.
-           Audit fix: re-pointing from one PDF to a DIFFERENT PDF used to
-           hit neither branch below (isPdfPath was true both before and
-           after, and a preview already existed) — the OLD file's already-
-           rendered preview just sat there unchanged, showing the wrong
-           document's pages. Now any re-point that lands on a PDF rebuilds
-           the preview fresh, and the old pdf.js document (if any) is
-           always disposed first regardless of which branch is taken.
-           Same rebuild-fresh treatment now applies re-pointing between
-           two different images (a stale <img src> would otherwise just
-           sit there showing the old file). */
-        var existingPreview = el.querySelector('.pdf-preview, .file-image-preview, .file-text-preview');
-        disposePdfPreview(card.id);
-        if (isPdfPath(card.path)) {
-          delete card.pdfPage; delete card.pdfZoom;
-          if (existingPreview) existingPreview.remove();
-          el.classList.add('has-file-preview');
-          buildPdfPreview(el, card);
-        } else if (isImagePath(card.path)) {
-          if (existingPreview) existingPreview.remove();
-          el.classList.add('has-file-preview');
-          buildFileImagePreview(el, card);
-        } else if (isTextPreviewPath(card.path)) {
-          if (existingPreview) existingPreview.remove();
-          el.classList.add('has-file-preview');
-          buildTextFilePreview(el, card);
-        } else if (isAdobePath(card.path)) {
-          if (existingPreview) existingPreview.remove();
-          el.classList.add('has-file-preview');
-          buildAdobePreview(el, card);
-        } else if (existingPreview) {
-          el.classList.remove('has-file-preview');
-          existingPreview.remove();
-        }
-
+        rebuildFileCardPreview(el, card);
         KanvazApp.markDirty();
         KanvazHistory.push();
         emitCardEvent('cardUpdate', card);
@@ -3694,6 +3669,42 @@ var KanvazCards = (function() {
     el.appendChild(body);
   }
 
+  /* Rebuilds a file-ref card's in-card preview in place, without touching
+     card.path — same "dispose old, detect type, build fresh" logic
+     changeBtn above uses when re-pointing to a different file, pulled out
+     so anything that needs today's file re-rendered at today's settings
+     (Properties' per-card preview-quality override, currently) can call it
+     without faking a file re-point.
+     Audit fix (originally found re-pointing PDF -> a different PDF): reusing
+     the SAME preview type used to hit neither add/remove branch below,
+     leaving the old, now-wrong preview sitting there unchanged — every call
+     now rebuilds fresh regardless of whether the detected type changed. */
+  function rebuildFileCardPreview(el, card) {
+    var existingPreview = el.querySelector('.pdf-preview, .file-image-preview, .file-text-preview');
+    disposePdfPreview(card.id);
+    if (isPdfPath(card.path)) {
+      delete card.pdfPage; delete card.pdfZoom;
+      if (existingPreview) existingPreview.remove();
+      el.classList.add('has-file-preview');
+      buildPdfPreview(el, card);
+    } else if (isImagePath(card.path)) {
+      if (existingPreview) existingPreview.remove();
+      el.classList.add('has-file-preview');
+      buildFileImagePreview(el, card);
+    } else if (isTextPreviewPath(card.path)) {
+      if (existingPreview) existingPreview.remove();
+      el.classList.add('has-file-preview');
+      buildTextFilePreview(el, card);
+    } else if (isAdobePath(card.path)) {
+      if (existingPreview) existingPreview.remove();
+      el.classList.add('has-file-preview');
+      buildAdobePreview(el, card);
+    } else if (existingPreview) {
+      el.classList.remove('has-file-preview');
+      existingPreview.remove();
+    }
+  }
+
   /* ══════════════════════════════════════════════════════════════
      3D model card (v7.x) — Kanvaz's 5th flagship feature.
      Renders card.dataUrl (an embedded GLB/glTF/OBJ/FBX, per the
@@ -3704,6 +3715,16 @@ var KanvazCards = (function() {
      underlying wiring (render modes, animation, disposal) is meant
      to be correct and complete now.
      ══════════════════════════════════════════════════════════════ */
+
+  /* Low/Medium/High preview quality: this card's own override (Properties
+     → "Preview quality") if it set one, else the global Settings value, else
+     the hard default — see preview-quality.js. KanvazUI may not exist yet
+     during very early boot (defensive only; by the time any card actually
+     renders, it always does). */
+  function currentPreviewQuality(card) {
+    var global = (typeof KanvazUI_Extended !== 'undefined' && KanvazUI_Extended.getSettings) ? KanvazUI_Extended.getSettings().previewQuality : undefined;
+    return KanvazPreviewQuality.resolve(card && card.previewQuality, global);
+  }
 
   /* Card id -> { dispose: fn } for every live 3D viewer, so
      removeCardCore()/clearAll() can release GPU resources (geometries,
@@ -3717,6 +3738,27 @@ var KanvazCards = (function() {
     if (!inst) return;
     delete model3dInstances[id];
     try { inst.dispose(); } catch (e) { console.warn('[Kanvaz] 3D viewer dispose failed:', e); }
+  }
+
+  /* Called from ui.js's applySettings() whenever the global preview-quality
+     setting changes, so every already-open 3D and PDF card re-renders at
+     the new cap immediately — changing the setting shouldn't require
+     reopening the board to see it take effect. Adobe-file previews are not
+     re-applied live here (each is a one-shot main-process decode+resize,
+     not a redrawable canvas like these two) — a changed quality applies
+     the next time that card's preview is (re)built. */
+  function applyPreviewQuality() {
+    var id;
+    for (id in model3dInstances) {
+      if (model3dInstances.hasOwnProperty(id) && model3dInstances[id].applyPreviewQuality) {
+        try { model3dInstances[id].applyPreviewQuality(); } catch (e) { /* card mid-teardown */ }
+      }
+    }
+    for (id in pdfPreviewRerender) {
+      if (pdfPreviewRerender.hasOwnProperty(id)) {
+        try { pdfPreviewRerender[id](); } catch (e) { /* card mid-teardown */ }
+      }
+    }
   }
 
   /* setRenderMode/setBgColor/resetCamera only exist once Three.js and
@@ -4252,7 +4294,7 @@ var KanvazCards = (function() {
       var THREE = three.THREE;
 
       var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, KanvazPreviewQuality.pixelRatioCap(currentPreviewQuality(card))));
 
       var scene = new THREE.Scene();
       if (card.bgColor) scene.background = new THREE.Color(card.bgColor);
@@ -4560,6 +4602,14 @@ var KanvazCards = (function() {
          second, separate notion of "what mode/background is this
          card" that could drift from what's actually rendering. */
       model3dInstances[card.id].setRenderMode  = function(mode) { setRenderMode(mode, true); };
+      /* Live re-apply when Settings' global preview quality (or this card's
+         own Properties override) changes — see applyPreviewQuality() near
+         model3dInstances' own declaration, and preview-quality.js. */
+      model3dInstances[card.id].applyPreviewQuality = function() {
+        if (disposed) return;
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, KanvazPreviewQuality.pixelRatioCap(currentPreviewQuality(card))));
+        renderFrame();
+      };
       /* Split the same way the on-card swatch's own input/change split
          already is: previewBgColor for live drag feedback (no history
          entry per tick), setBgColor for the final committed value. A
@@ -7081,6 +7131,7 @@ var KanvazCards = (function() {
     createFileRefCardAtPath: createFileRefCardAtPath,
     isTextPreviewPath: isTextPreviewPath,
     isPdfPath: isPdfPath,
+    rebuildFileCardPreview: rebuildFileCardPreview,
     isAdobePath: isAdobePath,
     createPluginCard: createPluginCard,
     generateTestCards: generateTestCards,
@@ -7149,6 +7200,7 @@ var KanvazCards = (function() {
     getSelected:       function() { return selectedId; },
     getSelectedIds:    getSelectedIds,
     getModel3DControls: getModel3DControls,
+    applyPreviewQuality: applyPreviewQuality,
     createModelFromLink: createModelFromLink,
     getRenderModes: function() { return KanvazModel3DModes.list(); },
     getModel3DThumbnail: function(id) { return model3DThumbCache[id] || null; }

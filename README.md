@@ -166,6 +166,7 @@ Built as an ongoing side project, no fixed roadmap, mostly driven by whatever fe
 - Light/dark theme, type-aware context menus
 - Settings migration across versions with zero data loss
 - Developer tools: FPS overlay, ID overlays, one-click debug export for bug reports, with error toasts that actually show what went wrong
+- Preview quality (Settings → Preview Quality): Low/Medium/High caps 3D render sharpness, PDF DPI and Adobe-file preview size — Low by default, with a per-card override in Properties for the one heavy card that needs to differ
 
 ---
 
@@ -218,7 +219,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 9.1.0.exe` and `dist/Kanvaz 9.1.0.exe`
+Output: `dist/Kanvaz Setup 9.2.0.exe` and `dist/Kanvaz 9.2.0.exe`
 
 **macOS:**
 ```bash
@@ -302,10 +303,10 @@ Files saved by 4.0.1 and earlier (plain JSON, base64 media) still open exactly a
 
 ## Roadmap
 
-Kanvaz keeps getting developed as an ongoing side project, no fixed deadline, mostly driven by real feedback. The living plan lives in [docs/ROADMAP.md](docs/ROADMAP.md); right after 9.1.0:
+Kanvaz keeps getting developed as an ongoing side project, no fixed deadline, mostly driven by real feedback. The living plan lives in [docs/ROADMAP.md](docs/ROADMAP.md); right after 9.2.0:
 
-- Preview quality gates (low/medium/high, with a friendly warning before a heavy setting) and a Settings-panel Blender picker (Choose…/Auto-detect/status)
 - Presentation Mode stepping through cards in reading order instead of creation order
+- A Scratch Board view — a plain annotate-everything mode beside Board/Map
 - Select, move, and delete an individual existing annotation stroke (today "Clear annotations" is all-or-nothing)
 - A first-run "Set up your profile" screen and a profile picker built into the Start Screen itself
 - Font and HDRI/EXR preview support

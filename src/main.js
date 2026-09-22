@@ -70,6 +70,7 @@ try {
   autoUpdater = null;
 }
 var AutoUpdateSupport = require('./auto-update-support');
+var PreviewQuality = require('./preview-quality');
 
 var mainWindow = null;
 /* Kanvaz Link connector (see link-controller.js). Created after the window;
@@ -1139,8 +1140,11 @@ function registerIPC() {
      only validates the path and turns the result into something the renderer
      can show. Reads the file fresh each time and stores nothing. */
   var ADOBE_MAX_OUT_BYTES = 90 * 1024 * 1024;
-  /* Preview quality (Settings): the longest side of a PSD/PSB preview. */
-  function adobeMaxSide(q) { return q === 'low' ? 1536 : (q === 'high' ? 6144 : 3072); }
+  /* Preview quality (Settings): the longest side of a PSD/PSB preview.
+     src/preview-quality.js is the single source of truth for these numbers
+     — cards.js (3D pixel ratio, PDF DPI) and the Settings UI read the same
+     module. */
+  var adobeMaxSide = PreviewQuality.adobeMaxSide;
   var ADOBE_WORKER_MS = 25000;
   function runAdobeWorker(filePath, maxSide) {
     return new Promise(function(resolve) {
