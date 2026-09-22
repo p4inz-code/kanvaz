@@ -1284,17 +1284,18 @@ var KanvazUI_Extended = (function() {
      SECURITY.md for the full list — Browse Official Plugins and a URL
      card's own "Fetch preview" button are the others). Fires only when the
      user clicks the button in the About screen — never automatically, never
-     on startup. Compares against GitHub's latest release tag. */
-  function compareVersions(a, b) {
-    var pa = a.replace(/^v/i, '').split('.').map(Number);
-    var pb = b.replace(/^v/i, '').split('.').map(Number);
-    for (var i = 0; i < Math.max(pa.length, pb.length); i++) {
-      var na = pa[i] || 0, nb = pb[i] || 0;
-      if (na !== nb) return na - nb;
-    }
-    return 0;
-  }
+     on startup.
 
+     This kicks off main.js's real electron-updater check and stops there —
+     it used to also run its own separate GitHub-API fetch() in parallel,
+     which is what actually answered fast while the real check could still
+     be hanging silently for up to a minute behind it (see main.js's
+     'Usability fix' comment on wireAutoUpdaterEvents). Every outcome now
+     comes back over IPC (app.js's 'checking-for-update' / 'update-available'
+     / 'update-not-available' / 'update-unsupported' / 'update-error'
+     handlers own #about-update-status and re-enabling the button), bounded
+     by main.js's own 15s ceiling — so "Checking…" always resolves to
+     something within a few seconds, never a surprise dialog minutes later. */
   function checkForUpdates(btn) {
     var status = document.getElementById('about-update-status');
     if (!status) return;
@@ -1302,90 +1303,12 @@ var KanvazUI_Extended = (function() {
     status.style.color = 'var(--color-text-3)';
     status.textContent = 'Checking…';
 
-    /* Packaged builds only: this is the one place that kicks off the
-       real download (electron-updater, main process) — same click,
-       same "only when you click this" promise as the GitHub check
-       below. If a newer build is found it downloads in the background
-       and a "Restart & Install" prompt shows up when it's ready
-       (see app.js's 'update-downloaded' handling). */
     if (typeof KanvazBridge !== 'undefined' && KanvazBridge.checkForUpdates) {
       KanvazBridge.checkForUpdates();
+    } else {
+      status.textContent = "Updates aren't available in this build";
+      if (btn) btn.disabled = false;
     }
-
-    var currentVersion = (typeof KanvazBoards !== 'undefined' && KanvazBoards.getVersion)
-      ? KanvazBoards.getVersion() : '0.0.0';
-
-    /* fetch() never times out on its own — without this, a hanging
-       connection (captive portal, flaky wifi) would leave the button
-       disabled and "Checking…" on screen indefinitely. */
-    var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-    var timeoutId = controller ? setTimeout(function() { controller.abort(); }, 8000) : null;
-
-    fetch('https://api.github.com/repos/p4inz-code/kanvaz/releases/latest',
-          controller ? { signal: controller.signal } : {})
-      .then(function(res) {
-        if (timeoutId) clearTimeout(timeoutId);
-        if (res.status === 403) {
-          var resetHeader = res.headers.get('X-RateLimit-Reset');
-          var resetMsg = 'GitHub rate-limited this check';
-          if (resetHeader) {
-            var resetDate = new Date(parseInt(resetHeader, 10) * 1000);
-            resetMsg += ' — try again after ' + resetDate.toLocaleTimeString();
-          } else {
-            resetMsg += ' — try again in a few minutes';
-          }
-          var err = new Error(resetMsg);
-          err.isRateLimit = true;
-          throw err;
-        }
-        if (res.status === 404) throw new Error('Release info not found on GitHub');
-        if (!res.ok) throw new Error('GitHub returned ' + res.status);
-        return res.json();
-      })
-      .then(function(data) {
-        var latest = (data.tag_name || '').replace(/^v/i, '');
-        if (!latest) throw new Error('No release tag found');
-        var cmp = compareVersions(latest, currentVersion);
-        if (cmp > 0) {
-          status.style.color = 'var(--color-accent)';
-          status.textContent = '';
-
-          /* Built via DOM APIs rather than innerHTML — `latest` comes
-             from the GitHub API response, and even though it's our own
-             repo's release feed, untrusted-network-data should never
-             be concatenated into innerHTML. */
-          status.appendChild(document.createTextNode('v' + latest + ' is available — '));
-          var link = document.createElement('a');
-          link.href = '#';
-          link.id = 'about-update-link';
-          link.style.color = 'var(--color-accent)';
-          link.style.textDecoration = 'underline';
-          link.textContent = 'view release';
-          link.onclick = function(e) {
-            e.preventDefault();
-            if (typeof KanvazBridge !== 'undefined' && KanvazBridge.openExternal) {
-              KanvazBridge.openExternal(data.html_url || 'https://github.com/p4inz-code/kanvaz/releases/latest');
-            }
-          };
-          status.appendChild(link);
-        } else {
-          status.style.color = 'var(--color-text-3)';
-          status.textContent = "You're up to date (v" + currentVersion + ')';
-        }
-      })
-      .catch(function(err) {
-        status.style.color = 'var(--color-text-3)';
-        if (err && err.name === 'AbortError') {
-          status.textContent = 'Timed out — check your connection and try again';
-        } else if (err && err.isRateLimit) {
-          status.textContent = err.message;
-        } else {
-          status.textContent = "Couldn't check — no internet, or GitHub unreachable";
-        }
-      })
-      .then(function() {
-        if (btn) btn.disabled = false;
-      });
   }
 
   function showAbout() {
@@ -1432,6 +1355,7 @@ var KanvazUI_Extended = (function() {
     ].join('');
 
     var updateBtn = document.createElement('button');
+    updateBtn.id = 'about-update-btn';   /* looked up by app.js's global update-event handlers, which may fire after this screen is rebuilt */
     updateBtn.className = 'about-btn about-btn-update';
     updateBtn.textContent = 'Check for updates';
     updateBtn.title = 'Checks GitHub for a newer release — a user-clicked network request, never automatic. See SECURITY.md for every network call Kanvaz can make.';

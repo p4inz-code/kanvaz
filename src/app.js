@@ -92,18 +92,89 @@ var KanvazApp = (function() {
          was loading is delivered now. */
       if (KanvazBridge.linkRendererReady) KanvazBridge.linkRendererReady();
 
+      /* Usability fix (2026-09-22): "Check for updates" is now driven
+         entirely by these five events from main.js's real updater — see
+         its comment for why the old parallel renderer-side GitHub fetch
+         is gone. #about-update-status / #about-update-btn are looked up
+         fresh each time (the About screen may or may not be open when
+         an event lands) rather than kept in a stale reference. */
+      function updateStatusEls() {
+        return {
+          status: document.getElementById('about-update-status'),
+          btn: document.getElementById('about-update-btn')
+        };
+      }
+
+      KanvazBridge.on('checking-for-update', function() {
+        var els = updateStatusEls();
+        if (els.status) { els.status.style.color = 'var(--color-text-3)'; els.status.textContent = 'Checking…'; }
+      });
+
+      KanvazBridge.on('update-not-available', function() {
+        var els = updateStatusEls();
+        var version = (typeof KanvazBoards !== 'undefined' && KanvazBoards.getVersion) ? KanvazBoards.getVersion() : '';
+        if (els.status) { els.status.style.color = 'var(--color-text-3)'; els.status.textContent = "You're up to date" + (version ? ' (v' + version + ')' : ''); }
+        if (els.btn) els.btn.disabled = false;
+      });
+
+      KanvazBridge.on('update-error', function(info) {
+        var els = updateStatusEls();
+        if (els.status) { els.status.style.color = 'var(--color-text-3)'; els.status.textContent = (info && info.message) || "Couldn't check for updates"; }
+        if (els.btn) els.btn.disabled = false;
+      });
+
+      /* Portable .exe / unsigned mac build: no well-defined in-place
+         update to apply — quitAndInstall() needs an installed copy to
+         replace, and Squirrel.Mac needs a code signature Kanvaz doesn't
+         have. Both get the same honest, equally-easy fallback: a direct
+         link to the release page. Not an error — the check itself
+         succeeded, auto-install just isn't possible on this build. */
+      KanvazBridge.on('update-unsupported', function(info) {
+        var els = updateStatusEls();
+        var reason = info && info.reason;
+        var releaseUrl = 'https://github.com/p4inz-code/kanvaz/releases/latest';
+
+        if (reason === 'dev') {
+          if (els.status) { els.status.style.color = 'var(--color-text-3)'; els.status.textContent = "Updates aren't checked in a dev build"; }
+          if (els.btn) els.btn.disabled = false;
+          return;
+        }
+
+        var text = reason === 'mac-unsigned'
+          ? "Kanvaz isn't signed for macOS yet, so it can't install updates automatically — check the release page for a newer version and drag it into Applications to replace this one."
+          : "Auto-update isn't supported for the portable build — check the release page for a newer version and replace this .exe yourself.";
+
+        if (els.status) {
+          els.status.style.color = 'var(--color-text-3)';
+          els.status.textContent = 'Auto-update not available on this build — ';
+          var link = document.createElement('a');
+          link.href = '#';
+          link.style.color = 'var(--color-accent)';
+          link.style.textDecoration = 'underline';
+          link.textContent = 'open release page';
+          link.onclick = function(e) { e.preventDefault(); KanvazBridge.openExternal(releaseUrl); };
+          els.status.appendChild(link);
+        }
+        if (els.btn) els.btn.disabled = false;
+
+        KanvazUI.showDialog(
+          'Auto-update not available',
+          text,
+          [
+            { label: 'Open release page', cls: 'primary', action: function() { KanvazBridge.openExternal(releaseUrl); } },
+            { label: 'Later', cls: '' }
+          ]
+        );
+      });
+
       /* Audit fix (live-tested): this used to fire a "found —
          downloading…" toast and silently start the download right
          then, with no way to say no — main.js's autoDownload flag is
          now false specifically so this dialog is the actual decision
-         point, not a courtesy notice after the fact.
-
-         Portable-build case (also live-tested): there is no well-defined
-         in-place auto-update for the portable .exe — electron-updater
-         has no concept of it, and quitAndInstall() would try to run the
-         (NSIS-only) downloaded installer against an exe that was never
-         "installed" anywhere. So a portable build never even gets the
-         auto-download option — only the release-page link. */
+         point, not a courtesy notice after the fact. By the time this
+         fires, main.js has already confirmed (via 'update-unsupported')
+         that this build can actually auto-install — no portable/mac
+         branch needed here any more. */
       KanvazBridge.on('update-available', function(info) {
         /* Reset so a second check-for-updates in the same session (the
            user cancelled, or re-checked later) gets its own fresh set
@@ -114,17 +185,9 @@ var KanvazApp = (function() {
         var label = 'Kanvaz' + (version ? ' v' + version : '') + ' is available.';
         var releaseUrl = 'https://github.com/p4inz-code/kanvaz/releases/latest';
 
-        if (info && info.isPortable) {
-          KanvazUI.showDialog(
-            'Update available',
-            label + ' Auto-update isn\'t supported for the portable build — download the new version from the release page and replace this .exe yourself.',
-            [
-              { label: 'Open release page', cls: 'primary', action: function() { KanvazBridge.openExternal(releaseUrl); } },
-              { label: 'Later', cls: '' }
-            ]
-          );
-          return;
-        }
+        var els = updateStatusEls();
+        if (els.status) { els.status.style.color = 'var(--color-accent)'; els.status.textContent = label; }
+        if (els.btn) els.btn.disabled = false;
 
         KanvazUI.showDialog(
           'Update available',
