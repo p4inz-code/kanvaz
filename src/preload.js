@@ -118,7 +118,7 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
   fetchTemplatesCatalog: function() { return ipcRenderer.invoke('templates-catalog-fetch'); },
   fetchTemplateContent: function(contentUrl) { return ipcRenderer.invoke('templates-catalog-fetch-item', contentUrl); },
   exportTemplateFile:   function(payload) { return ipcRenderer.invoke('templates-export-file', payload); },
-  exportImageSave:      function(defaultName, dataUrl) { return ipcRenderer.invoke('export-image-save', defaultName, dataUrl); },
+  exportImageSave:      function(defaultName, dataUrl, format) { return ipcRenderer.invoke('export-image-save', defaultName, dataUrl, format); },
   getRecentChangelog:   function(count) { return ipcRenderer.invoke('changelog-recent', count); },
   importTemplateFile:   function() { return ipcRenderer.invoke('templates-import-file'); },
   installFromCatalog:   function(entry) { return ipcRenderer.invoke('plugins-install-from-catalog', entry); },

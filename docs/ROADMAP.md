@@ -513,6 +513,57 @@ scope for next session, once live verification is available again:
    even that — a separate scrubber UI matching the existing glTF clip
    picker's pattern, once static reading is proven solid.
 
+---
+
+# Scratch Board: Properties-panel section — resolved, 2026-09-23 (was briefly deferred, same session)
+
+Originally shipped toolbar-only (see the superseded note this replaced).
+Owner asked for it explicitly in a later message the same night, so it was
+added: properties.js's renderScratchBoardSection() now shows Tool/Brush
+(color, width, opacity)/Background (style, fill, line-or-grid accent color)/
+Clear-all whenever Scratch view is open and no card is selected, reading and
+writing KanvazScratchBoard's own getters/setters — the exact same ones the
+toolbar's own inputs call, verified live to stay in sync both directions
+(toolbar -> panel via each setter's syncProperties() call; panel -> toolbar
+since it's the same underlying state). Continuous-drag inputs (color swatch,
+width/opacity number fields) deliberately do NOT force a live re-render of
+the OTHER surface on every tick — replacing a native color-picker's or a
+number input's own DOM element out from under an in-progress interaction
+would fight the user's input; those two surfaces settle in sync on the next
+discrete action instead (tool change, style change, next panel open).
+
+# README "fetch"-style project stats block — idea noted 2026-09-23, not started
+
+Inspired by the neofetch-style personal-profile READMEs some devs run (an
+ASCII/SVG block of live stats, styled like a terminal `neofetch` dump). Not a
+fit as-is — that trick only renders specially on a repo named after your own
+GitHub username, and Kanvaz's README is project docs, not a personal profile.
+The applicable version: a compact, auto-generated "Kanvaz fetch" block at the
+top of this README — logo on one side, real project stats on the other
+(version, supported format count, the three views, license, download count) —
+kept accurate via a small generator script rather than hand-edited, so it
+never goes stale the way a manually-typed badge block does. Explicitly
+deferred — do this together with Veris, someday, not this session.
+
+# Task Tracker — feature idea noted 2026-09-23, NOT started, needs its own Q&A round first
+
+Owner's tester asked for this specifically — described as the most-requested
+feature so far. Concept as described: a creator-defined task list built into
+Kanvaz (for creative-artist workflows — shot lists, asset checklists, review
+passes), where each task can have up to 5 subtasks, checked off with a click,
+and the creator can track their own progress against it. Not yet scoped at
+all beyond that one-paragraph description — deliberately NOT implemented
+blind tonight. This needs the same kind of 20-question Q&A pass Scratch Board
+got before any code gets written: where does a task list live (per-board?
+per-card? a new global view alongside Board/Map/Scratch?), does it need its
+own undo/redo, does it get persisted the same way boards.js persists
+everything else, is it multi-user/shared or strictly local, does "tracking
+progress" mean a percentage/count somewhere in the UI chrome, does it
+interact with Connections or existing card types at all. Explicitly deferred
+per the owner's own instruction: "plan it... we will do 20 qna for this new
+feature" — this entry exists so the idea isn't lost before that conversation
+happens, not as a spec.
+
 # 9.1.0 audit pass, 2026-09-22/23 — status and what's deferred
 
 Shipped in 9.1.0: 13 render modes with grouped picker/camera presets/turntable,

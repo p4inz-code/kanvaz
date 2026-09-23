@@ -160,6 +160,15 @@ var KanvazProperties = (function() {
     var card = activeId ? allCards[activeId] : null;
 
     if (!card) {
+      /* Scratch Board has no card to show properties for — but it has
+         real per-board settings (tool, brush, background) that belong in
+         this same panel, matching how every other tool surface in the
+         app exposes its settings here. Only takes over the empty state
+         while Scratch view is actually open. */
+      if (typeof KanvazScratchBoard !== 'undefined' && KanvazScratchBoard.isActive()) {
+        renderScratchBoardSection(container);
+        return;
+      }
       var empty = document.createElement('div');
       empty.style.cssText = 'padding:24px 16px;text-align:center;color:var(--color-text-3);font-size:12px;line-height:1.5;';
       empty.textContent = 'Select a card to see its properties.';
@@ -281,6 +290,137 @@ var KanvazProperties = (function() {
     addBtn.onclick = function() { addProperty(card); };
     footer.appendChild(addBtn);
     container.appendChild(footer);
+  }
+
+  /* ── Scratch Board — the panel's content while that view is open and no
+     card is selected (there's nothing else this panel could show). Reads
+     and writes KanvazScratchBoard's live state directly through its
+     exported getters/setters — the same ones the Scratch toolbar's own
+     inputs call, so this panel and the toolbar can never drift out of
+     sync with each other. */
+  function renderScratchBoardSection(container) {
+    var SB = KanvazScratchBoard;
+
+    var header = document.createElement('div');
+    header.style.cssText = HEADER_CSS;
+    var titleWrap = document.createElement('div');
+    titleWrap.style.cssText = 'overflow:hidden;flex:1;';
+    var titleRow = document.createElement('div');
+    titleRow.style.cssText = 'font-weight:600;font-size:14px;';
+    titleRow.textContent = 'Scratch Board';
+    titleWrap.appendChild(titleRow);
+    var subtitle = document.createElement('div');
+    subtitle.style.cssText = 'font-size:11px;color:var(--color-text-3);margin-top:2px;';
+    subtitle.textContent = SB.getStrokeCount() + (SB.getStrokeCount() === 1 ? ' stroke' : ' strokes') + ' on this board';
+    titleWrap.appendChild(subtitle);
+    header.appendChild(titleWrap);
+    container.appendChild(header);
+
+    var body = document.createElement('div');
+    body.style.cssText = BODY_CSS;
+
+    function row(labelText) {
+      var r = document.createElement('div');
+      r.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;';
+      var l = document.createElement('div');
+      l.style.cssText = LABEL_CSS;
+      l.textContent = labelText;
+      r.appendChild(l);
+      body.appendChild(r);
+      return r;
+    }
+
+    function selectRow(labelText, options, currentValue, onChange) {
+      var r = row(labelText);
+      var sel = document.createElement('select');
+      sel.style.cssText = 'background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:4px;color:var(--color-text);padding:3px 6px;font-size:11px;font-family:var(--font-ui);outline:none;';
+      for (var i = 0; i < options.length; i++) {
+        var o = document.createElement('option');
+        o.value = options[i][0];
+        o.textContent = options[i][1];
+        if (options[i][0] === currentValue) o.selected = true;
+        sel.appendChild(o);
+      }
+      /* onChange calls into scratch-board.js's setTool()/setBgStyle(),
+         which already call syncProperties() (-> refresh() -> this same
+         renderInto()) themselves on every discrete, non-continuous change
+         like these — no need to also refresh from here. */
+      sel.onchange = function() { onChange(sel.value); };
+      r.appendChild(sel);
+      return sel;
+    }
+
+    function colorRow(labelText, currentValue, onChange) {
+      var r = row(labelText);
+      var input = document.createElement('input');
+      input.type = 'color';
+      input.value = currentValue;
+      input.style.cssText = 'width:28px;height:22px;padding:0;border:1px solid var(--color-border);border-radius:5px;background:none;cursor:pointer;';
+      input.addEventListener('input', function() { onChange(input.value); });
+      r.appendChild(input);
+      return input;
+    }
+
+    function numberRow(labelText, currentValue, min, max, onChange) {
+      var r = row(labelText);
+      var input = document.createElement('input');
+      input.type = 'number';
+      input.min = min; input.max = max;
+      input.value = currentValue;
+      input.style.cssText = 'width:52px;padding:3px 6px;border:1px solid var(--color-border);border-radius:4px;background:var(--color-surface-2);color:var(--color-text);font-family:var(--font-ui);font-size:11px;outline:none;text-align:right;';
+      input.addEventListener('input', function() {
+        var v = parseFloat(input.value);
+        if (isFinite(v)) onChange(v);
+      });
+      r.appendChild(input);
+      return input;
+    }
+
+    var toolTitle = document.createElement('div');
+    toolTitle.style.cssText = SECTION_TITLE_CSS;
+    toolTitle.textContent = 'Tool';
+    body.appendChild(toolTitle);
+
+    var TOOL_LABELS = { select: 'Select / Pan', pen: 'Pen', highlighter: 'Highlighter', line: 'Line', arrow: 'Arrow', rect: 'Rectangle', ellipse: 'Ellipse', eraser: 'Eraser' };
+    var toolOptions = [['select', TOOL_LABELS.select]];
+    for (var ti = 0; ti < SB.TOOLS.length; ti++) toolOptions.push([SB.TOOLS[ti], TOOL_LABELS[SB.TOOLS[ti]] || SB.TOOLS[ti]]);
+    selectRow('Active tool', toolOptions, SB.getTool(), function(v) { SB.setTool(v); });
+
+    var brushTitle = document.createElement('div');
+    brushTitle.style.cssText = SECTION_TITLE_CSS + 'margin-top:16px;';
+    brushTitle.textContent = 'Brush';
+    body.appendChild(brushTitle);
+
+    colorRow('Color', SB.getColor(), function(v) { SB.setColor(v); });
+    numberRow('Width', SB.getWidth(), 1, 24, function(v) { SB.setWidth(v); });
+    numberRow('Opacity %', Math.round(SB.getOpacity() * 100), 10, 100, function(v) { SB.setOpacity(v / 100); });
+
+    var bgTitle = document.createElement('div');
+    bgTitle.style.cssText = SECTION_TITLE_CSS + 'margin-top:16px;';
+    bgTitle.textContent = 'Background';
+    body.appendChild(bgTitle);
+
+    var BG_LABELS = { lines: 'Ruled lines', color: 'Plain color', grid: 'Grid' };
+    var bgOptions = [];
+    for (var bi = 0; bi < SB.BG_STYLES.length; bi++) bgOptions.push([SB.BG_STYLES[bi], BG_LABELS[SB.BG_STYLES[bi]] || SB.BG_STYLES[bi]]);
+    var currentBgStyle = SB.getBgStyle();
+    selectRow('Style', bgOptions, currentBgStyle, function(v) { SB.setBgStyle(v); });
+    colorRow('Fill color', SB.getBgColor(), function(v) { SB.setBgColor(v); });
+    if (currentBgStyle === 'lines') {
+      colorRow('Line color', SB.getLineColor() || '#ffffff', function(v) { SB.setLineColor(v); });
+    } else if (currentBgStyle === 'grid') {
+      colorRow('Grid color', SB.getGridColor() || '#ffffff', function(v) { SB.setGridColor(v); });
+    }
+
+    var clearBtn = document.createElement('button');
+    clearBtn.textContent = 'Clean board';
+    clearBtn.style.cssText = 'width:100%;margin-top:16px;padding:8px;background:none;border:1px solid var(--color-border-2);border-radius:6px;color:var(--color-text-2);font-family:var(--font-ui);font-size:12px;cursor:pointer;';
+    /* Same shared confirmClean() the toolbar's own button uses — one
+       real (non-native) confirmation dialog, one call site. */
+    clearBtn.onclick = function() { SB.confirmClean(); };
+    body.appendChild(clearBtn);
+
+    container.appendChild(body);
   }
 
   /* ── Transform (X / Y / W / H) — Photoshop/Illustrator-style

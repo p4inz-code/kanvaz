@@ -269,8 +269,15 @@ var KanvazShortcuts = (function() {
       return;
     }
 
-    /* Map view toggle */
+    /* Map view toggle
+       Bug fix (9.5.0): this used to call KanvazMapView.toggle() directly,
+       with no matching KanvazScratchBoard.setActive(false) the way the
+       btn-view-map toolbar button (app.js) already has. Scratch's own
+       stroke/background canvases don't belong to Map View's show()/hide()
+       lifecycle, so they stayed visible and pointer-events:auto on top of
+       Map View, making it unusable via this shortcut specifically. */
     if (e.key === 'm' || e.key === 'M') {
+      if (typeof KanvazScratchBoard !== 'undefined' && KanvazScratchBoard.isActive()) KanvazScratchBoard.setActive(false);
       if (typeof KanvazMapView !== 'undefined') KanvazMapView.toggle();
       return;
     }

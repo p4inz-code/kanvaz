@@ -525,7 +525,15 @@ var KanvazPluginAPI = (function() {
   function zoomOut() { if (typeof KanvazCanvas !== 'undefined') KanvazCanvas.zoomOut(); }
   function zoomReset() { if (typeof KanvazCanvas !== 'undefined') KanvazCanvas.zoomReset(); }
   function zoomFit() { if (typeof KanvazCanvas !== 'undefined') KanvazCanvas.zoomFit(); }
-  function toggleMapView() { if (typeof KanvazMapView !== 'undefined') KanvazMapView.toggle(); }
+  /* Bug fix (9.5.0): a 4th entry point to the same Map View toggle the
+     other three (toolbar button, "M" shortcut, Command Palette) already
+     had to be fixed for — none of them cleared Scratch Board's own
+     overlay first, leaving its full-viewport stroke canvas covering Map
+     View. A plugin calling this directly hit the exact same bug. */
+  function toggleMapView() {
+    if (typeof KanvazScratchBoard !== 'undefined' && KanvazScratchBoard.isActive()) KanvazScratchBoard.setActive(false);
+    if (typeof KanvazMapView !== 'undefined') KanvazMapView.toggle();
+  }
 
   /* ── Settings (4.5.0) — everything except plugin management, which
      was never reachable through this path in the first place: plugin

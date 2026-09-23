@@ -7,7 +7,7 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '9.4.0';
+  var VERSION       = '9.5.0';
 
   /* ── Shared cards (v6.4.0) — "same card, no duplicate, edit once
      updates everywhere" (Are.na-style), across boards in ONE .kanvaz
@@ -654,6 +654,18 @@ var KanvazBoards = (function() {
         KanvazConnections.clear();
       }
     }
+    /* Bug fix (found live): this whole function is a separate reset path
+       from loadBoardState() (used when SWITCHING to an existing board) —
+       it builds and activates a brand-new board object directly, so it
+       never went through loadBoardState()'s scratchBg/scratchBgColor/
+       scratchStrokes restore. A fresh board has no saved scratch fields
+       at all, so without this, KanvazScratchBoard just kept whatever was
+       still in memory from the PREVIOUS board — a brand new, empty board
+       opened already covered in someone else's leftover strokes. */
+    if (typeof KanvazScratchBoard !== 'undefined') {
+      KanvazScratchBoard.setState({ bgStyle: 'lines', bgColor: '#1b1b22', lineAccentColor: null, gridAccentColor: null, strokes: [] });
+      if (KanvazScratchBoard.isActive()) KanvazScratchBoard.redraw();
+    }
     KanvazCanvas.zoomReset();
     KanvazHistory.clear();
     emitBoardEvent('boardLoad');
@@ -715,6 +727,18 @@ var KanvazBoards = (function() {
       boards[activeIdx].mapTy    = ms.ty;
       boards[activeIdx].mapScale = ms.scale;
     }
+
+    /* 9.5.0: save Scratch Board state (background + board-wide strokes).
+       No camera fields — Scratch shares Board's own canvasTx/Ty/Scale,
+       already saved above. */
+    if (typeof KanvazScratchBoard !== 'undefined') {
+      var ss = KanvazScratchBoard.getState();
+      boards[activeIdx].scratchBg          = ss.bgStyle;
+      boards[activeIdx].scratchBgColor     = ss.bgColor;
+      boards[activeIdx].scratchLineColor   = ss.lineAccentColor;
+      boards[activeIdx].scratchGridColor   = ss.gridAccentColor;
+      boards[activeIdx].scratchStrokes     = ss.strokes;
+    }
   }
 
   /* ── Load board state from boards array ── */
@@ -736,6 +760,18 @@ var KanvazBoards = (function() {
         scale: board.mapScale || 1.0
       });
       if (KanvazMapView.isActive()) KanvazMapView.render();
+    }
+
+    /* 9.5.0: restore Scratch Board state */
+    if (typeof KanvazScratchBoard !== 'undefined') {
+      KanvazScratchBoard.setState({
+        bgStyle: board.scratchBg          || 'lines',
+        bgColor: board.scratchBgColor     || '#1b1b22',
+        lineAccentColor: board.scratchLineColor || null,
+        gridAccentColor: board.scratchGridColor || null,
+        strokes: board.scratchStrokes     || []
+      });
+      if (KanvazScratchBoard.isActive()) KanvazScratchBoard.redraw();
     }
 
     KanvazHistory.clear();

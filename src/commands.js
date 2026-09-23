@@ -197,7 +197,13 @@ var KanvazCommands = (function() {
     });
     registerCommand('core.toggleMapView', {
       label: 'Toggle Map View', shortcut: 'M',
-      run: function() { if (typeof KanvazMapView !== 'undefined') KanvazMapView.toggle(); }
+      /* Bug fix (9.5.0): same Scratch-overlay-left-on-top issue fixed for
+         the "M" keydown handler in shortcuts.js — this Command Palette
+         entry is a second, independent entry point to the same toggle. */
+      run: function() {
+        if (typeof KanvazScratchBoard !== 'undefined' && KanvazScratchBoard.isActive()) KanvazScratchBoard.setActive(false);
+        if (typeof KanvazMapView !== 'undefined') KanvazMapView.toggle();
+      }
     });
     registerCommand('core.toggleMarqueeSelect', {
       label: 'Toggle Box-Select Mode', shortcut: 'V',

@@ -1069,6 +1069,122 @@ body.presentation-mode-active #side-panel {
   z-index: 0;
 }
 
+/* Scratch Board (9.5.0) — background layer: same box as #canvas-grid,
+   shown instead of it only while Scratch view is active (see
+   scratch-board.js's setActive()). */
+#scratch-bg-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  display: none;
+}
+
+/* Scratch Board — stroke layer: sits above every card (a comfortably-high
+   fixed z-index, not tied to any card's own z-order, which only matters
+   for stacking cards against each other) regardless of board size.
+   pointer-events stays none (cards stay clickable) until a drawing tool
+   is armed, same show/hide-input pattern annotate.js's per-card overlay
+   already uses. */
+#scratch-strokes-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 100000;
+  display: none;
+}
+
+/* Scratch Board drawing toolbar — same visual language as .view-toggle-wrap
+   (segmented pill, same surface/border tokens) so it reads as part of the
+   same toolbar family rather than a bolted-on control. Hidden by default;
+   scratch-board.js toggles "visible" only while Scratch view is active. */
+.scratch-toolbar {
+  display: none;
+  align-items: center;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  padding: 4px 5px;
+  gap: 3px;
+  margin: 0 4px;
+}
+
+.scratch-toolbar.visible {
+  display: flex;
+}
+
+.scratch-tool-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--color-text-3);
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.scratch-tool-btn:hover {
+  color: var(--color-text);
+  background: var(--color-surface-3, rgba(255,255,255,0.06));
+}
+
+.scratch-tool-btn.scratch-tool-active {
+  background: var(--color-accent-bg);
+  color: var(--color-accent);
+}
+
+.scratch-toolbar-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--color-border);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.scratch-color-swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  background: none;
+  cursor: pointer;
+}
+
+.scratch-num-label {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--color-text-3);
+  font-family: var(--font-ui);
+  padding: 0 3px;
+}
+
+.scratch-num-input {
+  width: 32px;
+  height: 20px;
+  padding: 0 2px;
+  font-size: 11px;
+  font-family: var(--font-ui);
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  text-align: center;
+}
+
 /* Empty state
    Polish fix: this was the flattest, least-designed screen in the app —
    static, no motion, icon at 0.18 opacity (practically invisible), and

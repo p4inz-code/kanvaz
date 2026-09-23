@@ -76,11 +76,13 @@ var KanvazCanvas = (function() {
       new ResizeObserver(function() {
         resizeGrid();
         drawGrid();
+        if (typeof KanvazScratchBoard !== 'undefined' && KanvazScratchBoard.redraw) KanvazScratchBoard.redraw();
       }).observe(container);
     } else {
       window.addEventListener('resize', function() {
         resizeGrid();
         drawGrid();
+        if (typeof KanvazScratchBoard !== 'undefined' && KanvazScratchBoard.redraw) KanvazScratchBoard.redraw();
       });
     }
 
@@ -141,6 +143,11 @@ var KanvazCanvas = (function() {
       gridRafId = requestAnimationFrame(function() {
         gridRafId = null;
         drawGrid();
+        /* Scratch Board (9.5.0) — piggybacks on this same throttled rAF
+           slot rather than running its own pan/zoom redraw loop; it's a
+           no-op via its own `if (!active) return` guard whenever Scratch
+           view isn't open. */
+        if (typeof KanvazScratchBoard !== 'undefined' && KanvazScratchBoard.redraw) KanvazScratchBoard.redraw();
       });
     }
     updateStatusBar();
@@ -662,6 +669,33 @@ var KanvazCanvas = (function() {
     }
 
     container.addEventListener('mousedown', function(e) {
+      /* Bug fix (9.5.0, found live): with a Scratch Board drawing tool
+         armed, #scratch-strokes-canvas sits above everything (z-index
+         100000, pointer-events:auto) and correctly gets the mousedown
+         first — but this listener is on the ANCESTOR #canvas-container,
+         so the same event still bubbles up here right after, and nothing
+         stopped it from ALSO starting a pan/marquee-select underneath the
+         stroke being drawn. The user felt this as "the arrow tool pans
+         the screen instead of drawing" — both were actually happening at
+         once, and the pan's continuous tx/ty changes (which strokes are
+         re-projected through on every redraw) are what made the drawn
+         stroke look like it never landed. Bailing out here whenever a
+         Scratch tool is armed leaves the event to strokeCanvas's own
+         listener alone, exactly like any other tool-armed state (e.g.
+         per-card annotate.js) already takes over the canvas exclusively
+         while active. */
+      /* Found live AGAIN, after the first fix above: that guard blocked
+         EVERY button, including middle-mouse — but middle-mouse-drag-to-
+         pan is a universal "always works, no matter what tool is active"
+         convention (Blender, Photoshop, Figma, Illustrator all do this),
+         and scratch-board.js's own pointerdown handler already ignores
+         anything but the left button (e.button !== 0 bails out there) —
+         so a middle-mouse press was reaching neither drawing NOR panning,
+         just dead. Only the LEFT button actually needs blocking here
+         (that's the button a Scratch tool draws with); middle stays
+         exempt so it can always pan regardless of the armed tool. */
+      if (typeof KanvazScratchBoard !== 'undefined' && KanvazScratchBoard.isToolArmed && KanvazScratchBoard.isToolArmed() && e.button === 0) return;
+
       var isEmptyTarget = (e.target === container || e.target === world || e.target === gridCanvas);
 
       if (e.button === 0 && isEmptyTarget && (e.ctrlKey || e.metaKey || marqueeModeOn)) {
@@ -751,6 +785,19 @@ var KanvazCanvas = (function() {
        it, same convention as every other modal-ish state in this app. */
     window.addEventListener('keydown', function(e) {
       if ((e.key === 'v' || e.key === 'V') && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT') {
+        /* Bug fix (found live): "V" while Scratch Board is open did
+           nothing useful — Board view's own marquee-select toggle below
+           doesn't mean anything there (Scratch's own canvas-authority
+           model, not Board's selection system, is what's active). The
+           user's own request: V should flip between Select (canvas acts
+           like Board view) and the last drawing tool, from WITHIN
+           Scratch view — that's a completely different toggle, owned by
+           scratch-board.js, so it takes "V" over entirely while Scratch
+           is active instead of falling through to marquee mode. */
+        if (typeof KanvazScratchBoard !== 'undefined' && KanvazScratchBoard.isActive()) {
+          KanvazScratchBoard.toggleSelectTool();
+          return;
+        }
         setMarqueeMode(!marqueeModeOn);
       }
     });

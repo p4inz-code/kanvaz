@@ -2,6 +2,130 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [9.5.0] — 2026-09-23 — Scratch Board: third view, board-wide annotations, Illustrator-style tools
+
+*This entry covers two passes the same night: an initial static-only
+build, then a live pass (Electron launched with `--remote-debugging-
+port`, driven over CDP) once real usage surfaced real bugs the static
+pass couldn't catch — several of the fixes below exist BECAUSE that
+live pass found them, not despite it. Final state: `node
+test/validate.js` passes clean, and every item in this entry has been
+exercised live with real pointer/keyboard input, not just read.*
+
+### Added
+- **Scratch Board — a third view**, alongside Board and Map
+  (`#btn-view-scratch`). Reuses Board view's own cards, `#canvas-world`
+  and camera outright — not a separate layout engine like Map View —
+  so every card stays exactly as draggable/clickable as in Board view.
+- **Select tool as the default**, Illustrator/Figma-style: opening
+  Scratch view does NOT arm a drawing tool. A dedicated Select/Pan
+  button (and "V" — see fixes below) puts the canvas back into normal
+  Board-view behavior (pan, click/drag cards, right-click menu); any
+  OTHER tool disarms Select and takes over the canvas exclusively.
+- **Seven tools**: Pen, Highlighter, Line, Arrow, Rectangle, Ellipse,
+  and Eraser. Eraser removes whole strokes it touches (hit-tested
+  against each stroke's real rendered geometry — a rectangle/ellipse's
+  actual edges, not a straight line across its bounding box), not
+  pixel-level erasing.
+- **Shift-constrain**, matching Illustrator: Line/Arrow snap to 0/45/
+  90° increments; Rectangle/Ellipse constrain to a perfect square/
+  circle.
+- **Adjustable brush**: color, width (1–24px), and opacity, captured
+  per-stroke at draw time (changing a setting later never alters
+  already-drawn strokes).
+- **Configurable background** — ruled lines, plain color, or grid — with
+  its own fill color, and lines/grid each get their OWN independent
+  accent color (switching from ruled-lines blue to a grid doesn't
+  overwrite the lines color you picked). All independent of the app's
+  own light/dark theme.
+- **A real Properties-panel section** (`properties.js`'s
+  `renderScratchBoardSection`), shown whenever Scratch view is open and
+  no card is selected: active tool, brush color/width/opacity,
+  background style/fill/accent colors, and Clean Board — reading and
+  writing the exact same state the toolbar does, verified live to stay
+  in sync both directions.
+- **"Clean board"** replaces a plain delete-all: a broom icon (not the
+  trash-can glyph used elsewhere for permanent deletion), asking for
+  confirmation through the app's own real dialog system
+  (`KanvazUI.showDialog`) — not a native OS confirm box.
+- **Board/JPEG export gained a PNG-vs-JPEG choice.** `KanvazCards.
+  exportAsImage()` already existed (board and per-selection image
+  export); it was PNG-only. Now takes a `format` argument, the
+  save-dialog IPC handler validates and routes both, and both the
+  board and selection context-menu items got a PNG and a JPEG entry.
+- **Persisted per board**: background style, fill/line/grid colors, and
+  every stroke, through `boards.js`. A freshly-created board (`New
+  Board`) now correctly starts with an EMPTY Scratch layer instead of
+  inheriting whatever was still in memory from the previous board — a
+  real cross-board leak found live and fixed.
+
+### Fixed (found live, after the static pass looked clean)
+- **`element.style.display = ''` doesn't override a stylesheet's
+  `display:none`** — it just removes the inline value, letting the CSS
+  rule win. Both Scratch canvases have exactly that base rule, so
+  "activating" Scratch left them invisible AND non-hit-testable despite
+  `isActive()` reporting true. This one bug was the root cause behind
+  several confusing downstream symptoms (0 strokes recorded, elements
+  not receiving clicks) before it was found.
+- **Drawing and Board-view panning fought each other.** A drag meant to
+  draw a stroke also started a camera pan underneath it. Fixed at two
+  levels: canvas.js's own pan-start now bails out while a Scratch tool
+  is armed, AND — after a second live pass — refined so ONLY the left
+  button is blocked; middle-mouse pan is a "works no matter what tool
+  is active" convention in every reference app (Blender, Photoshop,
+  Figma) and was wrongly blocked entirely by the first fix.
+- **Right-click while a tool was armed still opened the normal Board
+  context menu** (New Note, Export board, …) on top of the drawing
+  surface. Now blocked exactly while a tool is armed; Select mode's
+  right-click menu is untouched (identical to Board view).
+- **Pointer handlers didn't check which mouse button was pressed** — a
+  middle- or right-mouse drag while a tool was armed drew a stray
+  stroke. Now left-button (or primary touch/pen) only.
+- **"V" now does something inside Scratch view** — toggles Select and
+  the last-used drawing tool (Illustrator/Photoshop convention). It
+  used to fall through to Board view's unrelated marquee-select toggle,
+  which doesn't mean anything while Scratch's own canvas-authority
+  model is active.
+- **`window.confirm()` native OS dialog** — Kanvaz has a real custom
+  dialog system (`KanvazUI.showDialog`, used everywhere else in the
+  app for confirmations); this session's own new code was the only
+  place still falling back to a native browser/OS confirm box. Removed
+  entirely in favor of the real one.
+- **The Scratch toolbar's own width forced the WHOLE app toolbar into
+  horizontal overflow**, which rendered as a native (non-themed)
+  scrollbar. Trimmed the toolbar back to tool buttons + one color
+  swatch + Clean Board + background-style cycle; width/opacity/
+  background-color controls live in the Properties panel section
+  instead (same "compact top toolbar, detail in Properties" pattern
+  Board view itself already uses) — not a missing feature, a
+  redundant-surface removal.
+- **A live-only crash, unrelated to Scratch Board**: `killLiveBlenderProcs
+  is not defined` on every app quit that had ever run a Blender import,
+  reported by the user with a live repro. Root cause: it was declared
+  inside `registerIPC()`, a completely different function scope from
+  the `app.on('before-quit', …)` handler that called it — a plain
+  ReferenceError, not a Blender-specific bug. Moved to module scope in
+  `main.js`; the nested `runBlenderConvert()` still pushes/removes from
+  the same array via closure.
+
+### Known limitations
+- **Strokes are not part of undo/redo.** `history.js` only snapshots
+  cards and connections; wiring Scratch's stroke list into that system
+  was out of scope for this pass. "Clean board" is provided instead, as
+  a coarse, manual, all-or-nothing undo.
+- **Board/selection image export does not include Scratch Board
+  content.** `generateExportCanvas()` is entirely card-bounding-box
+  driven and has no awareness of Scratch's strokes/background — an
+  export of a board with Scratch annotations silently omits them.
+  Documented as a real gap in `docs/ROADMAP.md`, not fixed this pass.
+- **Native `<input type="color">` popups and native `<select>` dropdown
+  lists are not custom-themed.** Chromium provides no CSS hook to
+  restyle either — the color swatches here (and the quality-selector
+  `<select>` elsewhere in the app, pre-existing) use the OS's own
+  picker/list chrome. A fully custom color-picker widget and dropdown
+  component would be a real, standalone undertaking, not a quick style
+  fix; noted as a larger fast-follow candidate, not attempted blind.
+
 ## [9.4.0] — 2026-09-23 — Krita previews, Clip Studio/Procreate recognized
 
 *`test/paint-preview-test.js` builds a real, valid .kra zip (via the same

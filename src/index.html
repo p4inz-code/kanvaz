@@ -153,6 +153,89 @@
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
         Map
       </button>
+      <!-- Scratch Board (9.5.0) — third view, same cards as Board, plus a
+           configurable background and a board-wide annotation layer. See
+           scratch-board.js. -->
+      <button class="view-toggle-btn" id="btn-view-scratch" title="Scratch Board">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+        Scratch
+      </button>
+    </div>
+
+    <!-- Scratch Board drawing toolbar — only visible while Scratch view is
+         active (scratch-board.js toggles the "visible" class). Kept as a
+         sibling of the view-toggle group so it doesn't shift other
+         toolbar buttons around when it appears/disappears. -->
+    <div class="scratch-toolbar" id="scratch-toolbar">
+      <!-- Select/Pan — the default tool (Illustrator/Figma convention).
+           While armed, drawing is off and the canvas behaves exactly like
+           Board view: pan, click/drag cards, marquee-select all work.
+           Any OTHER tool below disables all of that — the two are always
+           mutually exclusive (scratch-board.js's isToolArmed()). -->
+      <button class="scratch-tool-btn" id="scratch-tool-select" data-tool="select" title="Select / Pan">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3l7 17 2-7 7-2z"/></svg>
+      </button>
+      <div class="scratch-toolbar-sep"></div>
+      <button class="scratch-tool-btn" id="scratch-tool-pen" data-tool="pen" title="Pen">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
+      </button>
+      <button class="scratch-tool-btn" id="scratch-tool-highlighter" data-tool="highlighter" title="Highlighter">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 14l3 3"/><path d="M4.5 21l1.5-4 12-12 3 3-12 12-4.5 1z"/></svg>
+      </button>
+      <button class="scratch-tool-btn" id="scratch-tool-line" data-tool="line" title="Line">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="4"/></svg>
+      </button>
+      <button class="scratch-tool-btn" id="scratch-tool-arrow" data-tool="arrow" title="Arrow">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="4"/><polyline points="9 4 20 4 20 15"/></svg>
+      </button>
+      <button class="scratch-tool-btn" id="scratch-tool-rect" data-tool="rect" title="Rectangle">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="12" rx="1"/></svg>
+      </button>
+      <button class="scratch-tool-btn" id="scratch-tool-ellipse" data-tool="ellipse" title="Ellipse">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="9" ry="6"/></svg>
+      </button>
+      <!-- Eraser — drag over a stroke to remove it entirely (whole-stroke,
+           not pixel erasing). Hand-authored icon, same plain stroke style
+           as every other icon in this file (viewBox 24, stroke-width 2,
+           round caps/joins) — not from any external icon set. -->
+      <button class="scratch-tool-btn" id="scratch-tool-eraser" data-tool="eraser" title="Eraser">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13l-7 7H7l-4-4a2 2 0 0 1 0-2.8l9-9a2 2 0 0 1 2.8 0l4.6 4.6a2 2 0 0 1 0 2.8L18 13z"/><path d="M8.5 21H21"/></svg>
+      </button>
+      <div class="scratch-toolbar-sep"></div>
+      <!-- Width/opacity number inputs and the background color swatches
+           used to live here too — trimmed back out (found live: with the
+           full tool set, this toolbar got wide enough to force the WHOLE
+           app toolbar into horizontal overflow). They're fully available,
+           live-synced, in the Properties panel's Scratch Board section
+           (properties.js's renderScratchBoardSection) instead — same
+           pattern Board view itself uses: a compact top toolbar, detailed
+           settings in Properties, not both at once. -->
+      <input type="color" id="scratch-color-swatch" class="scratch-color-swatch" title="Stroke color" value="#7C5CFC">
+      <div class="scratch-toolbar-sep"></div>
+      <!-- Broom, not a trash can — this clears STROKES on the current
+           board, not a destructive delete-something-permanent action in
+           the trash-can sense the rest of the app uses that icon for.
+           Hand-authored, same plain stroke style as every other icon
+           here (viewBox 24, stroke-width 2, round caps/joins, fill:none)
+           — not from any external icon set. -->
+      <button class="scratch-tool-btn" id="scratch-tool-clear" title="Clean board — clears every stroke">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 4l-9 9"/><path d="M11 13l-3 7-5-2 3-7z"/><path d="M5 20l2-2"/><path d="M8 21l2-2"/></svg>
+      </button>
+      <div class="scratch-toolbar-sep"></div>
+      <!-- Background style cycles: ruled lines -> plain color -> grid -> back.
+           Label updates from scratch-board.js so the button always shows the
+           CURRENT style (clicking advances to the next one). -->
+      <button class="scratch-tool-btn scratch-bg-btn" id="scratch-tool-bgstyle" title="Background style (click to cycle) — fill/line/grid colors are in Properties">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="8" x2="21" y2="8"/><line x1="3" y1="13" x2="21" y2="13"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <!-- Background fill/line/grid color swatches: Properties panel only
+           now (see the comment on the toolbar-sep above the stroke-color
+           swatch) — #scratch-bgcolor-swatch and #scratch-accent-color-
+           swatch still exist as element ids that scratch-board.js's
+           setBgColor()/setLineColor()/setGridColor()/updateBgStyleBtn()
+           sync TO if present, they're just not placed in THIS toolbar
+           anymore; every one of those functions null-checks the element
+           first, so their absence here is a no-op, not a bug. -->
     </div>
 
     <div class="toolbar-spacer"></div>
@@ -210,7 +293,22 @@
   <!-- Canvas area -->
   <div id="canvas-container">
     <canvas id="canvas-grid"></canvas>
+    <!-- Scratch Board (9.5.0): a plain annotate-everything background
+         (ruled lines / solid colour / normal grid, see Properties while
+         Scratch is active), shown instead of canvas-grid only while this
+         view is selected. Same layer, same full-viewport sizing pattern. -->
+    <canvas id="scratch-bg-canvas"></canvas>
     <div id="canvas-world"></div>
+    <!-- Board-wide stroke layer, deliberately a SIBLING positioned after
+         canvas-world (not a child) so it renders above every card
+         regardless of any individual card's own z-index, and pans/zooms
+         in lockstep via the same world-space coordinates (see
+         scratch-board.js — every stroke point is stored and redrawn
+         through KanvazCanvas.worldToScreen, never CSS-transformed as a
+         DOM child would be). pointer-events toggles on only while a
+         Scratch drawing tool is actually armed, so cards underneath stay
+         fully clickable/draggable the rest of the time. -->
+    <canvas id="scratch-strokes-canvas"></canvas>
 
     <!-- Empty state -->
     <div id="canvas-empty">
@@ -288,6 +386,7 @@
 <script src="inspector.js"></script>
 <script src="properties.js"></script>
 <script src="map-view.js"></script>
+<script src="scratch-board.js"></script>
 <script src="shortcuts.js"></script>
 <script src="ui.js"></script>
 <script src="sidepanel.js"></script>

@@ -24,6 +24,7 @@ var KanvazApp = (function() {
       if (typeof KanvazCommands !== 'undefined') KanvazCommands.init();
       KanvazBoards.init();
       if (typeof KanvazMapView !== 'undefined') KanvazMapView.init();
+      if (typeof KanvazScratchBoard !== 'undefined') KanvazScratchBoard.init();
       KanvazUI_Extended.init();
       if (typeof KanvazSidePanel !== 'undefined') KanvazSidePanel.init();
 
@@ -284,9 +285,24 @@ var KanvazApp = (function() {
     on('btn-redo',      function() { KanvazHistory.redo(); });
     on('btn-view-board', function() {
       if (typeof KanvazMapView !== 'undefined' && KanvazMapView.isActive()) KanvazMapView.toggle();
+      if (typeof KanvazScratchBoard !== 'undefined' && KanvazScratchBoard.isActive()) KanvazScratchBoard.setActive(false);
     });
     on('btn-view-map', function() {
+      if (typeof KanvazScratchBoard !== 'undefined' && KanvazScratchBoard.isActive()) KanvazScratchBoard.setActive(false);
       if (typeof KanvazMapView !== 'undefined' && !KanvazMapView.isActive()) KanvazMapView.toggle();
+    });
+    /* Scratch Board (9.5.0) — third view. Same #canvas-world/cards as
+       Board (no separate toggle() lifecycle like Map View needs), so
+       this only has to turn Map off and turn Scratch on.
+       Bug fix: this originally flipped Scratch with `!isActive()`, unlike
+       btn-view-board/btn-view-map which only ever turn their OWN view on
+       (clicking the already-active button is a no-op, standard segmented-
+       control behavior) — clicking Scratch a second time was kicking the
+       user back to Board, an inconsistent double-click trap its sibling
+       buttons don't have. Now it only ever turns Scratch on, matching them. */
+    on('btn-view-scratch', function() {
+      if (typeof KanvazMapView !== 'undefined' && KanvazMapView.isActive()) KanvazMapView.toggle();
+      if (typeof KanvazScratchBoard !== 'undefined' && !KanvazScratchBoard.isActive()) KanvazScratchBoard.setActive(true);
     });
     /* v7.x redesign — Settings moved into the left side panel; About/
        Shortcuts consolidated into the corner account-menu button (see
@@ -1888,8 +1904,12 @@ var KanvazApp = (function() {
       }
       if (selIds.length > 1) {
         items.push({
-          label: 'Export selection as image',
-          action: function() { KanvazCards.exportAsImage(selIds); }
+          label: 'Export selection as PNG',
+          action: function() { KanvazCards.exportAsImage(selIds, 'png'); }
+        });
+        items.push({
+          label: 'Export selection as JPEG',
+          action: function() { KanvazCards.exportAsImage(selIds, 'jpeg'); }
         });
       }
 
@@ -2108,9 +2128,13 @@ var KanvazApp = (function() {
             if (typeof KanvazCards === 'undefined') return;
             KanvazCards.tidyUp(KanvazCards.getAllIds());
           }},
-          { label: 'Export board as image', action: function() {
+          { label: 'Export board as PNG', action: function() {
             if (typeof KanvazCards === 'undefined') return;
-            KanvazCards.exportAsImage(KanvazCards.getAllIds());
+            KanvazCards.exportAsImage(KanvazCards.getAllIds(), 'png');
+          }},
+          { label: 'Export board as JPEG', action: function() {
+            if (typeof KanvazCards === 'undefined') return;
+            KanvazCards.exportAsImage(KanvazCards.getAllIds(), 'jpeg');
           }},
           { sep: true },
           { label: 'Reset zoom', shortcut: '0', action: function() { KanvazCanvas.zoomReset(); }},

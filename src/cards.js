@@ -6572,22 +6572,27 @@ var KanvazCards = (function() {
     return canvas;
   }
 
-  function exportAsImage(ids) {
+  /* format: 'png' (default, lossless, transparency-capable — matches the
+     original behavior exactly) or 'jpeg' (smaller files, no transparency;
+     added on request alongside the existing PNG export, same generated
+     canvas either way — only the final encode step differs). */
+  function exportAsImage(ids, format) {
     var canvas = generateExportCanvas(ids);
     if (!canvas) {
       if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Nothing to export', 'error');
       return;
     }
-    var dataUrl = canvas.toDataURL('image/png');
+    var fmt = (format === 'jpeg') ? 'jpeg' : 'png';
+    var dataUrl = fmt === 'jpeg' ? canvas.toDataURL('image/jpeg', 0.92) : canvas.toDataURL('image/png');
     var name = (ids.length === 1 && cards[ids[0]] && cards[ids[0]].name) || 'board';
     if (typeof KanvazBridge === 'undefined' || !KanvazBridge.exportImageSave) return;
-    KanvazBridge.exportImageSave(name, dataUrl).then(function(res) {
+    KanvazBridge.exportImageSave(name, dataUrl, fmt).then(function(res) {
       if (!res || res.cancelled) return;
       if (!res.ok) {
         if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Export failed — ' + (res.error || 'unknown error'), 'error');
         return;
       }
-      if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Exported as image');
+      if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Exported as ' + fmt.toUpperCase());
     });
   }
 

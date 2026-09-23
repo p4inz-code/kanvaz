@@ -38,6 +38,27 @@ function logCrash(kind, message, stack, detail) {
   } catch (e) { /* app not ready yet — nothing to write to */ }
 }
 var shownUncaughtDialog = false;
+
+/* Live Blender child processes, so before-quit can kill them instead of
+   leaving orphaned Blender.exe processes running after Kanvaz itself has
+   exited (they have no window and no parent left to report back to).
+   Bug fix (found live): this used to be declared INSIDE registerIPC(),
+   where runBlenderConvert() (also nested there) pushes/removes from it —
+   but the app's 'before-quit' handler is set up outside registerIPC()
+   entirely, in the app's own top-level lifecycle wiring, so calling
+   killLiveBlenderProcs() from there threw a plain ReferenceError (it
+   simply wasn't in scope) every time Kanvaz quit with a Blender import
+   having run at some point — a crash dialog on every close, not just
+   with one still running. Module-level scope makes it reachable from
+   both places; runBlenderConvert's push/splice calls still work exactly
+   the same via closure over this same array. */
+var liveBlenderProcs = [];
+function killLiveBlenderProcs() {
+  for (var i = 0; i < liveBlenderProcs.length; i++) {
+    try { liveBlenderProcs[i].kill(); } catch (e) { /* already gone */ }
+  }
+  liveBlenderProcs = [];
+}
 process.on('uncaughtException', function(err) {
   logCrash('uncaughtException', err && err.message, err && err.stack);
   if (!shownUncaughtDialog && app.isReady()) {
@@ -1521,16 +1542,9 @@ function registerIPC() {
      must come BEFORE --python-expr on Blender's command line. */
   var BLENDER_CONVERT_TIMEOUT_MS = 180000;
 
-  /* Live Blender child processes, so before-quit can kill them instead of
-     leaving orphaned Blender.exe processes running after Kanvaz itself has
-     exited (they have no window and no parent left to report back to). */
-  var liveBlenderProcs = [];
-  function killLiveBlenderProcs() {
-    for (var i = 0; i < liveBlenderProcs.length; i++) {
-      try { liveBlenderProcs[i].kill(); } catch (e) { /* already gone */ }
-    }
-    liveBlenderProcs = [];
-  }
+  /* liveBlenderProcs / killLiveBlenderProcs now live at module scope
+     (top of file) — see the comment there for why. This function still
+     pushes/removes from that same array via closure. */
 
   /* Blender conversions run one at a time. Each instance is a real, heavy
      process (its own Python interpreter, full scene load); a user who drops
@@ -2642,18 +2656,27 @@ function registerIPC() {
      raw bytes to a user-chosen path. Same "renderer renders, main
      process only handles the filesystem/dialog side" split every other
      export in this app already uses. */
-  ipcMain.handle('export-image-save', function(event, defaultName, dataUrl) {
-    if (!dataUrl || dataUrl.indexOf('data:image/png;base64,') !== 0) {
+  ipcMain.handle('export-image-save', function(event, defaultName, dataUrl, format) {
+    /* format is a renderer-supplied hint for the save dialog's default
+       extension/filter only — the ACTUAL encoding is verified from the
+       data URL's own prefix below, never trusted from the hint alone. */
+    var isJpeg = typeof dataUrl === 'string' && dataUrl.indexOf('data:image/jpeg;base64,') === 0;
+    var isPng = typeof dataUrl === 'string' && dataUrl.indexOf('data:image/png;base64,') === 0;
+    if (!isJpeg && !isPng) {
       return Promise.resolve({ ok: false, error: 'nothing to export' });
     }
+    var ext = isJpeg ? 'jpg' : 'png';
     var savePath = dialog.showSaveDialogSync(mainWindow, {
       title: 'Export as Image',
-      defaultPath: (defaultName || 'board').replace(/[\\/:*?"<>|]/g, '_') + '.png',
-      filters: [{ name: 'PNG Image', extensions: ['png'] }]
+      defaultPath: (defaultName || 'board').replace(/[\\/:*?"<>|]/g, '_') + '.' + ext,
+      filters: isJpeg
+        ? [{ name: 'JPEG Image', extensions: ['jpg', 'jpeg'] }]
+        : [{ name: 'PNG Image', extensions: ['png'] }]
     });
     if (!savePath) return Promise.resolve({ ok: false, error: null, cancelled: true });
 
-    var base64 = dataUrl.slice('data:image/png;base64,'.length);
+    var prefix = isJpeg ? 'data:image/jpeg;base64,' : 'data:image/png;base64,';
+    var base64 = dataUrl.slice(prefix.length);
     return fs.promises.writeFile(savePath, Buffer.from(base64, 'base64')).then(function() {
       return { ok: true, path: savePath };
     }).catch(function(e) {
