@@ -284,7 +284,7 @@ Files saved by 4.0.1 and earlier (plain JSON, base64 media) still open exactly a
 
 ### Supported file formats
 
-"Real preview" means Kanvaz decodes the file itself and shows actual content inside the card (an image, a rendered 3D model, an extracted thumbnail) — not just a filename and an icon. "Recognized, no preview" means the file opens as a labeled file-reference card (via your OS's own "Open with Kanvaz", or drag-drop) with the right name/type badge, but Kanvaz doesn't render its content — either because no safe way to decode it exists yet, or the format needs a local install of its own authoring tool (Blender) to convert.
+"Real preview" means Kanvaz decodes the file itself and shows actual content inside the card (an image, a rendered 3D model, an extracted thumbnail) — not just a filename and an icon. Kanvaz only registers OS-level "Open with Kanvaz"/file-association support for formats it can show something real for — a format with no preview path doesn't get associated at all right now, rather than becoming a bare labeled placeholder card. Formats without a working preview are listed under **Planned** below instead of in the main table.
 
 | Format | Extensions | Status |
 |---|---|---|
@@ -301,16 +301,12 @@ Files saved by 4.0.1 and earlier (plain JSON, base64 media) still open exactly a
 | Adobe | `.psd` `.psb` `.ai` `.xd` | ✅ Real preview — full flattened image (PSD/PSB), PDF-compatible view (AI), largest rendition (XD) |
 | Adobe | `.indd` `.indt` | ⚠️ Recognized, no preview |
 | HDR / EXR | `.hdr` `.pic` | ✅ Real preview — tone-mapped from real HDR data |
-| HDR / EXR | `.exr` | ✅ Real preview — NONE/RLE compression only; ZIP/PIZ/PXR24/B44/DWAA/DWAB are recognized, no preview (see Known limitations) |
+| HDR / EXR | `.exr` | ✅ Real preview — NONE/RLE compression only; ZIP/PIZ/PXR24/B44/DWAA/DWAB refused with a clear reason instead of a wrong image |
 | Krita | `.kra` | ✅ Real preview — extracts the document's own embedded composite |
-| ZBrush | `.ztl` | ⚠️ Recognized, no preview — deferred, see `docs/ROADMAP.md` |
-| Houdini | `.hip` `.hipnc` | ⚠️ Recognized, no preview — planned (same optional-external-tool path as Blender) |
-| Maya | `.ma` `.mb` | ⚠️ Recognized, no preview — planned (same optional-external-tool path as Blender) |
-| Cinema 4D | `.c4d` | ⚠️ Recognized, no preview |
-| Clip Studio Paint | `.clip` | ⚠️ Recognized, no preview |
-| Procreate | `.procreate` | ⚠️ Recognized, no preview |
 | Alembic | `.abc` | ❌ Not supported — deliberately deferred, no safe reference implementation available yet (see `docs/ROADMAP.md`) |
 | PureRef | `.pur` | ✅ Real import — every card at its saved position/scale |
+
+**Planned** (no OS-level file association yet — no real preview path exists today, so Kanvaz doesn't claim to open these until one does): ZBrush (`.ztl`), Houdini (`.hip`/`.hipnc`), Maya (`.ma`/`.mb`), Cinema 4D (`.c4d`), Clip Studio Paint (`.clip`), Procreate (`.procreate`). Houdini and Maya are the most likely to follow Blender's own pattern (an optional local-install external-tool conversion); the others have no realistic path yet — see `docs/ROADMAP.md` for the reasoning per format.
 
 ---
 

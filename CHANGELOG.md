@@ -129,6 +129,20 @@ exercised live with real pointer/keyboard input, not just read.*
   legible at both preview and toolbar size before shipping.
 - **Toolbar grouping spacing increased slightly** for readability now
   that it holds more controls (Select added, Eraser added).
+- **"What's New" on the Home Screen silently failed on every real
+  installed build**, reported live on a second test machine. Root
+  cause: `main.js`'s changelog reader reads `CHANGELOG.md` off disk
+  relative to the app's own folder — which only exists there in a raw
+  source checkout. `package.json`'s `build.files` list never included
+  `CHANGELOG.md`, so an installed Kanvaz never had the file at all;
+  the read failed silently (no crash, just an empty section) on every
+  machine except a dev checkout, which is exactly why it looked fine
+  here. Fixed by adding `CHANGELOG.md` to `build.files`.
+- **Format scope narrowed**: ZBrush/Houdini/Cinema 4D/Maya/Clip Studio/
+  Procreate no longer register OS-level file associations — see the
+  "Format scope narrowed" entry in `docs/ROADMAP.md` and the updated
+  format table in README.md. `.blend` and `.kra` (both have real
+  preview support) are unaffected.
 
 ### Known limitations
 - **Strokes are not part of undo/redo.** `history.js` only snapshots

@@ -564,6 +564,29 @@ per the owner's own instruction: "plan it... we will do 20 qna for this new
 feature" — this entry exists so the idea isn't lost before that conversation
 happens, not as a spec.
 
+# Format scope narrowed: no-preview OS associations removed, 2026-09-23
+
+Owner's call, same night: ZBrush (`.ztl`), Houdini (`.hip`/`.hipnc`), Cinema 4D
+(`.c4d`), Maya (`.ma`/`.mb`), Clip Studio Paint (`.clip`), and Procreate
+(`.procreate`) — the "recognized, no preview" groups 9.2.0 added — are no
+longer registered as file associations/"Open with Kanvaz" at the OS level
+(removed from `openable-types.js`, `package.json`'s mac/linux type lists, and
+`build/installer.nsh`). None of these had a real preview path (no headless
+export the way Blender has); a format Kanvaz can't show anything for
+shouldn't claim to open it. They're listed as Planned in README.md's format
+table instead. `.blend` and `.kra` keep their real preview support and stay
+registered — this only affects the formats that were always a bare labeled
+placeholder card.
+
+Fast-follow candidates, roughly in order of how likely they are to get a real
+preview: Houdini and Maya could plausibly follow Blender's own pattern (an
+optional local-install external-tool conversion, not bundled) — worth
+researching first. ZBrush's `.ztl` format has no public spec at all. Clip
+Studio's `.clip` is a proprietary SQLite-based container with no documented
+schema. Procreate's format is a proprietary compressed blob with no
+realistic decode path. Cinema 4D's `.c4d` format has shifted formats across
+versions with no stable public spec to target.
+
 # 9.1.0 audit pass, 2026-09-22/23 — status and what's deferred
 
 Shipped in 9.1.0: 13 render modes with grouped picker/camera presets/turntable,

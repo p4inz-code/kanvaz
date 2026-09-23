@@ -2447,7 +2447,17 @@ function registerIPC() {
      parse the bullet lists under each heading: version + one-line
      headline is what the changelog's own entries put right there for
      exactly this purpose, and a fuller parse would be one more thing
-     to keep in sync with CHANGELOG.md's actual formatting. */
+     to keep in sync with CHANGELOG.md's actual formatting.
+
+     Bug fix (found live, reported as "What's New doesn't work on other
+     PCs"): this worked in every dev-mode test because running `electron .`
+     from the repo puts the real CHANGELOG.md right next to src/ on disk —
+     but package.json's build.files list only ever bundled the src and
+     assets folders (globs) and package.json into the actual installer. A real
+     installed Kanvaz never had CHANGELOG.md at all, so this read failed
+     every time (silently — see the .catch below — no crash, just an
+     empty "What's New" section) on every machine except a raw source
+     checkout. Fixed by adding CHANGELOG.md to build.files. */
   ipcMain.handle('changelog-recent', function(event, count) {
     var limit = (typeof count === 'number' && count > 0) ? count : 3;
     var changelogPath = path.join(__dirname, '..', 'CHANGELOG.md');

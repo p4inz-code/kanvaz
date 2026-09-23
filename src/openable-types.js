@@ -61,24 +61,20 @@ var GROUPS = {
      proprietary compressed blob with no realistic path to a preview at
      all — both get the no-in-card-preview treatment below instead of a
      guess that could quietly show the wrong thing. */
-  krita:  { name: 'Krita File',       exts: ['kra'], mimes: ['application/x-krita'] },
-  /* 9.2.0 — recognized but no in-card preview: none of these have a
-     command-line/headless export the way Blender does (see .blend's own
-     handling in main.js/blender-detect.js), so there is no path to a real
-     preview the way PSD/PDF/glTF get one. They still get "Open with
-     Kanvaz" and a real file-type label/icon instead of a generic unknown-
-     file badge — a VFX/game pipeline where Kanvaz is used lives among
-     these formats daily, and "recognized, opens with the default app" is
-     honest and still useful even with zero preview. Dropped or opened,
-     they land as an ordinary file-reference card (createFileRefCardAtPath
-     doesn't care what extension it's given) — nothing card-type-specific
-     to build for them. */
-  zbrush:   { name: 'ZBrush File',       exts: ['ztl'], mimes: ['application/x-zbrush'] },
-  houdini:  { name: 'Houdini Scene',     exts: ['hip', 'hipnc'], mimes: ['application/x-houdini'] },
-  cinema4d: { name: 'Cinema 4D Project', exts: ['c4d'], mimes: ['application/x-cinema4d'] },
-  maya:     { name: 'Maya Scene',        exts: ['ma', 'mb'], mimes: ['application/x-maya'] },
-  clip:       { name: 'Clip Studio Paint File', exts: ['clip'], mimes: ['application/x-clip-studio-paint'] },
-  procreate:  { name: 'Procreate File',         exts: ['procreate'], mimes: ['application/x-procreate'] }
+  krita:  { name: 'Krita File',       exts: ['kra'], mimes: ['application/x-krita'] }
+  /* Scope decision (2026-09-23): the no-in-card-preview groups that used
+     to live here (ZBrush .ztl, Houdini .hip/.hipnc, Cinema 4D .c4d, Maya
+     .ma/.mb, Clip Studio .clip, Procreate .procreate) have been removed
+     from what Kanvaz claims to open/associate with at the OS level.
+     None of them have a command-line/headless export the way Blender
+     does, so there was no path to a real preview — they only ever
+     became a generic labeled file-reference card. The owner's call:
+     don't register file associations/"Open with Kanvaz" for formats
+     Kanvaz can't actually show anything for; .blend keeps its real
+     preview support (a local Blender install exports a real thumbnail),
+     krita keeps its real embedded-composite preview. The removed
+     formats are listed as Planned in README.md's format table and
+     docs/ROADMAP.md — this is a "not yet", not a permanent no. */
 };
 
 var MAX_FILES_PER_LAUNCH = 50;

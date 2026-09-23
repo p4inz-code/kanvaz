@@ -43,7 +43,8 @@
     "files": [
       "src/**/*",
       "assets/**/*",
-      "package.json"
+      "package.json",
+      "CHANGELOG.md"
     ],
     "fileAssociations": [
       {
@@ -137,42 +138,6 @@
             "CFBundleTypeExtensions": ["kra"],
             "CFBundleTypeRole": "Viewer",
             "LSHandlerRank": "Alternate"
-          },
-          {
-            "CFBundleTypeName": "ZBrush File",
-            "CFBundleTypeExtensions": ["ztl"],
-            "CFBundleTypeRole": "Viewer",
-            "LSHandlerRank": "Alternate"
-          },
-          {
-            "CFBundleTypeName": "Houdini Scene",
-            "CFBundleTypeExtensions": ["hip", "hipnc"],
-            "CFBundleTypeRole": "Viewer",
-            "LSHandlerRank": "Alternate"
-          },
-          {
-            "CFBundleTypeName": "Cinema 4D Project",
-            "CFBundleTypeExtensions": ["c4d"],
-            "CFBundleTypeRole": "Viewer",
-            "LSHandlerRank": "Alternate"
-          },
-          {
-            "CFBundleTypeName": "Maya Scene",
-            "CFBundleTypeExtensions": ["ma", "mb"],
-            "CFBundleTypeRole": "Viewer",
-            "LSHandlerRank": "Alternate"
-          },
-          {
-            "CFBundleTypeName": "Clip Studio Paint File",
-            "CFBundleTypeExtensions": ["clip"],
-            "CFBundleTypeRole": "Viewer",
-            "LSHandlerRank": "Alternate"
-          },
-          {
-            "CFBundleTypeName": "Procreate File",
-            "CFBundleTypeExtensions": ["procreate"],
-            "CFBundleTypeRole": "Viewer",
-            "LSHandlerRank": "Alternate"
           }
         ]
       }
@@ -210,13 +175,7 @@
         "application/x-indesign",
         "image/vnd.radiance",
         "image/x-exr",
-        "application/x-krita",
-        "application/x-zbrush",
-        "application/x-houdini",
-        "application/x-cinema4d",
-        "application/x-maya",
-        "application/x-clip-studio-paint",
-        "application/x-procreate"
+        "application/x-krita"
       ]
     },
     "nsis": {
