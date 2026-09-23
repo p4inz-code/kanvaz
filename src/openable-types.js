@@ -51,7 +51,18 @@ var GROUPS = {
      comment), same "real preview" tier as Adobe/PDF above. */
   hdr:    { name: 'HDR/EXR Image',    exts: ['hdr', 'pic', 'exr'],
             mimes: ['image/vnd.radiance', 'image/x-exr'] },
-  /* 9.2.0 — recognized but no in-card preview: none of these four have a
+  /* 9.3.0 — Krita: a real whole-canvas preview (paint-preview.js finds the
+     PNG Krita itself saves inside the .kra zip on every save), same
+     "real preview" tier as everything above. Clip Studio (.clip) and
+     Procreate (.procreate) do NOT get this treatment: .clip's internal
+     structure isn't public/documented enough here to be confident of a
+     correct read (unlike HDR/EXR and Krita, both built against a real
+     spec or a well-understood zip layout), and Procreate's format is a
+     proprietary compressed blob with no realistic path to a preview at
+     all — both get the no-in-card-preview treatment below instead of a
+     guess that could quietly show the wrong thing. */
+  krita:  { name: 'Krita File',       exts: ['kra'], mimes: ['application/x-krita'] },
+  /* 9.2.0 — recognized but no in-card preview: none of these have a
      command-line/headless export the way Blender does (see .blend's own
      handling in main.js/blender-detect.js), so there is no path to a real
      preview the way PSD/PDF/glTF get one. They still get "Open with
@@ -65,7 +76,9 @@ var GROUPS = {
   zbrush:   { name: 'ZBrush File',       exts: ['ztl'], mimes: ['application/x-zbrush'] },
   houdini:  { name: 'Houdini Scene',     exts: ['hip', 'hipnc'], mimes: ['application/x-houdini'] },
   cinema4d: { name: 'Cinema 4D Project', exts: ['c4d'], mimes: ['application/x-cinema4d'] },
-  maya:     { name: 'Maya Scene',        exts: ['ma', 'mb'], mimes: ['application/x-maya'] }
+  maya:     { name: 'Maya Scene',        exts: ['ma', 'mb'], mimes: ['application/x-maya'] },
+  clip:       { name: 'Clip Studio Paint File', exts: ['clip'], mimes: ['application/x-clip-studio-paint'] },
+  procreate:  { name: 'Procreate File',         exts: ['procreate'], mimes: ['application/x-procreate'] }
 };
 
 var MAX_FILES_PER_LAUNCH = 50;

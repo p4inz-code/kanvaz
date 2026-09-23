@@ -330,6 +330,21 @@ if (fs.existsSync(path.join(__dirname, 'hdr-preview-test.js'))) {
   console.log('  (skipped — test/hdr-preview-test.js missing)');
 }
 
+/* 5p. Krita (.kra) previews — real preview.png/mergedimage.png extraction from the zip container */
+section('5p. Krita previews');
+if (fs.existsSync(path.join(__dirname, 'paint-preview-test.js'))) {
+  try {
+    var krOut = cp.execSync('node "' + path.join(__dirname, 'paint-preview-test.js') + '"', { encoding: 'utf8', timeout: 30000 });
+    if (/ALL PAINT PREVIEW TESTS PASSED/.test(krOut)) ok('finds the real whole-canvas preview in a spec-built .kra zip, not a per-layer thumbnail or a smaller decoy; honest failure for a file with none');
+    else { bad('paint preview test failed'); console.log(krOut); }
+  } catch (e) {
+    bad('paint preview test crashed');
+    console.log(e.stdout || e.message);
+  }
+} else {
+  console.log('  (skipped — test/paint-preview-test.js missing)');
+}
+
 /* 6. Command registry — registration validation, palette filtering, fuzzy match */
 section('6. Command registry');
 if (fs.existsSync(path.join(__dirname, 'command-registry-test.js'))) {

@@ -28,6 +28,7 @@ var crashLog = require('./crash-log');
 var linkController = require('./link-controller');
 var adobePreview = require('./adobe-preview');
 var hdrPreview = require('./hdr-preview');
+var paintPreview = require('./paint-preview');
 var openableTypes = require('./openable-types');
 
 /* Local-only crash log (src/crash-log.js): nothing is ever uploaded. */
@@ -1209,6 +1210,41 @@ function registerIPC() {
       if (r.bytes.length > HDR_MAX_OUT_BYTES) return { ok: false, reason: 'the preview image is too large' };
       return {
         ok: true, kind: 'image', width: r.width || null, height: r.height || null, note: r.note || null,
+        dataUrl: 'data:' + r.mime + ';base64,' + r.bytes.toString('base64')
+      };
+    }).catch(function(e) { return { ok: false, reason: e.message }; });
+  });
+
+  /* Krita (.kra) previews (9.3.0) — same worker-thread isolation as
+     Adobe/HDR previews above. */
+  var PAINT_WORKER_MS = 25000;
+  var PAINT_MAX_OUT_BYTES = 90 * 1024 * 1024;
+  var PAINT_MAX_FILE_BYTES = 300 * 1024 * 1024;
+  function runPaintWorker(filePath, maxFileBytes) {
+    return new Promise(function(resolve) {
+      var w;
+      var done = false;
+      function finish(v) { if (done) return; done = true; clearTimeout(timer); try { w.terminate(); } catch (e) { /* gone */ } resolve(v); }
+      try {
+        w = new Worker(path.join(__dirname, 'paint-worker.js'), { workerData: { filePath: filePath, maxFileBytes: maxFileBytes }, resourceLimits: { maxOldGenerationSizeMb: 1536 } });
+      } catch (e) { resolve({ ok: false, reason: 'could not start the preview: ' + e.message }); return; }
+      var timer = setTimeout(function() { finish({ ok: false, reason: 'This file took too long to preview, so it was stopped.' }); }, PAINT_WORKER_MS);
+      w.on('message', function(m) { finish(m); });
+      w.on('error', function(e) { finish({ ok: false, reason: 'the preview failed: ' + (e && e.message || e) }); });
+      w.on('exit', function() { finish({ ok: false, reason: 'the preview stopped unexpectedly' }); });
+    });
+  }
+  ipcMain.handle('paint-preview', function(event, filePath) {
+    var nonLocal = rejectNonLocal(filePath);
+    if (nonLocal) return Promise.resolve(nonLocal);
+    if (typeof filePath !== 'string' || !filePath) return Promise.resolve({ ok: false, reason: 'invalid path' });
+    var pext = path.extname(filePath).toLowerCase().replace('.', '');
+    if (paintPreview.EXTENSIONS.indexOf(pext) === -1) return Promise.resolve({ ok: false, reason: 'not a file type Kanvaz previews' });
+    return runPaintWorker(filePath, PAINT_MAX_FILE_BYTES).then(function(r) {
+      if (!r || !r.ok) return { ok: false, reason: (r && r.reason) || 'no preview' };
+      if (r.bytes.length > PAINT_MAX_OUT_BYTES) return { ok: false, reason: 'the preview image is too large' };
+      return {
+        ok: true, kind: 'image',
         dataUrl: 'data:' + r.mime + ';base64,' + r.bytes.toString('base64')
       };
     }).catch(function(e) { return { ok: false, reason: e.message }; });

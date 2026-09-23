@@ -2,6 +2,34 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [9.4.0] — 2026-09-23 — Krita previews, Clip Studio/Procreate recognized
+
+*`test/paint-preview-test.js` builds a real, valid .kra zip (via the same
+jszip dependency the reader itself uses) with a canonical preview, a
+same-format decoy at a non-canonical path, and a per-layer thumbnail that
+must be excluded, and confirms the reader picks the right one every time.
+Static-only this round (see 9.3.0's own note on why) — not yet
+screenshotted in the running app.*
+
+### Added
+- **Krita (`.kra`) previews**: a real in-card preview, showing the exact
+  whole-canvas composite Krita itself saves into the file on every save
+  (`preview.png` or `mergedimage.png` inside the `.kra` zip container —
+  the same "read the file's own real preview, don't invent one" approach
+  XD's own preview already uses in `adobe-preview.js`). Per-layer
+  thumbnails are explicitly excluded so a large one never wins over the
+  real composite by size alone.
+- **Clip Studio Paint (`.clip`) and Procreate (`.procreate`)** join the
+  recognized-but-no-in-card-preview group (ZBrush/Houdini/Cinema 4D/
+  Maya from 9.3.0): "Open with Kanvaz" and a real file-type label instead
+  of a generic unknown-file badge. Deliberately not attempting a preview
+  for either — `.clip`'s real internal structure isn't public/documented
+  enough here to be confident of a correct read the way HDR/EXR (built
+  against the public spec) and Krita (a well-understood zip layout)
+  were, and Procreate's format has no realistic path to one at all. A
+  wrong guess that quietly shows the wrong picture is worse than an
+  honest "no preview."
+
 ## [9.3.0] — 2026-09-23 — OBJ material support, HDR/EXR previews, more recognized formats
 
 *Verified with real, spec-built test files (not just synthetic fixtures) run

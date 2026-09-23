@@ -136,10 +136,10 @@ function run() {
      file-reference card, the same as any unrecognized file already did.
      GROUPS keys that group is explicitly listed below, everything else
      must still have real card-building support in media.js. */
-  var NO_PREVIEW_GROUPS = ['zbrush', 'houdini', 'cinema4d', 'maya'];
+  var NO_PREVIEW_GROUPS = ['zbrush', 'houdini', 'cinema4d', 'maya', 'clip', 'procreate'];
   var media = fs.readFileSync(path.join(__dirname, '..', 'src', 'media.js'), 'utf8');
   function list(name) { var m = new RegExp('var ' + name + '\\s*=\\s*\\[([^\\]]*)\\]').exec(media); return m[1].split(',').map(function(x) { return x.replace(/['\s]/g, ''); }).filter(Boolean); }
-  var cardTypes = list('IMAGE_EXTS').concat(list('GIF_EXTS'), list('VIDEO_EXTS'), list('AUDIO_EXTS'), list('MODEL_EXTS'), ['blend', 'pdf', 'psd', 'psb', 'ai', 'xd', 'indd', 'indt', 'hdr', 'pic', 'exr']);
+  var cardTypes = list('IMAGE_EXTS').concat(list('GIF_EXTS'), list('VIDEO_EXTS'), list('AUDIO_EXTS'), list('MODEL_EXTS'), ['blend', 'pdf', 'psd', 'psb', 'ai', 'xd', 'indd', 'indt', 'hdr', 'pic', 'exr', 'kra']);
   cardTypes.forEach(function(e) { assert(ot.ALL.indexOf(e) !== -1, e + ' becomes a card but is missing from openable-types.js'); });
   var previewableAll = [];
   Object.keys(ot.GROUPS).forEach(function(g) {

@@ -1296,7 +1296,7 @@ var KanvazCards = (function() {
        with it — you don't want a big image preview's remembered size
        forcing a plain-icon .zip card to also default huge, or vice
        versa. */
-    var isPreviewable = isPdfPath(p) || isImagePath(p) || isTextPreviewPath(p) || isAdobePath(p) || isHdrPath(p);
+    var isPreviewable = isPdfPath(p) || isImagePath(p) || isTextPreviewPath(p) || isAdobePath(p) || isHdrPath(p) || isKraPath(p);
     var size = isPreviewable ? sizeFor('file-preview', 340, 260) : sizeFor('file', 220, 90);
     var card = {
       id:       id,
@@ -3213,6 +3213,11 @@ var KanvazCards = (function() {
     return /\.(hdr|pic|exr)$/i.test((p || '').trim());
   }
 
+  /* 9.3.0 — Krita: matches paint-preview.js's own EXTENSIONS list. */
+  function isKraPath(p) {
+    return /\.kra$/i.test((p || '').trim());
+  }
+
   /* Text-like files that get a rendered in-card preview (main.js's
      text-read-preview holds the authoritative allowlist and refuses the
      rest — this only decides whether to TRY). */
@@ -3622,6 +3627,44 @@ var KanvazCards = (function() {
     });
   }
 
+  /* In-card preview for a Krita (.kra) file — the real whole-canvas
+     "preview.png"/"mergedimage.png" Krita itself saves inside the .kra
+     zip (paint-preview.js), shown as-is (no quality tiering: unlike HDR/
+     Adobe previews, nothing is decoded/re-rendered here, so there's no
+     "sharper vs. lighter" tradeoff to expose a control for). */
+  function buildKraPreview(el, card) {
+    var wrap = document.createElement('div');
+    wrap.className = 'file-image-preview';
+
+    var statusEl = document.createElement('div');
+    statusEl.className = 'pdf-status';
+    statusEl.textContent = 'Loading preview…';
+    wrap.appendChild(statusEl);
+
+    var img = document.createElement('img');
+    img.style.display = 'none';
+    img.draggable = false;
+    wrap.appendChild(img);
+
+    el.appendChild(wrap);
+
+    if (typeof KanvazBridge === 'undefined' || !KanvazBridge.paintPreview) return;
+    KanvazBridge.paintPreview(card.path).then(function(res) {
+      if (!document.body.contains(el)) return; /* card deleted while loading */
+      if (!res || !res.ok || !res.dataUrl) {
+        statusEl.textContent = (res && res.reason) || 'No preview available for this file.';
+        statusEl.classList.add('file-preview-reason');
+        return;
+      }
+      img.src = res.dataUrl;
+      img.onload = function() { statusEl.style.display = 'none'; img.style.display = ''; };
+      img.onerror = function() { statusEl.textContent = 'Could not show the preview image'; };
+    }).catch(function(e) {
+      if (!document.body.contains(el)) return;
+      statusEl.textContent = 'Could not preview this file: ' + e.message;
+    });
+  }
+
   /* Rendered text preview for a file-ref card ("text files must come in a
      side window in the canvas with text rendered"). Same contract as the
      PDF/image previews: read fresh per render, never persisted onto the
@@ -3703,6 +3746,9 @@ var KanvazCards = (function() {
     } else if (isHdrPath(card.path)) {
       el.classList.add('has-file-preview');
       buildHdrPreview(el, card);
+    } else if (isKraPath(card.path)) {
+      el.classList.add('has-file-preview');
+      buildKraPreview(el, card);
     }
 
     var body = document.createElement('div');
@@ -3798,6 +3844,10 @@ var KanvazCards = (function() {
       if (existingPreview) existingPreview.remove();
       el.classList.add('has-file-preview');
       buildHdrPreview(el, card);
+    } else if (isKraPath(card.path)) {
+      if (existingPreview) existingPreview.remove();
+      el.classList.add('has-file-preview');
+      buildKraPreview(el, card);
     } else if (existingPreview) {
       el.classList.remove('has-file-preview');
       existingPreview.remove();
@@ -7269,6 +7319,7 @@ var KanvazCards = (function() {
     rebuildFileCardPreview: rebuildFileCardPreview,
     isAdobePath: isAdobePath,
     isHdrPath: isHdrPath,
+    isKraPath: isKraPath,
     createPluginCard: createPluginCard,
     generateTestCards: generateTestCards,
     selectCard:        selectCard,
