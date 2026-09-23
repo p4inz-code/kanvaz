@@ -472,6 +472,47 @@ whether that's actually a distinct enough use case to justify).
 
 ---
 
+# Alembic (.abc) — deferred, 2026-09-23, with reasoning
+
+Planned for this session (full animated playback, with a pre-import warning
+about scope/cost and a clean cancel-with-reason if declined — the owner's own
+call in a 20-question planning pass). Not shipped tonight, on purpose, after
+scoping the real implementation work:
+
+Every format shipped tonight (HDR/EXR, OBJ+MTL, Krita) was built against
+either a **real reference implementation** fetched and read directly (Three.js's
+own MTLLoader/EXRLoader/HDRLoader source, r186, pulled from jsdelivr) or a
+**fully public, precise byte-level spec** I'm confident in (OpenEXR's, PNG's).
+Alembic's on-disk format is different in kind: modern files use the **Ogawa**
+container (a documented but comparatively obscure group/data archive format)
+with Alembic's own object model — scene hierarchy, compound/scalar/array
+properties, per-property time sampling — layered on top, and there is no
+official or de-facto JS port of either to fetch and mirror the way there was
+for the three.js loaders. Writing that object-model layer from memory of the
+spec, with no reference source to check byte-layout details against and no
+live/visual way to confirm a decoded mesh is actually correct (this session's
+later work was static-verification-only, the owner on the PC), is a
+meaningfully higher risk than everything else shipped tonight: a subtly wrong
+property decode wouldn't fail loudly, it would silently produce garbled
+geometry — the worst failure mode for a "reference tool," not the honest
+"no preview" every other unsupported case in this session degrades to.
+
+**Decision:** defer rather than ship an unverifiable geometry parser. Real
+scope for next session, once live verification is available again:
+1. Ogawa container reader (group/data offset table) — moderate confidence,
+   testable via a hand-built round-trip fixture the same way HDR/EXR's test
+   suite works.
+2. Alembic object-model layer for a PolyMesh schema's static topology (P,
+   N, faceIndices, faceCounts) at the first time sample — the genuinely
+   hard part; needs either a reference to check against or careful live
+   testing against real .abc files from a real DCC export.
+3. The pre-import warning UX itself (a plain confirm dialog: what Kanvaz can
+   and can't do with this file yet, Cancel or Import) — no format-parsing
+   risk, buildable independently and worth doing first.
+4. Full animated (multi-sample) playback is its own, larger follow-on past
+   even that — a separate scrubber UI matching the existing glTF clip
+   picker's pattern, once static reading is proven solid.
+
 # 9.1.0 audit pass, 2026-09-22/23 — status and what's deferred
 
 Shipped in 9.1.0: 13 render modes with grouped picker/camera presets/turntable,
