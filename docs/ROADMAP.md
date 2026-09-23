@@ -545,24 +545,70 @@ kept accurate via a small generator script rather than hand-edited, so it
 never goes stale the way a manually-typed badge block does. Explicitly
 deferred — do this together with Veris, someday, not this session.
 
-# Task Tracker — feature idea noted 2026-09-23, NOT started, needs its own Q&A round first
+# Task Tracker — spec locked 2026-09-23 via 10-question Q&A, NOT started
 
 Owner's tester asked for this specifically — described as the most-requested
-feature so far. Concept as described: a creator-defined task list built into
-Kanvaz (for creative-artist workflows — shot lists, asset checklists, review
-passes), where each task can have up to 5 subtasks, checked off with a click,
-and the creator can track their own progress against it. Not yet scoped at
-all beyond that one-paragraph description — deliberately NOT implemented
-blind tonight. This needs the same kind of 20-question Q&A pass Scratch Board
-got before any code gets written: where does a task list live (per-board?
-per-card? a new global view alongside Board/Map/Scratch?), does it need its
-own undo/redo, does it get persisted the same way boards.js persists
-everything else, is it multi-user/shared or strictly local, does "tracking
-progress" mean a percentage/count somewhere in the UI chrome, does it
-interact with Connections or existing card types at all. Explicitly deferred
-per the owner's own instruction: "plan it... we will do 20 qna for this new
-feature" — this entry exists so the idea isn't lost before that conversation
-happens, not as a spec.
+feature so far. This entry is a real spec (post-Q&A), not just an idea — but
+still explicitly PLANNING ONLY: the owner asked to scope it now and build it
+in a separate session ("we are planning tracker rn... not executing"), same
+day as the Scratch Board (v9.5.0) release. Map View's own upgrade (bigger
+cards/previews, a notes section) and a Properties-panel UI simplification
+pass for Scratch Board are both deferred to "next week" — Task Tracker is
+next in line after those, first thing to scope/build in a following session.
+
+**Locked decisions:**
+- **Location**: a new side-panel rail icon, alongside Boards/Properties/
+  Layers/Settings — reachable from any view (Board/Map/Scratch), not a
+  separate full-screen view and not a card type on the canvas.
+- **Scope**: ONE global list, shared across the whole `.kanvaz` file — not
+  per-board. Persisted at the top level of the file, the same tier
+  `connections[]`/`sharedCards` already live at (not nested under any one
+  board's own `cards[]`).
+- **Task fields (v1, deliberately minimal)**: text, done/not-done, an
+  OPTIONAL link to one specific card (click jumps/zooms to it on its
+  board), and up to 5 subtasks. No due date, no priority, no tags — the
+  owner wants v1 to ship clean and revisit extra fields after real user
+  feedback, not guess at them now.
+- **Subtasks**: plain checkboxes, gate the parent — but ONLY when subtasks
+  actually exist. A task with zero subtasks toggles done/not-done
+  directly and normally; the gating rule never applies to a task nobody
+  broke into subtasks.
+- **Progress display**: count + percent (e.g. "3/10 — 30%"), visible at a
+  glance in the panel — not just bare checkmarks with no aggregate.
+- **Deletion**: both tasks and subtasks are deletable (mistake entries,
+  no-longer-relevant items) — not archive-only.
+- **Undo/redo**: explicitly OUT of scope for v1, same call already made for
+  Scratch Board's strokes — a manual re-check is the "undo". Not wired
+  into `history.js`.
+- **Grouping**: a flat list for v1. "Grouped by linked board" is a real,
+  already-agreed fast-follow (owner said "both but 1 for now") — not
+  built in v1, but the data model should stay friendly to adding a
+  group-by-linked-board view later without a persistence migration.
+
+**Still open when this actually gets built** (not asked yet, since this
+session was scoping-only): exact panel layout/visual design, how "add
+task"/"add subtask" is triggered (a form? inline?), whether the optional
+card-link is set at task-creation time or added/changed later, keyboard
+shortcuts if any, and whether MCP Bridge (the AI-client plugin) should get
+read/write access to the task list the same way it does for cards.
+
+# Map View upgrade + Properties UI simplification — deferred to next week, noted 2026-09-23
+
+Two more asks from the same night, explicitly pushed to "next week" by the
+owner (after Task Tracker ships) — not scoped via Q&A yet, just captured here
+so neither idea is lost:
+
+- **Map View**: bigger cards by default, with a bigger preview per node. Also
+  wants a notes section on Map View itself — described as: if someone is
+  building a node graph and wants to leave a note about what they're doing/
+  why, they should be able to put one directly on the map, not just on a
+  Board-view card. Open question for whenever this gets scoped: is a Map
+  View note its own new node type, or something more like Scratch Board's
+  board-wide annotation layer applied to Map View's own canvas?
+- **Properties panel UI for Scratch Board**: owner wants it "simplified more"
+  — flagged as needing improvement but not yet said specifically what feels
+  cluttered. Needs a quick round of "what specifically" before redesigning,
+  not a blind pass.
 
 # Format scope narrowed: no-preview OS associations removed, 2026-09-23
 
