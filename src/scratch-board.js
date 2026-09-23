@@ -364,8 +364,13 @@ var KanvazScratchBoard = (function() {
     return { x: pt.x * vp.scale + vp.tx, y: pt.y * vp.scale + vp.ty };
   }
 
-  function drawOneStroke(ctx, s) {
+  /* projectFn: optional, defaults to worldToLocal (the live canvas's own
+     pan/zoom). exportRenderStrokes() (below) passes a DIFFERENT projection
+     — the export canvas's own bounding-box/scale, not the live viewport —
+     so the same drawing logic renders correctly into either target. */
+  function drawOneStroke(ctx, s, projectFn) {
     if (!s.points || s.points.length < 1) return;
+    var project = projectFn || worldToLocal;
     var style = strokeStyleFor(s);
     ctx.save();
     ctx.globalAlpha = style.alpha;
@@ -378,9 +383,9 @@ var KanvazScratchBoard = (function() {
       var pts = s.points;
       if (pts.length < 3) {
         ctx.beginPath();
-        var only0 = worldToLocal(pts[0]);
+        var only0 = project(pts[0]);
         ctx.moveTo(only0.x, only0.y);
-        for (var oi = 1; oi < pts.length; oi++) { var op = worldToLocal(pts[oi]); ctx.lineTo(op.x, op.y); }
+        for (var oi = 1; oi < pts.length; oi++) { var op = project(pts[oi]); ctx.lineTo(op.x, op.y); }
         ctx.stroke();
       } else {
         /* Quadratic-through-midpoints smoothing — a standard, cheap
@@ -394,23 +399,23 @@ var KanvazScratchBoard = (function() {
            have yet, and redoing it every frame would cost more than it's
            worth for a preview that's about to be replaced anyway. */
         ctx.beginPath();
-        var p0 = worldToLocal(pts[0]);
-        var p1 = worldToLocal(pts[1]);
+        var p0 = project(pts[0]);
+        var p1 = project(pts[1]);
         ctx.moveTo(p0.x, p0.y);
         ctx.lineTo((p0.x + p1.x) / 2, (p0.y + p1.y) / 2);
         for (var i = 1; i < pts.length - 1; i++) {
-          var cur = worldToLocal(pts[i]);
-          var next = worldToLocal(pts[i + 1]);
+          var cur = project(pts[i]);
+          var next = project(pts[i + 1]);
           var midX = (cur.x + next.x) / 2, midY = (cur.y + next.y) / 2;
           ctx.quadraticCurveTo(cur.x, cur.y, midX, midY);
         }
-        var last = worldToLocal(pts[pts.length - 1]);
+        var last = project(pts[pts.length - 1]);
         ctx.lineTo(last.x, last.y);
         ctx.stroke();
       }
     } else if (s.points.length >= 2) {
-      var a = worldToLocal(s.points[0]);
-      var b = worldToLocal(s.points[1]);
+      var a = project(s.points[0]);
+      var b = project(s.points[1]);
       if (s.tool === 'line') {
         ctx.beginPath();
         ctx.moveTo(a.x, a.y);
@@ -963,6 +968,38 @@ var KanvazScratchBoard = (function() {
     markDirty();
   }
   function getStrokeCount() { return strokes.length; }
+
+  /* ── Export support (cards.js's generateExportCanvas) ──
+     Board/selection image export used to have zero awareness of Scratch
+     content at all — an exported PNG/JPEG of a board with real strokes on
+     it silently left them out, found live by the owner exporting a board
+     that was mostly Scratch annotations and getting back what looked like
+     a near-blank image (whatever real cards existed, rendered as their
+     placeholder box; the strokes themselves nowhere). These two functions
+     give cards.js a way to fold Scratch content into the SAME export
+     canvas it already builds for cards, without cards.js needing to know anything
+     about stroke geometry — it computes its own bounding box/scale (the
+     same way it already does for cards) and hands this module a plain
+     world-point -> canvas-local-point function to draw through. */
+
+  function getStrokesWorldBounds() {
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (var i = 0; i < strokes.length; i++) {
+      var pts = strokes[i].points;
+      for (var j = 0; j < pts.length; j++) {
+        if (pts[j].x < minX) minX = pts[j].x;
+        if (pts[j].y < minY) minY = pts[j].y;
+        if (pts[j].x > maxX) maxX = pts[j].x;
+        if (pts[j].y > maxY) maxY = pts[j].y;
+      }
+    }
+    if (minX === Infinity) return null;
+    return { minX: minX, minY: minY, maxX: maxX, maxY: maxY };
+  }
+
+  function exportRenderStrokes(ctx, mapFn) {
+    for (var i = 0; i < strokes.length; i++) drawOneStroke(ctx, strokes[i], mapFn);
+  }
   function clearStrokes() {
     strokes = [];
     drawStrokes();
@@ -1021,6 +1058,8 @@ var KanvazScratchBoard = (function() {
     getGridColor: getGridColor,
     setGridColor: setGridColor,
     getStrokeCount: getStrokeCount,
+    getStrokesWorldBounds: getStrokesWorldBounds,
+    exportRenderStrokes: exportRenderStrokes,
     clearStrokes: clearStrokes,
     confirmClean: confirmClean
   };

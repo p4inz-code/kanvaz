@@ -6504,7 +6504,21 @@ var KanvazCards = (function() {
       var c = cards[ids[i]];
       if (c) relevant.push(c);
     }
-    if (!relevant.length) return null;
+
+    /* Bug fix (found live): this used to be built ENTIRELY from cards'
+       own bounding boxes, with zero awareness of Scratch Board content —
+       exporting a board that was mostly Scratch annotations produced an
+       image with the strokes silently missing (any real cards present
+       still rendered, everything hand-drawn did not), and a board with
+       ONLY Scratch content and no cards at all couldn't be exported at
+       all ("Nothing to export", even though there was clearly something
+       to export). Folding Scratch's own world-space stroke bounds into
+       this function's bounding box — and no longer bailing out on zero
+       cards if strokes exist — fixes both. */
+    var scratchBounds = (typeof KanvazScratchBoard !== 'undefined' && KanvazScratchBoard.getStrokesWorldBounds)
+      ? KanvazScratchBoard.getStrokesWorldBounds() : null;
+
+    if (!relevant.length && !scratchBounds) return null;
 
     var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (var j = 0; j < relevant.length; j++) {
@@ -6513,6 +6527,12 @@ var KanvazCards = (function() {
       if (card.y < minY) minY = card.y;
       if (card.x + card.w > maxX) maxX = card.x + card.w;
       if (card.y + card.h > maxY) maxY = card.y + card.h;
+    }
+    if (scratchBounds) {
+      if (scratchBounds.minX < minX) minX = scratchBounds.minX;
+      if (scratchBounds.minY < minY) minY = scratchBounds.minY;
+      if (scratchBounds.maxX > maxX) maxX = scratchBounds.maxX;
+      if (scratchBounds.maxY > maxY) maxY = scratchBounds.maxY;
     }
     var boardW = (maxX - minX) + EXPORT_PADDING * 2;
     var boardH = (maxY - minY) + EXPORT_PADDING * 2;
@@ -6567,6 +6587,17 @@ var KanvazCards = (function() {
         ctx.font = Math.max(9, Math.round(11 * scale)) + 'px sans-serif';
         ctx.fillText(getCardTypeLabel(card2), rx + 8 * scale, ry + 20 * scale);
       }
+    }
+
+    /* Scratch Board content, composited last so it sits above every card
+       — matches how #scratch-strokes-canvas always renders above cards
+       live (see scratch-board.js). Same minX/minY/scale this function
+       already computed for cards, so everything lands in one shared,
+       correctly-scaled coordinate space. */
+    if (typeof KanvazScratchBoard !== 'undefined' && KanvazScratchBoard.exportRenderStrokes && KanvazScratchBoard.getStrokeCount() > 0) {
+      KanvazScratchBoard.exportRenderStrokes(ctx, function(pt) {
+        return { x: (pt.x - minX + EXPORT_PADDING) * scale, y: (pt.y - minY + EXPORT_PADDING) * scale };
+      });
     }
 
     return canvas;

@@ -148,6 +148,7 @@ Built as an ongoing side project, no fixed roadmap, mostly driven by whatever fe
 - Custom color picker with a recent-colors row, per-stroke opacity
 - Video frame-stepping and onion-skin ghosting for checking animation timing
 - Annotation toolbar scales with canvas zoom, so it doesn't shrink to nothing next to a zoomed-in card
+- **Scratch Board** — a third view (alongside Board and Map) for board-wide, not-per-card annotation: Select/Pan, Pen, Highlighter, Line, Arrow, Rectangle, Ellipse, and a real Eraser (removes whole strokes it touches, not pixel erasing), with Illustrator-style Shift-constrain (0/45/90° snap on lines/arrows, perfect square/circle on shapes), adjustable brush color/width/opacity, and a configurable background (ruled lines / plain color / grid, each with its own color). Same cards, same camera as Board view — switching to Scratch doesn't change anything about how your cards behave
 
 **Connections**
 - 7 typed relationship kinds (Related To, Inspired By, Derived From, Alternative To, Supports, Used In, References)
@@ -280,6 +281,36 @@ As of 4.1.0, a `.kanvaz` file is a zip container: `board.json` (the board/card/c
 As of 6.4.0, `board.json` also carries a top-level `sharedCards` registry. The content of any card shared across boards lives there once, keyed by a stable id, with each board's own `cards[]` holding only a lightweight position/size stub that references it. This is fully additive: older files simply have no stubs referencing anything and load with an empty registry.
 
 Files saved by 4.0.1 and earlier (plain JSON, base64 media) still open exactly as before. Kanvaz detects the format automatically and only ever writes the current container going forward. Connections are stored as a top-level `connections` array alongside boards. Files from v2.x load cleanly with zero connections.
+
+### Supported file formats
+
+"Real preview" means Kanvaz decodes the file itself and shows actual content inside the card (an image, a rendered 3D model, an extracted thumbnail) — not just a filename and an icon. "Recognized, no preview" means the file opens as a labeled file-reference card (via your OS's own "Open with Kanvaz", or drag-drop) with the right name/type badge, but Kanvaz doesn't render its content — either because no safe way to decode it exists yet, or the format needs a local install of its own authoring tool (Blender) to convert.
+
+| Format | Extensions | Status |
+|---|---|---|
+| Image | `.jpg` `.jpeg` `.png` `.bmp` `.webp` | ✅ Real preview |
+| Animated GIF | `.gif` | ✅ Real preview (plays inline) |
+| Video | `.mp4` `.webm` `.mov` | ✅ Real preview (plays inline) |
+| Video | `.mkv` `.avi` | ⚠️ Recognized — may not play (Chromium codec limitation) |
+| Audio | `.mp3` `.wav` `.ogg` `.m4a` | ✅ Real preview (plays inline) |
+| 3D Model | `.glb` `.gltf` `.obj` `.stl` `.ply` `.vox` `.usd` `.usda` `.usdc` `.usdz` | ✅ Real preview — orbit, 13 render modes |
+| 3D Model | `.fbx` | ✅ Real preview — best-effort (most complex/least standardized of the group) |
+| 3D Model (materials) | `.mtl` (companion to `.obj`) | ✅ Auto-detected and applied |
+| Blender | `.blend` | ✅ Real preview, if Blender is installed locally (auto-detected or chosen once in Settings) — otherwise a labeled file-reference card |
+| PDF | `.pdf` | ✅ Real preview — scroll/zoom/page nav (no text selection or search-within-PDF yet) |
+| Adobe | `.psd` `.psb` `.ai` `.xd` | ✅ Real preview — full flattened image (PSD/PSB), PDF-compatible view (AI), largest rendition (XD) |
+| Adobe | `.indd` `.indt` | ⚠️ Recognized, no preview |
+| HDR / EXR | `.hdr` `.pic` | ✅ Real preview — tone-mapped from real HDR data |
+| HDR / EXR | `.exr` | ✅ Real preview — NONE/RLE compression only; ZIP/PIZ/PXR24/B44/DWAA/DWAB are recognized, no preview (see Known limitations) |
+| Krita | `.kra` | ✅ Real preview — extracts the document's own embedded composite |
+| ZBrush | `.ztl` | ⚠️ Recognized, no preview — deferred, see `docs/ROADMAP.md` |
+| Houdini | `.hip` `.hipnc` | ⚠️ Recognized, no preview — planned (same optional-external-tool path as Blender) |
+| Maya | `.ma` `.mb` | ⚠️ Recognized, no preview — planned (same optional-external-tool path as Blender) |
+| Cinema 4D | `.c4d` | ⚠️ Recognized, no preview |
+| Clip Studio Paint | `.clip` | ⚠️ Recognized, no preview |
+| Procreate | `.procreate` | ⚠️ Recognized, no preview |
+| Alembic | `.abc` | ❌ Not supported — deliberately deferred, no safe reference implementation available yet (see `docs/ROADMAP.md`) |
+| PureRef | `.pur` | ✅ Real import — every card at its saved position/scale |
 
 ---
 

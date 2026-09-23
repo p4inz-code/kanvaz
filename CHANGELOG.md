@@ -107,17 +107,44 @@ exercised live with real pointer/keyboard input, not just read.*
   ReferenceError, not a Blender-specific bug. Moved to module scope in
   `main.js`; the nested `runBlenderConvert()` still pushes/removes from
   the same array via closure.
+- **"Clean board" now routes through one shared `confirmClean()`**
+  export, called by both the toolbar button and the Properties panel's
+  button, instead of two separate near-duplicate confirm flows.
+- **Scratch strokes now export with the board.** `generateExportCanvas()`
+  folds Scratch's own world-space stroke bounds into its bounding box
+  (a scratch-only board with zero cards can now export too, where it
+  used to say "Nothing to export"), then composites the strokes on top
+  of any cards through the same transform, via
+  `KanvazScratchBoard.getStrokesWorldBounds()`/`exportRenderStrokes()`.
+  Found live: the owner exported a board that was mostly Scratch
+  annotations and got back an image with the drawings missing.
+- **Board/selection image export gained a PNG-vs-JPEG choice.**
+  `KanvazCards.exportAsImage()` was PNG-only; now takes a `format`
+  argument, the save-dialog IPC handler validates and routes both, and
+  both the board and selection context-menu items got a PNG and a JPEG
+  entry.
+- **Broom icon redrawn** — the first attempt read as an illegible
+  diagonal squiggle at toolbar size; redrawn as a straight handle plus
+  a closed brush-head shape with sweep-accent strokes, confirmed
+  legible at both preview and toolbar size before shipping.
+- **Toolbar grouping spacing increased slightly** for readability now
+  that it holds more controls (Select added, Eraser added).
 
 ### Known limitations
 - **Strokes are not part of undo/redo.** `history.js` only snapshots
   cards and connections; wiring Scratch's stroke list into that system
   was out of scope for this pass. "Clean board" is provided instead, as
   a coarse, manual, all-or-nothing undo.
-- **Board/selection image export does not include Scratch Board
-  content.** `generateExportCanvas()` is entirely card-bounding-box
-  driven and has no awareness of Scratch's strokes/background — an
-  export of a board with Scratch annotations silently omits them.
-  Documented as a real gap in `docs/ROADMAP.md`, not fixed this pass.
+- **Scratch strokes now export with the board** (fixed same night, after
+  the owner hit the gap directly): `generateExportCanvas()` folds Scratch
+  Board's own world-space stroke bounds into its bounding box (so a
+  scratch-only board with zero cards can export too, where it used to
+  say "Nothing to export"), then composites the strokes on top of the
+  cards through the exact same minX/minY/scale transform, via
+  `KanvazScratchBoard.getStrokesWorldBounds()`/`exportRenderStrokes()`.
+  The ruled-lines/grid BACKGROUND pattern itself is still not
+  reproduced in the export (only the drawn strokes) — a smaller,
+  separate gap, noted in `docs/ROADMAP.md`.
 - **Native `<input type="color">` popups and native `<select>` dropdown
   lists are not custom-themed.** Chromium provides no CSS hook to
   restyle either — the color swatches here (and the quality-selector
