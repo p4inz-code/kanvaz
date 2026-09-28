@@ -2700,7 +2700,7 @@ function registerIPC() {
     { mime: 'image/png',  ext: 'png',  filterName: 'PNG Image' },
     { mime: 'image/jpeg', ext: 'jpg',  filterName: 'JPEG Image', extraExts: ['jpeg'] },
     { mime: 'image/webp', ext: 'webp', filterName: 'WebP Image' },
-    /* Hand-rolled encoder in cards.js's canvasToBmpDataUrl — canvas.
+    /* Hand-rolled encoder in cards-export.js's canvasToBmpDataUrl — canvas.
        toDataURL() itself never produces BMP, so this data URL comes from
        a real, from-scratch 24-bit BMP writer, not the browser. */
     { mime: 'image/bmp',  ext: 'bmp',  filterName: 'BMP Image' }
