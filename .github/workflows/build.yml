@@ -92,22 +92,81 @@ jobs:
           name: sbom
           path: sbom.json
 
-  build:
-    name: Build (${{ matrix.os }})
+  # Creates the draft release ONCE, before any build leg runs, with real
+  # notes pulled straight from CHANGELOG.md. Fixes a real incident: even
+  # with the build matrix's max-parallel: 1 below, two "Build" legs still
+  # each tried to find-or-create the release for this tag via electron-
+  # builder's own --publish always logic and lost that race — GitHub's
+  # release-list read right after a create is not immediately consistent,
+  # so the second leg's "does it exist yet" check can still say no. Result:
+  # two separate drafts for the same tag, each holding a different subset
+  # of the installers (v9.6.0, live-caught by the owner). Pre-creating the
+  # release here, in its own job the build matrix depends on, removes the
+  # race entirely — every later `--publish always` / `gh release upload`
+  # call only ever ADDS assets to this one already-existing draft, which
+  # is a safe, idempotent operation with no create-vs-create race to lose.
+  create-release:
+    name: Create draft release
     needs: validate
     if: startsWith(github.ref, 'refs/tags/v')
-    # Needed for electron-builder --publish always (creates the draft
-    # release + uploads installers) and the gh release upload steps below.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      # Pulls this exact version's own section out of CHANGELOG.md (from
+      # its "## [X.Y.Z]" heading to the next one) so every release gets a
+      # real, specific description automatically — never the GitHub
+      # default "no description provided," and never dependent on someone
+      # remembering to run `gh release edit --notes-file` by hand after
+      # the fact.
+      - name: Extract this version's changelog section
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v ver="$version" '
+            $0 ~ "^## \\[" ver "\\]" { found=1; print; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "No CHANGELOG.md section found for [$version] — refusing to ship an undescribed release." >&2
+            exit 1
+          fi
+          # Standard "Which file do I download?" guide, every release —
+          # dropped by hand starting at 9.5.0 (a purely manual `gh release
+          # edit` step someone forgot); templated in here now so it can't
+          # be skipped again. <version> is literal in the template file,
+          # substituted for the real tag version on every run.
+          sed "s/<version>/$version/g" .github/release-download-guide.md >> release-notes.md
+          cat release-notes.md
+
+      - name: Create the draft (skip if one already exists for this tag)
+        run: |
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            echo "Release ${GITHUB_REF_NAME} already exists — leaving it as-is."
+          else
+            gh release create "${GITHUB_REF_NAME}" --draft --title "${GITHUB_REF_NAME#v}" --notes-file release-notes.md
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build:
+    name: Build (${{ matrix.os }})
+    needs: [validate, create-release]
+    if: startsWith(github.ref, 'refs/tags/v')
+    # Needed for electron-builder --publish always (uploads installers to
+    # the draft create-release already made) and the gh release upload
+    # steps below.
     permissions:
       contents: write
     strategy:
       fail-fast: false
-      # max-parallel: 1 — all three legs publish to the SAME GitHub
-      # Release for this tag via --publish always. Running them
-      # concurrently means two jobs can race to create/update that one
-      # release at the same time; electron-builder loses that race hard
-      # and fails fast rather than retrying. Serializing costs wall-clock
-      # time but removes the race entirely.
+      # max-parallel: 1 — belt-and-suspenders alongside create-release
+      # above. The release itself is no longer a race (it exists before
+      # any of these legs starts), but dist/ asset uploads for the same
+      # tag still go smoother serialized than three runners hitting the
+      # same release's upload endpoint at once.
       max-parallel: 1
       matrix:
         include:
