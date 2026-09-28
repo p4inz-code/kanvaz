@@ -95,78 +95,11 @@ var KanvazMapView = (function() {
   var AUTO_GAP_X  = 240;
   var AUTO_GAP_Y  = 90;
 
-  /* ── Node color-coding (4.7.0) ──
-     By tag if the card has one (deterministic hash -> hue, so the same
-     tag always gets the same color across a session without needing a
-     stored palette), else by card type from this fixed set — visual
-     grouping at a glance, the actual ask, without needing a UI toggle
-     between "by tag" and "by type" modes. */
-  var NODE_TYPE_COLORS = {
-    image: '#5FA8E0', gif: '#F0A500', video: '#FF5A5A', audio: '#4CAF82',
-    note: '#9D7FFF', text: '#9D7FFF', url: '#5FA8E0', color: '#F0A500', file: '#8F8FC2',
-    /* v8.x fix: 'model3d' was missing here too — same "forgot to update
-       when 3D shipped in v7.4.0" gap already found in reference-types.js
-       and plugin-api.js. Every 3D model node fell through to the plain
-       'var(--color-border-2)' fallback below, reading as visually
-       undefined/neutral instead of getting its own accent like every
-       other type does — a real, visible gap on exactly the card type
-       this v8.x line is meant to make the flagship identity. */
-    model3d: '#2FB8A8'
-  };
-
-  function hashColor(str) {
-    var hash = 0;
-    for (var i = 0; i < str.length; i++) hash = (hash * 31 + str.charCodeAt(i)) | 0;
-    var hue = Math.abs(hash) % 360;
-    return 'hsl(' + hue + ', 65%, 60%)';
-  }
-
-  function nodeAccentColor(card) {
-    if (card.tags && card.tags.length) return hashColor(card.tags[0]);
-    return NODE_TYPE_COLORS[card.type] || 'var(--color-border-2)';
-  }
-
-  /* ── Type colors ──
-     Polish fix: kept in sync with inspector.js's TYPE_COLORS, which has
-     the full reasoning — was a raw, unmodified Tailwind palette with no
-     relation to Kanvaz's own purple-accent identity; recolored to the
-     app's actual tokens where a fit exists, plus two new hand-picked
-     hues only where 7 distinct types need more separation than 4
-     existing tokens provide. */
-  var TYPE_COLORS = {
-    RelatedTo:     '#8F8FC2',
-    InspiredBy:    '#9D7FFF',
-    DerivedFrom:   '#5FA8E0',
-    AlternativeTo: '#F0A500',
-    Supports:      '#4CAF82',
-    UsedIn:        '#FF5A5A',
-    References:    '#E07AC0'
-  };
-
-  function typeColor(t) { return TYPE_COLORS[t] || '#6B7280'; }
-  function typeLabel(t) { return t.replace(/([A-Z])/g, ' $1').trim(); }
-
-  /* ══════════════════════════════════════════
-     BEZIER MATH — Unreal/Maya style
-     ══════════════════════════════════════════ */
-
-  /* High-tension horizontal bezier — control points pull far out
-     horizontally so the cable "pours" out of the port before curving.
-     Minimum tension of 90px ensures short-distance connections still
-     look like cables not diagonal lines. */
-  function bezierPath(x1, y1, x2, y2) {
-    var dx = x2 - x1;
-    /* Tension is distance-proportional but floored at 90 and capped
-       so very long connections don't look too stiff */
-    var tension = Math.max(90, Math.min(Math.abs(dx) * 0.55, 320));
-    /* When target is to the LEFT of source, increase tension further
-       so the cable loops around gracefully */
-    if (dx < 0) tension = Math.max(140, Math.abs(dx) * 0.7);
-    return 'M ' + x1 + ' ' + y1
-      + ' C ' + (x1 + tension) + ' ' + y1
-      + ', '  + (x2 - tension) + ' ' + y2
-      + ', '  + x2 + ' ' + y2;
-  }
+  /* Node/connection color-coding, type labels, and the bezier-path
+     formula moved to map-view-utils.js (v9.7.0) — pure functions
+     (explicit params only, no shared pan/zoom/DOM state), called below
+     as KanvazMapViewUtils.X. See that file for the full comments on
+     each. */
 
   /* ══════════════════════════════════════════
      PORT POSITIONS — pure world-space arithmetic
@@ -622,7 +555,7 @@ var KanvazMapView = (function() {
         var fromCard = KanvazCards.getAll()[wireFrom];
         if (fromCard && fromCard.mapPosition) {
           var origin = resolveOut(fromCard);
-          wirePreview.setAttribute('d', bezierPath(origin.x, origin.y, mx, my));
+          wirePreview.setAttribute('d', KanvazMapViewUtils.bezierPath(origin.x, origin.y, mx, my));
         }
       }
     });
@@ -876,7 +809,7 @@ var KanvazMapView = (function() {
     for (var id in cards) {
       var c = cards[id];
       if (!c.mapPosition) continue;
-      mmapCtx.fillStyle = nodeAccentColor(c);
+      mmapCtx.fillStyle = KanvazMapViewUtils.nodeAccentColor(c);
       mmapCtx.globalAlpha = 0.7;
       mmapCtx.fillRect(
         ((c.mapPosition.x - b.minX) / worldW) * MMAP_W,
@@ -901,7 +834,7 @@ var KanvazMapView = (function() {
   /* ── Cluster-by-tag — a visual grouping toggle (G key), not a spatial
      rearrangement. Draws a soft rounded highlight + label behind every
      group of 2+ nodes sharing a primary tag, using the same tag-hashed
-     color nodeAccentColor() already colors the nodes themselves with,
+     color KanvazMapViewUtils.nodeAccentColor() already colors the nodes themselves with,
      so a cluster's highlight and its members' accent stripes visibly
      match. Deliberately doesn't move any node — repositioning saved
      mapPosition data on a spatial-clustering pass is real work with
@@ -919,7 +852,7 @@ var KanvazMapView = (function() {
   }
 
   function hashColorAlpha(str, alpha) {
-    return hashColor(str).replace('hsl(', 'hsla(').replace(/\)$/, ', ' + alpha + ')');
+    return KanvazMapViewUtils.hashColor(str).replace('hsl(', 'hsla(').replace(/\)$/, ', ' + alpha + ')');
   }
 
   function drawClusters() {
@@ -1478,7 +1411,7 @@ var KanvazMapView = (function() {
     accentTop.style.cssText = [
       'position:absolute', 'left:0', 'top:0', 'width:4px',
       'height:calc(50% - ' + (accentGap / 2) + 'px)',
-      'background:' + nodeAccentColor(card),
+      'background:' + KanvazMapViewUtils.nodeAccentColor(card),
       'border-radius:13px 0 0 0', 'pointer-events:none'
     ].join(';');
     el.appendChild(accentTop);
@@ -1487,7 +1420,7 @@ var KanvazMapView = (function() {
     accentBottom.style.cssText = [
       'position:absolute', 'left:0', 'bottom:0', 'width:4px',
       'height:calc(50% - ' + (accentGap / 2) + 'px)',
-      'background:' + nodeAccentColor(card),
+      'background:' + KanvazMapViewUtils.nodeAccentColor(card),
       'border-radius:0 0 0 13px', 'pointer-events:none'
     ].join(';');
     el.appendChild(accentBottom);
@@ -1630,7 +1563,7 @@ var KanvazMapView = (function() {
 
     var typeChip = document.createElement('div');
     var typeLabelText = (typeof KanvazCards !== 'undefined' && KanvazCards.getCardTypeLabel) ? KanvazCards.getCardTypeLabel(card) : card.type;
-    typeChip.style.cssText = 'font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:' + nodeAccentColor(card) + ';line-height:1.2;';
+    typeChip.style.cssText = 'font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:' + KanvazMapViewUtils.nodeAccentColor(card) + ';line-height:1.2;';
     typeChip.textContent = typeLabelText;
     textCol.appendChild(typeChip);
     el.appendChild(textCol);
@@ -1988,8 +1921,8 @@ var KanvazMapView = (function() {
       var dist = Math.sqrt(dx * dx + dy * dy);
       if (dist < 20) continue;
 
-      var color = typeColor(conn.type);
-      var d = bezierPath(op.x, op.y, ip.x, ip.y);
+      var color = KanvazMapViewUtils.typeColor(conn.type);
+      var d = KanvazMapViewUtils.bezierPath(op.x, op.y, ip.x, ip.y);
 
       /* Outer glow — soft wide halo */
       var glow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -2072,7 +2005,7 @@ var KanvazMapView = (function() {
         var devS = KanvazUI_Extended.getSettings();
         devIds = !!(devS && devS.devShowIds);
       }
-      var labelText = typeLabel(conn.type) + (devIds ? ' [' + conn.id + ']' : '');
+      var labelText = KanvazMapViewUtils.typeLabel(conn.type) + (devIds ? ' [' + conn.id + ']' : '');
       var mx = (op.x + ip.x) / 2;
       var my = placeLabelY(mx, (op.y + ip.y) / 2 - 10, labelText.length * 5.6 + 4, placedLabels);
       var label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -2408,17 +2341,17 @@ var KanvazMapView = (function() {
           'transition:border-color 0.1s'
         ].join(';');
         var dot = document.createElement('span');
-        dot.style.cssText = 'display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px;background:' + typeColor(type) + ';';
+        dot.style.cssText = 'display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px;background:' + KanvazMapViewUtils.typeColor(type) + ';';
         btn.appendChild(dot);
-        btn.appendChild(document.createTextNode(typeLabel(type)));
-        btn.onmouseenter = function() { btn.style.borderColor = typeColor(type); };
+        btn.appendChild(document.createTextNode(KanvazMapViewUtils.typeLabel(type)));
+        btn.onmouseenter = function() { btn.style.borderColor = KanvazMapViewUtils.typeColor(type); };
         btn.onmouseleave = function() { btn.style.borderColor = 'transparent'; };
         btn.onclick = function() {
           KanvazConnections.create(fromId, toId, type);
           KanvazHistory.push();
           overlay.parentNode.removeChild(overlay);
           render();
-          KanvazUI.toast('Connected: ' + typeLabel(type));
+          KanvazUI.toast('Connected: ' + KanvazMapViewUtils.typeLabel(type));
         };
         panel.appendChild(btn);
       })(types[i]);
