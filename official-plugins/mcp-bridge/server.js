@@ -124,7 +124,7 @@ function tool(method) {
   };
 }
 
-const server = new McpServer({ name: 'kanvaz-mcp-bridge', version: '1.3.0' });
+const server = new McpServer({ name: 'kanvaz-mcp-bridge', version: '1.4.0' });
 
 server.registerTool('getActiveBoard', {
   title: 'Get active board',
@@ -238,7 +238,9 @@ server.registerTool('connectCards', {
   inputSchema: {
     fromId: z.string(),
     toId: z.string(),
-    type: z.enum(['RelatedTo', 'InspiredBy', 'DerivedFrom', 'AlternativeTo', 'Supports', 'UsedIn', 'References']).optional()
+    /* 9.5.2: 'Plain' added — a connection with no relationship label,
+       for when direction/meaning isn't the point, just a link. */
+    type: z.enum(['RelatedTo', 'InspiredBy', 'DerivedFrom', 'AlternativeTo', 'Supports', 'UsedIn', 'References', 'Plain']).optional()
   }
 }, tool('connectCards'));
 
@@ -377,6 +379,58 @@ server.registerTool('updateSettings', {
     })
   }
 }, tool('updateSettings'));
+
+/* ── Task Tracker (9.5.2) ── One global, file-level task list — see
+   docs/ROADMAP.md's locked v1 spec in the Kanvaz repo. A task has text,
+   done/not-done, an optional card link, and up to 5 subtasks that gate
+   the parent's done state once any exist. */
+
+server.registerTool('listTasks', {
+  title: 'List tasks',
+  description: 'Lists every task in the Task Tracker (the whole file\'s one global list, not per-board).'
+}, tool('listTasks'));
+
+server.registerTool('addTask', {
+  title: 'Add task',
+  description: 'Adds a new task to the Task Tracker.',
+  inputSchema: { text: z.string() }
+}, tool('addTask'));
+
+server.registerTool('deleteTask', {
+  title: 'Delete task',
+  description: 'Deletes a task and all of its subtasks. Not undo-reversible.',
+  inputSchema: { id: z.string() }
+}, tool('deleteTask'));
+
+server.registerTool('toggleTask', {
+  title: 'Toggle task done',
+  description: 'Flips a task\'s done state. Fails if the task has subtasks — its done state is derived from them (see toggleSubtask) and can\'t be set directly.',
+  inputSchema: { id: z.string() }
+}, tool('toggleTask'));
+
+server.registerTool('addSubtask', {
+  title: 'Add subtask',
+  description: 'Adds a subtask to a task (max 5 per task). Once a task has at least one subtask, its own done state becomes derived — done only once every subtask is done.',
+  inputSchema: { taskId: z.string(), text: z.string() }
+}, tool('addSubtask'));
+
+server.registerTool('toggleSubtask', {
+  title: 'Toggle subtask done',
+  description: 'Flips a subtask\'s done state and re-derives its parent task\'s done state.',
+  inputSchema: { taskId: z.string(), subtaskId: z.string() }
+}, tool('toggleSubtask'));
+
+server.registerTool('deleteSubtask', {
+  title: 'Delete subtask',
+  description: 'Deletes one subtask from a task and re-derives the parent\'s done state.',
+  inputSchema: { taskId: z.string(), subtaskId: z.string() }
+}, tool('deleteSubtask'));
+
+server.registerTool('setTaskCardLink', {
+  title: 'Set task card link',
+  description: 'Links a task to one card on the CURRENT board (pass cardId), or clears the link (omit cardId / pass null).',
+  inputSchema: { taskId: z.string(), cardId: z.string().nullable().optional() }
+}, tool('setTaskCardLink'));
 
 const transport = new StdioServerTransport();
 await server.connect(transport);

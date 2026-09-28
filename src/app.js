@@ -283,13 +283,23 @@ var KanvazApp = (function() {
     on('zoom-display',  function() { KanvazCanvas.zoomReset(); });
     on('btn-undo',      function() { KanvazHistory.undo(); });
     on('btn-redo',      function() { KanvazHistory.redo(); });
+    /* Every view-toggle handler below re-syncs the empty-state hint
+       (updateEmptyState, above) after switching — its own card-count
+       check alone doesn't know a VIEW switch just happened, so without
+       this it stayed stuck showing/hiding whatever it last was until
+       the next card add/delete. */
+    function refreshEmptyState() {
+      if (typeof KanvazCards !== 'undefined') updateEmptyState(KanvazCards.getAllIds().length === 0);
+    }
     on('btn-view-board', function() {
       if (typeof KanvazMapView !== 'undefined' && KanvazMapView.isActive()) KanvazMapView.toggle();
       if (typeof KanvazScratchBoard !== 'undefined' && KanvazScratchBoard.isActive()) KanvazScratchBoard.setActive(false);
+      refreshEmptyState();
     });
     on('btn-view-map', function() {
       if (typeof KanvazScratchBoard !== 'undefined' && KanvazScratchBoard.isActive()) KanvazScratchBoard.setActive(false);
       if (typeof KanvazMapView !== 'undefined' && !KanvazMapView.isActive()) KanvazMapView.toggle();
+      refreshEmptyState();
     });
     /* Scratch Board (9.5.0) — third view. Same #canvas-world/cards as
        Board (no separate toggle() lifecycle like Map View needs), so
@@ -303,6 +313,7 @@ var KanvazApp = (function() {
     on('btn-view-scratch', function() {
       if (typeof KanvazMapView !== 'undefined' && KanvazMapView.isActive()) KanvazMapView.toggle();
       if (typeof KanvazScratchBoard !== 'undefined' && !KanvazScratchBoard.isActive()) KanvazScratchBoard.setActive(true);
+      refreshEmptyState();
     });
     /* v7.x redesign — Settings moved into the left side panel; About/
        Shortcuts consolidated into the corner account-menu button (see
@@ -492,7 +503,7 @@ var KanvazApp = (function() {
           if (err) {
             if (err === 'FILE_TOO_LARGE') {
               KanvazUI.toast((isModelFile || isExternalConvertFile)
-                ? 'Model too large for Kanvaz (max 150MB). Try a decimated/compressed export.'
+                ? 'Model too large for Kanvaz (max 250MB). Try a decimated/compressed export.'
                 : 'File too large for Kanvaz (max 500MB). Use a smaller preview or proxy file.', 'error');
             } else if (err === 'FILE_TYPE_INVALID' && KanvazCards.isTextPreviewPath && (KanvazCards.isTextPreviewPath(file.path) || KanvazCards.isPdfPath(file.path) || KanvazCards.isAdobePath(file.path))) {
               /* Text-like files, PDFs and Adobe files (PSD, AI, XD...) become a file-reference card whose body renders the content. */
@@ -518,7 +529,7 @@ var KanvazApp = (function() {
               KanvazUI.toast('"' + file.name + '" added as a file reference. Kanvaz could not find Blender on this PC — if it is installed somewhere unusual, set the BLENDER_PATH environment variable to blender.exe and drop the file again. (Blender is optional, only needed for the live 3D preview.)', 'warning');
             } else if (err === 'MODEL_TOO_LARGE') {
               KanvazCards.createFileRefCardAtPath(pos.x, pos.y, file.path);
-              KanvazUI.toast('"' + file.name + '" converts to a model over the 150MB limit. Added it as a file reference instead — try decimating it in Blender first.', 'warning');
+              KanvazUI.toast('"' + file.name + '" converts to a model over the 250MB limit. Added it as a file reference instead — try decimating it in Blender first.', 'warning');
             } else if (err === 'EXTERNAL_TOOL_FAILED') {
               /* Direct feedback: "the .blend dropped but error came...
                  didn't add to list" — this branch showed the error but,
@@ -1499,7 +1510,18 @@ var KanvazApp = (function() {
   function updateEmptyState(isEmpty) {
     var el = document.getElementById('canvas-empty');
     if (!el) return;
-    if (isEmpty) {
+    /* Bug fix (found live): this "Drop a 3D model, image, video, or GIF
+       here / Right-click for options..." hint is Board view's own
+       onboarding text, keyed only on card count — it never checked
+       which VIEW was actually active, so it kept showing (and catching
+       clicks/drags meant for the canvas underneath) in Map View and
+       Scratch Board too, on an otherwise-empty board. Those views have
+       their own affordances (Scratch's toolbar, Map's node layout) and
+       don't need — or want — Board's file-drop hint bleeding through. */
+    var otherViewActive =
+      (typeof KanvazMapView !== 'undefined' && KanvazMapView.isActive && KanvazMapView.isActive()) ||
+      (typeof KanvazScratchBoard !== 'undefined' && KanvazScratchBoard.isActive && KanvazScratchBoard.isActive());
+    if (isEmpty && !otherViewActive) {
       el.classList.remove('hidden');
     } else {
       el.classList.add('hidden');
@@ -1772,6 +1794,209 @@ var KanvazApp = (function() {
       if (overlay) overlay.classList.remove('visible');
       var input = document.getElementById('dialog-input');
       if (input) input.style.display = 'none';
+      var exportForm = document.getElementById('dialog-export-form');
+      if (exportForm) { exportForm.style.display = 'none'; exportForm.innerHTML = ''; }
+      var linkForm = document.getElementById('dialog-link-form');
+      if (linkForm) { linkForm.style.display = 'none'; linkForm.innerHTML = ''; }
+      var boxEl = document.getElementById('dialog-box');
+      if (boxEl) boxEl.classList.remove('dialog-box-wide');
+    }
+
+    /* Export-as-format picker — the Adobe/Maya-style "choose format +
+       quality, then export" dialog, direct request ("export as which
+       will open a window where user can choose which format to export
+       in and quality of it"). Reuses the SAME custom dialog-overlay
+       every other confirmation in this app uses (never a native OS file-
+       type picker) — just with a real form injected into
+       #dialog-export-form instead of a plain message string. */
+    function showExportPicker(ids) {
+      var overlay = document.getElementById('dialog-overlay');
+      var titleEl = document.getElementById('dialog-title');
+      var msgEl   = document.getElementById('dialog-message');
+      var formEl  = document.getElementById('dialog-export-form');
+      var btnsEl  = document.getElementById('dialog-btns');
+      var boxEl   = document.getElementById('dialog-box');
+      if (!overlay || !formEl) return;
+      if (boxEl) boxEl.classList.add('dialog-box-wide');
+
+      /* Direct feedback: "i right clicked the vid and it says export to
+         PNG, srsly?" — same underlying scope (no real video encoder, see
+         canvasToBmpDataUrl's own comment on the format list above), but
+         at least tell the user up front that a video card only gives up
+         a still frame, not the whole clip, instead of leaving them to
+         infer it after the fact. */
+      var hasVideoCard = false;
+      for (var vci = 0; vci < ids.length; vci++) {
+        var vcCard = (typeof KanvazCards !== 'undefined') ? KanvazCards.getCard(ids[vci]) : null;
+        if (vcCard && vcCard.type === 'video') { hasVideoCard = true; break; }
+      }
+      titleEl.textContent = 'Export as…';
+      var exportMsg = ids.length > 1 ? ('Exporting ' + ids.length + ' cards — one file per card, into a folder you choose.') : 'Choose a format and quality.';
+      if (hasVideoCard) exportMsg += ' Video cards export their current frame as a still image — Kanvaz can\'t re-encode video yet.';
+      msgEl.textContent = exportMsg;
+      msgEl.style.display = '';
+      formEl.innerHTML = '';
+      formEl.style.display = 'flex';
+      btnsEl.innerHTML = '';
+
+      var formatRow = document.createElement('div');
+      formatRow.className = 'dialog-export-row';
+      var formatLabel = document.createElement('label');
+      formatLabel.textContent = 'Format';
+      var formatSel = document.createElement('select');
+      /* WebP added — direct request ("png can be converted into web and
+         web can be into other too"): Chromium's own canvas.toDataURL
+         supports image/webp natively, no extra dependency, so this is a
+         real, working conversion, not a stub. A true VIDEO container
+         conversion (e.g. re-encoding an .mp4 to a different codec/
+         container) is a genuinely different, much bigger scope — it
+         needs a real video encoder (ffmpeg-class dependency), not
+         something a <canvas> can do — deliberately not attempted here
+         rather than shipping a fake "convert" that silently doesn't
+         work. Video CARDS still export a still frame in any of these
+         three image formats, same as before. */
+      var formatChoices = ['png', 'jpeg', 'webp', 'bmp'];
+      for (var fi = 0; fi < formatChoices.length; fi++) {
+        var o = document.createElement('option');
+        o.value = formatChoices[fi]; o.textContent = formatChoices[fi].toUpperCase();
+        formatSel.appendChild(o);
+      }
+      formatRow.appendChild(formatLabel);
+      formatRow.appendChild(formatSel);
+      formEl.appendChild(formatRow);
+
+      var qualityRow = document.createElement('div');
+      qualityRow.className = 'dialog-export-row';
+      var qualityLabel = document.createElement('label');
+      qualityLabel.textContent = 'Quality';
+      var qualitySlider = document.createElement('input');
+      qualitySlider.type = 'range';
+      qualitySlider.min = '10'; qualitySlider.max = '100'; qualitySlider.value = '92';
+      var qualityValue = document.createElement('span');
+      qualityValue.textContent = '92%';
+      qualitySlider.oninput = function() { qualityValue.textContent = qualitySlider.value + '%'; };
+      qualityRow.appendChild(qualityLabel);
+      qualityRow.appendChild(qualitySlider);
+      qualityRow.appendChild(qualityValue);
+      formEl.appendChild(qualityRow);
+
+      /* Quality only means anything for a lossy format (PNG and BMP are
+         both always lossless) — hidden, not just disabled, so the dialog
+         doesn't show a control that visibly does nothing. */
+      function syncQualityVisibility() {
+        qualityRow.style.display = (formatSel.value === 'png' || formatSel.value === 'bmp') ? 'none' : '';
+      }
+      formatSel.onchange = syncQualityVisibility;
+      syncQualityVisibility();
+
+      /* Image size — direct request for "proper professional detailed
+         export settings." Percent-of-original is deliberately simpler
+         than a raw Width/Height pair (Photoshop's own "Scale" field):
+         every selected card can be a different native size, so one
+         shared Width/Height pair would mean something different for
+         each — a shared percentage always means the same thing. */
+      var sizeRow = document.createElement('div');
+      sizeRow.className = 'dialog-export-row';
+      var sizeLabel = document.createElement('label');
+      sizeLabel.textContent = 'Size';
+      var sizeSel = document.createElement('select');
+      var sizeChoices = [['1', '100% (original)'], ['0.75', '75%'], ['0.5', '50%'], ['0.25', '25%']];
+      for (var si = 0; si < sizeChoices.length; si++) {
+        var so = document.createElement('option');
+        so.value = sizeChoices[si][0]; so.textContent = sizeChoices[si][1];
+        sizeSel.appendChild(so);
+      }
+      sizeRow.appendChild(sizeLabel);
+      sizeRow.appendChild(sizeSel);
+      formEl.appendChild(sizeRow);
+
+      var cancelBtn = document.createElement('button');
+      cancelBtn.className = 'btn';
+      cancelBtn.textContent = 'Cancel';
+      cancelBtn.onclick = closeDialog;
+
+      var exportBtn = document.createElement('button');
+      exportBtn.className = 'btn primary';
+      exportBtn.textContent = 'Export';
+      exportBtn.onclick = function() {
+        closeDialog();
+        if (typeof KanvazCards !== 'undefined') {
+          KanvazCards.exportCardsAsFormat(ids, formatSel.value, parseInt(qualitySlider.value, 10) / 100, parseFloat(sizeSel.value));
+        }
+      };
+
+      btnsEl.appendChild(cancelBtn);
+      btnsEl.appendChild(exportBtn);
+      overlay.classList.add('visible');
+    }
+
+    /* Discord-style external-link confirmation — direct request: "add a
+       warning like msg discord does before you click any links...
+       friendly, not something like Windows error handling." Every
+       embedded link (What's New entries, URL-card Open, the About
+       screen's GitHub link, ...) routes through this instead of calling
+       KanvazBridge.openExternal directly — EXCEPT the Check for Updates
+       flow, which the user explicitly carved out (it's already its own
+       deliberate, disclosed action, not a link buried in content). Has
+       its own "Don't ask me again" checkbox, persisted like every other
+       preference via KanvazUI_Extended's settings, not a native confirm(). */
+    function confirmExternalLink(url) {
+      if (!url || typeof KanvazBridge === 'undefined') return;
+      var settings = (typeof KanvazUI_Extended !== 'undefined' && KanvazUI_Extended.getSettings) ? KanvazUI_Extended.getSettings() : null;
+      if (settings && settings.skipExternalLinkWarning) {
+        KanvazBridge.openExternal(url);
+        return;
+      }
+
+      var overlay = document.getElementById('dialog-overlay');
+      var titleEl = document.getElementById('dialog-title');
+      var msgEl   = document.getElementById('dialog-message');
+      var formEl  = document.getElementById('dialog-link-form');
+      var btnsEl  = document.getElementById('dialog-btns');
+      if (!overlay || !formEl) { KanvazBridge.openExternal(url); return; }
+
+      titleEl.textContent = 'Leaving Kanvaz';
+      msgEl.textContent = 'This link opens outside Kanvaz, in your default browser. Want to go ahead?';
+      msgEl.style.display = '';
+      formEl.innerHTML = '';
+      formEl.style.display = 'flex';
+      btnsEl.innerHTML = '';
+
+      var urlBox = document.createElement('div');
+      urlBox.className = 'dialog-link-url';
+      urlBox.textContent = url;
+      formEl.appendChild(urlBox);
+
+      var checkRow = document.createElement('label');
+      checkRow.className = 'dialog-link-checkbox-row';
+      var checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      var checkText = document.createElement('span');
+      checkText.textContent = "Don't ask me again";
+      checkRow.appendChild(checkbox);
+      checkRow.appendChild(checkText);
+      formEl.appendChild(checkRow);
+
+      var noBtn = document.createElement('button');
+      noBtn.className = 'btn';
+      noBtn.textContent = 'No';
+      noBtn.onclick = closeDialog;
+
+      var yesBtn = document.createElement('button');
+      yesBtn.className = 'btn primary';
+      yesBtn.textContent = 'Yes, open it';
+      yesBtn.onclick = function() {
+        closeDialog();
+        if (checkbox.checked && typeof KanvazUI_Extended !== 'undefined' && KanvazUI_Extended.updateSettings) {
+          KanvazUI_Extended.updateSettings({ skipExternalLinkWarning: true });
+        }
+        KanvazBridge.openExternal(url);
+      };
+
+      btnsEl.appendChild(noBtn);
+      btnsEl.appendChild(yesBtn);
+      overlay.classList.add('visible');
+      setTimeout(function() { yesBtn.focus(); }, 0);
     }
 
     /* Kanvaz-styled stand-in for window.prompt() — same dialog overlay
@@ -1913,6 +2138,50 @@ var KanvazApp = (function() {
         });
       }
 
+      /* Export as format (converter) — direct request: "kanvaz becomes a
+         sort of converter too... someone just copy pasted pics and wants
+         now to create a set of img locally." Distinct from the composite
+         board/selection export above (which flattens everything onto ONE
+         canvas) — this exports each image/GIF/video card's OWN media as
+         its own separate file. Works on the right-clicked card alone, or
+         every image/GIF/video card in the current multi-selection if
+         it's part of one (non-convertible types in that selection are
+         silently skipped, not an error). */
+      var exportCandidateIds = (selIds.length > 1 && selIds.indexOf(card.id) !== -1) ? selIds : [card.id];
+      var exportableIds = [];
+      for (var eti = 0; eti < exportCandidateIds.length; eti++) {
+        var etCard = KanvazCards.getCard(exportCandidateIds[eti]);
+        if (etCard && (etCard.type === 'image' || etCard.type === 'gif' || etCard.type === 'video')) exportableIds.push(exportCandidateIds[eti]);
+      }
+      if (exportableIds.length) {
+        /* Bug fix: "i right clicked the vid and it says export to PNG,
+           srsly?" — a video card CAN only "quick export" a single decoded
+           frame as a still image (no real video encoder in this app —
+           see the ROADMAP note on why video-to-video is out of scope),
+           which the plain "Quick export as PNG" label never made clear.
+           Reads as a real bug even though the behavior itself is the
+           correct, already-scoped one. Labeling it explicitly as a frame
+           grab for video (mixed selections included) fixes the
+           confusion without changing what actually happens. */
+        var exportHasVideo = false;
+        for (var evi = 0; evi < exportableIds.length; evi++) {
+          var evCard = KanvazCards.getCard(exportableIds[evi]);
+          if (evCard && evCard.type === 'video') { exportHasVideo = true; break; }
+        }
+        var quickLabel = exportHasVideo
+          ? (exportableIds.length > 1 ? 'Quick export frame(s) as PNG (' + exportableIds.length + ')' : 'Quick export current frame as PNG')
+          : (exportableIds.length > 1 ? 'Quick export as PNG (' + exportableIds.length + ')' : 'Quick export as PNG');
+        items.push({ sep: true });
+        items.push({
+          label: quickLabel,
+          action: function() { KanvazCards.exportCardsAsFormat(exportableIds, 'png', 0.92); }
+        });
+        items.push({
+          label: 'Export as…',
+          action: function() { if (typeof KanvazUI !== 'undefined' && KanvazUI.showExportPicker) KanvazUI.showExportPicker(exportableIds); }
+        });
+      }
+
       /* Media-only items: flip, reset size */
       if (card.type !== 'note' && card.type !== 'color' && card.type !== 'audio' && card.type !== 'url' && card.type !== 'file' && card.type !== 'text') {
         items.push({ sep: true });
@@ -1979,7 +2248,7 @@ var KanvazApp = (function() {
             var raw = (card.url || '').trim();
             if (!raw) return;
             var target = /^https?:\/\//i.test(raw) ? raw : 'https://' + raw;
-            KanvazBridge.openExternal(target);
+            KanvazUI.confirmExternalLink(target);
           }
         });
         items.push({
@@ -2574,6 +2843,8 @@ var KanvazApp = (function() {
     return {
       toast:               toast,
       showDialog:          showDialog,
+      showExportPicker:    showExportPicker,
+      confirmExternalLink: confirmExternalLink,
       showPrompt:          showPrompt,
       closeDialog:         closeDialog,
       showCardContextMenu: showCardContextMenu,

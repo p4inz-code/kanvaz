@@ -33,6 +33,7 @@ var KanvazScratchBoard = (function() {
   var bgCanvas = null, bgCtx = null;
   var strokeCanvas = null, strokeCtx = null;
   var toolbarEl = null;
+  var eraserCursorEl = null;
 
   var active = false;
 
@@ -55,7 +56,12 @@ var KanvazScratchBoard = (function() {
      select cards at all while Scratch was open — "select mode on, tools
      off; select mode off, tools on" was the explicit fix requested. */
   var TOOLS = ['pen', 'highlighter', 'line', 'arrow', 'rect', 'ellipse', 'eraser'];
-  var ERASER_RADIUS = 16; /* screen px — generous enough to hit a thin line without being a "clear half the board" click */
+  /* Direct request: the eraser needs to be visibly sized, not a fixed
+     invisible hit radius — tied to currentWidth (the same slider pen/
+     shapes already use) so the on-screen circle cursor (below) actually
+     reflects what a drag will erase. 10px floor keeps it usable even at
+     the minimum width setting. */
+  function eraserRadius() { return 10 + currentWidth * 2; }
   var currentTool = 'select';
   var currentColor = '#7C5CFC';
   var MIN_WIDTH = 1, MAX_WIDTH = 24, DEFAULT_WIDTH = 3;
@@ -116,6 +122,7 @@ var KanvazScratchBoard = (function() {
     bgCanvas = document.getElementById('scratch-bg-canvas');
     strokeCanvas = document.getElementById('scratch-strokes-canvas');
     toolbarEl = document.getElementById('scratch-toolbar');
+    eraserCursorEl = document.getElementById('scratch-eraser-cursor');
     if (!bgCanvas || !strokeCanvas) return;
 
     bgCtx = bgCanvas.getContext('2d');
@@ -205,6 +212,7 @@ var KanvazScratchBoard = (function() {
       strokeCanvas.style.display = 'none';
       strokeCanvas.style.pointerEvents = 'none';
       if (toolbarEl) toolbarEl.classList.remove('visible');
+      if (eraserCursorEl) eraserCursorEl.hidden = true;
       if (typeof KanvazCanvas !== 'undefined' && KanvazCanvas.drawGrid) KanvazCanvas.drawGrid();
     }
 
@@ -308,11 +316,29 @@ var KanvazScratchBoard = (function() {
     markDirty();
   }
 
+  /* Icon shown for each style — used as a NEXT-STATE preview below, not
+     the current state (see updateBgStyleBtn's comment). */
+  var BG_STYLE_ICONS = {
+    lines: '<line x1="3" y1="8" x2="21" y2="8"/><line x1="3" y1="13" x2="21" y2="13"/><line x1="3" y1="18" x2="21" y2="18"/>',
+    grid:  '<line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>',
+    color: '<rect x="4" y="4" width="16" height="16" rx="2"/>'
+  };
+
   function updateBgStyleBtn() {
     var btn = document.getElementById('scratch-tool-bgstyle');
     if (btn) {
       var titles = { lines: 'Background: ruled lines (click to cycle)', color: 'Background: plain color (click to cycle)', grid: 'Background: grid (click to cycle)' };
       btn.title = titles[bgStyle] || 'Background style';
+      /* Bug fix: the icon never changed, only the title — always showed
+         the same 3-line glyph no matter which style was active. Direct
+         feedback: "when it's lines it'll show grid as next, and if grid
+         then lines" — i.e. show what clicking will switch TO (a "next
+         state" preview), the convention most cycle-toggle buttons in
+         other creative tools already use, rather than a static icon or
+         a same-as-current one that gives no clue what a click will do. */
+      var nextStyle = BG_STYLES[(BG_STYLES.indexOf(bgStyle) + 1) % BG_STYLES.length];
+      var svg = btn.querySelector('svg');
+      if (svg) svg.innerHTML = BG_STYLE_ICONS[nextStyle] || BG_STYLE_ICONS.lines;
     }
     /* The accent swatch only means something for 'lines'/'grid' (the
        plain 'color' style has no line strokes to tint) — hidden for
@@ -518,7 +544,7 @@ var KanvazScratchBoard = (function() {
     var p = { x: localX, y: localY };
     for (var i = strokes.length - 1; i >= 0; i--) {
       var style = strokeStyleFor(strokes[i]);
-      var radius = ERASER_RADIUS + style.width / 2;
+      var radius = eraserRadius() + style.width / 2;
       var segs = strokeSegmentsLocal(strokes[i]);
       for (var j = 0; j < segs.length; j++) {
         if (distToSegment(p, segs[j][0], segs[j][1]) <= radius) {
@@ -677,6 +703,10 @@ var KanvazScratchBoard = (function() {
     });
 
     strokeCanvas.addEventListener('pointermove', function(e) {
+      if (currentTool === 'eraser' && eraserCursorEl && !eraserCursorEl.hidden) {
+        eraserCursorEl.style.left = e.clientX + 'px';
+        eraserCursorEl.style.top = e.clientY + 'px';
+      }
       if (!isDrawing) return;
       var lp = localPoint(e);
       if (currentTool === 'eraser') {
@@ -733,6 +763,16 @@ var KanvazScratchBoard = (function() {
     strokeCanvas.addEventListener('pointerup', finish);
     strokeCanvas.addEventListener('pointercancel', finish);
 
+    /* Hide the eraser circle when the pointer leaves the canvas entirely
+       (e.g. onto the toolbar/side panel) so it doesn't sit frozen at the
+       last position; restored on re-entry if the eraser is still armed. */
+    strokeCanvas.addEventListener('pointerleave', function() {
+      if (eraserCursorEl) eraserCursorEl.hidden = true;
+    });
+    strokeCanvas.addEventListener('pointerenter', function() {
+      if (eraserCursorEl && currentTool === 'eraser') eraserCursorEl.hidden = false;
+    });
+
     /* Bug fix (found live): right-clicking while a draw/eraser tool was
        armed still opened the normal Board right-click menu (New Note,
        Export board, etc.) — canvas.js's own contextmenu handler only
@@ -752,8 +792,15 @@ var KanvazScratchBoard = (function() {
     });
   }
 
+  /* Also pushes to the SAME undo/redo history cards/connections already
+     share — direct request: an annotate mistake should be a plain Ctrl+Z,
+     not something the eraser has to fix by hand. Called only at the same
+     commit points markDirty() always was (stroke finish, clear, background
+     changes) — never mid-drag, matching every other undo step in the app
+     (one push per gesture, not per frame). */
   function markDirty() {
     if (typeof KanvazApp !== 'undefined' && KanvazApp.markDirty) KanvazApp.markDirty();
+    if (typeof KanvazHistory !== 'undefined' && KanvazHistory.push) KanvazHistory.push();
   }
 
   /* Keeps properties.js's Scratch Board section in sync whenever the
@@ -791,8 +838,18 @@ var KanvazScratchBoard = (function() {
       strokeCanvas.style.pointerEvents = 'auto';
       /* Crosshair while a draw tool is armed — the same visual convention
          Figma/Canva/FigJam use so it's obvious a click will draw, not
-         select/pan. */
-      strokeCanvas.style.cursor = 'crosshair';
+         select/pan. Eraser gets 'none' instead: the real cursor is the
+         circle DOM element (updateEraserCursorSize/onEraserMove, below),
+         which a plain crosshair would just clutter. */
+      strokeCanvas.style.cursor = (tool === 'eraser') ? 'none' : 'crosshair';
+    }
+    if (eraserCursorEl) {
+      if (tool === 'eraser') {
+        updateEraserCursorSize();
+        eraserCursorEl.hidden = false;
+      } else {
+        eraserCursorEl.hidden = true;
+      }
     }
     var btns = document.querySelectorAll('.scratch-tool-btn[data-tool]');
     for (var i = 0; i < btns.length; i++) {
@@ -800,6 +857,16 @@ var KanvazScratchBoard = (function() {
       else btns[i].classList.remove('scratch-tool-active');
     }
     syncProperties();
+  }
+
+  /* Diameter tracks eraserRadius() directly, so widening the width slider
+     while the eraser is active visibly grows the circle in real time —
+     the whole point of showing it at all. */
+  function updateEraserCursorSize() {
+    if (!eraserCursorEl) return;
+    var d = eraserRadius() * 2;
+    eraserCursorEl.style.width = d + 'px';
+    eraserCursorEl.style.height = d + 'px';
   }
 
   function bindToolbar() {
@@ -924,6 +991,7 @@ var KanvazScratchBoard = (function() {
     currentWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, v));
     var el = document.getElementById('scratch-width-input');
     if (el) el.value = currentWidth;
+    if (currentTool === 'eraser') updateEraserCursorSize();
   }
   function getOpacity() { return currentOpacity; }
   function setOpacity(v) {

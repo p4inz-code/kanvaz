@@ -71,8 +71,15 @@ var KanvazMapView = (function() {
   var videoThumbCache = {};
 
   /* ── Node sizing ── */
-  var NODE_W      = 176;   /* border-box width (global * reset forces box-sizing:border-box) */
-  var NODE_H      = 52;    /* content-box height */
+  /* Bumped from 176x52 — direct feedback: "make the card of node design
+     look more professional and bit diff." More breathing room for a
+     bigger thumbnail and a real two-line label (name + type), instead
+     of a single cramped row. Ports (top:50%, below) and the accent
+     stripe (top:0/bottom:0) are both percentage/edge-based, so they
+     recenter/restretch automatically — no other geometry needed a
+     manual adjustment for the new size. */
+  var NODE_W = 200;   /* border-box width (global * reset forces box-sizing:border-box) */
+  var NODE_H = 64;    /* content-box height */
   var NODE_BORDER = 1.5;
   var PORT_INSET  = 1;     /* Measured offset of port-dot center from node
                               border-box edge. Empirically verified against
@@ -574,8 +581,14 @@ var KanvazMapView = (function() {
             if (!gcard) continue;
             var origin = groupDragOrigins[gid];
             if (!gcard.mapPosition) gcard.mapPosition = { x: 0, y: 0 };
-            gcard.mapPosition.x = Math.round(origin.x + dx);
-            gcard.mapPosition.y = Math.round(origin.y + dy);
+            /* Direct request: "nodes must also snap to grid same as other
+               cards" — reuses cards.js's own snapToGrid() so Map View
+               nodes honor the exact same Settings toggle/increment Board
+               view cards already do, rather than a second copy of the
+               same logic. No-ops (returns the value unchanged) when grid
+               snap is off. */
+            gcard.mapPosition.x = KanvazCards.snapToGrid(Math.round(origin.x + dx));
+            gcard.mapPosition.y = KanvazCards.snapToGrid(Math.round(origin.y + dy));
             if (origin.el) {
               origin.el.style.left = gcard.mapPosition.x + 'px';
               origin.el.style.top  = gcard.mapPosition.y + 'px';
@@ -590,8 +603,8 @@ var KanvazMapView = (function() {
         var card  = cards[dragNode];
         if (card) {
           if (!card.mapPosition) card.mapPosition = { x: 0, y: 0 };
-          card.mapPosition.x = Math.round(wx);
-          card.mapPosition.y = Math.round(wy);
+          card.mapPosition.x = KanvazCards.snapToGrid(Math.round(wx));
+          card.mapPosition.y = KanvazCards.snapToGrid(Math.round(wy));
           if (dragNodeEl) {
             dragNodeEl.style.left = card.mapPosition.x + 'px';
             dragNodeEl.style.top  = card.mapPosition.y + 'px';
@@ -712,6 +725,11 @@ var KanvazMapView = (function() {
     }
     var fromId = wireFrom;
     cancelWire();
+    /* Direct request: max 8 connections per node, either direction. */
+    if (typeof KanvazConnections !== 'undefined' && KanvazConnections.canAddConnection && !KanvazConnections.canAddConnection(fromId, toRefId)) {
+      KanvazUI.toast('One of these nodes already has ' + KanvazConnections.MAX_CONNECTIONS_PER_NODE + ' connections — the max per node', 'error');
+      return;
+    }
     showTypePicker(fromId, toRefId);
   }
 
@@ -1413,23 +1431,30 @@ var KanvazMapView = (function() {
     var el = document.createElement('div');
     el.className = 'map-node';
     el.dataset.refId = card.id;
+    /* Visual redesign, direct feedback: "make the card of node design
+       look more professional and bit diff" — a subtle top-to-bottom
+       gradient instead of a flat fill, a softer/deeper two-layer shadow
+       (matches the kind of elevation real node-graph tools like Unreal
+       Blueprints/Blender's shader editor use), and a bigger corner
+       radius to read as a more deliberately-designed card rather than a
+       generic rounded rectangle. */
     el.style.cssText = [
       'position:absolute',
       'left:' + card.mapPosition.x + 'px',
       'top:'  + card.mapPosition.y + 'px',
       'width:' + NODE_W + 'px',
       'height:' + NODE_H + 'px',
-      'background:var(--color-surface)',
+      'background:linear-gradient(180deg, var(--color-surface-2) 0%, var(--color-surface) 100%)',
       'border:1.5px solid var(--color-border-2)',
-      'border-radius:10px',
+      'border-radius:14px',
       'display:flex',
       'align-items:center',
-      'gap:8px',
+      'gap:10px',
       'padding:0 14px',
       'cursor:grab',
       'user-select:none',
-      'box-shadow:0 2px 10px var(--color-shadow)',
-      'transition:border-color 0.15s, box-shadow 0.15s',
+      'box-shadow:0 1px 2px rgba(0,0,0,0.3), 0 6px 18px var(--color-shadow)',
+      'transition:border-color 0.15s, box-shadow 0.15s, transform 0.1s',
       'overflow:visible'
     ].join(';');
 
@@ -1439,14 +1464,33 @@ var KanvazMapView = (function() {
        select — all three of which already claim border-color/outline/
        box-shadow. Matches the node's own left-corner radius so it
        doesn't poke out past the rounded edge. */
-    var accent = document.createElement('div');
-    accent.className = 'map-node-accent';
-    accent.style.cssText = [
-      'position:absolute', 'left:0', 'top:0', 'bottom:0', 'width:4px',
+    /* Split into two segments (top/bottom), not one full-height bar —
+       "u say overlap fixed i can still see it here": a full-height
+       stripe runs straight through the port dot's vertical center, so
+       its straight rectangle edge peeks out past the port's rounded
+       curve right where the port and wire endpoint sit, reading as a
+       visual collision even though the port itself (z-index:2) covers
+       the rest. Leaving a gap centered on the port removes the clash
+       entirely instead of relying on stacking order to hide it. */
+    var accentGap = (PORT_R * 2) + 6;
+    var accentTop = document.createElement('div');
+    accentTop.className = 'map-node-accent';
+    accentTop.style.cssText = [
+      'position:absolute', 'left:0', 'top:0', 'width:4px',
+      'height:calc(50% - ' + (accentGap / 2) + 'px)',
       'background:' + nodeAccentColor(card),
-      'border-radius:9px 0 0 9px', 'pointer-events:none'
+      'border-radius:13px 0 0 0', 'pointer-events:none'
     ].join(';');
-    el.appendChild(accent);
+    el.appendChild(accentTop);
+    var accentBottom = document.createElement('div');
+    accentBottom.className = 'map-node-accent';
+    accentBottom.style.cssText = [
+      'position:absolute', 'left:0', 'bottom:0', 'width:4px',
+      'height:calc(50% - ' + (accentGap / 2) + 'px)',
+      'background:' + nodeAccentColor(card),
+      'border-radius:0 0 0 13px', 'pointer-events:none'
+    ].join(';');
+    el.appendChild(accentBottom);
 
     /* ── Input port (left edge) ── */
     var portIn = document.createElement('div');
@@ -1510,9 +1554,11 @@ var KanvazMapView = (function() {
     };
     el.appendChild(portOut);
 
-    /* ── Thumbnail / icon ── */
+    /* ── Thumbnail / icon ── Bumped 30->40px, a real border and rounder
+       corners so it reads as a distinct preview tile rather than a tiny
+       icon squeezed into a row. */
     var thumb = document.createElement('div');
-    thumb.style.cssText = 'width:30px;height:30px;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px;background:var(--color-surface-2);overflow:hidden;';
+    thumb.style.cssText = 'width:40px;height:40px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;background:var(--color-surface-3, rgba(255,255,255,0.06));border:1px solid var(--color-border);overflow:hidden;';
     if (card.dataUrl && (card.type === 'image' || card.type === 'gif')) {
       var img = document.createElement('img');
       img.src = card.dataUrl;
@@ -1559,10 +1605,19 @@ var KanvazMapView = (function() {
     }
     el.appendChild(thumb);
 
-    /* ── Name ── */
+    /* ── Label column (name + type chip) ── Two lines instead of one
+       cramped row: the card's own name on top, a small type chip below
+       it (tinted with the same accent color as the left stripe) — the
+       same "title + subtitle" shape real node-graph tools (Blender's
+       shader nodes, Unreal Blueprints) use, direct feedback asked for
+       something "more professional and bit diff" than a flat single
+       row. */
+    var textCol = document.createElement('div');
+    textCol.style.cssText = 'flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;';
+
     var nameEl = document.createElement('div');
     nameEl.className = 'map-node-name';
-    nameEl.style.cssText = 'flex:1;font-size:11px;font-family:var(--font-ui);color:var(--color-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;';
+    nameEl.style.cssText = 'font-size:12px;font-weight:600;font-family:var(--font-ui);color:var(--color-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;';
     nameEl.textContent = card.name || 'Untitled';
     /* Double-click the name specifically to rename — the node's own
        dblclick (jump to Board View) is on the whole node, so this needs
@@ -1571,14 +1626,25 @@ var KanvazMapView = (function() {
       e.stopPropagation();
       startRenameNode(card.id);
     });
-    el.appendChild(nameEl);
+    textCol.appendChild(nameEl);
 
-    /* ── Connection count ── */
+    var typeChip = document.createElement('div');
+    var typeLabelText = (typeof KanvazCards !== 'undefined' && KanvazCards.getCardTypeLabel) ? KanvazCards.getCardTypeLabel(card) : card.type;
+    typeChip.style.cssText = 'font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:' + nodeAccentColor(card) + ';line-height:1.2;';
+    typeChip.textContent = typeLabelText;
+    textCol.appendChild(typeChip);
+    el.appendChild(textCol);
+
+    /* ── Connection count ── Shows "N / 8" against the locked per-node
+       cap (direct feedback territory: the cap exists, so the badge may
+       as well show it) once a node has any connections at all. */
     var connCount = (typeof KanvazConnections !== 'undefined') ? KanvazConnections.getAll(card.id).length : 0;
     if (connCount > 0) {
+      var maxConn = (typeof KanvazConnections !== 'undefined' && KanvazConnections.MAX_CONNECTIONS_PER_NODE) || 8;
       var badge = document.createElement('div');
-      badge.style.cssText = 'font-size:9px;color:var(--color-accent);background:var(--color-accent-bg);padding:2px 5px;border-radius:10px;flex-shrink:0;font-weight:600;';
-      badge.textContent = connCount;
+      badge.title = connCount + ' of ' + maxConn + ' connections used';
+      badge.style.cssText = 'font-size:9px;color:var(--color-accent);background:var(--color-accent-bg);border:1px solid var(--color-accent-dim);padding:2px 6px;border-radius:10px;flex-shrink:0;font-weight:700;';
+      badge.textContent = connCount + '/' + maxConn;
       el.appendChild(badge);
     }
 
@@ -1586,9 +1652,20 @@ var KanvazMapView = (function() {
     el.onmouseenter = function() {
       if (dragNode) return;
       el.style.borderColor = 'var(--color-accent)';
-      el.style.boxShadow = '0 0 0 2px var(--color-accent), 0 2px 12px rgba(var(--color-accent-rgb),0.25)';
+      /* Bug fix (found live, direct feedback with a screenshot): this
+         used to be an OUTSET ring (`0 0 0 2px`), which protrudes 2px
+         PAST the node's own edge — exactly where the input port sits
+         (it's centered on the left edge, half outside the node's own
+         box already) and exactly where an incoming connection line
+         terminates. Three accent-purple things stacking in that one
+         small spot read as a broken, overlapping mess. `inset` keeps
+         the ring INSIDE the node's own border instead of spilling past
+         it, so the port and the wire endpoint stay visually clean and
+         separate from the glow. */
+      el.style.boxShadow = 'inset 0 0 0 2px var(--color-accent), 0 2px 12px rgba(var(--color-accent-rgb),0.25)';
       highlightConnections(card.id);
       schedulePreview(card, el);
+      if (!card.mapNote) noteToggle.style.opacity = '1';
     };
     el.onmouseleave = function() {
       cancelPreview();
@@ -1596,7 +1673,105 @@ var KanvazMapView = (function() {
       el.style.borderColor = 'var(--color-border-2)';
       el.style.boxShadow = '0 2px 10px var(--color-shadow)';
       unhighlightConnections();
+      if (!card.mapNote) noteToggle.style.opacity = '0.45';
     };
+
+    /* ── Node note (direct request) — "like a comment reply on any
+       social media", shown only once the node actually has one, never
+       an always-visible empty box. A CHILD of the node itself (not a
+       sibling positioned by its own copy of mapPosition math), so it
+       moves and stays attached automatically while the node is dragged
+       — no separate drag-sync code needed. `el` already has
+       overflow:visible and its own position:absolute, so a `top:100%`
+       child renders directly below it without affecting the node's own
+       fixed NODE_H (connection lines, hit-testing, etc. all still treat
+       the node as exactly NODE_W x NODE_H). */
+    var noteBox = document.createElement('div');
+    noteBox.className = 'map-node-note';
+    noteBox.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+    noteBox.addEventListener('click', function(e) { e.stopPropagation(); startEditNote(); });
+
+    var noteToggle = document.createElement('div');
+    noteToggle.className = 'map-node-note-toggle';
+    noteToggle.title = 'Note';
+    noteToggle.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+    noteToggle.addEventListener('click', function(e) { e.stopPropagation(); startEditNote(); });
+
+    function syncNoteUi() {
+      if (card.mapNote) {
+        noteBox.textContent = card.mapNote;
+        noteBox.style.display = 'block';
+        noteToggle.textContent = '\u{1F4AC}';
+        noteToggle.style.opacity = '1';
+      } else {
+        noteBox.style.display = 'none';
+        noteToggle.textContent = '+';
+        noteToggle.style.opacity = '0.45';
+      }
+    }
+
+    function startEditNote() {
+      var wrap = document.createElement('div');
+      wrap.className = 'map-node-note-edit-wrap';
+      wrap.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+      wrap.addEventListener('click', function(e) { e.stopPropagation(); });
+
+      var ta = document.createElement('textarea');
+      ta.className = 'map-node-note map-node-note-editing';
+      ta.value = card.mapNote || '';
+      ta.placeholder = 'Add a note…';
+      wrap.appendChild(ta);
+
+      var doneBtn = document.createElement('button');
+      doneBtn.className = 'map-node-note-done';
+      doneBtn.textContent = 'Done';
+      doneBtn.title = 'Save note (Enter)';
+      wrap.appendChild(doneBtn);
+
+      var committed = false;
+      function commit() {
+        if (committed) return;
+        committed = true;
+        var v = ta.value.trim();
+        var changed = v !== (card.mapNote || '');
+        if (changed) {
+          card.mapNote = v || null;
+          if (typeof KanvazApp !== 'undefined') KanvazApp.markDirty();
+          if (typeof KanvazHistory !== 'undefined') KanvazHistory.push();
+        }
+        if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+        noteBox.style.display = '';
+        syncNoteUi();
+        if (changed && typeof KanvazUI !== 'undefined') {
+          KanvazUI.toast(card.mapNote ? 'Note saved' : 'Note removed');
+        }
+      }
+      /* Direct request: an explicit Done button, PLUS plain Enter saves
+         while Shift+Enter inserts a newline — same split every modern
+         chat/comment box (Slack, Discord, Notion) uses, so a note can
+         still be multi-line without Enter alone being ambiguous. */
+      ta.addEventListener('blur', function() {
+        /* A blur caused by clicking Done fires before Done's own click
+           handler would — committed guard (above) makes whichever of
+           the two runs first win, the other becomes a safe no-op. */
+        commit();
+      });
+      ta.addEventListener('keydown', function(e) {
+        e.stopPropagation();
+        if (e.key === 'Escape') { e.preventDefault(); ta.value = card.mapNote || ''; committed = true; if (wrap.parentNode) wrap.parentNode.removeChild(wrap); noteBox.style.display = ''; syncNoteUi(); return; }
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commit(); }
+      });
+      doneBtn.addEventListener('mousedown', function(e) { e.preventDefault(); /* keep focus/selection until click fires */ });
+      doneBtn.addEventListener('click', function(e) { e.stopPropagation(); commit(); });
+
+      noteBox.style.display = 'none';
+      el.appendChild(wrap);
+      ta.focus();
+    }
+
+    el.appendChild(noteBox);
+    el.appendChild(noteToggle);
+    syncNoteUi();
 
     return el;
   }
@@ -2181,9 +2356,19 @@ var KanvazMapView = (function() {
       var el = document.querySelector('.map-node[data-ref-id="' + refId + '"]');
       if (el) {
         el.style.borderColor = 'var(--color-accent)';
-        el.style.boxShadow = '0 0 0 2px var(--color-accent), 0 2px 12px rgba(var(--color-accent-rgb),0.25)';
+        /* Same inset-ring fix as the hover handler above — see its own
+           comment for the full reasoning (the old outset ring visually
+           collided with the port + incoming wire at this node's edge). */
+        el.style.boxShadow = 'inset 0 0 0 2px var(--color-accent), 0 2px 12px rgba(var(--color-accent-rgb),0.25)';
       }
       KanvazCards.selectCard(refId);
+    } else if (typeof KanvazCards !== 'undefined' && KanvazCards.deselectAll) {
+      /* Bug fix: deselecting a node here (click on empty canvas) never
+         told KanvazCards' own selection state, so getSelected() kept
+         returning the last-selected card and the Properties panel kept
+         showing its data forever after — "nothing is selected, why is
+         the panel still there?" */
+      KanvazCards.deselectAll();
     }
   }
 

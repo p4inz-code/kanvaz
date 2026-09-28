@@ -132,12 +132,13 @@ var MAX_THUMBNAILS = 50;
 var MAX_RECENT = 8;
 var LARGE_FILE_WARN_MB = 200;
 var MAX_FILE_SIZE_MB   = 500;
-/* v7.x — 3D models get their own, tighter cap than general media. A 500MB
-   glTF/OBJ/FBX is almost always an authoring mistake (unbaked textures,
-   uncompressed point clouds) and would stall the render-on-demand viewer
-   for way too long on load; 150MB comfortably covers real game/VFX assets
-   while keeping the embed-into-savefile cost sane. */
-var MAX_MODEL_SIZE_MB  = 150;
+/* v7.x — 3D models get their own, tighter cap than general media. Raised
+   150 -> 250MB by direct request — real production game/VFX assets
+   (unbaked high-poly scans, dense point clouds) routinely exceed 150MB,
+   and the render-on-demand viewer handles the extra size fine; still far
+   short of "no cap at all," which is what actually risked stalling the
+   viewer. */
+var MAX_MODEL_SIZE_MB  = 250;
 
 /* ── MCP Bridge (4.4.0) — main-process side ──
    The only official plugin allowed to open this listener; checked by
@@ -912,38 +913,52 @@ function registerIPC() {
 
   /* ── IPC: File dialogs ── */
 
+  /* Bug fix (found live): every dialog in this file used to be the
+     *Sync variant. On Windows specifically, Electron's sync dialogs
+     block the ENTIRE main process until closed AND the parent window
+     stops repainting/responding to input for that whole time (electron/
+     electron#802) — clicking the "frozen" Kanvaz window while one of
+     these is open (or slow to appear/focus) is exactly what makes
+     Windows play its "this window can't respond right now" ding, which
+     read as "windows is giving notification sound when i click kanvaz
+     screen." Switched every dialog below to the async (Promise-based)
+     form, which never blocks the main process or freezes the window. */
   ipcMain.handle('dialog-open-file', function() {
-    var result = dialog.showOpenDialogSync(mainWindow, {
+    return dialog.showOpenDialog(mainWindow, {
       title: 'Open Board',
       filters: [{ name: 'Kanvaz Board', extensions: ['kanvaz'] }],
       properties: ['openFile']
+    }).then(function(res) {
+      if (!res || res.canceled || !res.filePaths.length) return null;
+      var result = res.filePaths[0];
+      boardGrants.grant(result);
+      return result;
     });
-    if (!result) return null;
-    boardGrants.grant(result[0]);
-    return result[0];
   });
 
   ipcMain.handle('dialog-save-file', function(event, defaultName) {
-    var result = dialog.showSaveDialogSync(mainWindow, {
+    return dialog.showSaveDialog(mainWindow, {
       title: 'Save Board',
       defaultPath: defaultName || 'untitled.kanvaz',
       filters: [{ name: 'Kanvaz Board', extensions: ['kanvaz'] }]
+    }).then(function(res) {
+      if (!res || res.canceled || !res.filePath) return null;
+      var result = res.filePath;
+      /* BUG fix: Windows' native save dialog only auto-appends the filter
+         extension when the typed filename has NO dot at all. Any board name
+         containing a dot (dates, versions like "Ref v1.2", "Board 4.10")
+         makes Windows treat the text after the last dot as the extension the
+         user "chose", and it saves the file with no .kanvaz extension at
+         all. That silently breaks two things later: the file gets no
+         registered icon (looks like a plain/unknown file), and it becomes
+         invisible in the Open dialog, which filters strictly to *.kanvaz.
+         Force the extension unconditionally so this can never happen. */
+      if (!/\.kanvaz$/i.test(result)) {
+        result += '.kanvaz';
+      }
+      boardGrants.grant(result);
+      return result;
     });
-    if (!result) return null;
-    /* BUG fix: Windows' native save dialog only auto-appends the filter
-       extension when the typed filename has NO dot at all. Any board name
-       containing a dot (dates, versions like "Ref v1.2", "Board 4.10")
-       makes Windows treat the text after the last dot as the extension the
-       user "chose", and it saves the file with no .kanvaz extension at
-       all. That silently breaks two things later: the file gets no
-       registered icon (looks like a plain/unknown file), and it becomes
-       invisible in the Open dialog, which filters strictly to *.kanvaz.
-       Force the extension unconditionally so this can never happen. */
-    if (!/\.kanvaz$/i.test(result)) {
-      result += '.kanvaz';
-    }
-    boardGrants.grant(result);
-    return result;
   });
 
   /* Phase 2 "Relink" — pick a replacement file for a card whose media
@@ -951,7 +966,7 @@ function registerIPC() {
      pipeline as drag-drop/open, just entered from a file picker instead
      of a drop event. */
   ipcMain.handle('dialog-open-media', function() {
-    var result = dialog.showOpenDialogSync(mainWindow, {
+    return dialog.showOpenDialog(mainWindow, {
       title: 'Relink Media',
       filters: [
         { name: 'All Supported Media', extensions: ['jpg','jpeg','png','gif','bmp','webp','mp4','webm','mov','mkv','avi','mp3','wav','ogg','m4a','glb','gltf','obj','fbx','stl','ply','vox','usd','usda','usdc','usdz','blend'] },
@@ -961,8 +976,9 @@ function registerIPC() {
         { name: '3D Models', extensions: ['glb','gltf','obj','fbx','stl','ply','vox','usd','usda','usdc','usdz','blend'] }
       ],
       properties: ['openFile']
+    }).then(function(res) {
+      return (res && !res.canceled && res.filePaths.length) ? res.filePaths[0] : null;
     });
-    return result ? result[0] : null;
   });
 
   /* Bug fix: the toolbar's "Import" button (next to New/Open/Save) was
@@ -979,7 +995,7 @@ function registerIPC() {
      button no longer touches it; the canvas right-click menu's
      "Import .pur file" item is unaffected). */
   ipcMain.handle('dialog-import-media', function() {
-    var result = dialog.showOpenDialogSync(mainWindow, {
+    return dialog.showOpenDialog(mainWindow, {
       title: 'Import Files',
       filters: [
         { name: 'All Supported Media', extensions: ['jpg','jpeg','png','gif','bmp','webp','mp4','webm','mov','mkv','avi','mp3','wav','ogg','m4a','glb','gltf','obj','fbx','stl','ply','vox','usd','usda','usdc','usdz','blend'] },
@@ -989,8 +1005,9 @@ function registerIPC() {
         { name: '3D Models', extensions: ['glb','gltf','obj','fbx','stl','ply','vox','usd','usda','usdc','usdz','blend'] }
       ],
       properties: ['openFile', 'multiSelections']
+    }).then(function(res) {
+      return (res && !res.canceled) ? res.filePaths : [];
     });
-    return result || [];
   });
 
   /* File Reference card — picks any file on disk to link to (not
@@ -1000,12 +1017,13 @@ function registerIPC() {
     var filters = ext
       ? [{ name: ext.toUpperCase() + ' files', extensions: [ext] }]
       : [{ name: 'All Files', extensions: ['*'] }];
-    var result = dialog.showOpenDialogSync(mainWindow, {
+    return dialog.showOpenDialog(mainWindow, {
       title: 'Choose a file to reference',
       filters: filters,
       properties: ['openFile']
+    }).then(function(res) {
+      return (res && !res.canceled && res.filePaths.length) ? res.filePaths[0] : null;
     });
-    return result ? result[0] : null;
   });
 
   /* Open a referenced File/PDF card's linked path in the OS default
@@ -2025,40 +2043,43 @@ function registerIPC() {
     var profileDir = kanvazProfiles.getProfileDirById(userData, id);
     if (!fs.existsSync(profileDir)) return Promise.resolve({ ok: false, error: 'profile folder not found on disk' });
 
-    var savePath = dialog.showSaveDialogSync(mainWindow, {
+    return dialog.showSaveDialog(mainWindow, {
       title: 'Export Profile',
       defaultPath: (entry.name || 'profile').replace(/[\\/:*?"<>|]/g, '_') + '.kanvazprofile',
       filters: [{ name: 'Kanvaz Profile', extensions: ['kanvazprofile'] }]
-    });
-    if (!savePath) return Promise.resolve({ ok: false, error: null, cancelled: true });
+    }).then(function(res) {
+      if (!res || res.canceled || !res.filePath) return { ok: false, error: null, cancelled: true };
+      var savePath = res.filePath;
 
-    var zip = new JSZip();
-    try {
-      addDirToZip(zip, profileDir, '');
-      zip.file('profile.json', JSON.stringify({
-        name: entry.name, description: entry.description || '',
-        avatarDataUrl: entry.avatarDataUrl || null, guest: !!entry.guest
-      }));
-    } catch (e) {
-      return Promise.resolve({ ok: false, error: e.message });
-    }
+      var zip = new JSZip();
+      try {
+        addDirToZip(zip, profileDir, '');
+        zip.file('profile.json', JSON.stringify({
+          name: entry.name, description: entry.description || '',
+          avatarDataUrl: entry.avatarDataUrl || null, guest: !!entry.guest
+        }));
+      } catch (e) {
+        return { ok: false, error: e.message };
+      }
 
-    return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' }).then(function(buf) {
-      return fs.promises.writeFile(savePath, buf);
-    }).then(function() {
-      return { ok: true, path: savePath };
-    }).catch(function(e) {
-      return { ok: false, error: e.message };
+      return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' }).then(function(buf) {
+        return fs.promises.writeFile(savePath, buf);
+      }).then(function() {
+        return { ok: true, path: savePath };
+      }).catch(function(e) {
+        return { ok: false, error: e.message };
+      });
     });
   });
 
   ipcMain.handle('profiles-import', function() {
-    var openPath = dialog.showOpenDialogSync(mainWindow, {
+    return dialog.showOpenDialog(mainWindow, {
       title: 'Import Profile',
       filters: [{ name: 'Kanvaz Profile', extensions: ['kanvazprofile'] }],
       properties: ['openFile']
-    });
-    if (!openPath || !openPath[0]) return Promise.resolve({ ok: false, error: null, cancelled: true });
+    }).then(function(res) {
+      if (!res || res.canceled || !res.filePaths.length) return { ok: false, error: null, cancelled: true };
+      var openPath = res.filePaths;
 
     var userData = app.getPath('userData');
     return fs.promises.readFile(openPath[0]).then(function(buf) {
@@ -2122,6 +2143,7 @@ function registerIPC() {
       });
     }).catch(function(e) {
       return { ok: false, error: e.message };
+    });
     });
   });
 
@@ -2252,12 +2274,13 @@ function registerIPC() {
   /* ── IPC: PureRef import ── */
 
   ipcMain.handle('dialog-open-pur', function() {
-    var result = dialog.showOpenDialogSync(mainWindow, {
+    return dialog.showOpenDialog(mainWindow, {
       title: 'Import PureRef File',
       filters: [{ name: 'PureRef Board', extensions: ['pur'] }],
       properties: ['openFile']
+    }).then(function(res) {
+      return (res && !res.canceled && res.filePaths.length) ? res.filePaths[0] : null;
     });
-    return result ? result[0] : null;
   });
 
   /* Audit fix: parsePurFile() used to run directly, synchronously, right
@@ -2638,26 +2661,28 @@ function registerIPC() {
     if (!payload || typeof payload.name !== 'string' || !Array.isArray(payload.cards)) {
       return Promise.resolve({ ok: false, error: 'nothing to export' });
     }
-    var savePath = dialog.showSaveDialogSync(mainWindow, {
+    return dialog.showSaveDialog(mainWindow, {
       title: 'Export Template',
       defaultPath: (payload.name || 'template').replace(/[\\/:*?"<>|]/g, '_') + '.kanvaztemplate',
       filters: [{ name: 'Kanvaz Template', extensions: ['kanvaztemplate'] }]
-    });
-    if (!savePath) return Promise.resolve({ ok: false, error: null, cancelled: true });
+    }).then(function(res) {
+      if (!res || res.canceled || !res.filePath) return { ok: false, error: null, cancelled: true };
+      var savePath = res.filePath;
 
-    var fileContents = {
-      kanvazTemplateFormatVersion: TEMPLATE_FORMAT_VERSION,
-      appVersion: app.getVersion(),
-      name: payload.name,
-      description: payload.description || '',
-      createdAt: payload.createdAt || new Date().toISOString(),
-      exportedAt: new Date().toISOString(),
-      cards: payload.cards
-    };
-    return fs.promises.writeFile(savePath, JSON.stringify(fileContents, null, 2), 'utf8').then(function() {
-      return { ok: true, path: savePath };
-    }).catch(function(e) {
-      return { ok: false, error: e.message };
+      var fileContents = {
+        kanvazTemplateFormatVersion: TEMPLATE_FORMAT_VERSION,
+        appVersion: app.getVersion(),
+        name: payload.name,
+        description: payload.description || '',
+        createdAt: payload.createdAt || new Date().toISOString(),
+        exportedAt: new Date().toISOString(),
+        cards: payload.cards
+      };
+      return fs.promises.writeFile(savePath, JSON.stringify(fileContents, null, 2), 'utf8').then(function() {
+        return { ok: true, path: savePath };
+      }).catch(function(e) {
+        return { ok: false, error: e.message };
+      });
     });
   });
 
@@ -2666,41 +2691,108 @@ function registerIPC() {
      raw bytes to a user-chosen path. Same "renderer renders, main
      process only handles the filesystem/dialog side" split every other
      export in this app already uses. */
+  /* image/png, image/jpeg, image/webp — the three formats canvas.
+     toDataURL() can actually produce, checked in this fixed order since
+     a data URL always starts with exactly one of these prefixes. Kept
+     as one small table so a future format only needs one new entry
+     here, not a growing if/else chain. */
+  var EXPORT_IMAGE_KINDS = [
+    { mime: 'image/png',  ext: 'png',  filterName: 'PNG Image' },
+    { mime: 'image/jpeg', ext: 'jpg',  filterName: 'JPEG Image', extraExts: ['jpeg'] },
+    { mime: 'image/webp', ext: 'webp', filterName: 'WebP Image' },
+    /* Hand-rolled encoder in cards.js's canvasToBmpDataUrl — canvas.
+       toDataURL() itself never produces BMP, so this data URL comes from
+       a real, from-scratch 24-bit BMP writer, not the browser. */
+    { mime: 'image/bmp',  ext: 'bmp',  filterName: 'BMP Image' }
+  ];
+  function detectExportImageKind(dataUrl) {
+    if (typeof dataUrl !== 'string') return null;
+    for (var i = 0; i < EXPORT_IMAGE_KINDS.length; i++) {
+      var prefix = 'data:' + EXPORT_IMAGE_KINDS[i].mime + ';base64,';
+      if (dataUrl.indexOf(prefix) === 0) return { kind: EXPORT_IMAGE_KINDS[i], prefix: prefix };
+    }
+    return null;
+  }
+
   ipcMain.handle('export-image-save', function(event, defaultName, dataUrl, format) {
     /* format is a renderer-supplied hint for the save dialog's default
        extension/filter only — the ACTUAL encoding is verified from the
        data URL's own prefix below, never trusted from the hint alone. */
-    var isJpeg = typeof dataUrl === 'string' && dataUrl.indexOf('data:image/jpeg;base64,') === 0;
-    var isPng = typeof dataUrl === 'string' && dataUrl.indexOf('data:image/png;base64,') === 0;
-    if (!isJpeg && !isPng) {
+    var detected = detectExportImageKind(dataUrl);
+    if (!detected) {
       return Promise.resolve({ ok: false, error: 'nothing to export' });
     }
-    var ext = isJpeg ? 'jpg' : 'png';
-    var savePath = dialog.showSaveDialogSync(mainWindow, {
+    var kind = detected.kind;
+    return dialog.showSaveDialog(mainWindow, {
       title: 'Export as Image',
-      defaultPath: (defaultName || 'board').replace(/[\\/:*?"<>|]/g, '_') + '.' + ext,
-      filters: isJpeg
-        ? [{ name: 'JPEG Image', extensions: ['jpg', 'jpeg'] }]
-        : [{ name: 'PNG Image', extensions: ['png'] }]
+      defaultPath: (defaultName || 'board').replace(/[\\/:*?"<>|]/g, '_') + '.' + kind.ext,
+      filters: [{ name: kind.filterName, extensions: [kind.ext].concat(kind.extraExts || []) }]
+    }).then(function(res) {
+      if (!res || res.canceled || !res.filePath) return { ok: false, error: null, cancelled: true };
+      var savePath = res.filePath;
+      var base64 = dataUrl.slice(detected.prefix.length);
+      return fs.promises.writeFile(savePath, Buffer.from(base64, 'base64')).then(function() {
+        return { ok: true, path: savePath };
+      }).catch(function(e) {
+        return { ok: false, error: e.message };
+      });
     });
-    if (!savePath) return Promise.resolve({ ok: false, error: null, cancelled: true });
+  });
 
-    var prefix = isJpeg ? 'data:image/jpeg;base64,' : 'data:image/png;base64,';
-    var base64 = dataUrl.slice(prefix.length);
-    return fs.promises.writeFile(savePath, Buffer.from(base64, 'base64')).then(function() {
-      return { ok: true, path: savePath };
-    }).catch(function(e) {
-      return { ok: false, error: e.message };
+  /* Export several cards' own media as separate files in one destination
+     folder — the batch side of the same converter feature as
+     export-image-save above. One folder picker for the whole batch
+     (asking once per card would be absurd), then each file is written
+     under its own card name, sanitized the same way the single-file path
+     already sanitizes defaultName, with a numeric suffix on a collision
+     so two cards named e.g. "Untitled" don't clobber each other. */
+  ipcMain.handle('export-images-batch', function(event, files, format) {
+    if (!Array.isArray(files) || !files.length) {
+      return Promise.resolve({ ok: false, error: 'nothing to export' });
+    }
+    return dialog.showOpenDialog(mainWindow, {
+      title: 'Export images to folder',
+      properties: ['openDirectory', 'createDirectory']
+    }).then(function(dirRes) {
+      if (!dirRes || dirRes.canceled || !dirRes.filePaths.length) return { ok: false, error: null, cancelled: true };
+      var destDir = dirRes.filePaths[0];
+
+      var usedNames = {};
+      var writes = [];
+      for (var i = 0; i < files.length; i++) {
+        var f = files[i];
+        /* Same real-prefix verification as export-image-save above —
+           `format` is only ever a hint, each file's own data URL prefix
+           decides its actual extension, so a batch can't be tricked into
+           writing e.g. arbitrary bytes under a trusted-looking extension. */
+        var detected = detectExportImageKind(f && f.dataUrl);
+        if (!detected) continue;
+        var base = String(f.name || 'image').replace(/[\\/:*?"<>|]/g, '_').trim() || 'image';
+        var candidate = base;
+        var n = 1;
+        while (usedNames[candidate]) { candidate = base + '-' + n; n++; }
+        usedNames[candidate] = true;
+        var destPath = path.join(destDir, candidate + '.' + detected.kind.ext);
+        var base64 = f.dataUrl.slice(detected.prefix.length);
+        writes.push(fs.promises.writeFile(destPath, Buffer.from(base64, 'base64')));
+      }
+      if (!writes.length) return { ok: false, error: 'nothing valid to export' };
+      return Promise.all(writes).then(function() {
+        return { ok: true, written: writes.length, dir: destDir };
+      }).catch(function(e) {
+        return { ok: false, error: e.message };
+      });
     });
   });
 
   ipcMain.handle('templates-import-file', function() {
-    var openPath = dialog.showOpenDialogSync(mainWindow, {
+    return dialog.showOpenDialog(mainWindow, {
       title: 'Import Template',
       filters: [{ name: 'Kanvaz Template', extensions: ['kanvaztemplate', 'json'] }],
       properties: ['openFile']
-    });
-    if (!openPath || !openPath[0]) return Promise.resolve({ ok: false, error: null, cancelled: true });
+    }).then(function(res) {
+      if (!res || res.canceled || !res.filePaths.length) return { ok: false, error: null, cancelled: true };
+      var openPath = res.filePaths;
 
     /* Same size backstop as profiles-import above: check the file's real
        size before reading it fully into memory, rather than trusting
@@ -2740,6 +2832,7 @@ function registerIPC() {
       };
     }).catch(function(e) {
       return { ok: false, error: e.message };
+    });
     });
   });
 
@@ -2895,41 +2988,42 @@ function registerIPC() {
      folder is picked via a native dialog (a real user gesture), so this
      can't be triggered by anything a plugin's own script does. */
   ipcMain.handle('plugins-load-unpacked', function() {
-    var dirs = dialog.showOpenDialogSync(mainWindow, {
+    return dialog.showOpenDialog(mainWindow, {
       title: 'Load unpacked Kanvaz plugin',
       properties: ['openDirectory']
+    }).then(function(res) {
+      if (!res || res.canceled || !res.filePaths.length) return { ok: false, cancelled: true };
+
+      var pluginDir = res.filePaths[0];
+      var manifestPath = path.join(pluginDir, 'plugin.json');
+      if (!fs.existsSync(manifestPath)) {
+        return { ok: false, error: 'No plugin.json found in that folder' };
+      }
+
+      var manifest;
+      try {
+        manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+      } catch (e) {
+        return { ok: false, error: 'plugin.json is not valid JSON' };
+      }
+
+      var validation = pluginLoader.validateManifest(manifest);
+      if (!validation.ok) {
+        return { ok: false, error: validation.reason };
+      }
+
+      var entryPath = path.resolve(path.join(pluginDir, manifest.entry));
+      var resolvedPluginDir = path.resolve(pluginDir) + path.sep;
+      if (entryPath.indexOf(resolvedPluginDir) !== 0 || !fs.existsSync(entryPath)) {
+        return { ok: false, error: 'entry file "' + manifest.entry + '" not found' };
+      }
+
+      return {
+        ok: true,
+        manifest: manifest,
+        entryUrl: nodeUrl.pathToFileURL(entryPath).href
+      };
     });
-    if (!dirs || !dirs.length) return { ok: false, cancelled: true };
-
-    var pluginDir = dirs[0];
-    var manifestPath = path.join(pluginDir, 'plugin.json');
-    if (!fs.existsSync(manifestPath)) {
-      return { ok: false, error: 'No plugin.json found in that folder' };
-    }
-
-    var manifest;
-    try {
-      manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-    } catch (e) {
-      return { ok: false, error: 'plugin.json is not valid JSON' };
-    }
-
-    var validation = pluginLoader.validateManifest(manifest);
-    if (!validation.ok) {
-      return { ok: false, error: validation.reason };
-    }
-
-    var entryPath = path.resolve(path.join(pluginDir, manifest.entry));
-    var resolvedPluginDir = path.resolve(pluginDir) + path.sep;
-    if (entryPath.indexOf(resolvedPluginDir) !== 0 || !fs.existsSync(entryPath)) {
-      return { ok: false, error: 'entry file "' + manifest.entry + '" not found' };
-    }
-
-    return {
-      ok: true,
-      manifest: manifest,
-      entryUrl: nodeUrl.pathToFileURL(entryPath).href
-    };
   });
 
   /* ── IPC: Browse Official Plugins (4.4.0) ── */

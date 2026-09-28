@@ -255,6 +255,27 @@ var KanvazShortcuts = (function() {
       return;
     }
 
+    /* Insert / PageUp / PageDown — direct request, a second way into the
+       side panel alongside S and the rail icons: Insert opens the panel
+       to whichever section was last open (or closes it, same toggle
+       semantics as S), PageUp/PageDown cycle between sections without
+       needing to reopen from the rail each time. "P" stays Pin, untouched
+       — deliberately not reused for Properties here. Guarded like every
+       other bare-key shortcut so PageUp/PageDown still scroll normally
+       inside a focused textarea/input instead of hijacking the panel. */
+    if (!inText && e.key === 'Insert') {
+      e.preventDefault();
+      if (typeof KanvazSidePanel !== 'undefined') KanvazSidePanel.toggle();
+      return;
+    }
+    if (!inText && (e.key === 'PageUp' || e.key === 'PageDown')) {
+      if (typeof KanvazSidePanel !== 'undefined' && KanvazSidePanel.isOpen()) {
+        e.preventDefault();
+        KanvazSidePanel.cycleSection(e.key === 'PageUp' ? -1 : 1);
+      }
+      return;
+    }
+
     /* About — toggle open/close */
     if (!shift && (e.key === 'i' || e.key === 'I')) {
       if (typeof KanvazUI_Extended !== 'undefined') KanvazUI_Extended.showAbout();
@@ -307,7 +328,18 @@ var KanvazShortcuts = (function() {
        numbered slot, plain 1..9 jumps back to it. Maya/Photoshop-style,
        session-only (see canvas.js's saveViewBookmark comment for why).
        Digits 1-9 were completely unbound before this. */
-    if (e.key >= '1' && e.key <= '9') {
+    /* Bug fix (found live): Scratch Board's own 1-7 tool shortcuts
+       (canvas.js) and this view-bookmark handler are two SEPARATE
+       keydown listeners — canvas.js's own preventDefault() only stops
+       the browser's native key action, it does NOT stop this listener
+       from also firing on the exact same keypress. Pressing "7" while
+       Scratch was active correctly armed the Eraser AND popped a
+       "No view saved for 7" toast from this code, at the same time.
+       Scratch Board owns 1-7 outright while active — matches the same
+       "Scratch takes V over entirely" precedent canvas.js's own V
+       handler already set for this exact class of conflict. */
+    if (e.key >= '1' && e.key <= '9' &&
+        !(typeof KanvazScratchBoard !== 'undefined' && KanvazScratchBoard.isActive())) {
       e.preventDefault();
       if (ctrl) KanvazCanvas.saveViewBookmark(e.key);
       else KanvazCanvas.recallViewBookmark(e.key);

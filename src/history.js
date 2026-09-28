@@ -85,7 +85,18 @@ var KanvazHistory = (function() {
       conns = JSON.parse(JSON.stringify(KanvazConnections.serialise()));
     }
 
-    return { refs: refs, conns: conns };
+    /* v9.5.2: Scratch Board strokes/background now share this SAME
+       history — direct request, since undoing a bad annotation stroke
+       without the eraser is a real workflow ("someone did wrong the
+       annotate and wants to go back"). Cloned like conns (small, no
+       embedded media) — a board with a lot of ink is still far smaller
+       than one card's dataUrl. */
+    var scratch = null;
+    if (typeof KanvazScratchBoard !== 'undefined') {
+      scratch = JSON.parse(JSON.stringify(KanvazScratchBoard.getState()));
+    }
+
+    return { refs: refs, conns: conns, scratch: scratch };
   }
 
   /* ── Push after any mutation ── */
@@ -166,6 +177,13 @@ var KanvazHistory = (function() {
       KanvazCards.deserialise(cloneRefsForRestore(snap.refs));
       if (typeof KanvazConnections !== 'undefined') {
         KanvazConnections.deserialise(snap.conns || []);
+      }
+      /* Older snapshots (pre-9.5.2) have no .scratch field at all —
+         leave current Scratch state untouched rather than wiping it,
+         same backward-compat spirit as the v2/v3 refs branch below. */
+      if (typeof KanvazScratchBoard !== 'undefined' && snap.scratch) {
+        KanvazScratchBoard.setState(JSON.parse(JSON.stringify(snap.scratch)));
+        KanvazScratchBoard.redraw();
       }
     } else {
       /* Backward compat: v2-style snapshot (plain card array) */

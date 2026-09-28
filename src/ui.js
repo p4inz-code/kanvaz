@@ -197,7 +197,11 @@ var KanvazUI_Extended = (function() {
        board with several heavy cards, so it opts up rather than down. See
        preview-quality.js for the actual numbers and a card's own
        Properties → "Preview quality" for the per-card override. */
-    previewQuality:   'low'
+    previewQuality:   'low',
+    /* "Don't ask me again" from the external-link confirmation dialog
+       (confirmExternalLink below) — off by default so the warning is
+       shown at least once. */
+    skipExternalLinkWarning: false
   };
 
   /* ── Settings migrations ──
@@ -281,6 +285,26 @@ var KanvazUI_Extended = (function() {
   function saveSettings() {
     KanvazBridge.writeSettings(JSON.stringify(settings)).then(function() {}).catch(function(e) { console.warn('[Kanvaz] writeSettings IPC failed:', e); });
     applySettings();
+  }
+
+  /* Performance fix: "a lil lag in side panel open/close" — every
+     open/close went through saveSettings() above, which does a full
+     settings.json disk write over IPC AND re-runs applySettings()'s
+     entire sweep (minimap, grid style, plugin theme, side panel
+     re-sync, ...) synchronously in the same click handler, even though
+     opening/closing the panel only changes two fields (sidePanelOpen/
+     sidePanelSection) that nothing in applySettings() actually reacts
+     to. Debounced, apply-free persistence for exactly this kind of
+     high-frequency, low-stakes preference — the write still lands
+     shortly after the last change, it just no longer blocks the toggle
+     itself on a disk round trip + a full re-apply pass. */
+  var persistDebounceTimer = null;
+  function schedulePersist() {
+    if (persistDebounceTimer) clearTimeout(persistDebounceTimer);
+    persistDebounceTimer = setTimeout(function() {
+      persistDebounceTimer = null;
+      KanvazBridge.writeSettings(JSON.stringify(settings)).catch(function(e) { console.warn('[Kanvaz] writeSettings IPC failed:', e); });
+    }, 400);
   }
 
   function applySettings() {
@@ -1460,7 +1484,7 @@ var KanvazUI_Extended = (function() {
       '<div class="about-divider"></div>',
       '<div class="about-desc">Free and open source, MIT licensed. Fully offline: no login, no telemetry, no background network activity. Your boards never leave this machine.</div>',
       '<div class="about-divider"></div>',
-      '<div class="about-author">Atharva Patil | <strong>P4inz</strong> | Northbyte Studios</div>',
+      '<div class="about-author">Atharva Patil | <strong>P4inz</strong> | P4inz Interactive Labs</div>',
       '<div class="about-studio">Navi Mumbai, India</div>'
     ].join('');
 
@@ -1481,7 +1505,8 @@ var KanvazUI_Extended = (function() {
     githubBtn.textContent = 'View on GitHub';
     githubBtn.title = 'Opens github.com/p4inz-code/kanvaz in your browser';
     githubBtn.onclick = function() {
-      KanvazBridge.openExternal('https://github.com/p4inz-code/kanvaz');
+      if (typeof KanvazUI !== 'undefined' && KanvazUI.confirmExternalLink) KanvazUI.confirmExternalLink('https://github.com/p4inz-code/kanvaz');
+      else KanvazBridge.openExternal('https://github.com/p4inz-code/kanvaz');
     };
     box.appendChild(githubBtn);
 
@@ -1909,6 +1934,7 @@ var KanvazUI_Extended = (function() {
     loadSettings:   loadSettings,
     getSettings:    function() { return settings; },
     saveSettings:   saveSettings,
+    schedulePersist: schedulePersist,
     /* Narrow, deliberate setter for plugins (e.g. Theme Creator) that
        need to change the active theme and have it persist + apply
        through the exact same path the Settings dropdown itself uses —

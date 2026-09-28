@@ -45,37 +45,47 @@ If you've used PureRef and wanted more than static images, or tried a cloud mood
 <tr>
 <td width="50%" align="center">
 <b>🌙 Dark theme</b><br><br>
-<img src="assets/screenshot-showcase-dark-v7.26.0.png" alt="Kanvaz reference board in dark theme — image, note, color, and URL cards with a Related To connection" width="100%">
+<img src="assets/screenshot-showcase-dark-v9.6.0.png" alt="Kanvaz reference board in dark theme — image, note, color, and URL cards with a Related To connection" width="100%">
 </td>
 <td width="50%" align="center">
 <b>☀️ Light theme</b><br><br>
-<img src="assets/screenshot-showcase-light-v7.26.0.png" alt="The same Kanvaz reference board in light theme" width="100%">
+<img src="assets/screenshot-showcase-light-v9.6.0.png" alt="The same Kanvaz reference board in light theme" width="100%">
 </td>
 </tr>
 </table>
 <p align="center"><i>Same board, either theme — press <code>L</code> to switch, no restart needed.</i></p>
 
 <details>
-<summary><b>More screenshots</b> — Home Screen, Layers panel, multi-select Align/Distribute/Tidy Up, classic card design</summary>
+<summary><b>More screenshots</b> — Home Screen, Map View, Scratch Board, side panel (Properties/Annotate, Task Tracker), export</summary>
 <br>
 
 <p align="center">
-  <img src="assets/screenshot-home-v7.22.0.png" alt="Kanvaz Home Screen — Quick Start, template previews, and a What's New section reading live off the changelog" width="720">
+  <img src="assets/screenshot-home-v9.6.0.png" alt="Kanvaz Home Screen — first-launch welcome overlay with Drop any file, Right-click, and shortcuts pointers" width="720">
 </p>
 
 <p align="center">
-  <img src="assets/screenshot-layers-v7.22.0.png" alt="Kanvaz Layers panel — every card in z-order, pin and hide icons, a pinned card highlighted on the board" width="720">
-  <br><i>Layers panel: every card in z-order, click to select, drag to reorder, pin/hide icons.</i>
+  <img src="assets/screenshot-mapview-v9.6.0.png" alt="Kanvaz Map View — node-editor-style graph of cards, color-coded by type, with connection ports" width="720">
+  <br><i>Map View: every card as a node, color-coded by type, wired together with typed connections.</i>
 </p>
 
 <p align="center">
-  <img src="assets/screenshot-align-v7.22.0.png" alt="Kanvaz Properties panel — Align, Distribute Evenly, and Tidy Up selection controls with three selected cards" width="720">
-  <br><i>Align, Distribute Evenly, and Tidy Up — all in the Properties panel.</i>
+  <img src="assets/screenshot-scratchboard-v9.6.0.png" alt="Kanvaz Scratch Board — an Illustrator-style drawing layer over the board, pen tool, custom toolbar" width="720">
+  <br><i>Scratch Board: a real drawing layer over your board — pen, highlighter, shapes, eraser, shares the same undo history as everything else.</i>
 </p>
 
 <p align="center">
-  <img src="assets/screenshot-cards-v7.9.0.png" alt="Kanvaz card design — note, URL, and color cards showing the always-visible name/metadata footer" width="720">
-  <br><i>Card design: always-visible name and metadata footer, one clean type badge.</i>
+  <img src="assets/screenshot-sidepanel-annotate-v9.6.0.png" alt="Kanvaz side panel Properties section with the Annotate toolbar open on an image card" width="720">
+  <br><i>Annotate any card directly, with per-card brush width and color adjustable right from Properties.</i>
+</p>
+
+<p align="center">
+  <img src="assets/screenshot-tasktracker-v9.6.0.png" alt="Kanvaz Task Tracker side panel section — tasks with subtasks, progress, and a completion toast" width="720">
+  <br><i>Task Tracker: a real to-do list living next to your board, with subtasks and per-task card links.</i>
+</p>
+
+<p align="center">
+  <img src="assets/screenshot-export-v9.6.0.png" alt="Kanvaz Export as… dialog — format (PNG/JPEG/WEBP/BMP), quality, and size" width="720">
+  <br><i>Export as… — turn any image/GIF/video card into PNG, JPEG, WEBP, or BMP, at any scale.</i>
 </p>
 
 </details>
@@ -220,7 +230,7 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz Setup 9.5.0.exe` and `dist/Kanvaz 9.5.0.exe`
+Output: `dist/Kanvaz Setup 9.6.0.exe` and `dist/Kanvaz 9.6.0.exe`
 
 **macOS:**
 ```bash
@@ -360,7 +370,7 @@ Same engineering philosophy, same author, adjacent problem spaces:
 ## License
 
 MIT, free forever.
-Made by Atharva Patil | **[P4inz](https://github.com/p4inz-code)** | Northbyte Studios, Navi Mumbai, India.
+Made by Atharva Patil | **[P4inz](https://github.com/p4inz-code)** | P4inz Interactive Labs, Navi Mumbai, India.
 
 <p align="left">
   <a href="https://github.com/p4inz-code"><img src="https://img.shields.io/github/followers/p4inz-code?style=flat-square&color=9D7FFF&label=follow%20%40p4inz-code" alt="Follow p4inz-code on GitHub"></a>

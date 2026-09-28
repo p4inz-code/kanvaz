@@ -133,7 +133,7 @@ function createLinkController(opts) {
     return {
       deliver: {
         formats: ['glb', 'fbx', 'obj'],
-        maxBytes: opts.maxModelBytes || 150 * 1024 * 1024,
+        maxBytes: opts.maxModelBytes || 250 * 1024 * 1024,
         animation: { clips: 'select' },
         gltf: { draco: false, meshopt: false, ktx2: false, webp: true, lights: 'ignored', embeddedResourcesOnly: true },
         initialCamera: true,

@@ -1788,6 +1788,30 @@ var KanvazCards = (function() {
     KanvazApp.markDirty();
   }
 
+  /* 9.5.2 — text card font-size/color, callable from Properties
+     (renderTextSection) and from buildTextCard's own in-place mini
+     toolbar — same setter either way keeps them permanently in sync. */
+  function setTextFontSize(id, value) {
+    var card = cards[id];
+    if (!card || card.type !== 'text') return;
+    value = parseFloat(value);
+    if (!isFinite(value)) return;
+    card.fontSize = Math.max(TEXT_FONT_SIZE_MIN, Math.min(TEXT_FONT_SIZE_MAX, value));
+    var el = document.getElementById(id);
+    var ta = el && el.querySelector('.text-body');
+    if (ta) ta.style.fontSize = card.fontSize + 'px';
+    KanvazApp.markDirty();
+  }
+  function setTextColor(id, hex) {
+    var card = cards[id];
+    if (!card || card.type !== 'text' || typeof hex !== 'string') return;
+    card.textColor = hex;
+    var el = document.getElementById(id);
+    var ta = el && el.querySelector('.text-body');
+    if (ta) ta.style.color = hex;
+    KanvazApp.markDirty();
+  }
+
   /* Layer visibility (Layers panel eye icon) — a persistent per-card
      `hidden` flag, distinct from Isolate View's transient
      `.card-isolated-hidden` class (that one clears itself on exit;
@@ -2680,6 +2704,24 @@ var KanvazCards = (function() {
     });
     previewToggle.addEventListener('mousedown', function(e) { e.stopPropagation(); });
 
+    /* Bug fix: markdown links in a note's preview render as real <a
+       target="_blank"> tags, but main.js's setWindowOpenHandler denies
+       ALL window.open()/new-window requests app-wide (security — see
+       SECURITY.md) — so these links silently did nothing at all when
+       clicked, no matter what. Route them through the same confirmed-
+       external-link flow every other link in the app uses instead of
+       letting the browser try (and fail) its own navigation. */
+    preview.addEventListener('click', function(e) {
+      var a = e.target.closest ? e.target.closest('a') : null;
+      if (!a || !a.href) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (typeof KanvazUI !== 'undefined' && KanvazUI.confirmExternalLink) KanvazUI.confirmExternalLink(a.href);
+    });
+    preview.addEventListener('mousedown', function(e) {
+      if (e.target.closest && e.target.closest('a')) e.stopPropagation();
+    });
+
     ta.addEventListener('input', function() {
       card.text = ta.value;
       KanvazApp.markDirty();
@@ -2721,12 +2763,20 @@ var KanvazCards = (function() {
 
   /* ── Bare text label ── */
 
+  var TEXT_FONT_SIZE_MIN = 10, TEXT_FONT_SIZE_MAX = 72, TEXT_FONT_SIZE_DEFAULT = 22;
+
   function buildTextCard(el, card) {
     var ta = document.createElement('textarea');
     ta.className = 'text-body';
     ta.placeholder = 'Text';
     ta.value = card.text || '';
-    ta.style.cssText = 'width:100%;height:100%;';
+    /* 9.5.2 — font-size and text color, direct request. Applied as inline
+       overrides on top of .text-body's own CSS defaults (22px, currentColor
+       via var(--color-text)) so an unset card renders pixel-identical to
+       before this feature existed. */
+    var fs = (typeof card.fontSize === 'number' && isFinite(card.fontSize))
+      ? Math.max(TEXT_FONT_SIZE_MIN, Math.min(TEXT_FONT_SIZE_MAX, card.fontSize)) : TEXT_FONT_SIZE_DEFAULT;
+    ta.style.cssText = 'width:100%;height:100%;font-size:' + fs + 'px;' + (card.textColor ? 'color:' + card.textColor + ';' : '');
 
     /* Real bug found via live user audit: this textarea covers 100% of
        the card (no card-bar footer for type 'text' — see the comment
@@ -2740,10 +2790,50 @@ var KanvazCards = (function() {
        an explicit double-click. */
     ta.readOnly = true;
 
+    /* Mini floating toolbar (font-size stepper + color swatch), shown only
+       while actively editing this card's text — direct request, decided
+       as "whatever's best and handy": full controls live in Properties
+       (see renderTextSection there) for when the card isn't selected/
+       being typed in, but a quick in-place control avoids having to leave
+       the canvas mid-edit for the two most common tweaks. */
+    var miniBar = document.createElement('div');
+    miniBar.className = 'text-mini-toolbar';
+    var sizeDown = document.createElement('button');
+    sizeDown.type = 'button'; sizeDown.textContent = 'A−'; sizeDown.title = 'Smaller text';
+    var sizeUp = document.createElement('button');
+    sizeUp.type = 'button'; sizeUp.textContent = 'A+'; sizeUp.title = 'Larger text';
+    var colorInput = document.createElement('input');
+    colorInput.type = 'color';
+    colorInput.title = 'Text color';
+    colorInput.value = card.textColor || '#dcdce8';
+    function applyFontSize(v) {
+      var clamped = Math.max(TEXT_FONT_SIZE_MIN, Math.min(TEXT_FONT_SIZE_MAX, v));
+      card.fontSize = clamped;
+      ta.style.fontSize = clamped + 'px';
+      KanvazApp.markDirty();
+      KanvazHistory.push();
+    }
+    sizeDown.addEventListener('mousedown', function(e) { e.preventDefault(); });
+    sizeUp.addEventListener('mousedown', function(e) { e.preventDefault(); });
+    sizeDown.addEventListener('click', function() { applyFontSize((card.fontSize || TEXT_FONT_SIZE_DEFAULT) - 2); });
+    sizeUp.addEventListener('click', function() { applyFontSize((card.fontSize || TEXT_FONT_SIZE_DEFAULT) + 2); });
+    colorInput.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+    colorInput.addEventListener('input', function() {
+      card.textColor = colorInput.value;
+      ta.style.color = colorInput.value;
+      KanvazApp.markDirty();
+    });
+    colorInput.addEventListener('change', function() { KanvazHistory.push(); });
+    miniBar.appendChild(sizeDown);
+    miniBar.appendChild(sizeUp);
+    miniBar.appendChild(colorInput);
+    el.appendChild(miniBar);
+
     ta.addEventListener('dblclick', function(e) {
       e.stopPropagation();
       ta.readOnly = false;
       ta.focus();
+      miniBar.classList.add('visible');
     });
 
     ta.addEventListener('input', function() {
@@ -2755,6 +2845,12 @@ var KanvazCards = (function() {
     ta.addEventListener('focus', function() { labelTextAtFocus = ta.value; });
     ta.addEventListener('blur', function() {
       ta.readOnly = true;
+      /* Delay hiding by one tick so a click on the mini toolbar's own
+         color/size buttons (which steal focus from the textarea) doesn't
+         immediately hide the very control being clicked. */
+      setTimeout(function() {
+        if (document.activeElement !== colorInput) miniBar.classList.remove('visible');
+      }, 0);
       if (ta.value === labelTextAtFocus) return; /* nothing changed, no undo step */
       labelTextAtFocus = ta.value;
       KanvazHistory.push();
@@ -3077,7 +3173,8 @@ var KanvazCards = (function() {
       var raw = (card.url || '').trim();
       if (!raw) return;
       var target = /^https?:\/\//i.test(raw) ? raw : 'https://' + raw;
-      KanvazBridge.openExternal(target);
+      if (typeof KanvazUI !== 'undefined' && KanvazUI.confirmExternalLink) KanvazUI.confirmExternalLink(target);
+      else KanvazBridge.openExternal(target);
     });
     openBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
 
@@ -3382,7 +3479,7 @@ var KanvazCards = (function() {
            CSS pixels. Capped by the preview-quality setting (Low/Medium/
            High, global default or this card's own override) rather than
            always going straight to the sharpest — see preview-quality.js. */
-        var dpr = Math.min(window.devicePixelRatio || 1, KanvazPreviewQuality.pdfDprCap(currentPreviewQuality(card)));
+        var dpr = KanvazPreviewQuality.pdfDprFor(currentPreviewQuality(card), window.devicePixelRatio || 1);
         var viewport = page.getViewport({ scale: state.zoom * dpr });
         canvas.width = Math.floor(viewport.width);
         canvas.height = Math.floor(viewport.height);
@@ -4466,7 +4563,7 @@ var KanvazCards = (function() {
       var THREE = three.THREE;
 
       var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, KanvazPreviewQuality.pixelRatioCap(currentPreviewQuality(card))));
+      renderer.setPixelRatio(KanvazPreviewQuality.pixelRatioFor(currentPreviewQuality(card), window.devicePixelRatio || 1));
 
       var scene = new THREE.Scene();
       if (card.bgColor) scene.background = new THREE.Color(card.bgColor);
@@ -4779,7 +4876,7 @@ var KanvazCards = (function() {
          model3dInstances' own declaration, and preview-quality.js. */
       model3dInstances[card.id].applyPreviewQuality = function() {
         if (disposed) return;
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, KanvazPreviewQuality.pixelRatioCap(currentPreviewQuality(card))));
+        renderer.setPixelRatio(KanvazPreviewQuality.pixelRatioFor(currentPreviewQuality(card), window.devicePixelRatio || 1));
         renderFrame();
       };
       /* Split the same way the on-card swatch's own input/change split
@@ -5348,6 +5445,13 @@ var KanvazCards = (function() {
     if (multiSelectedIds.length) return multiSelectedIds.slice();
     return selectedId ? [selectedId] : [];
   }
+
+  /* Plain lookup by id, for callers outside this module that need to
+     read a card's type/fields (e.g. app.js's context menu deciding which
+     export-as-format items apply to a given selection) without their own
+     copy of the cards{} map. Returns the live object, not a clone — same
+     as every other accessor in this file. */
+  function getCard(id) { return cards[id] || null; }
 
   /* ── Z-order ── */
 
@@ -6168,7 +6272,20 @@ var KanvazCards = (function() {
          time (see main.js's findCompanionMtl) so the card stays
          self-contained like every other embedded model, no live file
          access needed to re-render it later. */
-      mtlText: c.mtlText || null
+      mtlText: c.mtlText || null,
+      /* 9.5.2 — text card font-size/color, direct request ("i cant
+         resize the text add property for resizing text in the text
+         card... add text color asw"). null means "use the default"
+         (buildTextCard's own fallback), same missing->default pattern
+         as objectFit/colorFormat above — an existing text card with
+         neither field keeps rendering exactly as before. */
+      fontSize:  c.fontSize  || null,
+      textColor: c.textColor || null,
+      /* 9.5.2 — Map View per-node note, direct request ("like a comment
+         reply... don't show it always"). Independent of a connection's
+         own `note` field (connections.js) — this belongs to the NODE
+         itself, not to any one relationship it's part of. */
+      mapNote: c.mapNote || null
     };
   }
 
@@ -6326,6 +6443,9 @@ var KanvazCards = (function() {
         if (!c.cameraPosition) c.cameraPosition = null;
         if (!c.cameraTarget)   c.cameraTarget   = null;
         if (c.sharedId === undefined) c.sharedId = null;
+        if (!c.fontSize)  c.fontSize  = null;
+        if (!c.textColor) c.textColor = null;
+        if (!c.mapNote)   c.mapNote   = null;
 
         cards[c.id] = c;
         renderCard(c);
@@ -6624,6 +6744,177 @@ var KanvazCards = (function() {
         return;
       }
       if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Exported as ' + fmt.toUpperCase());
+    });
+  }
+
+  /* ── Export a card's OWN media as a chosen format/quality (converter) ──
+     Distinct from exportAsImage() above, which flattens a SELECTION onto
+     one composited canvas — this re-encodes each image/GIF/video card's
+     own original media into its own separate output file. Direct
+     request: "kanvaz becomes a sort of converter too... someone just
+     copy pasted pics and wants now to create a set of img locally,
+     kanvaz allows that without visiting any converter site." */
+
+  /* Resolves to a canvas holding card `c`'s own current visual frame at
+     its natural resolution — an <img> decode for image/gif, or the live
+     <video> element's current frame for video (falls back to a fresh
+     offscreen video seeked to 10%-in, same "avoid a black frame-0 fade
+     in" reasoning the Map View video-thumbnail decoder already uses, if
+     the card's own video isn't in the DOM/loaded for some reason). */
+  function cardToExportCanvas(c, scale) {
+    scale = (typeof scale === 'number' && isFinite(scale) && scale > 0) ? Math.min(1, scale) : 1;
+    return new Promise(function(resolve, reject) {
+      if (c.type === 'image' || c.type === 'gif') {
+        var img = new Image();
+        img.onload = function() {
+          var cv = document.createElement('canvas');
+          cv.width = Math.max(1, Math.round((img.naturalWidth || c.naturalW || c.w) * scale));
+          cv.height = Math.max(1, Math.round((img.naturalHeight || c.naturalH || c.h) * scale));
+          var ctx = cv.getContext('2d');
+          ctx.drawImage(img, 0, 0, cv.width, cv.height);
+          resolve(cv);
+        };
+        img.onerror = function() { reject(new Error('could not decode this card\'s image data')); };
+        img.src = c.dataUrl;
+        return;
+      }
+      if (c.type === 'video') {
+        var liveEl = document.getElementById(c.id);
+        var liveVideo = liveEl && liveEl.querySelector('video');
+        function frameFromVideo(v, cleanup) {
+          var cv = document.createElement('canvas');
+          cv.width = Math.max(1, Math.round((v.videoWidth || c.naturalW || c.w) * scale));
+          cv.height = Math.max(1, Math.round((v.videoHeight || c.naturalH || c.h) * scale));
+          var ctx = cv.getContext('2d');
+          try {
+            ctx.drawImage(v, 0, 0, cv.width, cv.height);
+            resolve(cv);
+          } catch (e) {
+            reject(e);
+          } finally {
+            if (cleanup) cleanup();
+          }
+        }
+        if (liveVideo && liveVideo.readyState >= 2) {
+          frameFromVideo(liveVideo, null);
+          return;
+        }
+        var offVideo = document.createElement('video');
+        offVideo.muted = true;
+        offVideo.preload = 'auto';
+        offVideo.onloadeddata = function() {
+          offVideo.currentTime = Math.min(offVideo.duration * 0.1 || 0, 1);
+        };
+        offVideo.onseeked = function() {
+          frameFromVideo(offVideo, function() { offVideo.src = ''; });
+        };
+        offVideo.onerror = function() { reject(new Error('could not decode this card\'s video data')); };
+        offVideo.src = c.dataUrl;
+        return;
+      }
+      reject(new Error('unsupported card type for export: ' + c.type));
+    });
+  }
+
+  var EXPORT_MIME = { png: 'image/png', jpeg: 'image/jpeg', webp: 'image/webp', bmp: 'image/bmp' };
+
+  /* BMP — direct request ("only these many formats? add more"). Chromium's
+     canvas.toDataURL() only ever produces png/jpeg/webp (that's the whole
+     list per spec, browsers don't extend it), so a real 4th format needs
+     its own encoder, not just another toDataURL() call. Hand-rolled
+     rather than a dependency: uncompressed 24-bit BMP is a genuinely
+     simple, well-specified format (54-byte header + bottom-up BGR rows,
+     each padded to a 4-byte boundary) — a few dozen lines, no library
+     needed, matching this app's existing PSD/HDR/EXR readers' own
+     "understand the format, don't just wrap someone else's parser"
+     convention. Returns a Promise (Blob->FileReader, not a manual base64
+     loop — String.fromCharCode.apply on a multi-megabyte pixel buffer is
+     both slow and can blow the call stack). */
+  function canvasToBmpDataUrl(cv) {
+    var w = cv.width, h = cv.height;
+    var imgData = cv.getContext('2d').getImageData(0, 0, w, h).data;
+    var rowSize = Math.floor((24 * w + 31) / 32) * 4;
+    var pixelArraySize = rowSize * h;
+    var fileSize = 54 + pixelArraySize;
+    var buf = new ArrayBuffer(fileSize);
+    var view = new DataView(buf);
+    view.setUint8(0, 0x42); view.setUint8(1, 0x4D);       /* 'BM' */
+    view.setUint32(2, fileSize, true);
+    view.setUint32(6, 0, true);
+    view.setUint32(10, 54, true);                          /* pixel data offset */
+    view.setUint32(14, 40, true);                           /* DIB header size */
+    view.setInt32(18, w, true);
+    view.setInt32(22, h, true);                             /* positive = bottom-up */
+    view.setUint16(26, 1, true);                            /* planes */
+    view.setUint16(28, 24, true);                           /* bits per pixel */
+    view.setUint32(30, 0, true);                            /* BI_RGB, no compression */
+    view.setUint32(34, pixelArraySize, true);
+    view.setInt32(38, 2835, true);                          /* ~72 DPI */
+    view.setInt32(42, 2835, true);
+    view.setUint32(46, 0, true);
+    view.setUint32(50, 0, true);
+    var offset = 54;
+    for (var y = h - 1; y >= 0; y--) {
+      for (var x = 0; x < w; x++) {
+        var srcIdx = (y * w + x) * 4;
+        view.setUint8(offset++, imgData[srcIdx + 2]); /* B */
+        view.setUint8(offset++, imgData[srcIdx + 1]); /* G */
+        view.setUint8(offset++, imgData[srcIdx]);     /* R */
+      }
+      for (var pad = 0; pad < rowSize - w * 3; pad++) view.setUint8(offset++, 0);
+    }
+    var blob = new Blob([buf], { type: 'image/bmp' });
+    return new Promise(function(resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function() { resolve(reader.result); };
+      reader.onerror = function() { reject(new Error('BMP encode failed')); };
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  function exportCardsAsFormat(ids, format, quality, scale) {
+    var fmt = EXPORT_MIME[format] ? format : 'png';
+    var q = (typeof quality === 'number' && isFinite(quality)) ? Math.max(0.1, Math.min(1, quality)) : 0.92;
+    var targets = [];
+    for (var i = 0; i < ids.length; i++) {
+      var c = cards[ids[i]];
+      if (c && (c.type === 'image' || c.type === 'gif' || c.type === 'video')) targets.push(c);
+    }
+    if (!targets.length) {
+      if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Nothing exportable in this selection', 'error');
+      return;
+    }
+    Promise.all(targets.map(function(c) {
+      return cardToExportCanvas(c, scale).then(function(cv) {
+        var dataUrlPromise = (fmt === 'bmp') ? canvasToBmpDataUrl(cv)
+          : Promise.resolve(fmt === 'png' ? cv.toDataURL('image/png') : cv.toDataURL(EXPORT_MIME[fmt], q));
+        return dataUrlPromise.then(function(dataUrl) { return { name: c.name || c.type, dataUrl: dataUrl }; });
+      }).catch(function(e) {
+        console.error('[Kanvaz] export failed for card ' + c.id + ':', e.message);
+        return null;
+      });
+    })).then(function(files) {
+      files = files.filter(function(f) { return f; });
+      if (!files.length) {
+        if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Export failed for every selected card', 'error');
+        return;
+      }
+      if (typeof KanvazBridge === 'undefined') return;
+      if (files.length === 1) {
+        if (!KanvazBridge.exportImageSave) return;
+        KanvazBridge.exportImageSave(files[0].name, files[0].dataUrl, fmt).then(function(res) {
+          if (!res || res.cancelled) return;
+          if (!res.ok) { if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Export failed — ' + (res.error || 'unknown error'), 'error'); return; }
+          if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Exported as ' + fmt.toUpperCase());
+        });
+      } else {
+        if (!KanvazBridge.exportImagesBatch) return;
+        KanvazBridge.exportImagesBatch(files, fmt).then(function(res) {
+          if (!res || res.cancelled) return;
+          if (!res.ok) { if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Export failed — ' + (res.error || 'unknown error'), 'error'); return; }
+          if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Exported ' + res.written + ' file' + (res.written === 1 ? '' : 's') + ' as ' + fmt.toUpperCase());
+        });
+      }
     });
   }
 
@@ -7408,6 +7699,8 @@ var KanvazCards = (function() {
     isOnionSkinOn:     isOnionSkinOn,
     toggleObjectFit:   toggleObjectFit,
     setAdjustment:     setAdjustment,
+    setTextFontSize:   setTextFontSize,
+    setTextColor:      setTextColor,
     showSpeedPicker:   showSpeedPicker,
     refreshAnnotationDot: refreshAnnotationDot,
     nudge:             nudge,
@@ -7420,8 +7713,12 @@ var KanvazCards = (function() {
     generateThumbnail: generateThumbnail,
     generateExportCanvas: generateExportCanvas,
     exportAsImage:     exportAsImage,
+    exportCardsAsFormat: exportCardsAsFormat,
     getSelected:       function() { return selectedId; },
     getSelectedIds:    getSelectedIds,
+    getCard:           getCard,
+    getCardTypeLabel:  getCardTypeLabel,
+    snapToGrid:        snapToGrid,
     getModel3DControls: getModel3DControls,
     applyPreviewQuality: applyPreviewQuality,
     createModelFromLink: createModelFromLink,

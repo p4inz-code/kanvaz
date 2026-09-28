@@ -802,6 +802,21 @@ var KanvazCanvas = (function() {
       }
     });
 
+    /* Number-key tool shortcuts, Scratch Board only, V already covers
+       Select — 1-7 map onto TOOLS in its declared order (Pen, Highlighter,
+       Line, Arrow, Rectangle, Ellipse, Eraser), matching the toolbar's own
+       left-to-right layout so the number matches what the user sees.
+       Same text-input guard as every other bare-key shortcut. */
+    window.addEventListener('keydown', function(e) {
+      if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+      if (typeof KanvazScratchBoard === 'undefined' || !KanvazScratchBoard.isActive()) return;
+      var n = parseInt(e.key, 10);
+      if (n >= 1 && n <= 7 && KanvazScratchBoard.TOOLS[n - 1]) {
+        e.preventDefault();
+        KanvazScratchBoard.setTool(KanvazScratchBoard.TOOLS[n - 1]);
+      }
+    });
+
     /* Double-click canvas to create note — opt-in via Settings (off by default) */
     container.addEventListener('dblclick', function(e) {
       if (e.target === container || e.target === world || e.target === gridCanvas) {

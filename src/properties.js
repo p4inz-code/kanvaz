@@ -65,6 +65,52 @@ var KanvazProperties = (function() {
      not muted uppercase label text easy to mistake for a caption. */
   var SECTION_TITLE_CSS = 'font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--color-text);margin:0 0 8px;padding-bottom:5px;border-bottom:1px solid var(--color-border);';
 
+  /* Direct feedback: "when we hover and drag in Maya, Adobe, Figma these
+     values change — apply that to every box containing numbers." The
+     Transform section (renderTransformSection, below) already had its
+     own private copy of this for X/Y/W/H; pulled out here as a shared
+     helper so every OTHER numeric field in this panel (Scratch Board's
+     Width/Opacity, Annotate's Width) gets the same drag-on-the-label
+     scrub instead of only being editable by typing or a native spinner.
+     Drag-to-scrub lives on the LABEL specifically, never the input
+     itself — the input still needs normal click-to-place-cursor/select-
+     and-type editing, same split Figma/Maya use. Shift held while
+     dragging = fine control (0.2 units/px). */
+  function makeScrubbable(labelEl, input, opts) {
+    opts = opts || {};
+    labelEl.style.cursor = 'ew-resize';
+    labelEl.addEventListener('mousedown', function(e) {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      var startX = e.clientX;
+      var startVal = parseFloat(input.value) || 0;
+      var moved = false;
+      function clamp(n) {
+        if (opts.min != null) n = Math.max(opts.min, n);
+        if (opts.max != null) n = Math.min(opts.max, n);
+        return opts.integer === false ? Math.round(n * 100) / 100 : Math.round(n);
+      }
+      function onMove(ev) {
+        var delta = ev.clientX - startX;
+        if (Math.abs(delta) > 1) moved = true;
+        var sensitivity = ev.shiftKey ? 0.2 : 1;
+        var n = clamp(startVal + delta * sensitivity);
+        input.value = n;
+        if (opts.onLive) opts.onLive(n);
+      }
+      function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        if (moved && opts.onCommit) {
+          var n = parseFloat(input.value);
+          if (isFinite(n)) opts.onCommit(n);
+        }
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  }
+
   /* ── Panel open/close ── */
 
   /* open(refId) — toggles the side panel to the Properties section for
@@ -153,8 +199,14 @@ var KanvazProperties = (function() {
     container.innerHTML = '';
     panelEl = container;
 
+    /* Bug fix: "nothing is selected, why is the panel still there?" —
+       this used to only sync FROM the live selection, never TO null, so
+       deselecting (e.g. clicking empty Map View canvas) left activeId
+       pointing at whatever was selected last and the panel kept showing
+       its properties forever. Always mirror the live selection, matching
+       the "no pin to a specific object" rule established above. */
     var liveSelection = (typeof KanvazCards !== 'undefined') ? KanvazCards.getSelected() : null;
-    if (liveSelection) activeId = liveSelection;
+    activeId = liveSelection;
 
     var allCards = (typeof KanvazCards !== 'undefined') ? KanvazCards.getAll() : {};
     var card = activeId ? allCards[activeId] : null;
@@ -231,6 +283,7 @@ var KanvazProperties = (function() {
     renderInfoSection(body, card, activeId);
     renderMediaSection(body, card, activeId);
     renderAdjustmentsSection(body, card, activeId);
+    renderTextSection(body, card, activeId);
     renderModel3DSection(body, card, activeId);
     renderPlaybackSection(body, card, activeId);
     renderUrlSection(body, card, activeId);
@@ -350,12 +403,24 @@ var KanvazProperties = (function() {
       return sel;
     }
 
-    function colorRow(labelText, currentValue, onChange) {
+    function colorRow(labelText, currentValue, onChange, active) {
       var r = row(labelText);
+      /* "active" marks which color box actually applies to the CURRENT
+         background style — direct request: grid color and line color
+         must be separate, clearly-labeled boxes, and the user must always
+         be able to tell which one is actually in effect right now. A
+         small accent dot + label text (not just a border, which can be
+         easy to miss at a glance) makes the active one unambiguous. */
+      if (active) {
+        var dot = document.createElement('span');
+        dot.style.cssText = 'display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--color-accent);margin-left:6px;';
+        dot.title = 'Currently active background style';
+        r.firstChild.appendChild(dot);
+      }
       var input = document.createElement('input');
       input.type = 'color';
       input.value = currentValue;
-      input.style.cssText = 'width:28px;height:22px;padding:0;border:1px solid var(--color-border);border-radius:5px;background:none;cursor:pointer;';
+      input.style.cssText = 'width:28px;height:22px;padding:0;border:1px solid ' + (active ? 'var(--color-accent)' : 'var(--color-border)') + ';border-radius:5px;background:none;cursor:pointer;';
       input.addEventListener('input', function() { onChange(input.value); });
       r.appendChild(input);
       return input;
@@ -373,6 +438,9 @@ var KanvazProperties = (function() {
         if (isFinite(v)) onChange(v);
       });
       r.appendChild(input);
+      /* Drag-to-scrub on the label, Maya/Adobe-style — see makeScrubbable's
+         own comment above renderTransformSection. */
+      makeScrubbable(r.firstChild, input, { min: min, max: max, onLive: onChange, onCommit: onChange });
       return input;
     }
 
@@ -406,11 +474,13 @@ var KanvazProperties = (function() {
     var currentBgStyle = SB.getBgStyle();
     selectRow('Style', bgOptions, currentBgStyle, function(v) { SB.setBgStyle(v); });
     colorRow('Fill color', SB.getBgColor(), function(v) { SB.setBgColor(v); });
-    if (currentBgStyle === 'lines') {
-      colorRow('Line color', SB.getLineColor() || '#ffffff', function(v) { SB.setLineColor(v); });
-    } else if (currentBgStyle === 'grid') {
-      colorRow('Grid color', SB.getGridColor() || '#ffffff', function(v) { SB.setGridColor(v); });
-    }
+    /* Direct request: Line color and Grid color are always two SEPARATE,
+       clearly-labeled boxes (never one box that silently means different
+       things depending on style) — the accent dot + border on colorRow
+       shows which one actually applies to the style picked above. Plain
+       color mode has neither active, since there's no line/grid to tint. */
+    colorRow('Line color', SB.getLineColor() || '#ffffff', function(v) { SB.setLineColor(v); }, currentBgStyle === 'lines');
+    colorRow('Grid color', SB.getGridColor() || '#ffffff', function(v) { SB.setGridColor(v); }, currentBgStyle === 'grid');
 
     var clearBtn = document.createElement('button');
     clearBtn.textContent = 'Clean board';
@@ -477,33 +547,13 @@ var KanvazProperties = (function() {
 
       if (disabled) return;
 
-      lbl.addEventListener('mousedown', function(e) {
-        if (e.button !== 0) return;
-        e.preventDefault();
-        var startX = e.clientX;
-        var startVal = parseFloat(input.value) || 0;
-        var moved = false;
-
-        function onMove(ev) {
-          var delta = ev.clientX - startX;
-          if (Math.abs(delta) > 1) moved = true;
-          var sensitivity = ev.shiftKey ? 0.2 : 1;
-          var n = Math.round(startVal + delta * sensitivity);
-          input.value = n;
+      makeScrubbable(lbl, input, {
+        onLive: function(n) {
           var patch = {};
           patch[key] = n;
           KanvazCards.setTransform(cardId, patch, false);
-        }
-        function onUp() {
-          document.removeEventListener('mousemove', onMove);
-          document.removeEventListener('mouseup', onUp);
-          if (moved) {
-            var n = parseFloat(input.value);
-            if (isFinite(n)) onCommit(n);
-          }
-        }
-        document.addEventListener('mousemove', onMove);
-        document.addEventListener('mouseup', onUp);
+        },
+        onCommit: onCommit
       });
     }
 
@@ -920,6 +970,52 @@ var KanvazProperties = (function() {
     body.appendChild(resetBtn);
   }
 
+  /* 9.5.2 — text card font-size/color, direct request. Same setters
+     buildTextCard's own in-place mini toolbar calls (KanvazCards.
+     setTextFontSize/setTextColor), so either surface stays in sync. */
+  function renderTextSection(body, card, cardId) {
+    if (card.type !== 'text') return;
+
+    var title = document.createElement('div');
+    title.style.cssText = SECTION_TITLE_CSS;
+    title.textContent = 'Text';
+    body.appendChild(title);
+
+    var sizeRow = document.createElement('div');
+    sizeRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;';
+    var sizeLabel = document.createElement('div');
+    sizeLabel.style.cssText = LABEL_CSS;
+    sizeLabel.textContent = 'Font size';
+    var sizeInput = document.createElement('input');
+    sizeInput.type = 'number';
+    sizeInput.min = 10; sizeInput.max = 72;
+    sizeInput.value = card.fontSize || 22;
+    sizeInput.style.cssText = 'width:52px;padding:3px 6px;border:1px solid var(--color-border);border-radius:4px;background:var(--color-surface-2);color:var(--color-text);font-family:var(--font-ui);font-size:11px;text-align:right;';
+    sizeInput.addEventListener('input', function() {
+      var v = parseFloat(sizeInput.value);
+      if (isFinite(v)) KanvazCards.setTextFontSize(cardId, v);
+    });
+    sizeInput.addEventListener('change', function() { KanvazHistory.push(); });
+    sizeRow.appendChild(sizeLabel);
+    sizeRow.appendChild(sizeInput);
+    body.appendChild(sizeRow);
+
+    var colorRow = document.createElement('div');
+    colorRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:16px;';
+    var colorLabel = document.createElement('div');
+    colorLabel.style.cssText = LABEL_CSS;
+    colorLabel.textContent = 'Text color';
+    var colorInput = document.createElement('input');
+    colorInput.type = 'color';
+    colorInput.value = card.textColor || '#dcdce8';
+    colorInput.style.cssText = 'width:28px;height:22px;padding:0;border:1px solid var(--color-border);border-radius:5px;background:none;cursor:pointer;';
+    colorInput.addEventListener('input', function() { KanvazCards.setTextColor(cardId, colorInput.value); });
+    colorInput.addEventListener('change', function() { KanvazHistory.push(); });
+    colorRow.appendChild(colorLabel);
+    colorRow.appendChild(colorInput);
+    body.appendChild(colorRow);
+  }
+
   /* Per-card "Preview quality" override (9.2.0) — shared by the 3D, PDF and
      Adobe-file sections below. Blank/default means "use the global Settings
      value" (see preview-quality.js); a card can only ever push its own
@@ -1325,7 +1421,8 @@ var KanvazProperties = (function() {
       var raw = (card.url || '').trim();
       if (!raw) return;
       var target = /^https?:\/\//i.test(raw) ? raw : 'https://' + raw;
-      KanvazBridge.openExternal(target);
+      if (typeof KanvazUI !== 'undefined' && KanvazUI.confirmExternalLink) KanvazUI.confirmExternalLink(target);
+      else KanvazBridge.openExternal(target);
     };
     btnRow.appendChild(openBtn);
 
@@ -1474,6 +1571,32 @@ var KanvazProperties = (function() {
       })(tools[i]);
     }
     body.appendChild(toolRow);
+
+    /* Direct request: brush/tool width must be adjustable here, not
+       just the floating toolbar's 3 quick-pick buttons — same numeric-
+       input pattern Scratch Board's own Width row already uses. */
+    var widthRow = document.createElement('div');
+    widthRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;';
+    var widthLabel = document.createElement('div');
+    widthLabel.style.cssText = LABEL_CSS;
+    widthLabel.textContent = 'Width';
+    var widthInput = document.createElement('input');
+    widthInput.type = 'number';
+    widthInput.min = 1; widthInput.max = 24;
+    widthInput.value = KanvazAnnotate.getWidth ? KanvazAnnotate.getWidth() : 2;
+    widthInput.style.cssText = 'width:52px;padding:3px 6px;border:1px solid var(--color-border);border-radius:4px;background:var(--color-surface-2);color:var(--color-text);font-family:var(--font-ui);font-size:11px;text-align:right;';
+    widthInput.addEventListener('input', function() {
+      var v = parseFloat(widthInput.value);
+      if (isFinite(v) && KanvazAnnotate.setWidth) KanvazAnnotate.setWidth(v);
+    });
+    makeScrubbable(widthLabel, widthInput, {
+      min: 1, max: 24,
+      onLive: function(v) { if (KanvazAnnotate.setWidth) KanvazAnnotate.setWidth(v); },
+      onCommit: function(v) { if (KanvazAnnotate.setWidth) KanvazAnnotate.setWidth(v); }
+    });
+    widthRow.appendChild(widthLabel);
+    widthRow.appendChild(widthInput);
+    body.appendChild(widthRow);
 
     var colorRow = document.createElement('div');
     colorRow.style.cssText = 'display:flex;gap:6px;margin-bottom:12px;';

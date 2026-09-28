@@ -32,25 +32,41 @@ var KanvazPreviewQuality = (function() {
     return DEFAULT_LEVEL;
   }
 
-  /* 3D card renderer.setPixelRatio() cap. 'medium' (2) matches what every
-     3D card silently used before this setting existed — Low is the new,
-     lighter default; High goes past native pixel density on most screens,
-     which is where the "may run slower" warning earns its keep. */
-  function pixelRatioCap(level) {
-    if (level === 'high') return 3;
-    if (level === 'medium') return 2;
-    return 1;
+  /* Bug found live (direct report: "when I do low to high resolution for
+     3D card it doesn't work or give any diff"): both of the functions
+     below used to be a plain CAP — Math.min(devicePixelRatio, cap) — on
+     the OS's real device pixel ratio. On any ordinary, non-HiDPI display
+     (devicePixelRatio === 1, the common case on Windows, and exactly
+     what a bug report with zero visible difference between levels
+     implies), min(1, 1) === min(1, 2) === min(1, 3) === 1 — Low/Medium/
+     High all resolved to the SAME number, so the setting could never
+     produce a visible difference on that class of machine at all,
+     regardless of which level was picked. It only ever did anything on
+     a Retina/HiDPI screen, where devicePixelRatio already exceeds 1.
+
+     Fixed by making each level a real MULTIPLIER on the native ratio
+     instead of a ceiling under it — Low deliberately renders BELOW
+     native (lighter GPU load, the "may run faster" side of the trade-off
+     this setting is supposed to offer), Medium matches native exactly
+     (unchanged from what every 3D card silently used before this
+     setting existed), High supersamples past native. Every level now
+     produces a real, different number on every display, HiDPI or not;
+     the overall result is still capped (3 for 3D, matching the old
+     ceiling) so a very high native DPR times the High multiplier can't
+     run away to something absurd. */
+  function pixelRatioFor(level, nativeDpr) {
+    var dpr = (typeof nativeDpr === 'number' && nativeDpr > 0) ? nativeDpr : 1;
+    if (level === 'high') return Math.min(dpr * 1.5, 3);
+    if (level === 'low') return Math.max(dpr * 0.5, 0.5);
+    return dpr; /* medium: native, unchanged behavior */
   }
 
-  /* PDF preview canvas render scale (screen device-pixel-ratio cap). Same
-     numbers PDF preview already used unconditionally (capped at 3) —
-     Low/Medium now actually back off from that ceiling instead of every
-     PDF always rendering at the sharpest setting regardless of the card's
-     visible size. */
-  function pdfDprCap(level) {
-    if (level === 'high') return 3;
-    if (level === 'medium') return 2;
-    return 1;
+  /* Same fix, same reasoning, for PDF preview's render scale — the old
+     ceiling-of-3 stays the effective max at native DPR 2 (High = 3), a
+     non-HiDPI display now actually gets three different, visibly
+     distinct render scales instead of all three landing on 1. */
+  function pdfDprFor(level, nativeDpr) {
+    return pixelRatioFor(level, nativeDpr);
   }
 
   /* Longest side, in pixels, of a decoded PSD/PSB/etc. preview image —
@@ -72,8 +88,8 @@ var KanvazPreviewQuality = (function() {
     HIGH_WARNING: HIGH_WARNING,
     isLevel: isLevel,
     resolve: resolve,
-    pixelRatioCap: pixelRatioCap,
-    pdfDprCap: pdfDprCap,
+    pixelRatioFor: pixelRatioFor,
+    pdfDprFor: pdfDprFor,
     adobeMaxSide: adobeMaxSide
   };
 })();

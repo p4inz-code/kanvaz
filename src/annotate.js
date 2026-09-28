@@ -1351,6 +1351,22 @@ var KanvazAnnotate = (function() {
     updateToolbar();
   }
 
+  /* Direct request: brush/tool width must be adjustable from the
+     Properties panel too, not just the floating toolbar's 3 preset
+     buttons (2/4/8px) — same "toolbar has quick picks, Properties has
+     the precise numeric control" split Scratch Board's own Width row
+     already uses. Clamped to the same sane range Scratch Board uses
+     (1-24) rather than a second, differently-chosen ceiling. */
+  var MIN_WIDTH = 1, MAX_WIDTH = 24;
+  function getWidth() { return activeWidth; }
+  function setWidth(v) {
+    v = parseFloat(v);
+    if (!isFinite(v)) return;
+    activeWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, v));
+    updateToolbar();
+  }
+  function getWidths() { return WIDTHS; }
+
   function getTools() {
     return TOOLS;
   }
@@ -1384,7 +1400,10 @@ var KanvazAnnotate = (function() {
     getTools:         getTools,
     getColors:        getColors,
     getActiveTool:    getActiveTool,
-    getActiveColor:   getActiveColor
+    getActiveColor:   getActiveColor,
+    getWidth:         getWidth,
+    setWidth:         setWidth,
+    getWidths:        getWidths
   };
 
 })();

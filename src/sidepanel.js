@@ -14,7 +14,7 @@
 
 var KanvazSidePanel = (function() {
 
-  var SECTIONS = ['boards', 'properties', 'layers', 'settings'];
+  var SECTIONS = ['boards', 'properties', 'layers', 'tasks', 'settings'];
 
   var railEl     = null;
   var contentEl  = null;
@@ -44,7 +44,15 @@ var KanvazSidePanel = (function() {
     if (typeof KanvazUI_Extended === 'undefined') return;
     var s = KanvazUI_Extended.getSettings();
     if (!s) return;
-    isOpenFlag = !!s.sidePanelOpen;
+    /* Direct feedback: "why is there no need to open it on launch" — the
+       panel used to restore whatever open/closed state the LAST session
+       ended in, so if you quit with it open (which most work sessions
+       do, since you're usually looking at Properties/Tasks/etc. right
+       up until you close the app), every next launch opened straight
+       into it. Boot always starts closed now, on purpose — only
+       currentSection is still restored, so if/when the user does open
+       it, it's showing whichever section they were last in, just not
+       auto-opened. */
     if (SECTIONS.indexOf(s.sidePanelSection) !== -1) currentSection = s.sidePanelSection;
   }
 
@@ -75,7 +83,12 @@ var KanvazSidePanel = (function() {
     if (!s) return;
     s.sidePanelOpen = isOpenFlag;
     s.sidePanelSection = currentSection;
-    if (KanvazUI_Extended.saveSettings) KanvazUI_Extended.saveSettings();
+    /* Perf fix — debounced, apply-free write (see schedulePersist's own
+       comment in ui.js): opening/closing the panel used to trigger a
+       full settings.json write + a whole unrelated re-apply pass on
+       every single toggle, which is what read as "a lil lag." */
+    if (KanvazUI_Extended.schedulePersist) KanvazUI_Extended.schedulePersist();
+    else if (KanvazUI_Extended.saveSettings) KanvazUI_Extended.saveSettings();
   }
 
   /* ── Rendering ── */
@@ -111,6 +124,8 @@ var KanvazSidePanel = (function() {
       if (typeof KanvazProperties !== 'undefined') KanvazProperties.renderInto(contentEl);
     } else if (currentSection === 'layers') {
       if (typeof KanvazCards !== 'undefined') KanvazCards.renderLayersInto(contentEl);
+    } else if (currentSection === 'tasks') {
+      if (typeof KanvazTaskTracker !== 'undefined') KanvazTaskTracker.renderInto(contentEl);
     } else if (currentSection === 'settings') {
       if (typeof KanvazUI_Extended !== 'undefined') KanvazUI_Extended.renderSettingsInto(contentEl);
     }
@@ -163,6 +178,20 @@ var KanvazSidePanel = (function() {
 
   function isSectionOpen(name) {
     return isOpenFlag && currentSection === name;
+  }
+
+  /* PageUp/PageDown (shortcuts.js) — steps through SECTIONS in its
+     declared order, wrapping around. direction -1 is "up" (toward
+     'boards', the top rail icon — e.g. from 'settings' to 'layers'),
+     +1 is "down". Only meaningful while the panel is already open (the
+     shortcut itself no-ops otherwise, since there's no "current" tab to
+     step from without one first being shown). */
+  function cycleSection(direction) {
+    if (!isOpenFlag) return;
+    var idx = SECTIONS.indexOf(currentSection);
+    if (idx === -1) idx = 0;
+    idx = (idx + direction + SECTIONS.length) % SECTIONS.length;
+    showSection(SECTIONS[idx]);
   }
 
   function isOpen() { return isOpenFlag; }
@@ -387,14 +416,39 @@ var KanvazSidePanel = (function() {
             var sy = (img.height - side) / 2;
             ctx.drawImage(img, sx, sy, side, side, 0, 0, SIZE, SIZE);
             var small = canvas.toDataURL('image/png');
-            KanvazBridge.setProfileAvatar(profileId, small).then(function() { onDone(); });
+            /* Bug fix: "tried to save profile pic, didn't save even after
+               pressing save" — this call had no .catch() and never
+               checked res.ok, so an IPC rejection or a {ok:false} from
+               the main-process write (e.g. manifest.json locked/
+               unwritable) failed completely silently: onDone() still
+               ran, the edit form still closed via rebuild(), and nothing
+               told the user it hadn't actually persisted. Also nothing
+               confirmed SUCCESS either, so a working save and a silently
+               failed one looked identical. */
+            KanvazBridge.setProfileAvatar(profileId, small).then(function(res2) {
+              if (!res2 || !res2.ok) {
+                if (typeof KanvazUI !== 'undefined') KanvazUI.toast((res2 && res2.error) || 'Could not save profile picture', 'error');
+              } else if (typeof KanvazUI !== 'undefined') {
+                KanvazUI.toast('Profile picture saved');
+              }
+              onDone();
+            }).catch(function(e) {
+              if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Could not save profile picture: ' + e.message, 'error');
+              onDone();
+            });
           };
           img.onerror = function() {
             if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Could not load that image', 'error');
             onDone();
           };
           img.src = res.dataUrl;
+        }).catch(function(e) {
+          if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Could not load that image: ' + e.message, 'error');
+          onDone();
         });
+      }).catch(function(e) {
+        if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Could not open file picker: ' + e.message, 'error');
+        onDone();
       });
     }
 
@@ -713,6 +767,7 @@ var KanvazSidePanel = (function() {
     toggle:               toggle,
     isOpen:               isOpen,
     isSectionOpen:        isSectionOpen,
+    cycleSection:         cycleSection,
     refreshPersistedState: refreshPersistedState,
     /* Exported so the Start Screen (boards.js) can open the exact same
        Manage Profiles dialog the account menu uses, rather than a

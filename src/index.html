@@ -172,34 +172,34 @@
            Board view: pan, click/drag cards, marquee-select all work.
            Any OTHER tool below disables all of that — the two are always
            mutually exclusive (scratch-board.js's isToolArmed()). -->
-      <button class="scratch-tool-btn" id="scratch-tool-select" data-tool="select" title="Select / Pan">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3l7 17 2-7 7-2z"/></svg>
+      <button class="scratch-tool-btn" id="scratch-tool-select" data-tool="select" title="Select / Pan (V)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3l7 17 2-7 7-2z"/></svg>
       </button>
       <div class="scratch-toolbar-sep"></div>
-      <button class="scratch-tool-btn" id="scratch-tool-pen" data-tool="pen" title="Pen">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
+      <button class="scratch-tool-btn" id="scratch-tool-pen" data-tool="pen" title="Pen (1)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
       </button>
-      <button class="scratch-tool-btn" id="scratch-tool-highlighter" data-tool="highlighter" title="Highlighter">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 14l3 3"/><path d="M4.5 21l1.5-4 12-12 3 3-12 12-4.5 1z"/></svg>
+      <button class="scratch-tool-btn" id="scratch-tool-highlighter" data-tool="highlighter" title="Highlighter (2)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 14l3 3"/><path d="M4.5 21l1.5-4 12-12 3 3-12 12-4.5 1z"/></svg>
       </button>
-      <button class="scratch-tool-btn" id="scratch-tool-line" data-tool="line" title="Line">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="4"/></svg>
+      <button class="scratch-tool-btn" id="scratch-tool-line" data-tool="line" title="Line (3)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="4"/></svg>
       </button>
-      <button class="scratch-tool-btn" id="scratch-tool-arrow" data-tool="arrow" title="Arrow">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="4"/><polyline points="9 4 20 4 20 15"/></svg>
+      <button class="scratch-tool-btn" id="scratch-tool-arrow" data-tool="arrow" title="Arrow (4)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="4"/><polyline points="9 4 20 4 20 15"/></svg>
       </button>
-      <button class="scratch-tool-btn" id="scratch-tool-rect" data-tool="rect" title="Rectangle">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="12" rx="1"/></svg>
+      <button class="scratch-tool-btn" id="scratch-tool-rect" data-tool="rect" title="Rectangle (5)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="12" rx="1"/></svg>
       </button>
-      <button class="scratch-tool-btn" id="scratch-tool-ellipse" data-tool="ellipse" title="Ellipse">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="9" ry="6"/></svg>
+      <button class="scratch-tool-btn" id="scratch-tool-ellipse" data-tool="ellipse" title="Ellipse (6)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="9" ry="6"/></svg>
       </button>
       <!-- Eraser — drag over a stroke to remove it entirely (whole-stroke,
            not pixel erasing). Hand-authored icon, same plain stroke style
            as every other icon in this file (viewBox 24, stroke-width 2,
            round caps/joins) — not from any external icon set. -->
-      <button class="scratch-tool-btn" id="scratch-tool-eraser" data-tool="eraser" title="Eraser">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13l-7 7H7l-4-4a2 2 0 0 1 0-2.8l9-9a2 2 0 0 1 2.8 0l4.6 4.6a2 2 0 0 1 0 2.8L18 13z"/><path d="M8.5 21H21"/></svg>
+      <button class="scratch-tool-btn" id="scratch-tool-eraser" data-tool="eraser" title="Eraser (7)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13l-7 7H7l-4-4a2 2 0 0 1 0-2.8l9-9a2 2 0 0 1 2.8 0l4.6 4.6a2 2 0 0 1 0 2.8L18 13z"/><path d="M8.5 21H21"/></svg>
       </button>
       <div class="scratch-toolbar-sep"></div>
       <!-- Width/opacity number inputs and the background color swatches
@@ -209,28 +209,30 @@
            live-synced, in the Properties panel's Scratch Board section
            (properties.js's renderScratchBoardSection) instead — same
            pattern Board view itself uses: a compact top toolbar, detailed
-           settings in Properties, not both at once. -->
-      <input type="color" id="scratch-color-swatch" class="scratch-color-swatch" title="Stroke color" value="#7C5CFC">
+           settings in Properties, not both at once. Bumped to 28px
+           (from 22px) — direct feedback the color swatch should be
+           "a bit big and good to see". -->
+      <input type="color" id="scratch-color-swatch" class="scratch-color-swatch scratch-color-swatch-lg" title="Stroke color" value="#7C5CFC">
       <div class="scratch-toolbar-sep"></div>
-      <!-- Broom, not a trash can — this clears STROKES on the current
-           board, not a destructive delete-something-permanent action in
-           the trash-can sense the rest of the app uses that icon for.
-           Redrawn (the first attempt read as an illegible squiggle at
-           toolbar size): a straight handle plus a clean, closed
-           parallelogram brush head with two short sweep-accent strokes
-           underneath, so the silhouette reads as "broom" even at 14px.
-           Hand-authored, same plain stroke style as every other icon
-           here (viewBox 24, stroke-width 2, round caps/joins, fill:none)
-           — not from any external icon set. -->
+      <!-- Third redraw: two hand-drawn broom attempts both read as
+           illegible/"gross" at 18px toolbar size ("didn't i tell you to
+           keep something visible and good looking... this one looks so
+           bad"). Switched to a plain trash-can silhouette instead — the
+           single most universally recognizable "clear" pictogram, crisp
+           at small sizes because it's built from straight lines, not a
+           fine silhouette. Tooltip still spells out the non-destructive
+           scope (strokes only, not the whole board) so the icon choice
+           doesn't reopen the "is this destructive" ambiguity broom was
+           meant to avoid. -->
       <button class="scratch-tool-btn" id="scratch-tool-clear" title="Clean board — clears every stroke">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 3l-8 8"/><path d="M12 11l4 4-8 6-4-4z"/><path d="M6 21l-2 2"/><path d="M10 21l-2 2"/></svg>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4.5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1V7"/><path d="M18.5 7l-.8 12.5a2 2 0 0 1-2 1.9H8.3a2 2 0 0 1-2-1.9L5.5 7"/><line x1="10" y1="11" x2="10" y2="16.5"/><line x1="14" y1="11" x2="14" y2="16.5"/></svg>
       </button>
       <div class="scratch-toolbar-sep"></div>
       <!-- Background style cycles: ruled lines -> plain color -> grid -> back.
            Label updates from scratch-board.js so the button always shows the
            CURRENT style (clicking advances to the next one). -->
       <button class="scratch-tool-btn scratch-bg-btn" id="scratch-tool-bgstyle" title="Background style (click to cycle) — fill/line/grid colors are in Properties">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="8" x2="21" y2="8"/><line x1="3" y1="13" x2="21" y2="13"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="8" x2="21" y2="8"/><line x1="3" y1="13" x2="21" y2="13"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
       <!-- Background fill/line/grid color swatches: Properties panel only
            now (see the comment on the toolbar-sep above the stroke-color
@@ -287,6 +289,13 @@
         <button class="rail-btn" id="rail-layers" data-section="layers" title="Layers">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
         </button>
+        <!-- Task Tracker (9.5.2) — spec locked via a 10-Q&A, see
+             docs/ROADMAP.md. A new rail icon, reachable from any view,
+             per the locked "not a card type, not a separate screen"
+             decision. -->
+        <button class="rail-btn" id="rail-tasks" data-section="tasks" title="Tasks">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        </button>
         <button class="rail-btn" id="rail-settings" data-section="settings" title="Settings (S)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         </button>
@@ -313,6 +322,14 @@
          Scratch drawing tool is actually armed, so cards underneath stay
          fully clickable/draggable the rest of the time. -->
     <canvas id="scratch-strokes-canvas"></canvas>
+    <!-- Eraser cursor: a hollow circle that follows the pointer, sized to
+         match the eraser's actual hit radius (scratch-board.js), shown
+         only while the eraser tool is armed. Direct request — the plain
+         system cursor gave no indication anything would be erased, let
+         alone how big an area. A real DOM element (not a CSS `cursor:`
+         data-URI) since it needs to resize live as the width slider
+         changes, which a static cursor image can't do. -->
+    <div id="scratch-eraser-cursor" hidden></div>
 
     <!-- Empty state -->
     <div id="canvas-empty">
@@ -365,6 +382,16 @@
     <h2 id="dialog-title"></h2>
     <p id="dialog-message"></p>
     <input type="text" id="dialog-input" class="dialog-input" style="display:none;">
+    <!-- Export-as-format picker (showExportPicker, app.js) — a real,
+         Adobe/Maya-style "choose format + quality" form, reusing this
+         same custom overlay rather than any native file-type picker.
+         Hidden/empty except while that specific dialog is open. -->
+    <div id="dialog-export-form" class="dialog-export-form" style="display:none;"></div>
+    <!-- External-link confirmation (confirmExternalLink, ui.js) — Discord-
+         style "you're about to leave the app" prompt shown before any
+         embedded link opens, with a "Don't ask me again" checkbox. Hidden/
+         empty except while that specific dialog is open. -->
+    <div id="dialog-link-form" class="dialog-link-form" style="display:none;"></div>
     <div class="dialog-btns" id="dialog-btns"></div>
   </div>
 </div>
@@ -384,6 +411,7 @@
 <script src="model3d-modes.js"></script>
 <script src="cards.js"></script>
 <script src="connections.js"></script>
+<script src="task-tracker.js"></script>
 <script src="history.js"></script>
 <script src="annotate.js"></script>
 <script src="boards.js"></script>

@@ -493,6 +493,10 @@ var KanvazInspector = (function() {
         KanvazUI.toast('Select a reference to connect to');
         return;
       }
+      if (KanvazConnections.canAddConnection && !KanvazConnections.canAddConnection(fromRefId, targetId)) {
+        KanvazUI.toast('One of these references already has ' + KanvazConnections.MAX_CONNECTIONS_PER_NODE + ' connections — the max per node', 'error');
+        return;
+      }
       KanvazConnections.create(fromRefId, targetId, typeSelect.value, {
         note:     noteInput.value,
         priority: parseInt(priSelect.value, 10)

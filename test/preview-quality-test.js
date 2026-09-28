@@ -17,10 +17,19 @@ function run() {
   assert.strictEqual(Q.resolve(undefined, 'bogus'), 'low', 'an invalid global setting (e.g. old settings.json) falls back to the hard default');
   console.log('  ✓ resolve(): per-card override beats global, invalid values never produced');
 
-  assert.deepStrictEqual([Q.pixelRatioCap('low'), Q.pixelRatioCap('medium'), Q.pixelRatioCap('high')], [1, 2, 3], '3D pixel ratio cap climbs low->high, medium matches the old unconditional default');
-  assert.deepStrictEqual([Q.pdfDprCap('low'), Q.pdfDprCap('medium'), Q.pdfDprCap('high')], [1, 2, 3], 'PDF DPI cap climbs low->high, high matches the old unconditional ceiling');
+  /* Bug fix, found live: pixelRatioCap/pdfDprCap used to be Math.min(nativeDpr, cap)
+     — on any display with devicePixelRatio 1 (ordinary, non-HiDPI, the common
+     case), min(1,1) === min(1,2) === min(1,3) === 1, so Low/Medium/High were
+     ALL the same number and the setting had literally no visible effect there.
+     pixelRatioFor/pdfDprFor take the native DPR as a real input and multiply
+     (0.5x / 1x / 1.5x, capped at 3) instead of capping under it, so every level
+     produces a genuinely different number on EVERY display, HiDPI or not. */
+  assert.deepStrictEqual([Q.pixelRatioFor('low', 1), Q.pixelRatioFor('medium', 1), Q.pixelRatioFor('high', 1)], [0.5, 1, 1.5], 'at native DPR 1 (ordinary display), the three levels must still be visibly different');
+  assert.deepStrictEqual([Q.pixelRatioFor('low', 2), Q.pixelRatioFor('medium', 2), Q.pixelRatioFor('high', 2)], [1, 2, 3], 'at native DPR 2 (Retina/HiDPI), matches the old 1/2/3 numbers exactly — no regression for that class of display');
+  assert.strictEqual(Q.pixelRatioFor('high', 4), 3, 'High is still capped overall (3) even on a very high native DPR');
+  assert.deepStrictEqual([Q.pdfDprFor('low', 1), Q.pdfDprFor('medium', 1), Q.pdfDprFor('high', 1)], [0.5, 1, 1.5], 'same fix applies to PDF preview DPI');
   assert.deepStrictEqual([Q.adobeMaxSide('low'), Q.adobeMaxSide('medium'), Q.adobeMaxSide('high')], [1536, 3072, 6144], 'Adobe preview max side matches what main.js already used');
-  console.log('  ✓ pixelRatioCap/pdfDprCap/adobeMaxSide: monotonically increasing, matches pre-existing hardcoded numbers');
+  console.log('  ✓ pixelRatioFor/pdfDprFor: real difference at every native DPR (bug fix), adobeMaxSide unchanged');
 
   assert(Q.HIGH_WARNING.length > 20 && /slow/i.test(Q.HIGH_WARNING), 'a real, specific warning string exists for the High option');
   console.log('  ✓ HIGH_WARNING is a real, specific string');

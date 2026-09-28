@@ -117,11 +117,14 @@ await client.connect(transport);
 
 const toolsResult = await client.listTools();
 const toolNames = toolsResult.tools.map((t) => t.name).sort();
-check('all 32 tools registered (30 through 4.5.0 + 2 from the v7.x shared-cards expansion)', toolNames.length === 32);
+check('all 40 tools registered (32 through v7.x + 8 Task Tracker tools, 9.5.2)', toolNames.length === 40);
 check('getActiveBoard present', toolNames.includes('getActiveBoard'));
 check('createCard present', toolNames.includes('createCard'));
 check('connectCards present', toolNames.includes('connectCards'));
 check('deleteBoard present (board management)', toolNames.includes('deleteBoard'));
+check('listTasks present (Task Tracker, 9.5.2)', toolNames.includes('listTasks'));
+check('addTask present (Task Tracker, 9.5.2)', toolNames.includes('addTask'));
+check('toggleSubtask present (Task Tracker, 9.5.2)', toolNames.includes('toggleSubtask'));
 check('undo present (history)', toolNames.includes('undo'));
 check('zoomFit present (view control)', toolNames.includes('zoomFit'));
 check('updateSettings present (settings, minus plugin management)', toolNames.includes('updateSettings'));

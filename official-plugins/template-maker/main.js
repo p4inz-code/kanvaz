@@ -182,8 +182,9 @@
         data.templates.forEach(function(tpl) {
           var r = row(myList);
           var label = document.createElement('span');
-          label.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+          label.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:text;';
           label.textContent = tpl.name + ' (' + tpl.cards.length + ')';
+          label.title = 'Click to rename';
           r.appendChild(label);
           r.appendChild(smallBtn('Insert', function() { insertTemplateCards(tpl.cards); }));
           r.appendChild(smallBtn('Export…', function() {
@@ -201,12 +202,20 @@
               KanvazPluginAPI.showToast('Exported "' + tpl.name + '"', 'success');
             });
           }));
-          r.appendChild(smallBtn('Rename', function() {
-            var next = window.prompt('Rename template:', tpl.name);
-            if (!next || !next.trim() || next.trim() === tpl.name) return;
+          /* Bug fix (found in this pass' audit): this used to call
+             window.prompt() — a native OS dialog, which breaks the
+             app-wide "no native dialogs anywhere in Kanvaz" rule the
+             main app itself already enforces everywhere else (see
+             KanvazUI.showDialog usage throughout src/). Replaced with an
+             inline rename, same in-place-input convention every other
+             rename in this app (Layers panel rows, card-bar titles,
+             Theme Creator's own preset rename above) already uses. */
+          function commitRename(nextName) {
+            var next = (nextName || '').trim();
+            if (!next || next === tpl.name) return;
             loadData().then(function(d) {
               var t = d.templates.filter(function(x) { return x.id === tpl.id; })[0];
-              if (t) t.name = next.trim();
+              if (t) t.name = next;
               return saveData(d);
             }).then(function(result) {
               /* Audit fix: same class of bug the Save-as-template flow
@@ -220,7 +229,25 @@
               }
               renderMyTemplates();
             });
-          }));
+          }
+          function startInlineRename() {
+            var input = document.createElement('input');
+            input.type = 'text';
+            input.value = tpl.name;
+            input.style.cssText = 'flex:1;background:var(--color-surface-2);border:1px solid var(--color-accent);border-radius:4px;color:var(--color-text);font-size:12px;padding:3px 6px;';
+            function finish() { commitRename(input.value); }
+            input.addEventListener('keydown', function(e) {
+              e.stopPropagation();
+              if (e.key === 'Enter') input.blur();
+              if (e.key === 'Escape') { input.value = tpl.name; input.blur(); }
+            });
+            input.addEventListener('blur', finish);
+            r.replaceChild(input, label);
+            input.focus();
+            input.select();
+          }
+          label.onclick = startInlineRename;
+          r.appendChild(smallBtn('Rename', startInlineRename));
           r.appendChild(smallBtn('Delete', function() {
             KanvazPluginAPI.showConfirmDialog('Delete template?', '"' + tpl.name + '" will be removed. This cannot be undone.', [
               { label: 'Delete', cls: 'danger', action: function() {

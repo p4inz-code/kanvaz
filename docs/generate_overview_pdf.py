@@ -186,7 +186,7 @@ y -= 14
 y = draw_section_label(c, 'Who made this', margin, y)
 y = draw_paragraph(
     c,
-    'Made by Atharva Patil (Northbyte Studios), a fellow artist and student in Navi Mumbai. '
+    'Made by Atharva Patil (P4inz Interactive Labs), a fellow artist and student in Navi Mumbai. '
     'Kanvaz started as a personal tool for organizing VFX references and grew into '
     'something worth sharing with the people Atharva works and studies with — '
     'teachers, classmates, and friends in the same field.',
@@ -235,7 +235,7 @@ c.setFillColor(TEXT3)
 c.drawString(margin + 14, margin + 22,
               'Found a bug or have an idea? Feedback is genuinely welcome —')
 c.drawString(margin + 14, margin + 10,
-              'just tell Atharva directly (Northbyte Studios).')
+              'just tell Atharva directly (P4inz Interactive Labs).')
 c.setFillColor(ACCENT)
 c.drawString(margin + 14, margin - 2,
               'Get the latest version: github.com/p4inz-code/kanvaz')

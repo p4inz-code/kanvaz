@@ -185,9 +185,81 @@
 
   function connectCards(fromId, toId, type) {
     if (typeof KanvazConnections === 'undefined') throw new Error('Connections module unavailable');
+    /* 9.5.2: max 8 connections per node either direction — same cap the
+       UI itself enforces (map-view.js's drag-to-wire, inspector.js's
+       Add Connection dialog). Checked here too so an AI-driven call
+       can't bypass it just because it doesn't go through either of
+       those two UI entry points. */
+    if (KanvazConnections.canAddConnection && !KanvazConnections.canAddConnection(fromId, toId)) {
+      throw new Error('one of these cards already has ' + (KanvazConnections.MAX_CONNECTIONS_PER_NODE || 8) + ' connections — the max per card');
+    }
     var conn = KanvazConnections.create(fromId, toId, type);
     if (!conn) throw new Error('could not create connection — check that fromId/toId are real, distinct card ids');
     return conn;
+  }
+
+  /* ── Task Tracker (9.5.2) ── Same "call the real module directly"
+     precedent connectCards already set above — KanvazTaskTracker has no
+     KanvazPluginAPI wrapper of its own (nothing else needed one before
+     this), and this same-page-context sandbox can already reach it
+     directly, exactly like KanvazCards/KanvazConnections. Every write
+     already marks the board dirty on its own (see task-tracker.js);
+     nothing extra needed here for that. */
+  function requireTaskTracker() {
+    if (typeof KanvazTaskTracker === 'undefined') throw new Error('Task Tracker is unavailable in this build of Kanvaz');
+    return KanvazTaskTracker;
+  }
+
+  function listTasks() {
+    return requireTaskTracker().getAll();
+  }
+
+  function addTask(text) {
+    var t = requireTaskTracker().addTask(text);
+    if (!t) throw new Error('addTask requires a non-empty "text"');
+    return t;
+  }
+
+  function deleteTask(id) {
+    var ok = requireTaskTracker().removeTask(id);
+    return { ok: ok };
+  }
+
+  function toggleTask(id) {
+    var T = requireTaskTracker();
+    var ok = T.toggleTask(id);
+    var task = T.getTask(id);
+    if (!task) throw new Error('task not found: ' + id);
+    if (!ok && task.subtasks.length) throw new Error('this task has subtasks — its done state is derived from them, not directly toggleable (see toggleSubtask)');
+    return task;
+  }
+
+  function addSubtask(taskId, text) {
+    var T = requireTaskTracker();
+    var st = T.addSubtask(taskId, text);
+    if (!st) throw new Error('addSubtask requires a real taskId, non-empty "text", and fewer than ' + T.MAX_SUBTASKS + ' existing subtasks');
+    return T.getTask(taskId);
+  }
+
+  function toggleSubtask(taskId, subId) {
+    var T = requireTaskTracker();
+    T.toggleSubtask(taskId, subId);
+    var task = T.getTask(taskId);
+    if (!task) throw new Error('task not found: ' + taskId);
+    return task;
+  }
+
+  function deleteSubtask(taskId, subId) {
+    var ok = requireTaskTracker().removeSubtask(taskId, subId);
+    return { ok: ok };
+  }
+
+  function setTaskCardLink(taskId, cardId) {
+    var T = requireTaskTracker();
+    T.setCardLink(taskId, cardId || null);
+    var task = T.getTask(taskId);
+    if (!task) throw new Error('task not found: ' + taskId);
+    return task;
   }
 
   /* Loads a file from disk (image/video/audio -> a real media card,
@@ -305,6 +377,16 @@
       /* Settings (4.5.0) — everything except plugin management */
       case 'getSettings':     return MCP_API.getSettings();
       case 'updateSettings':  return MCP_API.updateSettings(args.patch);
+
+      /* Task Tracker (9.5.2) */
+      case 'listTasks':       return listTasks();
+      case 'addTask':         return addTask(args.text);
+      case 'deleteTask':      return deleteTask(args.id);
+      case 'toggleTask':      return toggleTask(args.id);
+      case 'addSubtask':      return addSubtask(args.taskId, args.text);
+      case 'toggleSubtask':   return toggleSubtask(args.taskId, args.subtaskId);
+      case 'deleteSubtask':   return deleteSubtask(args.taskId, args.subtaskId);
+      case 'setTaskCardLink': return setTaskCardLink(args.taskId, args.cardId);
 
       default:
         throw new Error('unknown MCP Bridge method: "' + method + '"');

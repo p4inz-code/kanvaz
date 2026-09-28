@@ -452,6 +452,21 @@ if (fs.existsSync(path.join(__dirname, 'shared-cards-test.js'))) {
   console.log('  (skipped — test/shared-cards-test.js missing)');
 }
 
+/* 9d. Task Tracker (v1) — add/remove, subtask gating, 5-subtask cap, progress, card link, serialise round trip */
+section('9d. Task Tracker');
+if (fs.existsSync(path.join(__dirname, 'task-tracker-test.js'))) {
+  try {
+    var taskOut = cp.execSync('node "' + path.join(__dirname, 'task-tracker-test.js') + '"', { encoding: 'utf8', timeout: 15000 });
+    if (/ALL TASK TRACKER TESTS PASSED/.test(taskOut)) ok('add/remove task+subtask, done gating only-when-subtasks-exist, 5-subtask cap on both addSubtask and load, progress aggregation, card link, malformed-file tolerance');
+    else { bad('task tracker test failed'); console.log(taskOut); }
+  } catch (e) {
+    bad('task tracker test crashed');
+    console.log(e.stdout || e.message);
+  }
+} else {
+  console.log('  (skipped — test/task-tracker-test.js missing)');
+}
+
 /* 10. Version consistency */
 section('10. Version consistency');
 var pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));

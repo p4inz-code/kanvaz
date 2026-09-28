@@ -7,7 +7,7 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '9.5.0';
+  var VERSION       = '9.6.0';
 
   /* ── Shared cards (v6.4.0) — "same card, no duplicate, edit once
      updates everywhere" (Are.na-style), across boards in ONE .kanvaz
@@ -952,6 +952,24 @@ var KanvazBoards = (function() {
     return -1;
   }
 
+  /* Task Tracker's optional card link ("click jumps/zooms to it on its
+     board") needs to find WHICH board a given card id lives on — cards
+     are per-board, the task list is file-level. Syncs the active board's
+     own snapshot first (same reasoning listBoardsInfo's own sync above
+     already documents) so a card just created/moved on the CURRENT board
+     is found correctly, not just whatever was on disk as of the last
+     switch/save. */
+  function findBoardIdForCard(cardId) {
+    saveCurrentBoardState();
+    for (var i = 0; i < boards.length; i++) {
+      var boardCards = boards[i].cards || [];
+      for (var j = 0; j < boardCards.length; j++) {
+        if (boardCards[j].id === cardId) return boards[i].id;
+      }
+    }
+    return null;
+  }
+
   function listBoardsInfo() {
     /* Card counts for every board except the active one come from each
        board's last-synced `.cards` snapshot (only refreshed on
@@ -1360,6 +1378,14 @@ var KanvazBoards = (function() {
       KanvazConnections.deserialise(data.connections || []);
     }
 
+    /* 9.5.2 — Task Tracker: ONE global list for the whole file, same tier
+       as connections/sharedCards above (not nested under any one board's
+       own cards[]) — see docs/ROADMAP.md's locked spec. Empty array for
+       any file saved before this feature existed. */
+    if (typeof KanvazTaskTracker !== 'undefined') {
+      KanvazTaskTracker.deserialise(data.tasks || []);
+    }
+
     if (!boards.length) {
       newBoard(true);
       return;
@@ -1398,6 +1424,11 @@ var KanvazBoards = (function() {
     /* v3: include connections */
     if (typeof KanvazConnections !== 'undefined') {
       out.connections = KanvazConnections.serialise();
+    }
+
+    /* 9.5.2 — Task Tracker, file-level like connections above. */
+    if (typeof KanvazTaskTracker !== 'undefined') {
+      out.tasks = KanvazTaskTracker.serialise();
     }
 
     return out;
@@ -2059,8 +2090,8 @@ var KanvazBoards = (function() {
                disclosed external-link pattern as the About screen's own
                "View on GitHub" button, never automatic. */
             row.onclick = function() {
-              if (typeof KanvazBridge !== 'undefined' && KanvazBridge.openExternal) {
-                KanvazBridge.openExternal('https://github.com/p4inz-code/kanvaz/releases/tag/v' + entry.version);
+              if (typeof KanvazUI !== 'undefined' && KanvazUI.confirmExternalLink) {
+                KanvazUI.confirmExternalLink('https://github.com/p4inz-code/kanvaz/releases/tag/v' + entry.version);
               }
             };
 
@@ -2095,7 +2126,7 @@ var KanvazBoards = (function() {
          then the actual brand name, then the studio/business name last. */
       var footer = document.createElement('div');
       footer.style.cssText = 'flex-shrink:0;padding:0 40px 16px;text-align:center;font-size:11px;color:var(--color-text-3);';
-      footer.textContent = 'Atharva Patil | P4inz | Northbyte Studios';
+      footer.textContent = 'Atharva Patil | P4inz | P4inz Interactive Labs';
       rightCol.appendChild(footer);
 
       overlay.appendChild(rightCol);
@@ -2189,6 +2220,7 @@ var KanvazBoards = (function() {
     saveBoardToPath:  saveBoardToPath,
     listBoardsInfo:   listBoardsInfo,
     switchBoardById:  switchBoardById,
+    findBoardIdForCard: findBoardIdForCard,
     renameBoardById:  renameBoardById,
     deleteBoardById:  deleteBoardById,
     /* v6.4.0 — shared cards across boards */

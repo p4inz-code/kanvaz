@@ -299,13 +299,38 @@
         });
       }
 
+      /* Feather Icons (MIT License, see THIRD_PARTY_NOTICES.md) — same
+         individual-path-copied-inline convention the main app's own
+         Layers panel uses, pin/star SVGs shared verbatim with it so
+         this plugin's UI reads as part of the same design language
+         instead of clashing colored emoji glyphs. Polish pass: this
+         preset row used to be ★/📌/✕ text glyphs, which render
+         inconsistently across OS emoji fonts and don't match the flat
+         line-icon look everywhere else in Kanvaz. */
+      var ICON_STAR_ON  = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+      var ICON_STAR_OFF = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+      var ICON_PIN_ON   = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+      var ICON_PIN_OFF  = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>';
+      var ICON_TRASH    = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
+
       function buildPresetRow(preset, data) {
         var row = document.createElement('div');
-        row.style.cssText = 'display:flex;align-items:center;gap:4px;padding:5px 0;border-bottom:1px solid var(--color-border);';
+        row.style.cssText = 'display:flex;align-items:center;gap:6px;padding:6px 4px;border-bottom:1px solid var(--color-border);border-radius:4px;transition:background 0.1s;';
+        row.onmouseenter = function() { row.style.background = 'var(--color-surface-2)'; };
+        row.onmouseleave = function() { row.style.background = ''; };
 
         var nameEl = document.createElement('span');
-        nameEl.style.cssText = 'flex:1;color:var(--color-text);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:text;';
-        nameEl.textContent = (preset.starred ? '★ ' : '') + preset.name;
+        nameEl.style.cssText = 'flex:1;color:var(--color-text);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:text;display:flex;align-items:center;gap:5px;';
+        if (preset.starred) {
+          var starMark = document.createElement('span');
+          starMark.innerHTML = ICON_STAR_ON;
+          starMark.style.cssText = 'color:var(--color-amber);line-height:0;flex-shrink:0;';
+          nameEl.appendChild(starMark);
+        }
+        var nameText = document.createElement('span');
+        nameText.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+        nameText.textContent = preset.name;
+        nameEl.appendChild(nameText);
         nameEl.title = 'Click to rename';
         nameEl.onclick = function() {
           var input = document.createElement('input');
@@ -325,32 +350,37 @@
         };
         row.appendChild(nameEl);
 
-        function iconBtn(symbol, title, active, onClick) {
+        function iconBtn(iconOn, iconOff, title, active, onClick) {
           var b = document.createElement('button');
-          b.textContent = symbol;
+          b.innerHTML = active ? iconOn : iconOff;
           b.title = title;
-          b.style.cssText = 'background:none;border:none;cursor:pointer;font-size:12px;padding:0 3px;color:' + (active ? 'var(--color-accent)' : 'var(--color-text-3)') + ';';
+          b.style.cssText = 'display:flex;align-items:center;justify-content:center;width:20px;height:20px;background:none;border:none;border-radius:4px;cursor:pointer;padding:0;color:' + (active ? 'var(--color-accent)' : 'var(--color-text-3)') + ';transition:background 0.1s;';
+          b.onmouseenter = function() { b.style.background = 'var(--color-surface-3, rgba(255,255,255,0.06))'; };
+          b.onmouseleave = function() { b.style.background = 'none'; };
           b.onclick = onClick;
           return b;
         }
 
-        row.appendChild(iconBtn('📌', preset.pinned ? 'Unpin' : 'Pin', preset.pinned, function() {
+        row.appendChild(iconBtn(ICON_PIN_ON, ICON_PIN_OFF, preset.pinned ? 'Unpin' : 'Pin', preset.pinned, function() {
           preset.pinned = !preset.pinned;
           savePresets().then(renderPresetsList);
         }));
-        row.appendChild(iconBtn('★', preset.starred ? 'Unstar' : 'Star', preset.starred, function() {
+        row.appendChild(iconBtn(ICON_STAR_ON, ICON_STAR_OFF, preset.starred ? 'Unstar' : 'Star', preset.starred, function() {
           preset.starred = !preset.starred;
           savePresets().then(renderPresetsList);
         }));
 
         var applyBtn = document.createElement('button');
         applyBtn.textContent = 'Apply';
-        applyBtn.style.cssText = 'background:var(--color-accent-bg);border:1px solid var(--color-accent);border-radius:4px;color:var(--color-accent);padding:2px 6px;font-size:10px;font-family:var(--font-ui);cursor:pointer;';
+        applyBtn.style.cssText = 'background:var(--color-accent-bg);border:1px solid var(--color-accent);border-radius:4px;color:var(--color-accent);padding:3px 7px;font-size:10px;font-family:var(--font-ui);cursor:pointer;transition:background 0.1s;';
+        applyBtn.onmouseenter = function() { applyBtn.style.background = 'var(--color-accent)'; applyBtn.style.color = '#fff'; };
+        applyBtn.onmouseleave = function() { applyBtn.style.background = 'var(--color-accent-bg)'; applyBtn.style.color = 'var(--color-accent)'; };
         applyBtn.onclick = function() {
           registerPresetAsTheme(preset);
           if (typeof KanvazUI_Extended !== 'undefined' && KanvazUI_Extended.setTheme) {
             KanvazUI_Extended.setTheme(preset.id);
           }
+          if (typeof KanvazUI !== 'undefined' && KanvazUI.toast) KanvazUI.toast('Theme applied: ' + preset.name, 'success');
         };
         row.appendChild(applyBtn);
 
@@ -364,10 +394,9 @@
         };
         row.appendChild(editBtn);
 
-        var delBtn = document.createElement('button');
-        delBtn.textContent = '✕';
-        delBtn.title = 'Delete preset';
-        delBtn.style.cssText = 'background:none;border:none;color:var(--color-text-3);font-size:11px;cursor:pointer;padding:0 3px;';
+        var delBtn = iconBtn(ICON_TRASH, ICON_TRASH, 'Delete preset', false, null);
+        delBtn.onmouseenter = function() { delBtn.style.background = 'var(--color-red-bg)'; delBtn.style.color = 'var(--color-red)'; };
+        delBtn.onmouseleave = function() { delBtn.style.background = 'none'; delBtn.style.color = 'var(--color-text-3)'; };
         delBtn.onclick = function() {
           data.presets = data.presets.filter(function(p) { return p.id !== preset.id; });
           storageCache = data;

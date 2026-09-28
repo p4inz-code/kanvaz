@@ -126,6 +126,30 @@
   padding: 0;
 }
 
+/* Direct request: remove the browser's default keyboard-focus outline
+   everywhere, no exceptions ("remove that if possible") — the yellow
+   ring that appeared on toolbar/tool buttons after a keypress. Kanvaz's
+   own selected/active states (`.selected`, `.scratch-tool-active`,
+   `.view-toggle-active`, etc.) already give visible feedback without it. */
+*:focus, *:focus-visible {
+  outline: none !important;
+}
+
+/* Direct request: no native OS chrome anywhere, including a number
+   input's native up/down spinner arrows — every numeric field in this
+   app is either typed into directly or drag-scrubbed (see properties.js's
+   makeScrubbable and cards.js's Transform fields), never incremented via
+   a native stepper control that looks nothing like the rest of the UI. */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
 html, body {
   width: 100%;
   height: 100%;
@@ -217,6 +241,11 @@ html, body {
   transition: width 0.15s ease;
   font-size: 13px;
   color: var(--color-text);
+  /* Perf: hints the compositor to promote this to its own layer for the
+     width transition instead of repainting from scratch each frame —
+     the other half of the "lil lag in side panel open/close" fix,
+     alongside the debounced settings write in sidepanel.js/ui.js. */
+  will-change: width;
 }
 
 /* Collapsed = zero width, not display:none — a CSS class (not the
@@ -951,6 +980,173 @@ body.presentation-mode-active #side-panel {
   outline-offset: 2px;
 }
 
+/* Node notes (direct request) — "like a comment reply", only visible
+   once a note actually exists; the toggle badge is the always-present
+   entry point (dimmed until hover so it doesn't clutter an empty node). */
+.map-node-note-toggle {
+  position: absolute;
+  left: 50%;
+  bottom: -9px;
+  transform: translateX(-50%);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 10px;
+  line-height: 1;
+  z-index: 3;
+  color: var(--color-text-3);
+  /* Bug fix, direct feedback: this used to default to opacity:0 (fully
+     invisible until hover) — "lighten the almost invisible color too...
+     giving default professional settings is our lookout." A discoverable
+     affordance has to be visible at rest, even dimly, or a first-time
+     user has no way to know it exists at all. Now a real, dim-but-real
+     0.45 at rest, brightening to 1 on hover — same "quiet until you
+     look for it, never literally gone" treatment used elsewhere in this
+     app (e.g. the Layers panel's star/pin icons). */
+  opacity: 0.45;
+  transition: opacity 0.12s;
+}
+
+.map-node-note {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  width: 100%;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 10px;
+  font-family: var(--font-ui);
+  line-height: 1.4;
+  color: var(--color-text-2);
+  white-space: pre-wrap;
+  word-break: break-word;
+  cursor: text;
+  max-height: 72px;
+  overflow: auto;
+  z-index: 4;
+  display: none;
+}
+
+/* Custom checkbox (Task Tracker) — direct request: no native/white OS
+   chrome anywhere. Plain `accent-color` still lets the browser draw its
+   own native box/border underneath (visibly white/light against this
+   app's dark theme); `appearance:none` replaces it entirely with a
+   themed box + a hand-drawn checkmark, same flat line-icon language as
+   every other custom control in this app. */
+.kanvaz-checkbox {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex-shrink: 0;
+  border: 1.5px solid var(--color-border-2);
+  border-radius: 4px;
+  background: var(--color-surface-2);
+  cursor: pointer;
+  position: relative;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.kanvaz-checkbox:hover {
+  border-color: var(--color-accent);
+}
+
+.kanvaz-checkbox:checked {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.kanvaz-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.kanvaz-checkbox:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+/* A gated parent task (subtasks exist, done is derived) shows a small
+   neutral dash instead of a checkmark while NOT done, so it visibly
+   reads as "automatic" rather than "you could check this yourself" —
+   distinct from a plain unchecked box. */
+.kanvaz-checkbox.kanvaz-checkbox-gated:not(:checked)::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 6.5px;
+  width: 8px;
+  height: 2px;
+  background: var(--color-text-3);
+  border-radius: 1px;
+}
+
+/* Wraps the editing textarea + Done button — takes over the same
+   position/size .map-node-note itself uses at rest, since the textarea
+   is no longer a direct, self-positioned child of the node while
+   actively editing (see map-view.js's startEditNote). */
+.map-node-note-edit-wrap {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  width: 100%;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.map-node-note-editing {
+  display: block !important;
+  position: static;
+  width: 100%;
+  height: 60px;
+  resize: none;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-accent);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 10px;
+  font-family: var(--font-ui);
+  line-height: 1.4;
+  color: var(--color-text);
+  outline: none;
+}
+
+.map-node-note-done {
+  align-self: flex-end;
+  padding: 4px 10px;
+  background: var(--color-accent);
+  border: none;
+  border-radius: 5px;
+  color: #fff;
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.1s;
+}
+
+.map-node-note-done:hover {
+  opacity: 0.85;
+}
+
 /* Alignment guides (5.2.0) — children of #canvas-world, so they inherit
    its pan/zoom transform and land in the same world-space coordinates
    as the cards they align against. Deliberately huge fixed length
@@ -1123,13 +1319,18 @@ body.presentation-mode-active #side-panel {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  /* Bumped from 24px to match the side-panel rail's own 30px buttons
+     (.rail-btn) — direct feedback that the Scratch toolbar read too small
+     for full-screen use. Icon SVGs themselves are bumped in index.html
+     too (14 -> 18) so they scale with the bigger hit area, not just sit
+     in more empty padding. */
+  width: 30px;
+  height: 30px;
   padding: 0;
   color: var(--color-text-3);
   background: transparent;
   border: none;
-  border-radius: 5px;
+  border-radius: 6px;
   cursor: pointer;
   transition: background 0.12s, color 0.12s;
 }
@@ -1160,6 +1361,30 @@ body.presentation-mode-active #side-panel {
   border-radius: 5px;
   background: none;
   cursor: pointer;
+}
+
+.scratch-color-swatch-lg {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+}
+
+/* Eraser cursor — a hollow circle, sized to the eraser's actual hit
+   radius (set live from scratch-board.js), following the pointer while
+   the eraser tool is armed. Plain DOM element rather than a CSS `cursor:`
+   image since it needs to resize as the width slider changes. */
+#scratch-eraser-cursor {
+  position: fixed;
+  border: 1.5px solid var(--color-accent);
+  border-radius: 50%;
+  background: rgba(124, 92, 252, 0.08);
+  pointer-events: none;
+  z-index: 500;
+  transform: translate(-50%, -50%);
+}
+
+#scratch-eraser-cursor[hidden] {
+  display: none;
 }
 
 .scratch-num-label {
@@ -2459,6 +2684,57 @@ body.presentation-mode-active #side-panel {
   color: var(--color-text-3);
 }
 
+/* Text card mini toolbar (font-size stepper + color swatch), shown only
+   while actively editing this card's text — see buildTextCard's comment
+   for why this exists alongside the same controls in Properties. */
+.text-mini-toolbar {
+  display: none;
+  position: absolute;
+  top: -38px;
+  left: 0;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  padding: 4px 5px;
+  box-shadow: 0 4px 16px var(--color-shadow);
+  z-index: 20;
+}
+
+.text-mini-toolbar.visible {
+  display: flex;
+}
+
+.text-mini-toolbar button {
+  width: 24px;
+  height: 22px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  color: var(--color-text-2);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.text-mini-toolbar button:hover {
+  background: var(--color-surface-3, rgba(255,255,255,0.06));
+  color: var(--color-text);
+}
+
+.text-mini-toolbar input[type="color"] {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+}
+
 /* ── Video card ── */
 .card-video > video {
   display: block;
@@ -3220,6 +3496,17 @@ body.presentation-mode-active #side-panel {
   animation: about-card-in 0.2s cubic-bezier(0.16,1,0.3,1);
 }
 
+/* Direct feedback: "make export as screen bit bigger its so compact" —
+   the plain 480px confirm-dialog width read as cramped once a real form
+   (format/quality/size rows) is inside it. Applied only while that form
+   is showing (showExportPicker toggles this class), so a normal Yes/No
+   confirm keeps its original compact size. */
+.dialog-box-wide {
+  min-width: 420px;
+  max-width: 560px;
+  padding: 28px;
+}
+
 .dialog h2 {
   font-size: 15px;
   font-weight: 600;
@@ -3257,6 +3544,78 @@ body.presentation-mode-active #side-panel {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+/* Export-as-format picker (showExportPicker, app.js) */
+.dialog-export-form {
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.dialog-export-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dialog-export-row label {
+  width: 56px;
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--color-text-2);
+}
+
+.dialog-export-row select {
+  flex: 1;
+  padding: 6px 8px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-2);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-family: var(--font-ui);
+  font-size: 12px;
+}
+
+.dialog-export-row input[type="range"] {
+  flex: 1;
+  accent-color: var(--color-accent);
+}
+
+.dialog-export-row span {
+  width: 36px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-2);
+}
+
+.dialog-link-form {
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.dialog-link-url {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-accent);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-2);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+.dialog-link-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-text-2);
+  cursor: pointer;
+  user-select: none;
 }
 
 .btn {

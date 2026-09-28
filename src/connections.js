@@ -26,11 +26,27 @@ var KanvazConnections = (function() {
     'AlternativeTo',
     'Supports',
     'UsedIn',
-    'References'
+    'References',
+    /* Direct request: connections should support "direction and label
+       both optional" — Plain is a real type like any other (goes through
+       the exact same create/serialise/type-picker path), it just carries
+       no relationship meaning. typeColor()/typeLabel() in map-view.js and
+       inspector.js already fall back to a neutral gray + the bare word
+       for any type they don't have a specific color for, so this needed
+       no changes there. */
+    'Plain'
   ];
 
   /* ── State ── */
   var connections = {};   /* id → connection object */
+
+  /* Direct request: a node can connect to up to 8 others, "incoming or
+     outgoing, no matter — 8 per node" (total connections touching it,
+     either direction combined). Enforced at every creation entry point
+     (Map View's drag-to-wire gesture and the Inspector's "Add
+     connection" dialog) via canAddConnection(), below — never silently
+     allowed past 8 and cleaned up later. */
+  var MAX_CONNECTIONS_PER_NODE = 8;
 
   /* ── Helpers ── */
 
@@ -131,6 +147,20 @@ var KanvazConnections = (function() {
     return out;
   }
 
+  /* True if creating a NEW connection between these two refs would keep
+     both of them at or under MAX_CONNECTIONS_PER_NODE. A duplicate
+     from/to/type (create()'s own de-dupe, above) doesn't count as new,
+     so re-picking the same relationship never falsely trips the cap. */
+  function canAddConnection(fromRefId, toRefId) {
+    if (!fromRefId || !toRefId || fromRefId === toRefId) return false;
+    for (var k in connections) {
+      var existing = connections[k];
+      if (existing.fromRefId === fromRefId && existing.toRefId === toRefId) return true;
+    }
+    return getAll(fromRefId).length < MAX_CONNECTIONS_PER_NODE &&
+           getAll(toRefId).length   < MAX_CONNECTIONS_PER_NODE;
+  }
+
   function getByType(type) {
     var out = [];
     for (var k in connections) {
@@ -212,6 +242,8 @@ var KanvazConnections = (function() {
 
   return {
     CONNECTION_TYPES: CONNECTION_TYPES,
+    MAX_CONNECTIONS_PER_NODE: MAX_CONNECTIONS_PER_NODE,
+    canAddConnection: canAddConnection,
     create:          create,
     remove:          remove,
     update:          update,

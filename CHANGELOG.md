@@ -2,7 +2,224 @@
 
 All notable changes to Kanvaz are documented here.
 
-## [9.5.0] — 2026-09-23 — Scratch Board: third view, board-wide annotations, Illustrator-style tools
+## [9.6.0] — 2026-09-28 — Map View overlap actually fixed, external-link confirmation, BMP export, Windows dialog-freeze fix
+
+*Second pass on top of 9.5.2, all found live during the owner's own manual
+testing of that build. Every fix below was root-caused against the real
+reported symptom (not guessed-and-patched) and re-verified live via CDP —
+several against a copy of a real production board file, not synthetic
+test data. Static suites (lint, full validate) pass clean throughout.*
+
+### Fixed
+
+- **Map View node/port overlap, for real this time.** The 9.5.2 fix only
+  addressed the hover/selection ring; the actual cause was the type-color
+  accent stripe running the node's full height straight through the port
+  dot's own rounded edge, so the stripe's straight corner peeked out past
+  the port's curve right where the connection wire lands. Split the
+  stripe into two segments with a gap centered on the port — no more
+  visual collision, regardless of selection state.
+- **Properties panel kept showing a card's data after it was deselected**
+  (e.g. clicking empty Map View canvas). Two-part bug: `properties.js`
+  only ever synced *to* a live selection, never *away* from one when it
+  went empty, and separately, Map View's own deselect path never told
+  `KanvazCards` about it at all — so the "live selection" it should have
+  synced to was itself stale. Both fixed.
+- **A video card's right-click export said "Quick export as PNG" with no
+  indication it's a still frame**, not the whole clip (Kanvaz still has
+  no real video encoder — see the ROADMAP note on why that's out of
+  scope). Correct behavior, misleading label — now says "current frame"
+  for video cards, and the "Export as…" dialog spells it out too.
+- **Windows played a system "ding" on ordinary clicks in the Kanvaz
+  window.** Root cause: every native file dialog in the app (Open, Save,
+  Import, Relink Media, profile export/import, plugin load — 14 call
+  sites) used Electron's *synchronous* dialog API, which is a documented
+  Windows-specific issue (electron/electron#802): it freezes the entire
+  main process and stops the parent window repainting/responding for as
+  long as the dialog is open. Clicking a window Windows considers
+  "frozen behind a modal" is exactly what triggers that sound. Converted
+  every dialog call to the async (Promise-based) form — the window can
+  no longer freeze like that.
+- **Profile picture "save" silently did nothing on failure** (and gave no
+  confirmation on success either) — the IPC call had no `.catch()` and
+  never checked `res.ok`. Added proper success/error toasts end-to-end.
+- **Map View's per-node note toggle icon was invisible at rest**
+  (`opacity: 0`) by design intent, but direct feedback overruled that:
+  defaults must look intentional out of the box regardless of theme —
+  changed to a dim-but-visible 0.45.
+- **Side panel now always starts closed on launch.** It used to restore
+  whatever open/closed state the *previous* session ended in — since a
+  work session usually ends with some panel open, that meant almost
+  every launch opened straight into it. Boot always starts collapsed
+  now; the last-active *section* is still remembered for whenever the
+  panel is opened.
+- A lil lag in side panel open/close: every toggle wrote the full
+  settings.json to disk *and* re-ran the entire unrelated settings-apply
+  sweep (theme, minimap, grid style, …) synchronously, even though
+  opening/closing the panel only touches two fields nothing else reads.
+  Debounced and decoupled from that sweep.
+
+### Added
+
+- **Discord-style confirmation before any embedded link opens** ("this
+  leaves Kanvaz for your browser — proceed?"), with a "Don't ask me
+  again" checkbox, on What's New entries, URL-card opens, the About
+  screen's GitHub link, and note markdown links (which turned out to be
+  silently dead before this — Electron's own navigation guard blocked
+  them with no fallback). Deliberately excludes Check for Updates, which
+  is its own already-disclosed, already-deliberate action.
+- **BMP added to the export-as-format converter** (now PNG/JPEG/WEBP/BMP)
+  — a hand-written 24-bit encoder, since `canvas.toDataURL()` itself only
+  ever produces the first three. True GIF/TIFF/AVIF would need a real
+  image-encoding dependency this app doesn't carry; out of scope for now,
+  same call as video-to-video conversion.
+- Export-as… dialog widened (480px → 560px) — direct feedback that the
+  format/quality/size form read as cramped in the old confirm-dialog size.
+- Background-style toolbar button (Scratch Board) now shows a *next-state
+  preview* icon — what clicking it switches TO, not the current style —
+  matching the convention other creative tools already use for this kind
+  of cycle button.
+- Scratch Board's "Clean board" icon redrawn a third time as a plain
+  trash-can silhouette — two prior hand-drawn broom attempts both still
+  read as illegible at 18px toolbar size.
+- MCP Bridge: 8 new tools mirroring the Task Tracker (`listTasks`,
+  `addTask`, `deleteTask`, `toggleTask`, `addSubtask`, `toggleSubtask`,
+  `deleteSubtask`, `setTaskCardLink`); `connectCards`'s type enum gained
+  `Plain`, matching Map View's new no-label connection type. Bumped to
+  v1.4.0.
+- Task deletion now asks for confirmation first (Delete/Cancel), matching
+  every other destructive action in the app.
+
+### Changed
+
+- **3D model size cap raised 150MB → 250MB** — real production
+  game/VFX assets routinely exceed the old limit.
+
+## [9.5.2] — 2026-09-27 — Task Tracker v1, Map View connections/notes, Scratch Board polish, a real preview-quality bug fix
+
+*Built in one session from a large, mixed batch of direct requests and a
+locked 10-question Q&A spec (Task Tracker). Static suites (lint, full
+validate — 40+ sections including three new/updated test files) all pass
+clean; every new interactive feature below was also exercised live via
+CDP against a real running instance (not just read) before being called
+done. **Not released** — the owner is doing a full manual pass themselves
+first, same as always; nothing here has been tagged, published, or
+pushed.*
+
+### Added
+
+- **Task Tracker (v1)**, spec locked via a 10-question Q&A (see
+  `docs/ROADMAP.md`): a new side-panel rail icon, reachable from any
+  view. One flat, file-level task list — text, done/not-done, an
+  optional link to one card (click jumps to its board and zooms to it),
+  up to 5 subtasks per task. Subtasks gate the parent's done state, but
+  only once at least one exists. Progress shown as count + percent bar.
+  Deletable tasks/subtasks. No undo/redo for v1 (same call already made
+  for Scratch Board's strokes). Custom-themed checkboxes throughout (no
+  native OS checkbox chrome), toast confirmations on completion.
+- **Map View**: nodes can now connect to up to 8 others (either
+  direction, enforced at both creation points — the drag-to-wire gesture
+  and the Inspector's "Add connection" dialog); a new `Plain` connection
+  type for a link with no relationship label. Per-node notes — shown
+  only once a node actually has one (a small toggle badge is the always-
+  present entry point), rendered as a child of the node so it tracks
+  drag automatically; a toast confirms save/removal. Nodes now snap to
+  the same grid Board-view cards already do (reuses `KanvazCards.
+  snapToGrid()`, respects the existing Settings toggle/increment).
+- **Scratch Board**: strokes/background changes now share the SAME
+  undo/redo history as cards and connections (direct request — a bad
+  annotation stroke is now a plain Ctrl+Z, not something only the eraser
+  can fix). Number-key shortcuts 1-7 for the seven drawing tools
+  (matches toolbar order), V still toggles Select. A real eraser cursor
+  — a hollow circle sized to the eraser's actual hit radius, which is
+  now tied to the brush-width slider instead of a fixed invisible 16px.
+  Grid color and line color are now two permanently separate, clearly-
+  labeled swatches in Properties (an accent dot marks whichever one the
+  current background style actually uses) instead of one swatch whose
+  meaning silently changed with the style. Toolbar buttons/icons bumped
+  30px to match the side-panel rail's own size; color swatch bumped to
+  28px; the "Clean board" broom icon redrawn a second time with a real
+  closed fan-shaped head instead of the old kite-shaped one.
+- **Text cards**: font-size (10-72px) and text color, adjustable from
+  Properties and from a small in-place mini-toolbar that appears while
+  actively editing the card.
+- **Annotate (per-card)**: brush width is now adjustable from Properties
+  (1-24px numeric input), not just the floating toolbar's 3 preset
+  buttons — same split Scratch Board's own Width row already used.
+- **Export-as-format (a real offline converter)**: right-click one or
+  more selected image/GIF/video cards → "Quick export as PNG" (one
+  click) or "Export as…" (a custom format+quality picker dialog, same
+  no-native-file-picker convention as everywhere else in this app).
+  Single card uses the existing Save-As path; multiple cards prompt once
+  for a destination folder and write one file per card.
+- **Side panel**: Insert now toggles the panel open (to whichever
+  section was last active) or closed, matching the existing S-key
+  toggle semantics; PageUp/PageDown cycle between sections while it's
+  open. `P` stays bound to Pin, untouched, per direct instruction.
+- Global focus-outline removal — the browser's default yellow
+  keyboard-focus ring is gone everywhere; every custom control that
+  needs its own focus cue now has one via `:focus` border-color changes
+  instead of relying on the native ring.
+
+### Fixed
+
+- **3D/PDF preview quality (Low/Medium/High) had no effect on an
+  ordinary, non-HiDPI display.** Root cause: both were computed as
+  `Math.min(nativeDevicePixelRatio, levelCap)` — on any screen with
+  `devicePixelRatio === 1` (the common case), all three levels collapsed
+  to the same number, so the setting could never produce a visible
+  difference there, only on Retina/HiDPI screens. Fixed by making each
+  level a real multiplier on the native ratio (Low ≈0.5x, Medium =
+  native, High ≈1.5x, still capped at 3 overall) — every level now
+  differs on every display. Covered by a new unit test
+  (`test/preview-quality-test.js`, updated).
+- **Template Maker & Manager's "Rename" used `window.prompt()`** — a
+  native OS dialog, breaking this app's own "no native dialogs anywhere"
+  rule. Replaced with an inline rename (same in-place-input convention
+  every other rename in the app already uses).
+- Format audit (direct request, PSD/AI): confirmed real, not broken —
+  RLE/raw PSD composites and PDF-compatible AI files decode correctly
+  (already covered by `test/*-preview-test.js`); a ZIP-compressed PSD
+  composite (the one real gap) returns an honest "cannot decode" reason
+  instead of crashing, hanging, or silently failing — same disclosed-
+  limitation pattern already used for HDR/EXR. Left as-is rather than
+  removing a format that demonstrably works for the common case, or
+  shipping a rushed, unvalidated ZIP-stream decoder without a real file
+  to validate it against.
+
+### Changed
+
+- Official plugins (Theme Creator, Template Maker & Manager — MCP
+  Bridge untouched, per instruction): visual pass to match the main
+  app's design language — emoji glyphs (📌★✕) replaced with the same
+  Feather-icon SVGs the Layers panel uses, hover states added to preset
+  rows and icon buttons. Both bumped a version (1.0.0→1.1.0, 1.1.0→1.2.0).
+
+## [9.5.1] — 2026-09-27 — Studio rebrand: Northbyte Studios → P4inz Interactive Labs
+
+Permanent rename, not a placeholder. Every forward-facing display of the
+studio name — LICENSE copyright, `package.json` `author`/`build.copyright`,
+README, About screen, THIRD_PARTY_NOTICES.md, `docs/PLUGIN_AUTHORING.md`,
+official-plugin `author` fields and their catalog entries, the project
+overview PDF generator, and the public docs/donate site — now reads
+"P4inz Interactive Labs". The three-part credit line is now "Atharva Patil
+| P4inz | P4inz Interactive Labs", same order as before.
+
+**Deliberately left untouched:** every past CHANGELOG/release-note entry
+(historical record of what shipped under the old name at the time),
+git history, and every permanent identifier that happens to contain the
+old name in slug form — `package.json`'s `build.appId`
+(`com.northbytestudios.kanvaz`) and the official plugins' `id`/
+`PLUGIN_ID` values (`studio.northbyte.*`) — renaming those would be a
+breaking change to installed-app identity and plugin loading, not a
+branding update.
+
+### Changed
+
+- Studio display name renamed everywhere it's shown to a person, per the
+  above.
+
+ — 2026-09-23 — Scratch Board: third view, board-wide annotations, Illustrator-style tools
 
 *This entry covers two passes the same night: an initial static-only
 build, then a live pass (Electron launched with `--remote-debugging-
