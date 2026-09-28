@@ -41,6 +41,10 @@ If you've used PureRef and wanted more than static images, or tried a cloud mood
 
 ---
 
+<p align="center">
+  <img src="assets/gif-card-creation-v9.6.0.gif" alt="Kanvaz walkthrough — home screen, starting a new board, and dropping in a card, live" width="100%">
+</p>
+
 <table>
 <tr>
 <td width="50%" align="center">
