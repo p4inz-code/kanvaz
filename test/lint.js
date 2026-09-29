@@ -18,19 +18,40 @@ var path = require('path');
 var SRC = path.join(__dirname, '..', 'src');
 var ROOT = path.join(__dirname, '..');
 
+/* Official plugins' RENDERER-side files (main.js) load into the exact
+   same Electron renderer as everything in src/, so this project's own
+   var-only/no-forEach/no-inline-onclick conventions apply to them too —
+   this was a real, previously-uncaught gap (lint.js only ever scanned
+   src/, so these three files had never been checked once). Deliberately
+   excludes mcp-bridge/server.js: that one is a standalone Node/ESM
+   process, not renderer code, and correctly uses modern const/let/arrow
+   syntax on purpose — the var-only rule was never meant to apply there. */
+var PLUGIN_RENDERER_FILES = [
+  'official-plugins/theme-creator/main.js',
+  'official-plugins/template-maker/main.js',
+  'official-plugins/mcp-bridge/main.js'
+];
+
 var errors = [];
 var warnings = [];
 
 function err(file, line, msg)  { errors.push({ file: file, line: line, msg: msg }); }
 function warn(file, line, msg) { warnings.push({ file: file, line: line, msg: msg }); }
 
+/* Returns display-friendly relative paths (e.g. "app.js" for src/ files,
+   "official-plugins/theme-creator/main.js" for plugin files) — eachLine()
+   below resolves each back to a real filesystem path itself. */
 function jsFiles() {
-  return fs.readdirSync(SRC).filter(function(f) { return f.endsWith('.js'); });
+  var srcFiles = fs.readdirSync(SRC).filter(function(f) { return f.endsWith('.js'); });
+  return srcFiles.concat(PLUGIN_RENDERER_FILES);
+}
+
+function resolveFile(file) {
+  return PLUGIN_RENDERER_FILES.indexOf(file) !== -1 ? path.join(ROOT, file) : path.join(SRC, file);
 }
 
 function eachLine(file, cb) {
-  var full = path.join(SRC, file);
-  var lines = fs.readFileSync(full, 'utf8').split('\n');
+  var lines = fs.readFileSync(resolveFile(file), 'utf8').split('\n');
   for (var i = 0; i < lines.length; i++) cb(lines[i], i + 1);
 }
 
@@ -105,7 +126,7 @@ function checkVersion() {
 /* ---- 4. Unguarded JSON.parse of external data ---- */
 function checkJsonParse() {
   jsFiles().forEach(function(file) {
-    var full = path.join(SRC, file);
+    var full = resolveFile(file);
     var lines = fs.readFileSync(full, 'utf8').split('\n');
     for (var i = 0; i < lines.length; i++) {
       var line = lines[i];

@@ -56,7 +56,7 @@
   var statusRenderers = [];
 
   function notifyStatus() {
-    statusRenderers.forEach(function(fn) { fn(); });
+    for (var sri = 0; sri < statusRenderers.length; sri++) statusRenderers[sri]();
   }
 
   /* ── Card sanitization for anything crossing the bridge ──
@@ -196,6 +196,52 @@
     var conn = KanvazConnections.create(fromId, toId, type);
     if (!conn) throw new Error('could not create connection — check that fromId/toId are real, distinct card ids');
     return conn;
+  }
+
+  /* 9.7.0 — connectCards had no counterpart: a tool could create a
+     connection but never remove one, so undoing a bad wire meant asking
+     the user to do it by hand in the UI. Same direct-module-call
+     precedent as connectCards above. */
+  function removeConnection(connId) {
+    if (typeof KanvazConnections === 'undefined') throw new Error('Connections module unavailable');
+    KanvazConnections.remove(connId);
+    return { ok: true };
+  }
+
+  /* 9.7.0 — group/align/distribute/tidy: real, everyday board-organizing
+     operations the UI's own Properties panel exposes (multi-select ->
+     Align/Distribute Evenly/Tidy Up), previously reachable by a human
+     but not by an AI client at all. Same "call KanvazCards directly"
+     pattern as everything else in this file — no KanvazPluginAPI wrapper
+     needed, this sandbox already has it in scope. */
+  function requireCards() {
+    if (typeof KanvazCards === 'undefined') throw new Error('Cards module unavailable');
+    return KanvazCards;
+  }
+  function groupCards(ids) {
+    if (!Array.isArray(ids) || ids.length < 2) throw new Error('groupCards needs at least 2 card ids');
+    requireCards().groupCards(ids);
+    return { ok: true };
+  }
+  function ungroupCards(ids) {
+    if (!Array.isArray(ids) || !ids.length) throw new Error('ungroupCards needs at least 1 card id');
+    requireCards().ungroupCards(ids);
+    return { ok: true };
+  }
+  function alignCards(ids, mode) {
+    if (!Array.isArray(ids) || ids.length < 2) throw new Error('alignCards needs at least 2 card ids');
+    requireCards().alignCards(ids, mode);
+    return { ok: true };
+  }
+  function distributeCards(ids, axis) {
+    if (!Array.isArray(ids) || ids.length < 3) throw new Error('distributeCards needs at least 3 card ids (nothing to distribute with fewer)');
+    requireCards().distributeCards(ids, axis);
+    return { ok: true };
+  }
+  function tidyUp(ids) {
+    if (!Array.isArray(ids) || !ids.length) throw new Error('tidyUp needs at least 1 card id');
+    requireCards().tidyUp(ids);
+    return { ok: true };
   }
 
   /* ── Task Tracker (9.5.2) ── Same "call the real module directly"
@@ -344,8 +390,16 @@
       case 'addReference':    return addReference(args);
       case 'tagCard':         return tagCard(args.id, args.tags);
       case 'search':          return search(args.query);
-      case 'getConnections':  return MCP_API.getConnections();
-      case 'connectCards':    return connectCards(args.fromId, args.toId, args.type);
+      case 'getConnections':   return MCP_API.getConnections();
+      case 'connectCards':     return connectCards(args.fromId, args.toId, args.type);
+      case 'removeConnection': return removeConnection(args.id);
+
+      /* Group / align / distribute / tidy (9.7.0) */
+      case 'groupCards':       return groupCards(args.ids);
+      case 'ungroupCards':     return ungroupCards(args.ids);
+      case 'alignCards':       return alignCards(args.ids, args.mode);
+      case 'distributeCards':  return distributeCards(args.ids, args.axis);
+      case 'tidyUp':           return tidyUp(args.ids);
 
       /* Card extras (4.5.0) */
       case 'flipCard':          MCP_API.flipCard(args.id, args.axis); return { ok: true };

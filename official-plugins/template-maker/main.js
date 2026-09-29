@@ -179,7 +179,8 @@
           myList.appendChild(empty);
           return;
         }
-        data.templates.forEach(function(tpl) {
+        for (var tmi = 0; tmi < data.templates.length; tmi++) {
+        (function(tpl) {
           var r = row(myList);
           var label = document.createElement('span');
           label.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:text;';
@@ -264,7 +265,8 @@
               { label: 'Cancel', cls: '', action: function() {} }
             ]);
           }, 'danger'));
-        });
+        })(data.templates[tmi]);
+        }
       });
     }
     renderMyTemplates();
@@ -296,7 +298,8 @@
           commList.textContent = 'No community templates listed yet.';
           return;
         }
-        result.catalog.forEach(function(entry) {
+        for (var cti = 0; cti < result.catalog.length; cti++) {
+        (function(entry) {
           var r = row(commList);
           var label = document.createElement('span');
           label.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
@@ -326,7 +329,8 @@
               });
             });
           }));
-        });
+        })(result.catalog[cti]);
+        }
       }).catch(function(e) {
         commList.textContent = 'Could not fetch the catalog: ' + e.message;
       });

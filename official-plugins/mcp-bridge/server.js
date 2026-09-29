@@ -124,7 +124,7 @@ function tool(method) {
   };
 }
 
-const server = new McpServer({ name: 'kanvaz-mcp-bridge', version: '1.4.0' });
+const server = new McpServer({ name: 'kanvaz-mcp-bridge', version: '1.5.0' });
 
 server.registerTool('getActiveBoard', {
   title: 'Get active board',
@@ -243,6 +243,52 @@ server.registerTool('connectCards', {
     type: z.enum(['RelatedTo', 'InspiredBy', 'DerivedFrom', 'AlternativeTo', 'Supports', 'UsedIn', 'References', 'Plain']).optional()
   }
 }, tool('connectCards'));
+
+server.registerTool('removeConnection', {
+  title: 'Remove connection',
+  description: 'Deletes a connection by its id (see getConnections for ids).',
+  inputSchema: { id: z.string() }
+}, tool('removeConnection'));
+
+/* ── Group / align / distribute / tidy (9.7.0) — the same multi-select
+   operations the Properties panel exposes to a human, now reachable
+   from an MCP client too. ── */
+
+server.registerTool('groupCards', {
+  title: 'Group cards',
+  description: 'Groups 2+ cards so they move/resize together, same as Ctrl+G.',
+  inputSchema: { ids: z.array(z.string()).min(2) }
+}, tool('groupCards'));
+
+server.registerTool('ungroupCards', {
+  title: 'Ungroup cards',
+  description: 'Removes the group membership of the given cards, same as Ctrl+Shift+G.',
+  inputSchema: { ids: z.array(z.string()).min(1) }
+}, tool('ungroupCards'));
+
+server.registerTool('alignCards', {
+  title: 'Align cards',
+  description: 'Aligns 2+ cards to a shared edge or center.',
+  inputSchema: {
+    ids: z.array(z.string()).min(2),
+    mode: z.enum(['left', 'right', 'center-h', 'top', 'bottom', 'middle-v'])
+  }
+}, tool('alignCards'));
+
+server.registerTool('distributeCards', {
+  title: 'Distribute cards evenly',
+  description: 'Spaces 3+ cards evenly along one axis, same as the Properties panel\'s "Distribute Evenly".',
+  inputSchema: {
+    ids: z.array(z.string()).min(3),
+    axis: z.enum(['x', 'y'])
+  }
+}, tool('distributeCards'));
+
+server.registerTool('tidyUp', {
+  title: 'Tidy up cards',
+  description: 'Auto-arranges the given cards into a clean, non-overlapping grid, same as the Properties panel\'s "Tidy Up".',
+  inputSchema: { ids: z.array(z.string()).min(1) }
+}, tool('tidyUp'));
 
 /* ── Card extras (4.5.0) ── */
 

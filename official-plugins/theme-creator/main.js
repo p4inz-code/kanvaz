@@ -164,7 +164,7 @@
   /* ── Registration ── */
 
   var draft = {};
-  COLOR_FIELDS.forEach(function(f) { draft[f.key] = KANVAZ_DEFAULTS[f.key]; });
+  for (var di = 0; di < COLOR_FIELDS.length; di++) draft[COLOR_FIELDS[di].key] = KANVAZ_DEFAULTS[COLOR_FIELDS[di].key];
 
   function previewDraft() {
     KanvazPluginAPI.registerTheme('__theme-creator-draft__', {
@@ -195,27 +195,29 @@
       grid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-bottom:10px;';
       container.appendChild(grid);
 
-      COLOR_FIELDS.forEach(function(f) {
-        var wrap = document.createElement('label');
-        wrap.style.cssText = 'display:flex;align-items:center;gap:6px;cursor:pointer;';
+      for (var cfi = 0; cfi < COLOR_FIELDS.length; cfi++) {
+        (function(f) {
+          var wrap = document.createElement('label');
+          wrap.style.cssText = 'display:flex;align-items:center;gap:6px;cursor:pointer;';
 
-        var input = document.createElement('input');
-        input.type = 'color';
-        input.value = draft[f.key];
-        input.style.cssText = 'width:26px;height:20px;border:1px solid var(--color-border);border-radius:4px;background:none;cursor:pointer;padding:0;';
-        input.addEventListener('input', function() {
-          draft[f.key] = input.value;
-          previewDraft();
-        });
+          var input = document.createElement('input');
+          input.type = 'color';
+          input.value = draft[f.key];
+          input.style.cssText = 'width:26px;height:20px;border:1px solid var(--color-border);border-radius:4px;background:none;cursor:pointer;padding:0;';
+          input.addEventListener('input', function() {
+            draft[f.key] = input.value;
+            previewDraft();
+          });
 
-        var lbl = document.createElement('span');
-        lbl.style.cssText = 'color:var(--color-text-2);font-size:11px;';
-        lbl.textContent = f.label;
+          var lbl = document.createElement('span');
+          lbl.style.cssText = 'color:var(--color-text-2);font-size:11px;';
+          lbl.textContent = f.label;
 
-        wrap.appendChild(input);
-        wrap.appendChild(lbl);
-        grid.appendChild(wrap);
-      });
+          wrap.appendChild(input);
+          wrap.appendChild(lbl);
+          grid.appendChild(wrap);
+        })(COLOR_FIELDS[cfi]);
+      }
 
       /* Save-as-preset row */
       var saveRow = document.createElement('div');
@@ -260,7 +262,7 @@
         if (typeof KanvazUI_Extended !== 'undefined' && KanvazUI_Extended.setTheme) {
           KanvazUI_Extended.setTheme('dark');
         }
-        COLOR_FIELDS.forEach(function(f) { draft[f.key] = KANVAZ_DEFAULTS[f.key]; });
+        for (var ri = 0; ri < COLOR_FIELDS.length; ri++) draft[COLOR_FIELDS[ri].key] = KANVAZ_DEFAULTS[COLOR_FIELDS[ri].key];
         renderColorInputs();
       };
       container.appendChild(resetBtn);
@@ -275,7 +277,7 @@
 
       function renderColorInputs() {
         var inputs = grid.querySelectorAll('input[type="color"]');
-        COLOR_FIELDS.forEach(function(f, i) { inputs[i].value = draft[f.key]; });
+        for (var ii = 0; ii < COLOR_FIELDS.length; ii++) inputs[ii].value = draft[COLOR_FIELDS[ii].key];
         previewDraft();
       }
 
@@ -293,9 +295,9 @@
             presetsListEl.appendChild(empty);
             return;
           }
-          sorted.forEach(function(preset) {
-            presetsListEl.appendChild(buildPresetRow(preset, data));
-          });
+          for (var si = 0; si < sorted.length; si++) {
+            presetsListEl.appendChild(buildPresetRow(sorted[si], data));
+          }
         });
       }
 
@@ -389,7 +391,10 @@
         editBtn.title = 'Load this preset\'s colors into the editor above';
         editBtn.style.cssText = 'background:none;border:none;color:var(--color-text-3);font-size:10px;font-family:var(--font-ui);cursor:pointer;text-decoration:underline;padding:0 3px;';
         editBtn.onclick = function() {
-          COLOR_FIELDS.forEach(function(f) { draft[f.key] = preset.colors[f.key] || KANVAZ_DEFAULTS[f.key]; });
+          for (var ei = 0; ei < COLOR_FIELDS.length; ei++) {
+            var ekey = COLOR_FIELDS[ei].key;
+            draft[ekey] = preset.colors[ekey] || KANVAZ_DEFAULTS[ekey];
+          }
           renderColorInputs();
         };
         row.appendChild(editBtn);
@@ -424,9 +429,9 @@
     KanvazPluginAPI.registerCommand('theme-creator.randomizePreview', {
       label: 'Theme Creator: Randomize Preview',
       run: function() {
-        COLOR_FIELDS.forEach(function(f) {
-          draft[f.key] = rgbToHex(Math.random() * 255, Math.random() * 255, Math.random() * 255);
-        });
+        for (var randi = 0; randi < COLOR_FIELDS.length; randi++) {
+          draft[COLOR_FIELDS[randi].key] = rgbToHex(Math.random() * 255, Math.random() * 255, Math.random() * 255);
+        }
         previewDraft();
         if (typeof KanvazUI !== 'undefined' && KanvazUI.toast) {
           KanvazUI.toast('Randomized theme preview — open Settings → Theme Creator to save it', 'success');
