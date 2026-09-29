@@ -1905,6 +1905,21 @@ var KanvazMapView = (function() {
     var cards = KanvazCards.getAll();
     var placedLabels = [];
 
+    /* Bundle connections by their unordered pair (A-B and B-A are the
+       same pair for this purpose) so each one in a shared-pair bundle
+       can be assigned an index and fanned apart below — see
+       bezierPath's own comment for why this exists. */
+    var pairBundles = {};
+    var pairKeyOf = function(c) {
+      return c.fromRefId < c.toRefId ? c.fromRefId + '|' + c.toRefId : c.toRefId + '|' + c.fromRefId;
+    };
+    for (var pk = 0; pk < conns.length; pk++) {
+      var key = pairKeyOf(conns[pk]);
+      (pairBundles[key] || (pairBundles[key] = [])).push(conns[pk]);
+    }
+
+    var FAN_SPACING = 26; /* px between adjacent parallel arcs */
+
     for (var j = 0; j < conns.length; j++) {
       var conn = conns[j];
       var fromCard = cards[conn.fromRefId];
@@ -1921,8 +1936,12 @@ var KanvazMapView = (function() {
       var dist = Math.sqrt(dx * dx + dy * dy);
       if (dist < 20) continue;
 
+      var bundle = pairBundles[pairKeyOf(conn)];
+      var bundleIdx = bundle.indexOf(conn);
+      var fanOffset = (bundleIdx - (bundle.length - 1) / 2) * FAN_SPACING;
+
       var color = KanvazMapViewUtils.typeColor(conn.type);
-      var d = KanvazMapViewUtils.bezierPath(op.x, op.y, ip.x, ip.y);
+      var d = KanvazMapViewUtils.bezierPath(op.x, op.y, ip.x, ip.y, fanOffset);
 
       /* Outer glow — soft wide halo */
       var glow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -2007,7 +2026,13 @@ var KanvazMapView = (function() {
       }
       var labelText = KanvazMapViewUtils.typeLabel(conn.type) + (devIds ? ' [' + conn.id + ']' : '');
       var mx = (op.x + ip.x) / 2;
-      var my = placeLabelY(mx, (op.y + ip.y) / 2 - 10, labelText.length * 5.6 + 4, placedLabels);
+      /* Base Y follows the same fan offset as the curve itself (~0.75x
+         the control-point offset at a cubic bezier's t=0.5 — close
+         enough for label placement) so each label starts near ITS OWN
+         arc instead of every connection in a bundle starting from the
+         identical point and leaning entirely on placeLabelY's collision
+         jitter to separate them. */
+      var my = placeLabelY(mx, (op.y + ip.y) / 2 - 10 + fanOffset * 0.75, labelText.length * 5.6 + 4, placedLabels);
       var label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       label.setAttribute('class', 'conn-label');
       label.setAttribute('x', mx);

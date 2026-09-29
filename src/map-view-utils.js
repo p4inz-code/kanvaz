@@ -70,8 +70,19 @@ var KanvazMapViewUtils = (function() {
   /* High-tension horizontal bezier — control points pull far out
      horizontally so the cable "pours" out of the port before curving.
      Minimum tension of 90px ensures short-distance connections still
-     look like cables not diagonal lines. */
-  function bezierPath(x1, y1, x2, y2) {
+     look like cables not diagonal lines.
+
+     Bug fix (found live via QA): two or more connections between the
+     SAME pair of cards (allowed — different types can coexist, up to
+     the 8-cap) all resolve to the exact same op/ip endpoints, so they
+     used to produce the byte-identical path string and render as one
+     fully overlapping tube with every label stacked at the same point
+     — unreadable, and easy to trigger for real (wire one relationship,
+     then add a second one later between the same two cards). `perpOffset`
+     bows just the control points — endpoints stay exactly on the real
+     ports — so each connection in a shared-pair bundle fans out into
+     its own visually distinct arc instead of hiding the others. */
+  function bezierPath(x1, y1, x2, y2, perpOffset) {
     var dx = x2 - x1;
     /* Tension is distance-proportional but floored at 90 and capped
        so very long connections don't look too stiff */
@@ -79,9 +90,10 @@ var KanvazMapViewUtils = (function() {
     /* When target is to the LEFT of source, increase tension further
        so the cable loops around gracefully */
     if (dx < 0) tension = Math.max(140, Math.abs(dx) * 0.7);
+    var off = perpOffset || 0;
     return 'M ' + x1 + ' ' + y1
-      + ' C ' + (x1 + tension) + ' ' + y1
-      + ', '  + (x2 - tension) + ' ' + y2
+      + ' C ' + (x1 + tension) + ' ' + (y1 + off)
+      + ', '  + (x2 - tension) + ' ' + (y2 + off)
       + ', '  + x2 + ' ' + y2;
   }
 
