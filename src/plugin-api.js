@@ -311,6 +311,15 @@ var KanvazPluginAPI = (function() {
     return KanvazConnections.serialise();
   }
 
+  /* Read-only, file-level (not per-board) — same "just hand back the
+     already-serialised shape" pattern as getConnections() above. Added
+     for the AI Export plugin, which needs the same data a saved
+     .kanvaz file's own `tasks` field carries. */
+  function getTasks() {
+    if (typeof KanvazTaskTracker === 'undefined') return [];
+    return KanvazTaskTracker.getAll();
+  }
+
   function getActiveBoard() {
     if (typeof KanvazBoards === 'undefined' || !KanvazBoards.getActiveBoardInfo) return null;
     return KanvazBoards.getActiveBoardInfo();
@@ -464,6 +473,16 @@ var KanvazPluginAPI = (function() {
       return Promise.resolve({ ok: false, error: 'unavailable in this build' });
     }
     return KanvazBridge.importTemplateFile();
+  }
+
+  /* AI Export plugin — same narrow disclosed-capability shape as
+     exportTemplateToFile above: one save dialog, writes exactly the
+     JSON/Markdown strings the plugin already built, nothing more. */
+  function exportAIData(payload) {
+    if (typeof KanvazBridge === 'undefined' || !KanvazBridge.exportAIData) {
+      return Promise.resolve({ ok: false, error: 'unavailable in this build' });
+    }
+    return KanvazBridge.exportAIData(payload);
   }
 
   function bringCardToFront(id) {
@@ -712,6 +731,7 @@ var KanvazPluginAPI = (function() {
     getCards: getCards,
     getSelected: getSelected,
     getConnections: getConnections,
+    getTasks: getTasks,
     getActiveBoard: getActiveBoard,
     updateCard: updateCard,
     setCardTags: setCardTags,
@@ -747,6 +767,7 @@ var KanvazPluginAPI = (function() {
     fetchTemplateContent: fetchTemplateContent,
     exportTemplateToFile: exportTemplateToFile,
     importTemplateFromFile: importTemplateFromFile,
+    exportAIData: exportAIData,
     /* Public — a plugin (e.g. a theme creator/editor) can call this
        directly to preview or switch to any registered theme, including
        a throwaway id it registered itself purely for a live-preview

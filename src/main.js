@@ -2686,6 +2686,36 @@ function registerIPC() {
     });
   });
 
+  /* AI Export plugin — one save dialog, two files written as siblings
+     (the JSON contract + its Markdown digest), same narrow disclosed-
+     capability shape as templates-export-file just above: this handler
+     only ever writes exactly the two strings the plugin already built,
+     never arbitrary plugin-chosen paths or content beyond that. The
+     plugin walks the board data and formats both strings itself (see
+     official-plugins/ai-export/main.js); main process's only job is
+     the save dialog + filesystem write. */
+  ipcMain.handle('ai-export-save-file', function(event, payload) {
+    if (!payload || typeof payload.json !== 'string' || typeof payload.markdown !== 'string') {
+      return Promise.resolve({ ok: false, error: 'nothing to export' });
+    }
+    var baseName = (typeof payload.baseName === 'string' && payload.baseName.trim())
+      ? payload.baseName.trim().replace(/[\\/:*?"<>|]/g, '_')
+      : 'kanvaz-ai-export';
+    return dialog.showSaveDialog(mainWindow, {
+      title: 'Export for AI Agent',
+      defaultPath: baseName + '.json',
+      filters: [{ name: 'JSON', extensions: ['json'] }]
+    }).then(function(res) {
+      if (!res || res.canceled || !res.filePath) return { ok: false, error: null, cancelled: true };
+      var jsonPath = res.filePath;
+      var mdPath = jsonPath.replace(/\.json$/i, '') + '.md';
+      return fs.promises.writeFile(jsonPath, payload.json, 'utf8')
+        .then(function() { return fs.promises.writeFile(mdPath, payload.markdown, 'utf8'); })
+        .then(function() { return { ok: true, jsonPath: jsonPath, mdPath: mdPath }; })
+        .catch(function(e) { return { ok: false, error: e.message }; });
+    });
+  });
+
   /* Export board/selection as PNG — takes a dataUrl already rendered in
      the renderer (KanvazCards.renderExportCanvas) and just writes the
      raw bytes to a user-chosen path. Same "renderer renders, main

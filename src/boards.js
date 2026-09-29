@@ -697,8 +697,21 @@ var KanvazBoards = (function() {
 
   /* ── Switch board ── */
 
+  /* Returns a Promise that resolves once the switch has REALLY finished
+     — not just accepted. The 20ms defer below is a genuine UI-
+     responsiveness trick (gives the "Loading board…" toast a chance to
+     paint before a heavy 3D-model board's parse blocks the main thread), not
+     decoration, so it can't just be removed — but a caller that needs
+     to know the new board's data is actually live (the AI Export
+     plugin's multi-board walk, found live: it was reading each board
+     before this fired, so a 3-board export silently returned the same
+     stale board three times) needs a real way to await that moment.
+     Both existing internal call sites (the board-tab click handler,
+     switchBoardById below) already ignore a function's return value
+     when they don't need it, so widening this from void to a Promise
+     is safe for them unchanged. */
   function switchBoard(idx) {
-    if (idx === activeIdx) return;
+    if (idx === activeIdx) return Promise.resolve();
     saveCurrentBoardState();
     activeIdx = idx;
 
@@ -708,18 +721,15 @@ var KanvazBoards = (function() {
        query against a board it was never applied to */
     if (typeof KanvazUI !== 'undefined' && KanvazUI.hideSearchBar) KanvazUI.hideSearchBar();
 
-    /* Bug fix: same "feels stuck, no feedback" issue as deleting the
-       active board — switching TO a board holding a heavy 3D model is
-       the far more common way to hit this same multi-second, main-
-       thread-blocking parse. A toast plus a one-frame defer at least
-       gives the user something to look at while it works instead of a
-       silent freeze that looks identical to a hang. */
     KanvazUI.toast('Loading board…');
-    setTimeout(function() {
-      loadBoardState(boards[idx]);
-      renderBoardsList();
-      updateTitle();
-    }, 20);
+    return new Promise(function(resolve) {
+      setTimeout(function() {
+        loadBoardState(boards[idx]);
+        renderBoardsList();
+        updateTitle();
+        resolve();
+      }, 20);
+    });
   }
 
   /* ── Save current board state into boards array ── */
@@ -998,11 +1008,20 @@ var KanvazBoards = (function() {
     });
   }
 
+  /* Returns a Promise<{ok, error}> — resolves only once the switch has
+     genuinely finished (see switchBoard's own comment on why that's
+     not the same moment it's called). Every existing caller of the
+     OLD synchronous version just read `.ok`/`.error` off the return
+     value immediately; a plain object with those fields still works
+     fine as a Promise's resolved value, so this widening doesn't
+     break anyone who wasn't already awaiting it — it only lets a
+     caller that NEEDS the real completion moment (KanvazPluginAPI's
+     switchBoard, in turn the AI Export plugin's multi-board walk)
+     finally have one. */
   function switchBoardById(id) {
     var idx = findBoardIndexById(id);
-    if (idx === -1) return { ok: false, error: 'no board with that id' };
-    switchBoard(idx);
-    return { ok: true };
+    if (idx === -1) return Promise.resolve({ ok: false, error: 'no board with that id' });
+    return switchBoard(idx).then(function() { return { ok: true }; });
   }
 
   function renameBoardById(id, newName) {
@@ -1771,7 +1790,71 @@ var KanvazBoards = (function() {
          real photo when one exists, falling back to the initial only
          when it doesn't. */
       var topBar = document.createElement('div');
-      topBar.style.cssText = 'flex-shrink:0;display:flex;justify-content:flex-end;padding:18px 32px 0;';
+      topBar.style.cssText = 'flex-shrink:0;display:flex;align-items:center;justify-content:flex-end;gap:14px;padding:18px 32px 0;';
+
+      /* Window controls — direct feedback: the Home Screen overlay is
+         position:fixed/inset:0 (see this function's own overlay comment
+         above), a full opaque takeover that sits ABOVE #titlebar in the
+         stacking order, so #titlebar-controls' minimize/maximize/close
+         buttons exist in the DOM but are entirely covered and
+         unreachable while this screen is up — there was previously no
+         way to minimize/maximize/close the window from here at all.
+         Reuses the exact same .titlebar-btn styling and the exact same
+         KanvazBridge.minimize/maximize/close calls the real titlebar
+         buttons use (wired in app.js's bindGlobalUI, which also extends
+         its maximize/restore icon toggle to these — one shared source
+         of truth, not a second parallel implementation). New, unique
+         ids since #btn-minimize etc. are already taken by the (covered
+         but still-present) real titlebar buttons in the same document. */
+      var winControls = document.createElement('div');
+      winControls.style.cssText = 'display:flex;align-items:center;-webkit-app-region:no-drag;';
+      var homeMinBtn = document.createElement('button');
+      homeMinBtn.className = 'titlebar-btn';
+      homeMinBtn.id = 'home-btn-minimize';
+      homeMinBtn.dataset.tooltip = 'Minimize';
+      homeMinBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+      var homeMaxBtn = document.createElement('button');
+      homeMaxBtn.className = 'titlebar-btn';
+      homeMaxBtn.id = 'home-btn-maximize';
+      homeMaxBtn.dataset.tooltip = 'Maximize';
+      homeMaxBtn.innerHTML = '<svg id="home-icon-maximize" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>' +
+        '<svg id="home-icon-restore" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+      var homeCloseBtn = document.createElement('button');
+      homeCloseBtn.className = 'titlebar-btn close';
+      homeCloseBtn.id = 'home-btn-close';
+      homeCloseBtn.dataset.tooltip = 'Close';
+      homeCloseBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+      winControls.appendChild(homeMinBtn);
+      winControls.appendChild(homeMaxBtn);
+      winControls.appendChild(homeCloseBtn);
+      homeMinBtn.onclick = function() { KanvazBridge.minimize(); };
+      homeMaxBtn.onclick = function() { KanvazBridge.maximize(); };
+      homeCloseBtn.onclick = function() { KanvazBridge.close(); };
+      /* This overlay is torn down and rebuilt from scratch every time
+         it opens, so these icons always start from their HTML-authored
+         default (maximize icon shown) regardless of the window's real
+         current state — correct only by coincidence if the window
+         happens not to be maximized yet. app.js's setMaximizedIcon()
+         only re-fires on the NEXT actual maximize/restore event, which
+         may never come before this screen is shown, so query the real
+         state directly here too rather than inherit possibly-stale
+         icon state from whenever that last ran. */
+      if (typeof KanvazBridge !== 'undefined' && KanvazBridge.isMaximized) {
+        KanvazBridge.isMaximized().then(function(isMax) {
+          var iconMax = document.getElementById('home-icon-maximize');
+          var iconRes = document.getElementById('home-icon-restore');
+          if (iconMax && iconRes) {
+            iconMax.style.display = isMax ? 'none' : '';
+            iconRes.style.display = isMax ? '' : 'none';
+          }
+          homeMaxBtn.dataset.tooltip = isMax ? 'Restore' : 'Maximize';
+        }).catch(function() {});
+      }
+      /* Appended to the DOM after the avatar (below), so window
+         controls land as the rightmost cluster — matching the real
+         titlebar's own left-to-right convention (logo, title, then
+         controls last) rather than sitting between other content. */
+
       var avatarBtn = document.createElement('button');
       var avatarInitial = (activeProfile && activeProfile.name) ? activeProfile.name.trim().charAt(0).toUpperCase() : 'K';
       if (activeProfile && activeProfile.avatarDataUrl) {
@@ -1792,6 +1875,7 @@ var KanvazBoards = (function() {
         }
       };
       topBar.appendChild(avatarBtn);
+      topBar.appendChild(winControls);
       rightCol.appendChild(topBar);
 
       /* Main content — full width of the right column now (minus its

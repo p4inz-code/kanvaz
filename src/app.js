@@ -319,16 +319,44 @@ var KanvazApp = (function() {
        Shortcuts consolidated into the corner account-menu button (see
        sidepanel.js's initAccountMenu, wired from KanvazSidePanel.init()). */
 
-    /* Maximize/restore icon toggle */
+    /* Maximize/restore icon toggle — also drives the Home Screen's own
+       minimize/maximize/close buttons (boards.js's #home-btn-* trio,
+       added because the real #titlebar-controls sit underneath the
+       Home Screen's full-screen opaque overlay and were completely
+       unreachable from there). Those buttons' click handlers are wired
+       directly in boards.js at the moment each one is created — this
+       function only runs ONCE, at startup, well before the Home Screen
+       overlay's DOM exists for the first time, so an on('home-btn-...')
+       binding here would silently find nothing and never attach; the
+       icon-toggle state below re-queries live on every call instead,
+       which works correctly whether or not the overlay happens to be
+       open right now. */
     var iconMax = document.getElementById('icon-maximize');
     var iconRes = document.getElementById('icon-restore');
     var btnMax  = document.getElementById('btn-maximize');
 
     function setMaximizedIcon(isMax) {
-      if (!iconMax || !iconRes) return;
-      iconMax.style.display = isMax ? 'none' : '';
-      iconRes.style.display = isMax ? '' : 'none';
+      if (iconMax && iconRes) {
+        iconMax.style.display = isMax ? 'none' : '';
+        iconRes.style.display = isMax ? '' : 'none';
+      }
       if (btnMax) btnMax.dataset.tooltip = isMax ? 'Restore' : 'Maximize';
+
+      /* The Home Screen overlay is torn down and rebuilt from scratch
+         each time it opens (see boards.js), so #home-icon-maximize/
+         #home-icon-restore/#home-btn-maximize may not exist in the DOM
+         at all right now — re-read them live on every call instead of
+         caching stale references from whenever bindGlobalUI() first ran
+         (which is once, at startup, almost certainly before the Home
+         Screen has ever been built). */
+      var homeIconMax = document.getElementById('home-icon-maximize');
+      var homeIconRes = document.getElementById('home-icon-restore');
+      var homeBtnMax  = document.getElementById('home-btn-maximize');
+      if (homeIconMax && homeIconRes) {
+        homeIconMax.style.display = isMax ? 'none' : '';
+        homeIconRes.style.display = isMax ? '' : 'none';
+      }
+      if (homeBtnMax) homeBtnMax.dataset.tooltip = isMax ? 'Restore' : 'Maximize';
     }
 
     KanvazBridge.isMaximized().then(function(isMax) {

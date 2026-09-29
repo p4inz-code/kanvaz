@@ -29,7 +29,8 @@ var ROOT = path.join(__dirname, '..');
 var PLUGIN_RENDERER_FILES = [
   'official-plugins/theme-creator/main.js',
   'official-plugins/template-maker/main.js',
-  'official-plugins/mcp-bridge/main.js'
+  'official-plugins/mcp-bridge/main.js',
+  'official-plugins/ai-export/main.js'
 ];
 
 var errors = [];
@@ -58,8 +59,29 @@ function eachLine(file, cb) {
 /* ---- 1. var-only rule ---- */
 function checkVarRule() {
   jsFiles().forEach(function(file) {
+    /* Real bug, found live: the old single-line stripping regex only
+       handled a block comment that opens and closes on the same line —
+       a multi-line block comment (this project's own convention for
+       every substantial explanatory comment) left every line inside it
+       completely unstripped, so an ordinary English word like "let" in
+       prose ("let the toast paint") false-positived as the keyword.
+       Tracked across lines per file now, not just within one line. */
+    var inBlockComment = false;
     eachLine(file, function(line, n) {
-      var stripped = line.replace(/\/\/.*$/, '').replace(/\/\*.*?\*\//g, '');
+      var stripped = line;
+      if (inBlockComment) {
+        var endIdx = stripped.indexOf('*/');
+        if (endIdx === -1) return; /* whole line still inside the comment */
+        stripped = stripped.slice(endIdx + 2);
+        inBlockComment = false;
+      }
+      stripped = stripped.replace(/\/\*.*?\*\//g, '');
+      var startIdx = stripped.indexOf('/*');
+      if (startIdx !== -1) {
+        stripped = stripped.slice(0, startIdx);
+        inBlockComment = true;
+      }
+      stripped = stripped.replace(/\/\/.*$/, '');
       if (/\bconst\s/.test(stripped)) err(file, n, 'uses "const" (var-only rule)');
       if (/\blet\s/.test(stripped))   err(file, n, 'uses "let" (var-only rule)');
       if (/=>/.test(stripped))        err(file, n, 'uses arrow function (var-only rule)');

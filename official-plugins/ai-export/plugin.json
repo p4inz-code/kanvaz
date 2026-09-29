@@ -1,0 +1,10 @@
+{
+  "id": "studio.northbyte.ai-export",
+  "name": "AI Export",
+  "version": "1.0.0",
+  "kanvazApiVersion": 1,
+  "entry": "main.js",
+  "permissions": [],
+  "description": "Export this board or the whole file as a JSON + Markdown pair any AI agent can read — no MCP connection, no server, nothing leaves this machine. Includes every card's tags, custom properties, and notes (Note-card text and Annotate-tool labels, merged).",
+  "author": "P4inz Interactive Labs"
+}

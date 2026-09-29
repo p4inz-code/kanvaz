@@ -187,13 +187,15 @@ var KanvazTaskTracker = (function() {
       if (typeof KanvazUI !== 'undefined') KanvazUI.toast('That card no longer exists', 'error');
       return;
     }
-    KanvazBoards.switchBoardById(boardId);
-    /* switchBoardById rebuilds the whole board DOM synchronously (same
-       assumption boards.js's own switch path already makes elsewhere in
-       this codebase), so the card exists to select on the very next
-       tick — still deferred one frame to be safe against any render
-       work that itself schedules a frame. */
-    setTimeout(focusOnCurrentBoard, 0);
+    /* switchBoardById's real board-load work is deferred ~20ms
+       internally (a UI-responsiveness trick for heavy boards — see
+       boards.js's own switchBoard comment), so this was previously
+       racing it with a same-tick setTimeout(fn, 0) that could fire
+       before the new board's cards actually existed. Now that
+       switchBoardById returns a real Promise resolving after the
+       switch genuinely completes, wait on it directly instead of
+       guessing at a delay. */
+    KanvazBoards.switchBoardById(boardId).then(focusOnCurrentBoard);
   }
 
   function renderInto(container) {
