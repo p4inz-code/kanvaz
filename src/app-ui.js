@@ -711,7 +711,7 @@
         })(items[i]);
       }
 
-      positionMenuInViewport(menu, x, y);
+      KanvazApp.positionMenuInViewport(menu, x, y);
     }
 
     function showContextMenu(x, y, type, target) {
@@ -817,19 +817,19 @@
          search bar's own row of saved-search chips, or its persistent
          twin in the Boards side panel) had no interaction besides a
          left-click-to-run and a small delete "×". `target` here is the
-         folder object itself ({id, name, query, favorite}) — nested
-         inside KanvazApp's IIFE, so this reaches applySearchFilter/
-         searchInput/showSearchBar/renderSmartFolderChips directly via
-         closure, same as every other cross-boundary call already made
-         from within this same window.KanvazUI IIFE. */
+         folder object itself ({id, name, query, favorite}) — the search
+         bar subsystem (applySearchFilter/searchInput/showSearchBar/
+         renderSmartFolderChips) lives in app.js's own KanvazApp closure,
+         not here, so these go through KanvazApp's public API. */
       if (type === 'smartFolder') {
         var folder = target;
         items = [
           { label: 'Open', action: function() {
-            if (!searchActive) showSearchBar();
+            if (!KanvazApp.isSearchActive()) KanvazApp.showSearchBar();
             setTimeout(function() {
-              if (searchInput) searchInput.value = folder.query;
-              applySearchFilter(folder.query);
+              var input = KanvazApp.getSearchInput();
+              if (input) input.value = folder.query;
+              KanvazApp.applySearchFilter(folder.query);
             }, 0);
           }},
           { label: folder.favorite ? 'Remove from Favorites' : 'Add to Favorites', action: function() {
@@ -839,7 +839,7 @@
             if (!f) return;
             f.favorite = !f.favorite;
             KanvazBridge.writeSettings(JSON.stringify(s));
-            renderSmartFolderChips();
+            KanvazApp.renderSmartFolderChips();
           }},
           { label: 'Rename', action: function() {
             showPrompt('Rename Smart Folder', 'New name:', folder.name, function(newName) {
@@ -849,7 +849,7 @@
               if (!f) return;
               f.name = newName;
               KanvazBridge.writeSettings(JSON.stringify(s));
-              renderSmartFolderChips();
+              KanvazApp.renderSmartFolderChips();
             });
           }},
           { label: 'Edit query', action: function() {
@@ -860,7 +860,7 @@
               if (!f) return;
               f.query = newQuery;
               KanvazBridge.writeSettings(JSON.stringify(s));
-              renderSmartFolderChips();
+              KanvazApp.renderSmartFolderChips();
             });
           }},
           { sep: true },
@@ -869,7 +869,7 @@
             if (!s || !s.smartFolders) return;
             s.smartFolders = s.smartFolders.filter(function(f) { return f.id !== folder.id; });
             KanvazBridge.writeSettings(JSON.stringify(s));
-            renderSmartFolderChips();
+            KanvazApp.renderSmartFolderChips();
           }}
         ];
       }
@@ -911,7 +911,7 @@
       }
 
       /* Position — keep within viewport */
-      positionMenuInViewport(menu, x, y);
+      KanvazApp.positionMenuInViewport(menu, x, y);
     }
 
     function hideContextMenu() {
@@ -1214,8 +1214,15 @@
       showContextMenu:     showContextMenu,
       hideContextMenu:     hideContextMenu,
       setChromeAutoHide:   setChromeAutoHide,
-      showSearchBar:       showSearchBar,
-      hideSearchBar:       hideSearchBar,
+      /* Bug fix (found live, right after the app-ui.js split): both
+         functions actually live in KanvazApp's own closure (part of the
+         search-bar subsystem, not moved here) — delegating instead of
+         referencing them bare, which threw ReferenceError and left
+         window.KanvazUI entirely unassigned. boards.js, commands.js, and
+         shortcuts.js all call KanvazUI.showSearchBar()/hideSearchBar()
+         directly, so this contract has to keep working from here. */
+      showSearchBar:       function() { KanvazApp.showSearchBar(); },
+      hideSearchBar:       function() { KanvazApp.hideSearchBar(); },
       closeAll:            closeAll,
       showAbout:           function() { KanvazUI_Extended.showAbout(); },
       showShortcuts:       showShortcuts

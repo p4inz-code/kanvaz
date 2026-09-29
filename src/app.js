@@ -1840,6 +1840,24 @@ var KanvazApp = (function() {
     },
     isDirty:           function() { return boardDirty; },
     importPurFile:     importPurFile,
+    /* Bug fix (found live, right after the app-ui.js split): showSearchBar/
+       hideSearchBar are a real, actively-used public contract — boards.js,
+       commands.js, and shortcuts.js all call KanvazUI.showSearchBar()/
+       hideSearchBar() directly. Both functions live here in KanvazApp's
+       own closure (part of the larger search-bar subsystem, not moved to
+       app-ui.js), but app-ui.js's own code also calls into them — exposed
+       here so app-ui.js can delegate through KanvazApp instead of reaching
+       into a closure it's no longer part of. */
+    showSearchBar:     showSearchBar,
+    hideSearchBar:     hideSearchBar,
+    applySearchFilter: applySearchFilter,
+    renderSmartFolderChips: renderSmartFolderChips,
+    positionMenuInViewport: positionMenuInViewport,
+    isSearchActive:    function() { return searchActive; },
+    /* DOM node reference, not a value copy — app-ui.js reads AND writes
+       .value on this (the smart-folder "Open" action pre-fills the
+       search box), so the caller needs the live element, not a snapshot. */
+    getSearchInput:    function() { return searchInput; },
     importPurFromPath: importPurFromPath
   };
 
