@@ -686,46 +686,9 @@ var KanvazCards = (function() {
   var EXPAND_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>';
   var COPY_ICON  = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8.5" height="8.5" rx="1.5"/><path d="M10.5 5.5V3.5A1.5 1.5 0 0 0 9 2H3.5A1.5 1.5 0 0 0 2 3.5V9a1.5 1.5 0 0 0 1.5 1.5h2"/></svg>';
 
-  /* ── Color format helpers (hex ↔ rgb ↔ hsl) ── */
-
-  function hexToRgb(hex) {
-    var h = hex.replace('#', '');
-    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
-    return {
-      r: parseInt(h.substring(0, 2), 16),
-      g: parseInt(h.substring(2, 4), 16),
-      b: parseInt(h.substring(4, 6), 16)
-    };
-  }
-
-  function rgbToHsl(r, g, b) {
-    r /= 255; g /= 255; b /= 255;
-    var max = Math.max(r, g, b), min = Math.min(r, g, b);
-    var h, s, l = (max + min) / 2;
-    if (max === min) {
-      h = s = 0;
-    } else {
-      var d = max - min;
-      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-      if (max === r)      h = (g - b) / d + (g < b ? 6 : 0);
-      else if (max === g) h = (b - r) / d + 2;
-      else                 h = (r - g) / d + 4;
-      h /= 6;
-    }
-    return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
-  }
-
-  function formatColorString(hex, format) {
-    var rgb = hexToRgb(hex);
-    if (format === 'rgb') {
-      return 'rgb(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ')';
-    }
-    if (format === 'hsl') {
-      var hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
-      return 'hsl(' + hsl.h + ', ' + hsl.s + '%, ' + hsl.l + '%)';
-    }
-    return hex.toUpperCase();
-  }
+  /* Color format helpers (hex ↔ rgb ↔ hsl) moved to
+     cards-color-utils.js (v9.7.0) — pure functions, called below as
+     KanvazCardsColorUtils.X. */
 
   function toggleVideoPlay(cardEl) {
     if (!cardEl) return;
@@ -2862,21 +2825,8 @@ var KanvazCards = (function() {
 
   /* ── Color swatch card ── */
 
-  /* WCAG 2 relative luminance / contrast ratio of two #rrggbb colours.
-     Anything that does not parse counts as black. */
-  function relLuminance(hex) {
-    var m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ''));
-    var n = m ? parseInt(m[1], 16) : 0;
-    var ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(function(v) {
-      v /= 255;
-      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
-    });
-    return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
-  }
-  function contrastRatio(a, b) {
-    var la = relLuminance(a), lb = relLuminance(b);
-    return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
-  }
+  /* relLuminance/contrastRatio (WCAG 2) also moved to
+     cards-color-utils.js — called below as KanvazCardsColorUtils.X. */
   function fillContrastChip(chip, word, ratio) {
     var grade = ratio >= 7 ? 'AAA' : ratio >= 4.5 ? 'AA' : ratio >= 3 ? 'AA large text only' : 'fails WCAG';
     chip.textContent = '';
@@ -2914,7 +2864,7 @@ var KanvazCards = (function() {
     contrast.appendChild(cBlack);
     swatch.appendChild(contrast);
     function paintContrast(color) {
-      var w = contrastRatio(color, '#ffffff'), b = contrastRatio(color, '#000000');
+      var w = KanvazCardsColorUtils.contrastRatio(color, '#ffffff'), b = KanvazCardsColorUtils.contrastRatio(color, '#000000');
       fillContrastChip(cWhite, 'White', w);
       fillContrastChip(cBlack, 'Black', b);
     }
@@ -2926,7 +2876,7 @@ var KanvazCards = (function() {
     var label = document.createElement('div');
     label.className = 'color-label';
     label.title = 'Click to switch hex / rgb / hsl';
-    label.textContent = formatColorString(hex, format);
+    label.textContent = KanvazCardsColorUtils.formatColorString(hex, format);
 
     var copyBtn = document.createElement('button');
     copyBtn.className = 'color-copy-btn';
@@ -2939,7 +2889,7 @@ var KanvazCards = (function() {
       e.stopPropagation();
       format = (format === 'hex') ? 'rgb' : (format === 'rgb' ? 'hsl' : 'hex');
       card.colorFormat = format;
-      label.textContent = formatColorString(hex, format);
+      label.textContent = KanvazCardsColorUtils.formatColorString(hex, format);
       KanvazApp.markDirty();
     });
 
@@ -2952,7 +2902,7 @@ var KanvazCards = (function() {
       hex = newColor;
       swatch.style.background = newColor;
       paintContrast(newColor);
-      label.textContent = formatColorString(hex, format);
+      label.textContent = KanvazCardsColorUtils.formatColorString(hex, format);
       var barName = el.querySelector('.card-bar-title');
       if (barName) barName.textContent = newColor;
       var barSwatch = el.querySelector('.card-bar-color-swatch');
