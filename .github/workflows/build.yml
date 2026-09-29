@@ -141,12 +141,34 @@ jobs:
           sed "s/<version>/$version/g" .github/release-download-guide.md >> release-notes.md
           cat release-notes.md
 
+          # Bug found live (v9.6.0): this job shipped a release titled
+          # just "9.6.0" — every release before it (back through at
+          # least 7.25.0) has a real descriptive title, e.g. "9.5.0 —
+          # Scratch Board: ...", because a human always ran `gh release
+          # edit --title "..."` by hand before publishing (see this
+          # workflow's own top-of-file instructions). This job's --title
+          # was never given anything but the bare tag, and nobody caught
+          # the missing manual step before v9.6.0 got published bare —
+          # the first release built through this newer job. Same
+          # heading line release-notes.md's own first line already has
+          # ("## [X.Y.Z] — DATE — SUMMARY") gives us everything needed
+          # to build the real title automatically, so there is no manual
+          # step left to forget.
+          heading=$(head -n 1 release-notes.md)
+          summary=$(echo "$heading" | sed -E 's/^## \[[^]]+\] — [0-9-]+ — //')
+          if [ -z "$summary" ] || [ "$summary" = "$heading" ]; then
+            echo "Could not parse a summary out of the CHANGELOG heading — refusing to ship an undescribed title." >&2
+            echo "Heading was: $heading" >&2
+            exit 1
+          fi
+          echo "RELEASE_TITLE=$version — $summary" >> "$GITHUB_ENV"
+
       - name: Create the draft (skip if one already exists for this tag)
         run: |
           if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
             echo "Release ${GITHUB_REF_NAME} already exists — leaving it as-is."
           else
-            gh release create "${GITHUB_REF_NAME}" --draft --title "${GITHUB_REF_NAME#v}" --notes-file release-notes.md
+            gh release create "${GITHUB_REF_NAME}" --draft --title "${RELEASE_TITLE}" --notes-file release-notes.md
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
