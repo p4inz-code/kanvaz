@@ -2,6 +2,41 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [Unreleased]
+
+*In-progress QA/hardening pass on top of 9.6.0. Static suites (lint, full
+validate) pass clean; live-CDP re-verified where noted.*
+
+### Fixed
+
+- **An open color picker survived New Board, Open, and Import.** Same
+  leftover-state class the 9.5.0 ScratchBoard fix already covered, never
+  generalized to `colorpicker.js` (shared by the color card swatch,
+  annotation color, and 3D-card color pickers): its `onChange`/`onCommit`
+  callbacks close over the *previous* board's card object, which
+  `clearAll()`/`deserialise()` discard without ever telling the picker to
+  close. Left open, it floated on top of the new board and any edit made
+  through it silently wrote to a detached object instead of anything
+  real. Found live via CDP while re-testing the app.js/app-ui.js split;
+  fixed at both board-transition choke points (`newBoard()` and
+  `loadBoardState()`, the latter covering switch/Open/Import) and
+  re-verified the leak is gone at each.
+
+### Changed
+
+- **MCP Bridge → v1.5.0.** Adds `removeConnection`, `groupCards`,
+  `ungroupCards`, `alignCards`, `distributeCards`, `tidyUp` — MCP control
+  now extends to connections and layout, not just cards/boards. SDK
+  dependency bumped to `^1.31.0`; `npm audit fix` resolved a moderate
+  SSRF in the transitive `ip-address` package. e2e suite updated to
+  assert and round-trip all 46 tools.
+- **`test/lint.js` now covers the official plugins' renderer files**
+  (theme-creator, template-maker, mcp-bridge's `main.js`) against the
+  project's var-only convention — previously scanned `src/` only, so
+  these had never been checked. `mcp-bridge/server.js` stays excluded
+  (separate Node/ESM process, correctly uses modern syntax). Found and
+  fixed 10 `.forEach()` violations across the three files.
+
 ## [9.6.0] — 2026-09-28 — Map View overlap actually fixed, external-link confirmation, BMP export, Windows dialog-freeze fix
 
 *Second pass on top of 9.5.2, all found live during the owner's own manual

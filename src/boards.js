@@ -666,6 +666,17 @@ var KanvazBoards = (function() {
       KanvazScratchBoard.setState({ bgStyle: 'lines', bgColor: '#1b1b22', lineAccentColor: null, gridAccentColor: null, strokes: [] });
       if (KanvazScratchBoard.isActive()) KanvazScratchBoard.redraw();
     }
+    /* Same leftover-state class as the ScratchBoard fix just above: an
+       open color swatch picker (colorpicker.js — shared by the color
+       card swatch, annotation color, and 3D-card color pickers) has its
+       onChange/onCommit callbacks closed over the PREVIOUS board's card
+       object. clearAll() above just discarded that card, but never
+       closed the picker itself — left open, it floats on top of the
+       brand new board and any edit made through it silently writes to
+       a detached, no-longer-rendered object instead of anything real.
+       close(false) — not commit — since there's nothing valid left to
+       commit it to. */
+    if (typeof KanvazColorPicker !== 'undefined' && KanvazColorPicker.isOpen()) KanvazColorPicker.close(false);
     KanvazCanvas.zoomReset();
     KanvazHistory.clear();
     emitBoardEvent('boardLoad');
@@ -744,6 +755,11 @@ var KanvazBoards = (function() {
   /* ── Load board state from boards array ── */
 
   function loadBoardState(board) {
+    /* Same reasoning as newBoard()'s own fix: an open color picker's
+       callbacks are closed over a card from whatever board was active
+       a moment ago. Covers board switch (switchBoard), Open, and
+       Import — everything that lands here. */
+    if (typeof KanvazColorPicker !== 'undefined' && KanvazColorPicker.isOpen()) KanvazColorPicker.close(false);
     if (KanvazCards.resetSessionState) KanvazCards.resetSessionState();
     KanvazCards.deserialise(board.cards || []);
     /* Audit fix: panTo() then setZoom() used to fight each other —
