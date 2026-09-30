@@ -282,9 +282,28 @@ jobs:
             ls -la
             exit 1
           fi
+          # Real bug, found live checking v9.7.0's own published checksums
+          # against the actual downloaded asset: electron-builder's LOCAL
+          # dist/ filenames use its own default template (spaces —
+          # "Kanvaz Setup 9.7.0.exe"), but --publish always upload a few
+          # steps above this one silently renames spaces to dashes for the
+          # GitHub release asset ("Kanvaz-Setup-9.7.0.exe"). This step used
+          # to hash the LOCAL (space) names and record THOSE in the
+          # checksum file — cryptographically correct, but `sha256sum -c`
+          # against a real download would fail with "No such file," since
+          # the name it looked for was never the name anyone could
+          # actually download. Rename locally to the same dash convention
+          # BEFORE hashing, so the recorded name always matches the real
+          # asset.
+          renamed=()
+          for f in "${files[@]}"; do
+            new="${f// /-}"
+            if [ "$new" != "$f" ]; then mv -- "$f" "$new"; fi
+            renamed+=("$new")
+          done
           out="SHA256SUMS-${{ matrix.os }}.txt"
           : > "$out"
-          for f in "${files[@]}"; do
+          for f in "${renamed[@]}"; do
             if command -v sha256sum >/dev/null 2>&1; then
               sha256sum "$f" >> "$out"
             else
