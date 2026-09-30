@@ -22,6 +22,57 @@ validate) pass clean; live-CDP re-verified where noted.*
   `loadBoardState()`, the latter covering switch/Open/Import) and
   re-verified the leak is gone at each.
 
+### Added
+
+- **AI Export — a new official plugin.** Exports the current board or
+  every board in the file as a JSON + Markdown pair any AI agent can
+  read — no MCP connection, no server, nothing leaves this machine.
+  Each card's tags, custom properties, and notes (a Note/Text card's
+  own body merged with any Annotate-tool text labels, source-tagged)
+  are included; media stays metadata-only (type/dimensions, never
+  embedded pixels) so an export stays small enough to paste directly
+  into a chat window. An unrecognized card type — a future built-in
+  type, or one a third-party plugin registered — still exports as a
+  complete, valid entry instead of breaking the walk. Full design and
+  a user/developer audit in `docs/AI_EXPORT_AND_MAP_NOTES_PLAN.md`.
+- **Home Screen: minimize/maximize/close buttons.** The real titlebar's
+  own buttons sit underneath the Home Screen's full-screen opaque
+  overlay (z-index 99998) and were completely unreachable while it's
+  open — there was previously no way to minimize/maximize/close the
+  window from there at all.
+
+### Fixed
+
+- **`KanvazBoards.switchBoard()` returned before the switch actually
+  finished.** Its real board-load work is deferred ~20ms internally (a
+  UI-responsiveness trick — lets a "Loading board…" toast paint before
+  a heavy 3D-model board's parse blocks the main thread), but the
+  function returned immediately regardless, so `switchBoardById()`'s
+  `{ok:true}` didn't mean the new board's data was live yet. Found
+  building the AI Export plugin's multi-board walk, which read every
+  board's stale prior content as a result. `switchBoard`/
+  `switchBoardById` now return a real Promise resolving only once the
+  switch genuinely completes. This also fixed a latent race in Task
+  Tracker's `jumpToCard` (previously guessing via a same-tick
+  `setTimeout` shorter than the real 20ms delay — now awaits the real
+  completion directly).
+- **`test/lint.js`'s var-only check never handled a multi-line block
+  comment**, only one that opens and closes on the same line — every
+  line inside a multi-line `/* */` block (this project's own
+  convention for substantial explanatory comments) went completely
+  unchecked. An ordinary English word like "let" in prose could
+  equally have been missed as a real violation anywhere else in the
+  codebase. Now tracked across lines per file.
+- **CI shipped a release titled just the bare version number** (e.g.
+  "9.6.0" instead of "9.6.0 — Map View overlap actually fixed, ...").
+  Every release before the `create-release` job existed had a real
+  descriptive title because a human ran `gh release edit --title` by
+  hand before publishing; nobody did that for v9.6.0, the first
+  release built through that job. Title is now derived automatically
+  from the same CHANGELOG.md heading the release notes already pull
+  from, so there's no manual step left to forget. The already-
+  published v9.6.0 release was corrected to match.
+
 ### Changed
 
 - **MCP Bridge → v1.5.0.** Adds `removeConnection`, `groupCards`,

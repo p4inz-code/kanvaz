@@ -2709,6 +2709,20 @@ function registerIPC() {
       if (!res || res.canceled || !res.filePath) return { ok: false, error: null, cancelled: true };
       var jsonPath = res.filePath;
       var mdPath = jsonPath.replace(/\.json$/i, '') + '.md';
+      /* The save dialog only ever confirms overwrite for jsonPath itself
+         — the one path the user actually picked/typed. mdPath is
+         DERIVED, never shown to or confirmed by the user, so writing it
+         blindly could silently clobber some unrelated file that just
+         happens to already sit at that sibling name (e.g. the user
+         renamed the suggested filename to something generic like
+         "export" and an unrelated "export.md" already exists there).
+         Every other export handler in this file only ever writes the
+         one path the dialog already confirmed — this is the first one
+         writing a second, unconfirmed sibling, so it needs its own
+         guard against the collision. */
+      if (fs.existsSync(mdPath)) {
+        mdPath = mdPath.replace(/\.md$/i, '') + '-' + Date.now() + '.md';
+      }
       return fs.promises.writeFile(jsonPath, payload.json, 'utf8')
         .then(function() { return fs.promises.writeFile(mdPath, payload.markdown, 'utf8'); })
         .then(function() { return { ok: true, jsonPath: jsonPath, mdPath: mdPath }; })
