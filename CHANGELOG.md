@@ -2,10 +2,14 @@
 
 All notable changes to Kanvaz are documented here.
 
-## [Unreleased]
+## [9.7.0] — 2026-09-30 — AI Export plugin, Home Screen window controls, mac dual-arch installers, switchBoard async core fix
 
-*In-progress QA/hardening pass on top of 9.6.0. Static suites (lint, full
-validate) pass clean; live-CDP re-verified where noted.*
+*Static suites (lint, full validate) pass clean throughout. Both new
+UI surfaces (Home Screen window controls, the AI Export plugin) were
+re-verified live against a running build through their real user-facing
+paths — the plugin through the actual install → native consent → load →
+Settings-panel → export flow, not just its internal logic — after the
+switchBoard bug below was found and fixed.*
 
 ### Fixed
 
@@ -21,27 +25,6 @@ validate) pass clean; live-CDP re-verified where noted.*
   fixed at both board-transition choke points (`newBoard()` and
   `loadBoardState()`, the latter covering switch/Open/Import) and
   re-verified the leak is gone at each.
-
-### Added
-
-- **AI Export — a new official plugin.** Exports the current board or
-  every board in the file as a JSON + Markdown pair any AI agent can
-  read — no MCP connection, no server, nothing leaves this machine.
-  Each card's tags, custom properties, and notes (a Note/Text card's
-  own body merged with any Annotate-tool text labels, source-tagged)
-  are included; media stays metadata-only (type/dimensions, never
-  embedded pixels) so an export stays small enough to paste directly
-  into a chat window. An unrecognized card type — a future built-in
-  type, or one a third-party plugin registered — still exports as a
-  complete, valid entry instead of breaking the walk. Full design and
-  a user/developer audit in `docs/AI_EXPORT_AND_MAP_NOTES_PLAN.md`.
-- **Home Screen: minimize/maximize/close buttons.** The real titlebar's
-  own buttons sit underneath the Home Screen's full-screen opaque
-  overlay (z-index 99998) and were completely unreachable while it's
-  open — there was previously no way to minimize/maximize/close the
-  window from there at all.
-
-### Fixed
 
 - **`KanvazBoards.switchBoard()` returned before the switch actually
   finished.** Its real board-load work is deferred ~20ms internally (a
@@ -72,6 +55,59 @@ validate) pass clean; live-CDP re-verified where noted.*
   from the same CHANGELOG.md heading the release notes already pull
   from, so there's no manual step left to forget. The already-
   published v9.6.0 release was corrected to match.
+- **macOS builds only ever produced an Apple Silicon installer.** The
+  `mac` target had no `arch` set, so electron-builder defaulted to
+  whatever the CI runner itself is (`macos-latest` is Apple Silicon) —
+  every Intel Mac (pre-2020, still common in the VFX/3D studios this
+  app targets) had zero installer to download. Now builds both
+  `arm64` and `x64` dmgs from the one `npm run build:mac` command;
+  the release download guide and README's build-output example both
+  updated to list both.
+- **The AI Export plugin's unconfirmed `.md` sibling-file overwrite
+  risk.** It writes two files from one save-dialog confirmation — the
+  dialog only ever confirms overwrite for the `.json` path the user
+  actually picked, never the derived `.md` sibling, so a renamed
+  suggested filename could silently clobber an unrelated file that
+  happened to already sit at that name. Falls back to a disambiguated
+  name on collision instead.
+- **The Home Screen's new window-control buttons and its own logo had
+  no macOS handling**, found auditing specifically for mac-
+  friendliness. macOS already has real, native traffic-light buttons
+  inset top-left into the window (`main.js`'s `titleBarStyle:
+  'hiddenInset'`) — the new Windows-style buttons would have been
+  redundant, wrong-side duplicates, now hidden there exactly like the
+  real titlebar's own buttons already are. Separately, the Home
+  Screen's sidebar logo had no clearance for those same traffic
+  lights (unlike the real titlebar, which already reserves 84px via
+  `.platform-mac #titlebar-logo`) — a pre-existing gap, not something
+  this pass introduced, now given the same 84px clearance.
+- **The release-download-guide template was stale** — its plugin-zip
+  line never mentioned AI Export, and it never listed an Intel-Mac
+  download row. `catalog.json` itself (the in-app "Browse Official
+  Plugins" catalog, fetched over the network) deliberately still
+  excludes AI Export — see the Added note below on why.
+
+### Added
+
+- **AI Export — a new official plugin.** Exports the current board or
+  every board in the file as a JSON + Markdown pair any AI agent can
+  read — no MCP connection, no server, nothing leaves this machine.
+  Each card's tags, custom properties, and notes (a Note/Text card's
+  own body merged with any Annotate-tool text labels, source-tagged)
+  are included; media stays metadata-only (type/dimensions, never
+  embedded pixels) so an export stays small enough to paste directly
+  into a chat window. An unrecognized card type — a future built-in
+  type, or one a third-party plugin registered — still exports as a
+  complete, valid entry instead of breaking the walk. Full design and
+  a user/developer audit in `docs/AI_EXPORT_AND_MAP_NOTES_PLAN.md`.
+  Not yet in `catalog.json`'s official plugin browser — that lands
+  with the release zip this version ships.
+- **Home Screen: minimize/maximize/close buttons** (Windows/Linux —
+  see the mac-specific fix above). The real titlebar's own buttons sit
+  underneath the Home Screen's full-screen opaque overlay (z-index
+  99998) and were completely unreachable while it's open — there was
+  previously no way to minimize/maximize/close the window from there
+  at all.
 
 ### Changed
 

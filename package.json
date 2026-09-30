@@ -1,6 +1,6 @@
 {
   "name": "kanvaz",
-  "version": "9.6.0",
+  "version": "9.7.0",
   "description": "Reference Operating System — collect, organize, connect, and understand your references.",
   "private": true,
   "main": "src/main.js",
@@ -74,7 +74,12 @@
       "icon": "assets/icons/icon.ico"
     },
     "mac": {
-      "target": "dmg",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ],
       "icon": "assets/icons/icon.icns",
       "minimumSystemVersion": "12.0.0",
       "extendInfo": {

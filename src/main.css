@@ -709,6 +709,24 @@ body.presentation-mode-active #side-panel {
   padding-left: 84px;
 }
 
+/* Home Screen — same mac-only clearance for the native traffic lights,
+   found auditing for mac-friendliness (see the matching comment on
+   #startup-logo-row's creation in boards.js for the why). */
+.platform-mac #startup-logo-row {
+  padding-left: 84px;
+}
+
+/* The Home Screen's own minimize/maximize/close buttons (boards.js) —
+   mac already has real, native traffic lights for this (inset top-left
+   into the window itself), so these Windows-style buttons would just
+   be redundant, wrong-side, non-native duplicates. Same exclusion the
+   real titlebar's own buttons already get above. */
+.platform-mac #home-btn-minimize,
+.platform-mac #home-btn-maximize,
+.platform-mac #home-btn-close {
+  display: none;
+}
+
 #titlebar-logo {
   display: flex;
   align-items: center;

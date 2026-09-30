@@ -7,7 +7,7 @@ var KanvazBoards = (function() {
   var currentPath   = null;
   var autosaveTimer = null;
   var AUTOSAVE_MS   = 30000;
-  var VERSION       = '9.6.0';
+  var VERSION       = '9.7.0';
 
   /* ── Shared cards (v6.4.0) — "same card, no duplicate, edit once
      updates everywhere" (Are.na-style), across boards in ONE .kanvaz
@@ -1689,6 +1689,18 @@ var KanvazBoards = (function() {
          circular crop (.logo-icon's border-radius:50% fix) — one source
          of truth for what the Kanvaz logo looks like, not two. */
       var logoRow = document.createElement('div');
+      logoRow.id = 'startup-logo-row';
+      /* macOS-only gap, found auditing for mac-friendliness: unlike the
+         real titlebar (a fixed 36px strip the native traffic lights sit
+         inset INSIDE, with #titlebar-logo's own platform-mac padding-
+         left:84px clearing them horizontally), this overlay has no
+         top bar at all reserving space for them — mainWindow's
+         trafficLightPosition is {x:14, y:11} (main.js), which lands
+         almost exactly on top of this sidebar's own logo/"Kanvaz" text
+         with nothing here to push it clear. Same 84px clearance value
+         as the real titlebar's own fix, so both read consistently.
+         See the matching .platform-mac #startup-logo-row rule in
+         main.css. */
       logoRow.style.cssText = 'display:flex;align-items:center;gap:10px;cursor:pointer;font-family:var(--font-ui);padding:6px 10px 20px;';
       logoRow.title = 'Back to Board';
       logoRow.innerHTML = '<img src="../assets/icons/icon-128.png" alt="" width="26" height="26" style="border-radius:50%;object-fit:contain;flex-shrink:0;"><span style="font-size:19px;font-weight:600;color:var(--color-text);font-family:var(--font-ui);">Kanvaz</span>';
