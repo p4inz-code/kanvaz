@@ -1425,6 +1425,47 @@ var KanvazApp = (function() {
     return presentationModeActive;
   }
 
+  /* Left-to-right, top-to-bottom reading order — what a viewer actually
+     expects ←/→ to follow, unlike getAllIds()'s raw creation order.
+     Buckets cards into rows first (rather than a flat y-then-x sort)
+     so two cards placed side by side but not pixel-perfectly aligned
+     still read left-to-right instead of splitting into separate
+     "rows" one after the other. ROW_TOLERANCE_PX is deliberately
+     smaller than a typical default card height — it only needs to
+     absorb small manual-placement drift, not treat a genuinely
+     stacked/offset layout as one row. */
+  var READING_ORDER_ROW_TOLERANCE_PX = 80;
+
+  function readingOrderCardIds() {
+    if (typeof KanvazCards === 'undefined' || !KanvazCards.getAllIds || !KanvazCards.getCard) return [];
+    var ids = KanvazCards.getAllIds();
+    var withPos = ids.map(function(id) {
+      var c = KanvazCards.getCard(id);
+      return { id: id, x: (c && typeof c.x === 'number') ? c.x : 0, y: (c && typeof c.y === 'number') ? c.y : 0 };
+    });
+    withPos.sort(function(a, b) { return a.y - b.y; });
+
+    var rows = [];
+    for (var i = 0; i < withPos.length; i++) {
+      var item = withPos[i];
+      var row = rows.length ? rows[rows.length - 1] : null;
+      if (row && (item.y - row.y) <= READING_ORDER_ROW_TOLERANCE_PX) {
+        row.items.push(item);
+      } else {
+        rows.push({ y: item.y, items: [item] });
+      }
+    }
+
+    var ordered = [];
+    for (var r = 0; r < rows.length; r++) {
+      rows[r].items.sort(function(a, b) { return a.x - b.x; });
+      for (var j = 0; j < rows[r].items.length; j++) {
+        ordered.push(rows[r].items[j].id);
+      }
+    }
+    return ordered;
+  }
+
   function togglePresentationMode() {
     if (presentationModeActive) exitPresentationMode(); else enterPresentationMode();
   }
@@ -1452,7 +1493,7 @@ var KanvazApp = (function() {
        more certain than gating every individual keyboard shortcut. */
     if (typeof KanvazCards !== 'undefined' && KanvazCards.deselectAll) KanvazCards.deselectAll();
 
-    presentationCardIds = (typeof KanvazCards !== 'undefined' && KanvazCards.getAllIds) ? KanvazCards.getAllIds() : [];
+    presentationCardIds = readingOrderCardIds();
     presentationIndex = -1;
 
     document.body.classList.add('presentation-mode-active');

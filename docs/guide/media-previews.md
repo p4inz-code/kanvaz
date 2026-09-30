@@ -1,3 +1,8 @@
+---
+title: "Media Previews"
+layout: default
+---
+
 # Media Previews
 
 *Verified against Kanvaz v9.6.0.*

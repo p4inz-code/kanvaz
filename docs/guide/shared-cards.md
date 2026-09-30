@@ -1,3 +1,8 @@
+---
+title: "Shared Cards"
+layout: default
+---
+
 # Shared Cards
 
 *Verified against Kanvaz v9.6.0.*

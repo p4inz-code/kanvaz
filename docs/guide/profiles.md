@@ -1,3 +1,8 @@
+---
+title: "Profiles"
+layout: default
+---
+
 # Profiles
 
 *Verified against Kanvaz v9.6.0.*

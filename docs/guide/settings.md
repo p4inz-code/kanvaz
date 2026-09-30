@@ -1,3 +1,8 @@
+---
+title: "Settings"
+layout: default
+---
+
 # Settings
 
 *Verified against Kanvaz v9.6.0.*

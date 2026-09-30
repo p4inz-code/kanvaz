@@ -652,8 +652,8 @@ section for the mechanism). Full list in `CHANGELOG.md`'s `[9.1.0]` entry.
   `blender-status`/`blender-choose`/`blender-clear` IPC already exist and are
   tested; there is just no Settings UI (Choose…/Auto-detect/status text) that
   calls them yet.
-- **Presentation Mode step order** — currently creation order; should be
-  reading order (rows, then left-to-right).
+- ~~**Presentation Mode step order**~~ — **done, Unreleased (2026-09-30).** Now
+  buckets cards into rows by y-position and sorts each row left-to-right.
 - Three narrower Open-with items flagged during this pass but not chased
   down: UNC-referenced textures exporting blank from `.blend` (a Blender
   behaviour in the sandboxed conversion context, not a Kanvaz bug per se),

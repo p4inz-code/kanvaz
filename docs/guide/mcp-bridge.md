@@ -1,3 +1,8 @@
+---
+title: "MCP Bridge"
+layout: default
+---
+
 # MCP Bridge
 
 *Verified against Kanvaz v9.6.0, MCP Bridge plugin v1.5.0.*

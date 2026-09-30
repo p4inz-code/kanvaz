@@ -1,3 +1,8 @@
+---
+title: "Quick Start"
+layout: default
+---
+
 # Quick Start
 
 *Verified against Kanvaz v9.6.0.*

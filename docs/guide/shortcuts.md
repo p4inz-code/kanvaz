@@ -1,3 +1,8 @@
+---
+title: "Keyboard Shortcuts"
+layout: default
+---
+
 # Keyboard Shortcuts
 
 *Verified against Kanvaz v9.6.0 — transcribed directly from `src/shortcuts.js`

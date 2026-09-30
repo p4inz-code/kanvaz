@@ -1,3 +1,8 @@
+---
+title: "Task Tracker"
+layout: default
+---
+
 # Task Tracker
 
 *Verified against Kanvaz v9.6.0.*

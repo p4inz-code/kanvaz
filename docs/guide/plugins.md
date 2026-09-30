@@ -1,3 +1,8 @@
+---
+title: "Plugins"
+layout: default
+---
+
 # Plugins
 
 *Verified against Kanvaz v9.6.0.*

@@ -1,3 +1,8 @@
+---
+title: "Side Panel"
+layout: default
+---
+
 # Side Panel
 
 *Verified against Kanvaz v9.6.0.*

@@ -129,88 +129,17 @@ Built as an ongoing side project, no fixed roadmap, mostly driven by whatever fe
 
 ## Features
 
-**Canvas & organization**
-- Infinite pan/zoom canvas (8%–500%), multiple boards per file
-- Real board thumbnails on the Home Screen (generated from the actual card layout at save time)
-- 3D model cards (`.glb`/`.gltf`/`.obj`/`.fbx`/`.stl`/`.ply`/`.vox`/`.usd`/`.usdz`, up to 150MB, plus `.blend` if Blender is installed — auto-detected across drives, PATH, the registry and package managers, or chosen once and remembered): orbit with the mouse, 13 render modes (Shaded, Clay, Matcap, Wireframe, Wire on Shaded, Normals, Normal Map, Albedo, UV Grid, Roughness, Metalness, Occlusion, Alpha) grouped in one picker with unavailable modes greyed and explained, camera view presets and a turntable, animation playback with a clip picker and scrub bar, background color picker, read-only model stats (tris/verts/materials/textures/size). Alt+drag or Ctrl/Cmd+middle-mouse pans the whole board even with the cursor over the model — you're never trapped inside its orbit controls
-- Adobe file previews (PSD/PSB/AI/XD/INDD): a real decoded preview inside the card, not just an icon — full flattened image for PSD/PSB, the PDF-compatible view for AI, the largest rendition for XD
-- Open any supported file type from your OS's own "Open with" (Explorer, Finder, Linux file managers) — Kanvaz never takes over as the default handler for anything but its own `.kanvaz` boards
-- Image, GIF, video, and audio cards with full playback controls and a real volume slider
-- Note, text, color, URL, and file-reference card types. A file reference pointing at a `.pdf` or image gets a real inline preview inside the resizable card
-- Shared cards across boards: same content, no duplication, edit anywhere
-- Tag editing (Properties panel, with autocomplete from recent and board-wide tags), live search/filter (`/`), and Smart Folders (saved searches that re-run themselves)
-- Color search: click a swatch, find every card that matches
-- `.pur` file import via a toolbar button or drag-drop, both preserve position and scale
-- Undo/redo up to 50 steps, autosave crash recovery, crash-safe atomic save
-- Always-on-top by default (toggleable in Settings)
-- Top Mode (`Ctrl+Shift+T`): one keystroke forces always-on-top, hides the toolbar chrome, and closes the side panel for a genuine floating-reference view — press it again to restore everything exactly as it was. Session-only, nothing is written to Settings
-- Presentation Mode (Command Palette): a read-only mode for showing a board to someone else — hides the toolbar and side panel, clears selection, steps card-by-card with the arrow keys, blocks every edit/drag/delete path while active. Escape restores everything exactly as it was
+3D model preview with 13 render modes, PSD/AI/XD/Adobe previews, image/GIF/video/audio cards, note/text/color/URL/file cards, shared cards across boards, tags + Smart Folders, a Photoshop-style Properties panel, a Layers panel, 14 board templates, a full offline multi-profile system, a real annotation toolkit plus a dedicated Scratch Board layer, 7 typed connection kinds with a Map View node graph, a real plugin ecosystem (MCP Bridge, AI Export, Template Maker & Manager), a Command Palette, and more.
 
-**Card design & templates**
-- Every card shows an always-visible name and at-a-glance metadata (resolution, duration, character count) plus one clean type badge
-- Photoshop/Illustrator-style Properties panel: Transform (X/Y/W/H, drag the label to scrub the value live like Maya/Adobe/Figma — hold Shift for fine control), opacity, layer order, multi-select alignment, distribute-evenly, and Tidy Up, non-destructive Brightness/Contrast/Saturation for image/GIF/video, and Media info
-- A Layers panel (its own side-panel tab): every card in z-order, click to select, drag to reorder, right-click for the full card menu, eye icon to hide/show, lock icon, star icon to highlight a layer (an accent border, independent from pin/lock), and a group indicator on grouped cards that selects every member in one click
-- 14 board templates — VFX (three skill tiers: Beginner/Intermediate/Professional Pipeline), Game Dev, Game Art, Filmmaking, Music Production, Animation Pipeline, Photography/Concept Art, Architecture & Product Design, UI/UX Design, Branding & Identity, Character Design, and a freeform Mood Board — plus the option to save your own board (with its own Connections, if it has any) as a template. Every production-pipeline template has its own "drop your references here" section pointing at exactly the media (plates, concept art, a real 3D model card, and so on) that template's own process notes assume you already have on the board. 13 of the 14 — every one except the deliberately freeform Mood Board — also ship with real typed Connections between their own cards, demonstrating the actual pipeline dependency flow (a technical budget constraining an asset list, for instance) instead of a flat, disconnected note list
-
-**Offline profiles**
-- Fully offline, no-login multi-profile system: switch, create, or add a guest profile, each with its own settings, recent boards, and recovery data
-- Export a profile to a portable file and import it on another machine, no network involved
-- Per-profile plugin enable-state and storage, so two people sharing one install don't step on each other's plugin setup
-
-**Annotation**
-- Pen, highlighter, line, arrow, rectangle, ellipse, text stamp, pixel-measure, and eyedropper (real pixel sampling)
-- Custom color picker with a recent-colors row, per-stroke opacity
-- Video frame-stepping and onion-skin ghosting for checking animation timing
-- Annotation toolbar scales with canvas zoom, so it doesn't shrink to nothing next to a zoomed-in card
-- **Scratch Board** — a third view (alongside Board and Map) for board-wide, not-per-card annotation: Select/Pan, Pen, Highlighter, Line, Arrow, Rectangle, Ellipse, and a real Eraser (removes whole strokes it touches, not pixel erasing), with Illustrator-style Shift-constrain (0/45/90° snap on lines/arrows, perfect square/circle on shapes), adjustable brush color/width/opacity, and a configurable background (ruled lines / plain color / grid, each with its own color). Same cards, same camera as Board view — switching to Scratch doesn't change anything about how your cards behave
-
-**Connections**
-- 7 typed relationship kinds (Related To, Inspired By, Derived From, Alternative To, Supports, Used In, References)
-- Map View: node-editor-style graph, bezier tube connections, independent pan/zoom, real decoded-frame thumbnails on video and 3D model nodes (not a generic icon)
-- Connection Inspector panel (C): view, create, edit, delete from a side panel
-
-**Plugin ecosystem**
-- Drop a folder in, or one-click install from the in-app "Browse Official Plugins" catalog
-- A richer runtime API: register card types, commands, themes, event hooks, even insert any card type from raw data
-- MCP Bridge (official plugin): let an MCP-compatible AI client (Claude Desktop, Claude Code, and so on) read and edit your board locally, with every change undo-reversible
-- Template Maker & Manager (official plugin): save boards as templates, browse and install community ones
-- Explicit, considered permission to sell your own plugin. No in-app marketplace, ever
-
-**Everything else**
-- Command Palette (`Ctrl+K`): fuzzy-search and run any shortcut or plugin command
-- Light/dark theme, type-aware context menus
-- Settings migration across versions with zero data loss
-- Developer tools: FPS overlay, ID overlays, one-click debug export for bug reports, with error toasts that actually show what went wrong
-- Preview quality (Settings → Preview Quality): Low/Medium/High caps 3D render sharpness, PDF DPI and Adobe-file preview size — Low by default, with a per-card override in Properties for the one heavy card that needs to differ
+**[→ Full feature list](https://p4inz-code.github.io/kanvaz/guide/features.html)**
 
 ---
 
 ## Workflows by domain
 
-Same canvas, three example pipelines — start from whichever is closest to your own work.
+Same canvas, different starting points — VFX/previz, 3D/look-dev, game dev, and handing a pipeline to a team as two portable files (no account, no server).
 
-**VFX / previz**
-1. New Board → pick one of the three VFX templates as a starting layout.
-2. Drop reference plates and 3D blocking (`.glb`/`.obj`/`.fbx`/`.usd`/`.usdz`, or `.blend` directly if Blender is installed) straight onto the canvas.
-3. Tag by shot (`SEQ010`, `approved`) and save that search as a Smart Folder — it re-runs itself as new references land.
-4. Connect a plate to its matching 3D blockout with a "Derived From" link, then open Map View to see the whole shot's reference graph at once.
-5. Annotate on top of a frame (pixel-measure, eyedropper) instead of switching to a separate markup tool.
-6. Once the layout settles, save the board as a template so the next shot starts from the same structure.
-
-**3D / look-dev**
-1. Drop a model onto the canvas and orbit it, switch Normal/Wireframe/Matcap shading, and scrub any embedded animation without leaving the board. Camera framing is remembered per card between sessions.
-2. Place reference photos, HDRIs, or material swatches next to the model for direct side-by-side comparison during look-dev.
-3. Use "Alternative To" connections between competing material passes so a reviewer sees every option tried, not just the final pick.
-4. Share the same model card across a lighting board and a modeling board — editing it on either one updates both, no duplicate files.
-
-**Game dev**
-1. Start from the Game Dev template; drop concept art and exported asset previews (images or 3D models) onto one board.
-2. Track status with tags (`blockout`, `in-progress`, `approved`) — a live filter or Smart Folder shows what's still outstanding at a glance.
-3. Use Map View as a lightweight dependency graph: "Used In" connections from a shared prop/model to every level or scene that references it.
-4. Export the board as a `.kanvaztemplate` and hand it to teammates so a new asset or level starts from the same layout.
-
-**Handing a pipeline to a team**
-Board layout and app setup travel as two separate portable files, no account or server on either end: **Save current board as template** (Template Maker & Manager plugin) exports a `.kanvaztemplate`; **Settings → Manage Profiles → Export** on any profile produces a `.kanvazprofile` carrying that profile's settings, recent-boards list, and plugin enable-state. Send both however your team already shares files — the other person imports the template from the Template Maker & Manager plugin's **Import Template…** button and the profile via **Manage Profiles → Import Profile…**, and starts from an identical setup.
+**[→ Full workflow walkthroughs](https://p4inz-code.github.io/kanvaz/guide/workflows.html)**
 
 ## Requirements
 
@@ -253,112 +182,56 @@ npm run build:linux
 
 ## Keyboard shortcuts
 
-Shown here in Windows/Linux notation (`Ctrl`); on macOS every `Ctrl` below is `Cmd (⌘)` and the app itself shows the real Apple glyphs (⌘, ⇧, ⌥) throughout the UI, not the Windows spelling.
+The essentials — press **`?`** in-app any time for the full live-filterable reference.
 
 | Key | Action |
 |-----|--------|
-| Scroll | Zoom in / out |
-| Ctrl+Scroll | Fine zoom |
-| Middle mouse / Space+drag | Pan |
-| 0 | Reset zoom |
-| F | Fit all cards |
 | Ctrl+K | Command Palette, fuzzy-search any shortcut or plugin command |
-| L | Toggle light / dark theme |
-| Ctrl+S | Save board |
-| Ctrl+Shift+S | Save board as new file |
-| Ctrl+O | Open board |
-| Ctrl+F or / | Search/filter cards |
+| Ctrl+S / Ctrl+O | Save / Open board |
 | Ctrl+Z / Ctrl+Y | Undo / Redo |
-| Ctrl+A | Select all cards |
-| Ctrl+drag, or V then drag | Box-select multiple cards (V toggles the mode, Esc exits) |
-| Delete | Delete selected card |
-| Ctrl+D | Duplicate card |
-| P | Pin / unpin card |
+| Ctrl+F or / | Search/filter cards |
+| M | Toggle Board / Map view |
 | A | Annotate selected card |
 | C | Connections inspector |
-| E | Properties panel |
-| M | Toggle Board / Map view |
-| H | Hide annotations |
-| Shift+L | Toggle Layers panel |
-| Arrow keys | Nudge card 1px |
-| Shift+Arrow | Nudge card 10px |
-| Shift (while resizing) | Lock aspect ratio |
-| S | Settings (toggle open/close) |
-| I | About (toggle open/close) |
-| Ctrl+Shift+T | Top Mode — force always-on-top, hide chrome, close the side panel (session only, toggle) |
+| Ctrl+Shift+T | Top Mode — force always-on-top, hide chrome (toggle) |
 | ? | Shortcuts overlay (toggle open/close) |
-| Esc | Deselect / close panels / cancel wire |
+
+**[→ Full keyboard shortcuts reference](https://p4inz-code.github.io/kanvaz/guide/shortcuts.html)**
 
 ---
 
 ## File format
 
-As of 4.1.0, a `.kanvaz` file is a zip container: `board.json` (the board/card/connection structure) plus one file per embedded image/video/audio asset, each with a SHA-256 hash recorded for corruption detection. This replaced the old plain-JSON-with-everything-base64-encoded format, which inflated media by about 33% and put your whole board at risk if a single byte anywhere in that one giant JSON string got corrupted. A damaged asset now degrades to that one card showing "missing media" instead of threatening the rest of the file.
+A `.kanvaz` file is a zip container: `board.json` plus one file per embedded asset, each SHA-256-checked for corruption. A damaged asset degrades to that one card showing "missing media" instead of threatening the rest of the file. Older plain-JSON files still open exactly as before — Kanvaz detects the format automatically.
 
-As of 6.4.0, `board.json` also carries a top-level `sharedCards` registry. The content of any card shared across boards lives there once, keyed by a stable id, with each board's own `cards[]` holding only a lightweight position/size stub that references it. This is fully additive: older files simply have no stubs referencing anything and load with an empty registry.
+Real preview support covers images, GIF, video, audio, 3D models (`.glb`/`.gltf`/`.obj`/`.fbx`/`.stl`/`.ply`/`.vox`/`.usd`/`.usdz`, `.blend` with Blender installed), PDF, Adobe (PSD/PSB/AI/XD), HDR/EXR, Krita, and PureRef `.pur` import.
 
-Files saved by 4.0.1 and earlier (plain JSON, base64 media) still open exactly as before. Kanvaz detects the format automatically and only ever writes the current container going forward. Connections are stored as a top-level `connections` array alongside boards. Files from v2.x load cleanly with zero connections.
-
-### Supported file formats
-
-"Real preview" means Kanvaz decodes the file itself and shows actual content inside the card (an image, a rendered 3D model, an extracted thumbnail) — not just a filename and an icon. Kanvaz only registers OS-level "Open with Kanvaz"/file-association support for formats it can show something real for — a format with no preview path doesn't get associated at all right now, rather than becoming a bare labeled placeholder card. Formats without a working preview are listed under **Planned** below instead of in the main table.
-
-| Format | Extensions | Status |
-|---|---|---|
-| Image | `.jpg` `.jpeg` `.png` `.bmp` `.webp` | ✅ Real preview |
-| Animated GIF | `.gif` | ✅ Real preview (plays inline) |
-| Video | `.mp4` `.webm` `.mov` | ✅ Real preview (plays inline) |
-| Video | `.mkv` `.avi` | ⚠️ Recognized — may not play (Chromium codec limitation) |
-| Audio | `.mp3` `.wav` `.ogg` `.m4a` | ✅ Real preview (plays inline) |
-| 3D Model | `.glb` `.gltf` `.obj` `.stl` `.ply` `.vox` `.usd` `.usda` `.usdc` `.usdz` | ✅ Real preview — orbit, 13 render modes |
-| 3D Model | `.fbx` | ✅ Real preview — best-effort (most complex/least standardized of the group) |
-| 3D Model (materials) | `.mtl` (companion to `.obj`) | ✅ Auto-detected and applied |
-| Blender | `.blend` | ✅ Real preview, if Blender is installed locally (auto-detected or chosen once in Settings) — otherwise a labeled file-reference card |
-| PDF | `.pdf` | ✅ Real preview — scroll/zoom/page nav (no text selection or search-within-PDF yet) |
-| Adobe | `.psd` `.psb` `.ai` `.xd` | ✅ Real preview — full flattened image (PSD/PSB), PDF-compatible view (AI), largest rendition (XD) |
-| Adobe | `.indd` `.indt` | ⚠️ Recognized, no preview |
-| HDR / EXR | `.hdr` `.pic` | ✅ Real preview — tone-mapped from real HDR data |
-| HDR / EXR | `.exr` | ✅ Real preview — NONE/RLE compression only; ZIP/PIZ/PXR24/B44/DWAA/DWAB refused with a clear reason instead of a wrong image |
-| Krita | `.kra` | ✅ Real preview — extracts the document's own embedded composite |
-| Alembic | `.abc` | ❌ Not supported — deliberately deferred, no safe reference implementation available yet (see `docs/ROADMAP.md`) |
-| PureRef | `.pur` | ✅ Real import — every card at its saved position/scale |
-
-**Planned** (no OS-level file association yet — no real preview path exists today, so Kanvaz doesn't claim to open these until one does): ZBrush (`.ztl`), Houdini (`.hip`/`.hipnc`), Maya (`.ma`/`.mb`), Cinema 4D (`.c4d`), Clip Studio Paint (`.clip`), Procreate (`.procreate`). Houdini and Maya are the most likely to follow Blender's own pattern (an optional local-install external-tool conversion); the others have no realistic path yet — see `docs/ROADMAP.md` for the reasoning per format.
+**[→ Full supported-format table + file-format internals](https://p4inz-code.github.io/kanvaz/guide/file-formats.html)**
 
 ---
 
 ## Known limitations
 
-- Custom key-value properties are text values only, no dropdown/date/number field types yet.
-- MKV and AVI video files may not play (a Chromium codec limitation). MP4 (H.264) and WebM are recommended. Kanvaz tells you plainly when this is why a video card failed, instead of a generic "missing media" message.
-- `.blend` preview requires a local Blender install (checked at a few common install locations, or on your system `PATH`) — Kanvaz has no `.blend` parser of its own, since none exists that's safe to bundle. Without Blender found, a dropped `.blend` file becomes a plain file-reference card instead of failing outright. Maya (`.mb`/`.ma`) and Houdini formats aren't supported yet — planned as the same kind of optional-external-tool conversion, not yet built.
-- PDF preview only covers viewing (scroll/zoom/page nav). There's no text selection, search-within-PDF, or annotation on top of a PDF page yet.
-- Cross-board connections between two independent cards aren't possible from the UI (only one board's cards load at a time, so the "Connect to" picker only offers cards on the board you're on). As of 6.4.0, sharing the *same* card across boards is possible and covers most of what people actually want this for.
-- Autosave writes to a recovery file only. "Unsaved changes" in the status bar clears only on explicit Save (Ctrl+S). The recovery file is cleared on every clean close, so the "Recover unsaved board?" prompt only appears after an actual crash.
-- The base installer bundles zero plugins by design (see [SECURITY.md](SECURITY.md)'s Plugin System section). Theme Creator, MCP Bridge, and Template Maker & Manager all install separately, the same way any third-party plugin does.
-- `registerPropertyFieldType` (custom Properties panel field types via a plugin) is still unimplemented.
-- 3D model cards embed the file (like image/video/audio) rather than pointing at it. A `.gltf` that references external `.bin`/texture files by relative path won't fully resolve (only a self-contained `.gltf` or a `.glb` is guaranteed to render everything); `.fbx` support is best-effort, since it's the most complex and least standardized of the four formats. Custom user-swappable textures aren't supported yet (planned as a future plugin).
-- Per-profile plugin *storage* is isolated, but installed plugin code is still shared across all profiles on one machine, since installing a plugin is treated as a machine-level action, not a per-profile one.
-- Materials built from procedural nodes (noise, gradients) have no image to export from `.blend`, so they come through as a flat colour.
-- Presentation Mode steps through cards in the order they were created, not left-to-right/top-to-bottom reading order.
-- The macOS build isn't code-signed yet (no Apple Developer ID), so it can't auto-install updates or register as a default file handler the way the Windows build can — "Check for updates" and "Open with" both fall back to a direct link/manual step there instead.
+Stated plainly, nothing hidden — highlights: custom properties are text-only for now, MKV/AVI may not play (Chromium codec limits, MP4/WebM recommended), `.blend` preview needs a local Blender install, PDF preview has no text search yet, and the macOS build isn't code-signed.
+
+**[→ Full known-limitations list](https://p4inz-code.github.io/kanvaz/guide/known-limitations.html)**
 
 ---
 
 ## Roadmap
 
-Kanvaz keeps getting developed as an ongoing side project, no fixed deadline, mostly driven by real feedback. The living plan lives in [docs/ROADMAP.md](docs/ROADMAP.md); right after 9.2.0:
+Kanvaz keeps getting developed as an ongoing side project, no fixed deadline, mostly driven by real feedback. The living plan lives in [docs/ROADMAP.md](docs/ROADMAP.md); as of 9.7.0:
 
-- Presentation Mode stepping through cards in reading order instead of creation order
-- A Scratch Board view — a plain annotate-everything mode beside Board/Map
 - Select, move, and delete an individual existing annotation stroke (today "Clear annotations" is all-or-nothing)
 - A first-run "Set up your profile" screen and a profile picker built into the Start Screen itself
-- Font and HDRI/EXR preview support
+- Font preview support (HDR/EXR preview already shipped)
 - General UI polish, ongoing
 
 ---
 
 ## Documentation
+
+**[→ Full user guide](https://p4inz-code.github.io/kanvaz/guide/)** — quick start, every view and panel, MCP Bridge, plugins, and more, live and searchable.
 
 - [Technical Overview](docs/TECHNICAL_OVERVIEW.md): architecture, module map, build conventions
 - [Privacy](PRIVACY.md): what Kanvaz does (and doesn't) do with your data

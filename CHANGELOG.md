@@ -2,6 +2,15 @@
 
 All notable changes to Kanvaz are documented here.
 
+## [Unreleased]
+
+### Fixed
+- **Presentation Mode now steps through cards in reading order (top-to-bottom, left-to-right), not creation order.** `enterPresentationMode()` previously built its step sequence from `KanvazCards.getAllIds()`, which is explicitly "no particular order" (raw object-key/creation order) — so pressing → during a client/director review could jump anywhere on the board instead of following a predictable path. `app.js` now buckets cards into rows by y-position (an 80px tolerance absorbs normal manual-placement drift without merging a genuinely separate row) and sorts each row left-to-right. Been on the roadmap since v9.2.0.
+
+### Changed
+- **The user guide (`docs/guide/`) is now actually live**, via GitHub Pages at `p4inz-code.github.io/kanvaz` — it existed as 18 well-written Markdown files with no way for anyone to reach them (no Pages config, no front matter, so even direct links would have served raw Markdown instead of a rendered page). Added Jekyll front matter to every guide page, a `docs/_config.yml` (jekyll-theme-minimal), and a Guide link in the landing page's nav.
+- **README trimmed from 406 to ~280 lines** by moving the full Features list, Workflows by domain, the full keyboard-shortcuts table, and the full file-format table out to their own live guide pages (`features.md`, `workflows.md`, `file-formats.md`, plus the pre-existing `shortcuts.md`), replaced in README with short summaries and "Full ... →" links. Content was relocated, not deleted. Also corrected a stale "right after 9.2.0" roadmap preview list that still listed Scratch Board and HDR/EXR preview as upcoming — both shipped in earlier releases.
+
 ## [9.7.0] — 2026-09-30 — AI Export plugin, Home Screen window controls, mac dual-arch installers, switchBoard async core fix
 
 *Static suites (lint, full validate) pass clean throughout. Both new

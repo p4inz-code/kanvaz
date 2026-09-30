@@ -1,3 +1,8 @@
+---
+title: "Scratch Board"
+layout: default
+---
+
 # Scratch Board
 
 *Verified against Kanvaz v9.6.0.*

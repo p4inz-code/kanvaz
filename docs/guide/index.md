@@ -1,3 +1,8 @@
+---
+title: "Kanvaz Guide"
+layout: default
+---
+
 # Kanvaz Guide
 
 A complete, offline reference for every part of Kanvaz — how to use it,

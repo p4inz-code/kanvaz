@@ -1,3 +1,8 @@
+---
+title: "Command Palette & Smart Search"
+layout: default
+---
+
 # Command Palette & Smart Search
 
 *Verified against Kanvaz v9.6.0.*

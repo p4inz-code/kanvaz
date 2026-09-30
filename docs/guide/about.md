@@ -1,3 +1,8 @@
+---
+title: "About Kanvaz"
+layout: default
+---
+
 # About Kanvaz
 
 *Verified against Kanvaz v9.6.0.*

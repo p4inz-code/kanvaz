@@ -1,3 +1,8 @@
+---
+title: "Templates"
+layout: default
+---
+
 # Templates
 
 *Verified against Kanvaz v9.6.0.*

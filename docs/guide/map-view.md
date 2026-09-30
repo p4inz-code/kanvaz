@@ -1,3 +1,8 @@
+---
+title: "Map View"
+layout: default
+---
+
 # Map View
 
 *Verified against Kanvaz v9.6.0.*

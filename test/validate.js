@@ -468,6 +468,37 @@ if (fs.existsSync(path.join(__dirname, 'task-tracker-test.js'))) {
 }
 
 /* 10. Version consistency */
+section('9e. switchBoard async contract');
+/* Regression guard for a real bug (see CHANGELOG 9.7.0): switchBoard()
+   used to defer its real work via setTimeout but return before that
+   fired, so callers that did switchBoard(id).then(...) got a
+   TypeError instead of correct sequencing. Nothing else in this suite
+   exercises boards.js directly (it's DOM-coupled, no isolated harness
+   exists for it), so this is a deliberately narrow static check
+   rather than a full functional test — it only guards against the
+   exact regression shape (a future edit quietly making either
+   function synchronous again), not against every possible board-
+   switch bug. */
+var boardsSrc = fs.readFileSync(path.join(SRC, 'boards.js'), 'utf8');
+var switchBoardBody = (function() {
+  var m = boardsSrc.match(/function switchBoard\(idx\) \{([\s\S]*?)\n  \}\n/);
+  return m ? m[1] : '';
+})();
+var switchBoardByIdBody = (function() {
+  var m = boardsSrc.match(/function switchBoardById\(id\) \{([\s\S]*?)\n  \}\n/);
+  return m ? m[1] : '';
+})();
+if (!switchBoardBody || !switchBoardByIdBody) {
+  bad('could not locate switchBoard/switchBoardById in boards.js — check the regex above still matches');
+} else {
+  var switchBoardReturnsPromise = /return new Promise\(/.test(switchBoardBody) && /return Promise\.resolve\(/.test(switchBoardBody);
+  var switchBoardByIdChainsPromise = /return switchBoard\([^)]*\)\.then\(/.test(switchBoardByIdBody);
+  if (switchBoardReturnsPromise) ok('switchBoard() still returns a real Promise on every path');
+  else bad('switchBoard() no longer returns a Promise on every path — this is the exact 9.7.0 regression shape');
+  if (switchBoardByIdChainsPromise) ok('switchBoardById() still chains onto switchBoard()\'s Promise instead of returning a bare object');
+  else bad('switchBoardById() no longer chains onto switchBoard() — callers using .then() will break again');
+}
+
 section('10. Version consistency');
 var pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
 var v = pkg.version;

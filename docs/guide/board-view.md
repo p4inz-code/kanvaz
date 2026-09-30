@@ -1,3 +1,8 @@
+---
+title: "Board View"
+layout: default
+---
+
 # Board View
 
 *Verified against Kanvaz v9.6.0.*
