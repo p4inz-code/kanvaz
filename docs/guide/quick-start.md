@@ -5,7 +5,7 @@ layout: default
 
 # Quick Start
 
-*Verified against Kanvaz v9.6.0.*
+*Verified against Kanvaz v9.7.0.*
 
 Get from a fresh install to a working reference board in under five
 minutes.

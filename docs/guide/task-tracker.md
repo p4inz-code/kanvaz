@@ -5,7 +5,7 @@ layout: default
 
 # Task Tracker
 
-*Verified against Kanvaz v9.6.0.*
+*Verified against Kanvaz v9.7.0.*
 
 A simple checklist attached to your `.kanvaz` file — for the
 "remember to actually gather these 6 references" layer of work that

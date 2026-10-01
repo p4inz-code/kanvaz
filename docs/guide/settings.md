@@ -5,7 +5,7 @@ layout: default
 
 # Settings
 
-*Verified against Kanvaz v9.6.0.*
+*Verified against Kanvaz v9.7.0.*
 
 Open Settings from the left rail's gear icon, the `S` shortcut, or
 Command Palette → "Open Settings". Settings are per-[profile](profiles.md)

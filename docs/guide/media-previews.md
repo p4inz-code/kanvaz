@@ -5,7 +5,7 @@ layout: default
 
 # Media Previews
 
-*Verified against Kanvaz v9.6.0.*
+*Verified against Kanvaz v9.7.0.*
 
 What Kanvaz can open and render a real, honest preview for — not just
 a generic file icon — and register itself with your OS to open

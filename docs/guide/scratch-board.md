@@ -5,7 +5,7 @@ layout: default
 
 # Scratch Board
 
-*Verified against Kanvaz v9.6.0.*
+*Verified against Kanvaz v9.7.0.*
 
 Scratch Board is a freeform sketch/annotation layer that sits **over**
 your cards — a place to scribble notes, circle something, or rough out

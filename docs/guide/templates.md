@@ -5,7 +5,7 @@ layout: default
 
 # Templates
 
-*Verified against Kanvaz v9.6.0.*
+*Verified against Kanvaz v9.7.0.*
 
 Three ways to start from an existing layout instead of a blank board:
 built-in templates, your own saved templates, and community templates

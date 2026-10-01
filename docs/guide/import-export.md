@@ -5,7 +5,7 @@ layout: default
 
 # Import & Export
 
-*Verified against Kanvaz v9.6.0.*
+*Verified against Kanvaz v9.7.0.*
 
 Every way media gets onto a Kanvaz board, and every way it comes back
 out.

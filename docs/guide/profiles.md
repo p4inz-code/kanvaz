@@ -5,7 +5,7 @@ layout: default
 
 # Profiles
 
-*Verified against Kanvaz v9.6.0.*
+*Verified against Kanvaz v9.7.0.*
 
 Profiles let multiple people share one Kanvaz install while keeping
 their own settings, recent-files list, and recovery snapshots

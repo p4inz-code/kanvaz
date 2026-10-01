@@ -5,7 +5,7 @@ layout: default
 
 # Shared Cards
 
-*Verified against Kanvaz v9.6.0.*
+*Verified against Kanvaz v9.7.0.*
 
 A Shared Card is the same card, live-linked across multiple boards in
 the same `.kanvaz` file — edit it in one place, the change shows up

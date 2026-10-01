@@ -5,7 +5,7 @@ layout: default
 
 # Map View
 
-*Verified against Kanvaz v9.6.0.*
+*Verified against Kanvaz v9.7.0.*
 
 Map View shows the same cards as Board View, but as a node graph —
 every **connection** you've drawn between cards rendered as a labeled,

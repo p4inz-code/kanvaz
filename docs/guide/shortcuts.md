@@ -5,7 +5,7 @@ layout: default
 
 # Keyboard Shortcuts
 
-*Verified against Kanvaz v9.6.0 — transcribed directly from `src/shortcuts.js`
+*Verified against Kanvaz v9.7.0 — transcribed directly from `src/shortcuts.js`
 and confirmed live against the in-app reference (`?` any time).*
 
 ![The in-app Keyboard Shortcuts reference](assets/shortcuts.png)

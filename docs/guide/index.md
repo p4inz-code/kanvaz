@@ -7,7 +7,7 @@ layout: default
 
 A complete, offline reference for every part of Kanvaz — how to use it,
 not how it's built (see `docs/TECHNICAL_OVERVIEW.md` for that side).
-Written and verified against the real v9.6.0 codebase, not from memory.
+Written and verified against the real v9.7.0 codebase, not from memory.
 
 Each guide below is self-contained — jump to whichever one matches what
 you're trying to do. New to Kanvaz? Start with the Quick Start.

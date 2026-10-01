@@ -5,7 +5,7 @@ layout: default
 
 # MCP Bridge
 
-*Verified against Kanvaz v9.6.0, MCP Bridge plugin v1.5.0.*
+*Verified against Kanvaz v9.7.0, MCP Bridge plugin v1.5.0.*
 
 MCP Bridge lets an AI assistant — Claude Desktop, Claude Code, or any
 other [Model Context Protocol](https://modelcontextprotocol.io)

@@ -5,7 +5,7 @@ layout: default
 
 # Side Panel
 
-*Verified against Kanvaz v9.6.0.*
+*Verified against Kanvaz v9.7.0.*
 
 The left rail is the home for everything that isn't the canvas itself
 — four sections, each toggleable from its own rail icon or a

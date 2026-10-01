@@ -123,6 +123,25 @@ Most reference boards stop at "put images on a canvas." These are the ones worth
 
 ---
 
+## How Kanvaz compares
+
+PureRef and Refern are both genuinely good, actively maintained tools — this is where Kanvaz actually differs from them.
+
+| | Kanvaz | PureRef | Refern | Miro |
+|---|---|---|---|---|
+| Price | Free, MIT | Free | $35 one-time | Subscription; free tier caps at 3 editable boards |
+| Offline / no account | Yes, always | Yes | Yes | No — cloud-only |
+| 3D model preview (orbit, live) | Yes, since v7.4.0 | No | No — `.blend`/`.obj`/`.fbx` not indexed; on their roadmap | No |
+| Typed connections / graph view | Yes — 7 relationship types, Map View | No | No | Generic whiteboard linking, not typed |
+| Video/audio playback, PDF preview | Yes | No | Partial | No |
+| Plugin API, sell your own plugin | Yes, no marketplace cut | No | No | App marketplace, Miro takes a cut |
+
+**Where Refern is ahead of Kanvaz today:** hierarchical tags, color-hex search, image-to-image visual similarity search, and 14+ search operators — real depth Kanvaz doesn't match yet. Worth knowing if that kind of search is your main use case.
+
+Kosmik, a cloud-synced competitor in this same space, shut down in 2026 and told its users to export their data before losing access. A `.kanvaz` board is a file on your disk — it's readable with or without the app continuing to exist, which is the whole reason "no cloud, ever" is a design decision here, not a marketing line.
+
+---
+
 Built as an ongoing side project, no fixed roadmap, mostly driven by whatever feedback comes in. Found a bug or want a feature? [Open an issue](https://github.com/p4inz-code/kanvaz/issues) or email **atharva.patil.cg@gmail.com**, both get read. Shipping updates most weeks — see the full [CHANGELOG.md](CHANGELOG.md) for the reasoning behind every one.
 
 ---

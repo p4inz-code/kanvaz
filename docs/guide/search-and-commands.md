@@ -5,7 +5,7 @@ layout: default
 
 # Command Palette & Smart Search
 
-*Verified against Kanvaz v9.6.0.*
+*Verified against Kanvaz v9.7.0.*
 
 Two different ways to find things fast — one for actions, one for
 content.

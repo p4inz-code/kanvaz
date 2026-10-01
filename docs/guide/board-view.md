@@ -5,7 +5,7 @@ layout: default
 
 # Board View
 
-*Verified against Kanvaz v9.6.0.*
+*Verified against Kanvaz v9.7.0.*
 
 Board View is the main canvas — a free-form 2D space where reference
 cards live, get arranged, and get connected. It's the default view

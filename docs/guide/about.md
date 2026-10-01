@@ -5,7 +5,7 @@ layout: default
 
 # About Kanvaz
 
-*Verified against Kanvaz v9.6.0.*
+*Verified against Kanvaz v9.7.0.*
 
 ![The About dialog — version, offline statement, and credits](assets/about.png)
 

@@ -10,6 +10,10 @@ All notable changes to Kanvaz are documented here.
 ### Changed
 - **The user guide (`docs/guide/`) is now actually live**, via GitHub Pages at `p4inz-code.github.io/kanvaz` — it existed as 18 well-written Markdown files with no way for anyone to reach them (no Pages config, no front matter, so even direct links would have served raw Markdown instead of a rendered page). Added Jekyll front matter to every guide page, a `docs/_config.yml` (jekyll-theme-minimal), and a Guide link in the landing page's nav.
 - **README trimmed from 406 to ~280 lines** by moving the full Features list, Workflows by domain, the full keyboard-shortcuts table, and the full file-format table out to their own live guide pages (`features.md`, `workflows.md`, `file-formats.md`, plus the pre-existing `shortcuts.md`), replaced in README with short summaries and "Full ... →" links. Content was relocated, not deleted. Also corrected a stale "right after 9.2.0" roadmap preview list that still listed Scratch Board and HDR/EXR preview as upcoming — both shipped in earlier releases.
+- **Added a real "How Kanvaz compares" section to README**, sourced only from the competitor research already on file in `docs/ROADMAP.md` (nothing invented for this): a comparison table against PureRef, Refern, and Miro, Refern's specific lead over Kanvaz on search depth stated plainly rather than omitted, and the Kosmik shutdown as the concrete case for "no cloud, ever."
+- **Fixed two stale, wrong facts found during this pass:**
+  - All 18 guide pages still said "Verified against Kanvaz v9.6.0" — bumped to v9.7.0, and added the AI Export plugin (shipped in 9.7.0) to `plugins.md`'s official-plugin table, which had been missed when that page was first written.
+  - The landing page's stats strip (`docs/index.html`) showed "16 Source Modules" and "35+ Releases" — both stale placeholders. Recounted against the real repo: 53 source modules (`src/*.js`), 72 releases exactly. Added a 5th stat (14 Board Templates) for the same reason.
 
 ## [9.7.0] — 2026-09-30 — AI Export plugin, Home Screen window controls, mac dual-arch installers, switchBoard async core fix
 
