@@ -1,8 +1,8 @@
 # Maintenance plan, 2026-10-04
 
 Scope: the CI failure on `028e766`, the shared-drive overwrite warning, CI-gated
-release-asset verification, and a release/bus-factor doc. Strata stays plan-only
-(`docs/STUDIO_TIER_PLAN.md`); nothing here touches it.
+release-asset verification, and a release/bus-factor doc. (Strata was dropped from
+consideration by the owner the same day.)
 
 Order: plan -> self-audit of the plan -> fixes folded in below -> build.
 

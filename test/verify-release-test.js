@@ -123,6 +123,38 @@ async function main() {
   errs = await run(g.dir, { releases: [{ tagName: 'v9.8.0', isDraft: false }], tag: 'v9.9.9' });
   expectError(errs, /no release found for tag v9\.9\.9/, 'no release for tag');
   console.log('  ✓ duplicate / untagged / absent draft releases are caught; a single draft passes');
+
+  /* ── official-plugin catalog drift (warnings, never failures) ── */
+  var JSZip = require('jszip');
+  var cdir = fs.mkdtempSync(path.join(os.tmpdir(), 'kanvaz-verify-cat-'));
+  made.push(cdir);
+  async function putZip(name, manifest) {
+    var z = new JSZip();
+    if (manifest) z.file('plugin.json', JSON.stringify(manifest));
+    fs.writeFileSync(path.join(cdir, 'kanvaz-' + name + '-' + VERSION + '.zip'), await z.generateAsync({ type: 'nodebuffer' }));
+  }
+  await putZip('theme-creator', { id: 'x.theme', name: 'Theme Creator', version: '1.1.0', permissions: [] });
+  await putZip('ai-export', { id: 'x.ai', name: 'AI Export', version: '1.0.0', permissions: [] });
+  await putZip('mcp-bridge', { id: 'x.mcp', name: 'MCP Bridge', version: '1.5.0', permissions: ['server'] });
+  await putZip('template-maker', null);
+  var cat = [
+    { id: 'x.theme', version: '1.0.0', permissions: [] },
+    { id: 'x.mcp', version: '1.5.0', permissions: [] }
+  ];
+  var w = await vr.catalogWarnings(cdir, cat, VERSION, ['theme-creator', 'ai-export', 'mcp-bridge', 'template-maker', 'not-built']);
+  assert.ok(w.some(function(m) { return m.indexOf('Theme Creator: catalog says 1.0.0 but this release ships 1.1.0') !== -1 && m.indexOf('download/v9.9.9/kanvaz-theme-creator-9.9.9.zip') !== -1; }), 'stale version warns with the exact URL to use: ' + JSON.stringify(w));
+  assert.ok(w.some(function(m) { return m.indexOf('AI Export 1.0.0 has no entry') !== -1; }), 'unlisted plugin warns');
+  assert.ok(w.some(function(m) { return m.indexOf('MCP Bridge: catalog permissions [] differ') !== -1; }), 'permission mismatch warns');
+  assert.ok(w.some(function(m) { return m.indexOf('no plugin.json at its root') !== -1; }), 'zip without root plugin.json warns');
+  assert.strictEqual(w.length, 4, 'a plugin with no zip in the draft is skipped, not reported: ' + JSON.stringify(w));
+  var okCat = [
+    { id: 'x.theme', version: '1.1.0', permissions: [] },
+    { id: 'x.ai', version: '1.0.0', permissions: [] },
+    { id: 'x.mcp', version: '1.5.0', permissions: ['server'] }
+  ];
+  w = await vr.catalogWarnings(cdir, okCat, VERSION, ['theme-creator', 'ai-export', 'mcp-bridge']);
+  assert.deepStrictEqual(w, [], 'an up-to-date catalog produces no warnings');
+  console.log('  ✓ catalog drift (stale version, unlisted plugin, wrong permissions) is flagged with the exact fix; an up-to-date catalog is silent');
 }
 
 main().then(function() {

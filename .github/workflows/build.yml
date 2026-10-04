@@ -340,6 +340,10 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 20
+          cache: npm
+
+      # jszip, for the official-plugin catalog check in verify-release.js.
+      - run: npm ci
 
       - name: Download the draft's assets
         run: |

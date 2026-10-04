@@ -10,7 +10,13 @@ A release is a git tag `vX.Y.Z` pushed to `p4inz-code/kanvaz`. GitHub Actions (`
 
 ## Access a second person needs
 
-- **Write access to the repo.** Today the owner (`p4inz-code`) is the only collaborator, so this must be granted first (repo Settings, Collaborators).
+- **Write access to the repo.** Today the owner (`p4inz-code`) is the only collaborator, so this must be granted first. The owner runs, with the new person's GitHub username:
+
+  ```bash
+  gh api -X PUT repos/p4inz-code/kanvaz/collaborators/<username> -f permission=push
+  ```
+
+  (That command was not run; it is the documented GitHub API call.) The person accepts the emailed invitation. `push` is enough for everything in this document (pushing `main`, pushing tags, editing releases, re-running workflows). It does not give admin, so they cannot change repo settings or Pages. Separately, the owner can name a successor for the GitHub account itself under GitHub account settings, which is the only provision for the account being unavailable.
 - **`gh` CLI**, authenticated, and Node 20 (CI uses Node 20).
 - **No secrets.** `gh secret list` is empty. CI uses only the built-in `GITHUB_TOKEN`.
 - **No signing certificates.** Installers are deliberately unsigned (owner decision). Windows SmartScreen and macOS Gatekeeper warnings are expected and documented in the README and the release notes. Do not add signing.
@@ -18,8 +24,8 @@ A release is a git tag `vX.Y.Z` pushed to `p4inz-code/kanvaz`. GitHub Actions (`
 ## Before you start
 
 1. Work on `main` with a clean tree. Check `git status`.
-2. **Never commit** `upi-qr.jpeg`, `download.jpe` or `docs/handoff-assets/donate-rollout/`. They sit untracked in the owner's checkout and are not in `.gitignore`, so `git add -A` or `git add .` will stage them. Stage files by name.
-3. **Do not use `ship.bat`.** It is a leftover from v3.7.2 (last touched then). It runs `git add -A` (stages the three files above), its `test/version-check.js` fails on the current repo (it still looks for a `Version X.Y.Z` string and a Python file that no longer carry the version), and it builds locally instead of through CI.
+2. Releases are cut by pushing a tag and letting CI build. There is no local ship script: the old `ship.bat` and `test/version-check.js` (last touched at v3.7.2, failing on the current repo, and running `git add -A`) were deleted on 2026-10-04. `npm run validate` section 10 is the version check.
+3. `upi-qr.jpeg`, `download.jpe` and `docs/handoff-assets/donate-rollout/` are personal files that must never be committed. They are in `.gitignore` as of 2026-10-04, but still stage files by name rather than `git add -A`.
 
 ## Steps
 
@@ -104,9 +110,20 @@ node tools/verify-release.js assets X.Y.Z --releases releases.json --tag vX.Y.Z
 
 You can also download and launch the installers from the draft yourself before publishing; nothing in CI starts the built app.
 
-### 8. Official-plugin catalog (manual, easy to forget)
+### 8. Official-plugin catalog (after publishing)
 
-`official-plugins/catalog.json` is read **live from `main`** by the app's "Browse Official Plugins" screen, and its `downloadUrl`s are pinned to specific release assets. CI builds fresh plugin zips for every tag but does not update the catalog. As of 2026-10-04 it is stale: Theme Creator and Template Maker point at `v7.0.0` zips (catalog version 1.0.0; the repo has 1.1.0 and 1.2.0), MCP Bridge points at `v9.0.0`, and AI Export is not listed at all. If you changed a plugin, update its catalog entry **after** the release is published, because the URL must already exist.
+`official-plugins/catalog.json` is read **live from `main`** by the app's "Browse Official Plugins" screen, and each `downloadUrl` is pinned to a specific release asset. CI builds fresh plugin zips for every tag but cannot update the catalog, because the asset URL only works once the release is published. It silently went stale for years (by v9.7.0 it still served v7.0.0 zips and did not list AI Export); it was brought current on 2026-10-04.
+
+The tag run now tells you when it needs updating: `verify-release` compares each plugin zip in the draft with the catalog and prints a `::warning::` (shown on the workflow run page) for a stale version, an unlisted plugin, or permissions that differ from what users would be shown. Each warning includes the exact `version` and `downloadUrl` to set. These are warnings, not failures, because an unchanged plugin is legitimately fine.
+
+After step 9, edit the entries it named: set `version` and `downloadUrl` as the warning says, and keep `description`, `permissions` and `author` identical to the plugin's `plugin.json`, push, and spot-check each URL returns 200:
+
+```bash
+curl -sIL -o /dev/null -w "%{http_code}
+" https://github.com/p4inz-code/kanvaz/releases/download/vX.Y.Z/kanvaz-<plugin>-X.Y.Z.zip
+```
+
+Editing this file changes what already-installed copies of Kanvaz offer, immediately, so do it only after the release is public. The install itself (download, extract, consent prompt) uses native dialogs and could not be driven or tested offline.
 
 ### 9. Publish
 
@@ -138,4 +155,3 @@ The new release must show **Latest**. Publishing makes the update metadata (`lat
 
 - The owner's GitHub account, 2FA, and repository admin rights.
 - Anything in the untracked donate/QR files, which are personal and never go in the repo.
-- Product decisions (pricing, the paid Strata app, custom-build terms) live in `docs/STUDIO_TIER_PLAN.md` and are the owner's.

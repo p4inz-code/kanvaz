@@ -18,7 +18,8 @@
                 enables the one-release-per-tag check
    Exit code 0 = all checks passed, 1 = at least one failed (all are listed).
 
-   Dependency-free; hashes with Node crypto so it behaves the same on any
+   Needs jszip (a normal dependency, `npm ci`) only for the catalog warning;
+   hashes with Node crypto so it behaves the same on any
    runner. Exports its functions so test/verify-release-test.js can exercise
    them without network access. */
 
@@ -171,6 +172,41 @@ function verify(opts) {
   return Promise.all(jobs).then(function() { return errors; });
 }
 
+/* Warnings only (never fail the run): compares each plugin zip in the draft
+   against official-plugins/catalog.json, which the app reads LIVE from main
+   for "Browse Official Plugins". CI builds fresh zips every tag but cannot
+   update the catalog (it needs the published asset URL), so it silently went
+   stale: by v9.7.0 it still served v7.0.0 zips and did not list AI Export at
+   all. This surfaces the exact edit needed while it is still a draft.
+   catalog: parsed catalog.json array. Resolves to an array of messages. */
+function catalogWarnings(dir, catalog, version, pluginDirs) {
+  var JSZip = require('jszip');
+  var jobs = pluginDirs.map(function(name) {
+    var zipPath = path.join(dir, 'kanvaz-' + name + '-' + version + '.zip');
+    if (!fs.existsSync(zipPath)) return Promise.resolve([]);
+    return JSZip.loadAsync(fs.readFileSync(zipPath)).then(function(z) {
+      var f = z.file('plugin.json');
+      if (!f) return ['kanvaz-' + name + '-' + version + '.zip has no plugin.json at its root'];
+      return f.async('string').then(function(txt) {
+        var m = JSON.parse(txt);
+        var entry = null;
+        for (var i = 0; i < catalog.length; i++) if (catalog[i].id === m.id) entry = catalog[i];
+        var url = 'https://github.com/p4inz-code/kanvaz/releases/download/v' + version + '/kanvaz-' + name + '-' + version + '.zip';
+        if (!entry) return [m.name + ' ' + m.version + ' has no entry in official-plugins/catalog.json, so Browse Official Plugins will not offer it. Add one with downloadUrl ' + url];
+        var out = [];
+        if (entry.version !== m.version) {
+          out.push(m.name + ': catalog says ' + entry.version + ' but this release ships ' + m.version + '. After publishing, set version to ' + m.version + ' and downloadUrl to ' + url);
+        }
+        if (JSON.stringify(entry.permissions || []) !== JSON.stringify(m.permissions || [])) {
+          out.push(m.name + ': catalog permissions ' + JSON.stringify(entry.permissions || []) + ' differ from the zip\'s ' +JSON.stringify(m.permissions || []) + ' (users would be shown the wrong permissions)');
+        }
+        return out;
+      });
+    });
+  });
+  return Promise.all(jobs).then(function(lists) { return [].concat.apply([], lists); });
+}
+
 function pluginDirsFromRepo() {
   var base = path.join(ROOT, 'official-plugins');
   return fs.readdirSync(base).filter(function(n) {
@@ -205,7 +241,16 @@ function main(argv) {
     console.error('could not read .github/release-download-guide.md — refusing to skip the guide check silently');
     return Promise.resolve(1);
   }
-  return verify(opts).then(function(errors) {
+  var catalogPath = path.join(ROOT, 'official-plugins', 'catalog.json');
+  var catalogP = fs.existsSync(catalogPath)
+    ? catalogWarnings(opts.dir, JSON.parse(fs.readFileSync(catalogPath, 'utf8')), opts.version, opts.pluginDirs)
+    : Promise.resolve([]);
+  return Promise.all([verify(opts), catalogP]).then(function(res) {
+    var errors = res[0];
+    res[1].forEach(function(w) {
+      console.log('::warning title=Official plugin catalog needs an update::' + w);
+      console.log('  warning: ' + w);
+    });
     if (errors.length === 0) {
       console.log('verify-release: all checks passed for ' + opts.version +
         ' (' + fs.readdirSync(opts.dir).length + ' assets, checksums recomputed from the real files)');
@@ -222,7 +267,8 @@ module.exports = {
   guideAssetNames: guideAssetNames,
   parseSums: parseSums,
   checkReleases: checkReleases,
-  verify: verify
+  verify: verify,
+  catalogWarnings: catalogWarnings
 };
 
 if (require.main === module) {
