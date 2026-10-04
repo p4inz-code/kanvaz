@@ -23,6 +23,7 @@ var netGuard = require('./net-guard');
 var blenderDetect = require('./blender-detect');
 var blenderExport = require('./blender-export');
 var pathGuard = require('./path-guard');
+var saveGuard = require('./save-guard');
 var mcpAuth = require('./mcp-auth');
 var crashLog = require('./crash-log');
 var linkController = require('./link-controller');
@@ -1066,31 +1067,36 @@ function registerIPC() {
     if (!pathGuard.isBoardPath(filePath) || !boardGrants.has(filePath)) {
       return Promise.resolve({ ok: false, error: 'Kanvaz can only open board files you chose (Open, Recent, or double-click).' });
     }
-    return fs.promises.readFile(filePath)
-      .then(function(buf) {
-        if (boardContainer.looksLikeZip(buf)) return boardContainer.unpackBoard(buf);
-        return buf.toString('utf8'); /* pre-4.1.0 plain-JSON file */
+    /* mtimeMs is stat'ed BEFORE the read: if someone saves between the
+       two calls, our recorded mtime is the older one, so the next save
+       flags a conflict (safe) instead of missing one. */
+    return fs.promises.stat(filePath)
+      .then(function(st) {
+        return fs.promises.readFile(filePath)
+          .then(function(buf) {
+            if (boardContainer.looksLikeZip(buf)) return boardContainer.unpackBoard(buf);
+            return buf.toString('utf8'); /* pre-4.1.0 plain-JSON file */
+          })
+          .then(function(jsonStr) { return { ok: true, data: jsonStr, mtimeMs: st.mtimeMs }; });
       })
-      .then(function(jsonStr) { return { ok: true, data: jsonStr }; })
       .catch(function(e) { return { ok: false, error: e.message }; });
   });
 
-  ipcMain.handle('file-write', function(event, filePath, data) {
+  /* opts.expectedMtimeMs / opts.force: shared-drive overwrite guard, see
+     save-guard.js. A conflict returns {ok:false, conflict:true} and writes
+     nothing; the renderer decides whether to overwrite, save a copy, or
+     cancel. Success returns the new mtimeMs so the renderer can track it. */
+  ipcMain.handle('file-write', function(event, filePath, data, opts) {
     if (!pathGuard.isBoardPath(filePath) || !boardGrants.has(filePath)) {
       return Promise.resolve({ ok: false, error: 'Kanvaz can only save board files to a location you chose.' });
     }
-    var tmpPath = filePath + '.tmp';
+    var guardOpts = {
+      expectedMtimeMs: opts && typeof opts.expectedMtimeMs === 'number' ? opts.expectedMtimeMs : null,
+      force: !!(opts && opts.force)
+    };
     return boardContainer.packBoard(data)
-      .then(function(zipBuf) { return fs.promises.writeFile(tmpPath, zipBuf); })
-      .then(function() {
-        return fs.promises.rename(tmpPath, filePath);
-      })
-      .then(function() { return { ok: true }; })
-      .catch(function(e) {
-        /* Clean up .tmp if rename failed */
-        try { fs.unlinkSync(tmpPath); } catch (_) {}
-        return { ok: false, error: e.message };
-      });
+      .then(function(zipBuf) { return saveGuard.guardedWrite(filePath, zipBuf, guardOpts); })
+      .catch(function(e) { return { ok: false, error: e.message }; });
   });
 
   /* ── IPC: Media loading ── */

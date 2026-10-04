@@ -120,6 +120,21 @@ if (fs.existsSync(path.join(__dirname, 'path-guard-test.js'))) {
   console.log('  (skipped — test/path-guard-test.js missing)');
 }
 
+/* 5d2. Save guard — shared-drive overwrite detection */
+section('5d2. Save guard (shared-drive overwrite)');
+if (fs.existsSync(path.join(__dirname, 'save-guard-test.js'))) {
+  try {
+    var sgOut = cp.execSync('node "' + path.join(__dirname, 'save-guard-test.js') + '"', { encoding: 'utf8', timeout: 30000 });
+    if (/ALL SAVE GUARD TESTS PASSED/.test(sgOut)) ok('foreign saves detected, own saves and 2 s mtime rounding are not, force and deleted-target paths behave');
+    else { bad('save guard test failed'); console.log(sgOut); }
+  } catch (e) {
+    bad('save guard test crashed');
+    console.log(e.stdout || e.message);
+  }
+} else {
+  console.log('  (skipped — test/save-guard-test.js missing)');
+}
+
 /* 5e. MCP bridge token auth */
 section('5e. MCP token auth');
 if (fs.existsSync(path.join(__dirname, 'mcp-auth-test.js'))) {
@@ -466,6 +481,24 @@ if (fs.existsSync(path.join(__dirname, 'task-tracker-test.js'))) {
 } else {
   console.log('  (skipped — test/task-tracker-test.js missing)');
 }
+
+/* 9f. Save-guard wiring — static guard (main.js/boards.js are not loadable
+   outside Electron/DOM, so the unit test above covers the logic and this
+   only guards that the wiring is not quietly removed). */
+section('9f. Save guard wiring');
+(function() {
+  var mainSrc = fs.readFileSync(path.join(SRC, 'main.js'), 'utf8');
+  var preloadSrc = fs.readFileSync(path.join(SRC, 'preload.js'), 'utf8');
+  var boardsSrc2 = fs.readFileSync(path.join(SRC, 'boards.js'), 'utf8');
+  if (/saveGuard\.guardedWrite\(/.test(mainSrc)) ok('main.js file-write goes through saveGuard.guardedWrite');
+  else bad('main.js file-write no longer uses saveGuard.guardedWrite — shared-drive overwrite guard is gone');
+  if (/mtimeMs: st\.mtimeMs/.test(mainSrc)) ok('main.js file-read still returns mtimeMs');
+  else bad('main.js file-read no longer returns mtimeMs — renderer cannot detect conflicts');
+  if (/ipcRenderer\.invoke\('file-write', p, d, opts\)/.test(preloadSrc)) ok('preload forwards the opts argument to file-write');
+  else bad('preload no longer forwards file-write opts');
+  if (/expectedMtimeMs: expectedMtime/.test(boardsSrc2) && /result\.conflict/.test(boardsSrc2)) ok('boards.js sends expectedMtimeMs and handles result.conflict');
+  else bad('boards.js no longer sends expectedMtimeMs / handles conflicts');
+})();
 
 /* 10. Version consistency */
 section('9e. switchBoard async contract');

@@ -1154,11 +1154,45 @@ var KanvazBoards = (function() {
      going through the native OS Save dialog — that dialog requires a
      human mouse click, which an AI-driven call has no way to supply;
      a plugin calling it would just hang forever. */
-  function writeSerialisedBoardTo(p, onDone) {
+  /* Shared-drive overwrite guard (see src/save-guard.js). loadedMtimeMs is
+     the file's mtime as of our last open/save of currentPath; main.js
+     compares it to what is on disk right before the final rename. null
+     means "no expectation" (first save, Save As to a new path). */
+  var loadedMtimeMs = null;
+
+  /* Shown when the file changed on disk since we opened/last saved it.
+     Every branch calls onDone exactly once so the close flow (which waits
+     on saveBoard's callback) neither hangs nor discards. */
+  function showSaveConflictDialog(p, onDone) {
+    KanvazUI.showDialog(
+      'File changed on disk',
+      'This board was saved by someone or something else after you opened it. Overwriting will erase those changes.',
+      [
+        {
+          label: 'Overwrite',
+          cls: 'danger',
+          action: function() { writeSerialisedBoardTo(p, onDone, true); }
+        },
+        {
+          label: 'Save as copy…',
+          cls: 'primary',
+          action: function() { saveBoardAs(); if (onDone) onDone(false); }
+        },
+        { label: 'Cancel', cls: '', action: function() { if (onDone) onDone(false); } }
+      ]
+    );
+  }
+
+  /* force: the user already chose Overwrite. noDialog: caller is a plugin/
+     MCP tool and a dialog would hang it, so report the conflict instead
+     (onDone(false, 'conflict')) and let the human decide in the UI. */
+  function writeSerialisedBoardTo(p, onDone, force, noDialog) {
     if (!p) {
       if (onDone) onDone(false);
       return;
     }
+    var expectedMtime = (p === currentPath) ? loadedMtimeMs : null;
+    if (p !== currentPath) loadedMtimeMs = null;
     currentPath = p;
     KanvazApp.setCurrentPath(p);
 
@@ -1181,8 +1215,17 @@ var KanvazBoards = (function() {
       if (onDone) onDone(false);
       return;
     }
-    KanvazBridge.writeFile(p, json).then(function(result) {
+    KanvazBridge.writeFile(p, json, { expectedMtimeMs: expectedMtime, force: !!force }).then(function(result) {
+      if (result.conflict) {
+        if (noDialog) {
+          if (onDone) onDone(false, 'conflict');
+        } else {
+          showSaveConflictDialog(p, onDone);
+        }
+        return;
+      }
       if (result.ok) {
+        loadedMtimeMs = (typeof result.mtimeMs === 'number') ? result.mtimeMs : null;
         KanvazBridge.addRecent(p);
         KanvazApp.markClean();
         KanvazBridge.clearRecovery();
@@ -1246,9 +1289,11 @@ var KanvazBoards = (function() {
       return Promise.resolve({ ok: false, error: 'this board has no file path yet — pass a path to create one' });
     }
     return new Promise(function(resolve) {
-      writeSerialisedBoardTo(p, function(ok) {
-        resolve(ok ? { ok: true, path: p } : { ok: false, error: 'save failed — see Kanvaz for the exact reason' });
-      });
+      writeSerialisedBoardTo(p, function(ok, reason) {
+        if (ok) resolve({ ok: true, path: p });
+        else if (reason === 'conflict') resolve({ ok: false, conflict: true, error: 'the file on disk changed since it was opened — not overwritten; resolve it in Kanvaz first' });
+        else resolve({ ok: false, error: 'save failed — see Kanvaz for the exact reason' });
+      }, false, true);
     });
   }
 
@@ -1260,6 +1305,7 @@ var KanvazBoards = (function() {
     KanvazBridge.saveFileDialog(defaultName).then(function(p) {
       if (!p) return;
       currentPath = p;
+      loadedMtimeMs = null; /* the OS dialog already confirmed any overwrite */
       KanvazApp.setCurrentPath(p);
       var data;
       try {
@@ -1272,6 +1318,7 @@ var KanvazBoards = (function() {
       }
       KanvazBridge.writeFile(p, data).then(function(result) {
         if (result.ok) {
+          loadedMtimeMs = (typeof result.mtimeMs === 'number') ? result.mtimeMs : null;
           KanvazBridge.addRecent(p);
           KanvazApp.markClean();
           KanvazBridge.clearRecovery();
@@ -1341,6 +1388,7 @@ var KanvazBoards = (function() {
           warnIfNewerVersion(data);
           loadFromJSON(data);
           currentPath = p;
+          loadedMtimeMs = (typeof result.mtimeMs === 'number') ? result.mtimeMs : null;
           KanvazApp.setCurrentPath(p);
           KanvazBridge.addRecent(p);
           KanvazApp.markClean();

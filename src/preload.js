@@ -54,7 +54,7 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
 
   /* File I/O */
   readFile:        function(p) { return ipcRenderer.invoke('file-read', p); },
-  writeFile:       function(p, d) { return ipcRenderer.invoke('file-write', p, d); },
+  writeFile:       function(p, d, opts) { return ipcRenderer.invoke('file-write', p, d, opts); },
 
   /* Media */
   loadMedia:       function(p) { return ipcRenderer.invoke('media-load', p); },
