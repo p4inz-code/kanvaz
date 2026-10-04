@@ -2,7 +2,7 @@
 
 *For a fresh Claude session picking this project up. Read this first.*
 
-> **Newest full recap: `docs/SESSION_HANDOFF_2026-09-22.md`** (this release's session: auto-update UX overhaul, installer default-handler-hijack fix, Link/Open-with/3D bounty fixes, release-notes tool). Read it before the sections below.
+> **Newest full recap: `docs/SESSION_HANDOFF_2026-10-04.md`** (v9.7.0 live, Pages guide live, open items and owner rules). Before it: `docs/SESSION_HANDOFF_2026-09-22.md` (this release's session: auto-update UX overhaul, installer default-handler-hijack fix, Link/Open-with/3D bounty fixes, release-notes tool). Read it before the sections below.
 
 ## Current state (2026-09-23) — read before anything else below
 
@@ -210,4 +210,4 @@ If genuinely blocked on a product-judgement call `docs/ROADMAP.md` doesn't alrea
 
 Full line-by-line file history, exact code diffs, and the complete CHANGELOG text for v3.5.x–v4.2.2 are available by reading `CHANGELOG.md` and `docs/AUDIT_REPORT_4.2.1.md` directly in the repo. The original plugin design vision (partially superseded by `docs/ROADMAP.md`'s decisions above, especially the AI-plugin concept and trust-model scope) is in `docs/PLUGIN_SYSTEM_DRAFT.md`. Don't rely on this handoff for exact wording anywhere — it's a map, not the territory.
 
-Two other repo-root files (`SESSION_MEMORY.md`, `docs/archive/CONTINUE_CHAT.md`) are **stale artifacts from earlier, since-superseded "final release" moments** (v2.0.1 and v3.8.0 respectively) — historical record only, not live handoff docs. This file and `docs/ROADMAP.md` are the current source of truth.
+Repo-root `SESSION_MEMORY.md` (gitignored, local) was rewritten 2026-10-04 as a short START HERE pointer to the newest handoff; `docs/archive/CONTINUE_CHAT.md` is a **stale artifact from an earlier, since-superseded "final release" moment** (v3.8.0), historical record only. The old v2.0.1 root record is archived locally as `SESSION_MEMORY.v2.0.1.archive.md`. The current sources of truth are `docs/SESSION_HANDOFF_2026-10-04.md`, this file, and `docs/ROADMAP.md`.

@@ -20,7 +20,7 @@ npm-debug.log*
 *.zip
 
 # Internal development notes — not for public repo
-SESSION_MEMORY.md
+SESSION_MEMORY*.md
 test/node_modules/
 *.mp4
 *.mov
