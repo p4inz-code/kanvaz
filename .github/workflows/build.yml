@@ -314,3 +314,41 @@ jobs:
           gh release upload "${GITHUB_REF_NAME}" "$out" --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Downloads the DRAFT's real assets and checks them before anyone clicks
+  # publish. Exists because the same class of bug shipped more than once:
+  # 8 releases with no installers (v7.14.0-v7.21.0), two drafts for one tag
+  # (v9.6.0), and in v9.7.0 a download guide naming files that do not exist
+  # plus SHA256SUMS naming files nobody could download. The checksum step
+  # above is continue-on-error, so a broken one is otherwise invisible.
+  # tools/verify-release.js has the actual checks (unit-tested in
+  # test/verify-release-test.js, and run against the real v9.7.0 assets).
+  #
+  # Read-only in practice, but a draft is only visible to a token with push
+  # access, hence contents: write. Does NOT publish, edit or delete anything:
+  # a red result here means "do not publish yet", nothing more.
+  verify-release:
+    name: Verify draft release assets
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 20
+
+      - name: Download the draft's assets
+        run: |
+          mkdir -p release-assets
+          gh release download "${GITHUB_REF_NAME}" --dir release-assets
+          gh release list --limit 100 --json tagName,isDraft > releases.json
+          ls -la release-assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify names, guide filenames, checksums and release uniqueness
+        run: node tools/verify-release.js release-assets "${GITHUB_REF_NAME#v}" --releases releases.json --tag "${GITHUB_REF_NAME}"

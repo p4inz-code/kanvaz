@@ -135,6 +135,24 @@ if (fs.existsSync(path.join(__dirname, 'save-guard-test.js'))) {
   console.log('  (skipped — test/save-guard-test.js missing)');
 }
 
+/* 5d3. Release-asset verifier — the tool CI runs against every draft release */
+section('5d3. Release-asset verifier');
+if (fs.existsSync(path.join(__dirname, 'verify-release-test.js'))) {
+  try {
+    var vrOut = cp.execSync('node "' + path.join(__dirname, 'verify-release-test.js') + '"', { encoding: 'utf8', timeout: 60000 });
+    if (/ALL VERIFY RELEASE TESTS PASSED/.test(vrOut)) ok('catches missing installers, bad checksum names, hash mismatch, wrong guide filenames, duplicate drafts; accepts a correct release');
+    else { bad('verify-release test failed'); console.log(vrOut); }
+  } catch (e) {
+    bad('verify-release test crashed');
+    console.log(e.stdout || e.message);
+  }
+  var buildYml = fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', 'build.yml'), 'utf8');
+  if (/verify-release:/.test(buildYml) && /tools\/verify-release\.js/.test(buildYml)) ok('build.yml still runs tools/verify-release.js against the draft');
+  else bad('build.yml no longer has the verify-release job — release assets are unchecked again');
+} else {
+  console.log('  (skipped — test/verify-release-test.js missing)');
+}
+
 /* 5e. MCP bridge token auth */
 section('5e. MCP token auth');
 if (fs.existsSync(path.join(__dirname, 'mcp-auth-test.js'))) {
