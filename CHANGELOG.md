@@ -4,6 +4,12 @@ All notable changes to Kanvaz are documented here.
 
 ## [Unreleased]
 
+### Fixed
+- **The Windows Setup wizard still showed the old logo.** `assets/installer-sidebar.bmp` (the art on the installer's welcome and finish pages, and the uninstaller's) dated from Aug 2: a blue dotted "Kanvaz 2026" tile that predates the current K-in-a-circle brand. Regenerated from the current logo (`tools/gen-installer-sidebar.py`; 164x314, 24-bit BMP as NSIS requires), same layout and text. Checked first that the embedded `.exe` icons in the published installers match `assets/icons/icon.ico` pixel for pixel, and that the ICO, PNG and ICNS sets match each other, so the app icon itself was never stale; only this wizard art was. The Setup exe in the existing v9.8.0 release is being rebuilt with it (no new version).
+- **The landing page had no favicon.** `docs/index.html` pointed at `assets/icon.png`, which does not exist (the icons live in `assets/icons/`); now `assets/icons/icon-256.png`.
+- **`SECURITY.md` still listed 9.1.x as the supported version** while 9.8.x is current; corrected to 9.8.x / older not supported (the existing table shape, no new policy).
+- **Regression test** `test/doc-assets-test.js` (wired into `validate.js` 5d4): every asset referenced by the README, landing page and guide must exist, every icon/installer image named in `package.json` must exist, the installer sidebar must be a valid NSIS image, and `icon.ico` must carry 16/32/48/256 px. Honest limit: it catches broken references and invalid files, not an old-but-valid design, which is what the sidebar was.
+
 ## [9.8.0] — 2026-10-04 — Overwrite protection for shared drives, Presentation Mode reading order, live user guide, verified release assets
 
 ### Added

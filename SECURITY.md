@@ -4,10 +4,10 @@
 
 | Version | Supported |
 |---------|-----------|
-| 9.1.x   | Yes       |
-| < 9.1   | No        |
+| 9.8.x (latest release) | Yes |
+| < 9.8   | No: please update to the latest release |
 
-*(Table corrected 2026-09-20 — it previously still said 7.13.x.)*
+*(Table corrected 2026-10-04: it still listed 9.1.x as the supported line while 9.8.x was current.)*
 
 Development continues as an ongoing side project — see `docs/ROADMAP.md` (the "Security & platform hardening" section tracks every open item from the 2026-09-20 audit).
 

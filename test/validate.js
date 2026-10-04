@@ -153,6 +153,21 @@ if (fs.existsSync(path.join(__dirname, 'verify-release-test.js'))) {
   console.log('  (skipped — test/verify-release-test.js missing)');
 }
 
+/* 5d4. Doc + installer assets: broken references, installer art validity */
+section('5d4. Doc and installer assets');
+if (fs.existsSync(path.join(__dirname, 'doc-assets-test.js'))) {
+  try {
+    var daOut = cp.execSync('node "' + path.join(__dirname, 'doc-assets-test.js') + '"', { encoding: 'utf8', timeout: 30000 });
+    if (/ALL DOC ASSET TESTS PASSED/.test(daOut)) ok('no broken asset references in README/landing/guide; installer sidebar and icon files valid');
+    else { bad('doc assets test failed'); console.log(daOut); }
+  } catch (e) {
+    bad('doc assets test failed');
+    console.log(e.stdout || e.message);
+  }
+} else {
+  console.log('  (skipped — test/doc-assets-test.js missing)');
+}
+
 /* 5e. MCP bridge token auth */
 section('5e. MCP token auth');
 if (fs.existsSync(path.join(__dirname, 'mcp-auth-test.js'))) {
