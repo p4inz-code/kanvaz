@@ -27,3 +27,10 @@ test/node_modules/
 
 # Local test assets that must never be committed
 /*.fbx
+
+# Personal files that must never be committed (donation QR / rollout assets).
+# They live untracked in the owner's checkout; this stops `git add -A` or
+# `git add .` from staging them by accident.
+/upi-qr.jpeg
+/download.jpe
+/docs/handoff-assets/donate-rollout/
