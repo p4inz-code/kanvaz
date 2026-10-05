@@ -140,6 +140,22 @@ The new release must show **Latest**. Publishing makes the update metadata (`lat
 - The landing page and README stats (module count, release count) must be recounted from the repo, not copied from older text.
 - GitHub Pages rebuilds from `main:/docs` on every push. It caches for minutes, so append `?v=<commit>` to a URL when checking a fresh push.
 
+## Replacing an asset on an already-published release (rare, done once on 2026-10-05)
+
+Use this only when a published release has a bad installer and the owner does not want a new version number. It is untidy by design; prefer a new patch release.
+
+**Do not move or re-push the tag.** Re-running CI on an already-published release makes electron-builder silently skip the installer upload (the trap described at the top of `build.yml`), but the plugin-zip and checksum steps still run with `--clobber`, leaving checksums that describe installers that were never uploaded, and `verify-release` goes red.
+
+1. Commit and push the fix to `main` and wait for CI.
+2. Back up the files you will replace: `gh release download vX.Y.Z -p <name> -D <backup dir>` (keep it outside the repo).
+3. Build in a **fresh clone** of that commit (`git clone`, `git checkout <sha>`, `npm ci`, `npm run build:win -- --publish never` with `CSC_IDENTITY_AUTO_DISCOVERY=false`), not in the dev checkout, so `node_modules` matches CI. Confirm with `Get-AuthenticodeSignature` that it is unsigned like the CI build.
+4. Names: copy `Kanvaz Setup X.Y.Z.exe` to `Kanvaz-Setup-X.Y.Z.exe` (and the `.blockmap`). electron-builder already writes dashed names into `latest.yml`; check that its `sha512` and `size` equal `openssl dgst -sha512 -binary <exe> | base64` and `stat`. In `SHA256SUMS-windows-latest.txt` replace only the changed line, in the same `<hash> *<name>` format.
+5. Upload with `gh release upload vX.Y.Z <exe> <blockmap> <sums> --clobber`, then `latest.yml` **last**, so no updater ever reads new metadata before the new installer exists.
+6. Re-download all assets and run `node tools/verify-release.js <dir> X.Y.Z --releases <json> --tag vX.Y.Z`. To prove a change is really in the installer, extract it (full 7-Zip: `7z x -tNsis`) and compare files under `$PLUGINSDIR`.
+7. Record in the CHANGELOG that the tag no longer matches the rebuilt asset byte for byte.
+
+Clients that already downloaded the old build will fail the sha512 check once and retry; nobody ends up with a corrupted install.
+
 ## When something goes wrong
 
 | Symptom | What it means / what to do |
