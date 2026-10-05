@@ -69,6 +69,20 @@ function run() {
   assert.strictEqual(build.nsis.installerSidebar, build.nsis.uninstallerSidebar, 'installer and uninstaller sidebars should match');
   console.log('  ✓ installer sidebar is a valid NSIS image (164x314, 24-bit, uncompressed)');
 
+  /* ── 3a. the handout PDF's version pill matches package.json (regenerate it on release) ── */
+  var ver = JSON.parse(fs.readFileSync(p('package.json'), 'utf8')).version;
+  var pdf = fs.readFileSync(p('docs', 'Kanvaz_Overview.pdf')).toString('latin1');
+  assert.ok(pdf.indexOf('(v' + ver + ')') !== -1, 'docs/Kanvaz_Overview.pdf does not show v' + ver + ' (run: python docs/generate_overview_pdf.py)');
+  console.log('  ✓ docs/Kanvaz_Overview.pdf shows the current version (v' + ver + ')');
+
+  /* ── 3b. the landing page's "Source Modules" stat equals the real src/*.js count ── */
+  var realModules = fs.readdirSync(p('src')).filter(function(f) { return /\.js$/.test(f); }).length;
+  var landing = fs.readFileSync(p('docs', 'index.html'), 'utf8');
+  var mm = landing.match(/stat-value">(\d+)<\/div>\s*<div class="stat-label">Source Modules/);
+  assert.ok(mm, 'could not find the Source Modules stat on docs/index.html');
+  assert.strictEqual(Number(mm[1]), realModules, 'docs/index.html says ' + mm[1] + ' source modules but src/ has ' + realModules);
+  console.log('  ✓ landing page Source Modules stat (' + mm[1] + ') equals the real src/*.js count');
+
   /* ── 3. the ICO carries every standard size (Windows picks by context) ── */
   var ico = fs.readFileSync(p('assets', 'icons', 'icon.ico'));
   var count = ico.readUInt16LE(4), sizes = [];

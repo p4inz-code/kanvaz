@@ -18,7 +18,7 @@ Kanvaz ships as:
 
 - **Windows** — an NSIS installer (`Kanvaz-Setup-x.y.z.exe`) or a portable `.exe`
 - **macOS** — a `.dmg`
-- **Linux** — an `AppImage` or a `.deb`
+- **Linux** — an `AppImage` (`chmod +x` it and run; there is no `.deb`)
 
 There's no account, no sign-in, and no network call on first launch —
 Kanvaz is fully offline. See [About Kanvaz](about.md) for what that

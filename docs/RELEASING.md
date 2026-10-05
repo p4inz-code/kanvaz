@@ -37,6 +37,8 @@ The version must match in these places. `npm run validate` (section 10) enforces
 - `src/boards.js` → `var VERSION = 'X.Y.Z'`
 - `README.md` → the build filenames that contain the version
 - `package-lock.json` → keep in sync with `npm install --package-lock-only` (nothing checks it, and it was found stale at 8.9.8 on a 9.7.0 tree)
+- `docs/Kanvaz_Overview.pdf` → regenerate with `python docs/generate_overview_pdf.py` (needs `pip install reportlab`); it reads the version from `package.json`, and `test/doc-assets-test.js` fails if the PDF's version is stale
+- `docs/index.html` stats strip (Source Modules is checked by the same test; the Releases count is not, so recount it with `gh release list --limit 300 | wc -l`)
 
 The About screen reads the version from `KanvazBoards.getVersion()`, so there is nothing to edit in `ui.js`.
 

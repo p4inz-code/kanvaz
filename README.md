@@ -116,7 +116,7 @@ Most reference boards stop at "put images on a canvas." These are the ones worth
 | 🖼️ **One canvas for everything** | 3D models, images, GIFs, video, audio, notes, colors, URLs, and file pointers. Drop it in, arrange it freely, annotate on top. Multiple boards per file, each with its own view state. |
 | 🔗 **Shared cards across boards** | The same card can live on more than one board with zero duplication. Edit it on either one, and the change is there next time you open the other. |
 | 🧠 **Smart Search** | On-device, lemmatized/fuzzy search ("cars" finds "car"). Fully offline, off by default, about 4.5MB, zero native dependencies. |
-| ✏️ **Real annotation tools** | Pen, arrow, rectangle, pixel-measure, and an eyedropper that samples actual pixel color, right on top of your reference. |
+| ✏️ **Real annotation tools** | Pen, highlighter, line, arrow, rectangle, ellipse, text, pixel-measure, and an eyedropper that samples actual pixel color, with a custom color picker and per-stroke opacity, right on top of your reference. |
 | 🕸️ **Connections + Map View** | Link any two references with typed, directional relationships. Visualize the whole web as a node-editor-style graph with bezier cables. |
 | 🧩 **A real plugin ecosystem** | Add card types, commands, themes, or full features without forking Kanvaz. Sell your own plugin if you want. Kanvaz never takes a cut and never runs a marketplace. |
 | 🔒 **100% offline, always** | No accounts, no telemetry, nothing phones home. The only network activity anywhere in the app is a button you click yourself (Check for Updates, Browse Plugins). Never automatic. |
@@ -162,7 +162,7 @@ Same canvas, different starting points — VFX/previz, 3D/look-dev, game dev, an
 
 ## Requirements
 
-- Node.js 18+ ([nodejs.org](https://nodejs.org))
+- Node.js 20+ ([nodejs.org](https://nodejs.org)); this is the version CI builds every release with
 - npm 9+
 
 ---
@@ -196,6 +196,7 @@ only tags the non-default arch) — both built from one command.
 ```bash
 npm run build:linux
 ```
+Output: `dist/Kanvaz-9.8.0.AppImage`
 
 ---
 
@@ -239,7 +240,7 @@ Stated plainly, nothing hidden — highlights: custom properties are text-only f
 
 ## Roadmap
 
-Kanvaz keeps getting developed as an ongoing side project, no fixed deadline, mostly driven by real feedback. The living plan lives in [docs/ROADMAP.md](docs/ROADMAP.md); as of 9.7.0:
+Kanvaz keeps getting developed as an ongoing side project, no fixed deadline, mostly driven by real feedback. The living plan lives in [docs/ROADMAP.md](docs/ROADMAP.md); as of 9.8.0:
 
 - Select, move, and delete an individual existing annotation stroke (today "Clear annotations" is all-or-nothing)
 - A first-run "Set up your profile" screen and a profile picker built into the Start Screen itself
