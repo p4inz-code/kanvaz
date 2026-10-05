@@ -155,6 +155,15 @@ async function main() {
   w = await vr.catalogWarnings(cdir, okCat, VERSION, ['theme-creator', 'ai-export', 'mcp-bridge']);
   assert.deepStrictEqual(w, [], 'an up-to-date catalog produces no warnings');
   console.log('  ✓ catalog drift (stale version, unlisted plugin, wrong permissions) is flagged with the exact fix; an up-to-date catalog is silent');
+
+  /* a corrupt zip must degrade to a warning, never reject (review finding on 9.8.0) */
+  var bad = fs.mkdtempSync(path.join(os.tmpdir(), 'kanvaz-verify-bad-'));
+  made.push(bad);
+  fs.writeFileSync(path.join(bad, 'kanvaz-ai-export-' + VERSION + '.zip'), 'this is not a zip');
+  var wb = await vr.catalogWarnings(bad, [], VERSION, ['ai-export']);
+  assert.strictEqual(wb.length, 1, 'one warning, no rejection: ' + JSON.stringify(wb));
+  assert.ok(wb[0].indexOf('could not be checked against the catalog') !== -1, wb[0]);
+  console.log('  ✓ a corrupt plugin zip becomes a warning instead of crashing the run');
 }
 
 main().then(function() {

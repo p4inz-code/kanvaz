@@ -1161,8 +1161,10 @@ var KanvazBoards = (function() {
   var loadedMtimeMs = null;
 
   /* Shown when the file changed on disk since we opened/last saved it.
-     Every branch calls onDone exactly once so the close flow (which waits
-     on saveBoard's callback) neither hangs nor discards. */
+     Each button calls onDone exactly once, so the close flow (which waits
+     on saveBoard's callback) neither hangs nor discards. Dismissing the
+     dialog with Escape runs no button and so calls nothing (same as every
+     other showDialog): the board stays dirty and the window stays open. */
   function showSaveConflictDialog(p, onDone) {
     KanvazUI.showDialog(
       'File changed on disk',

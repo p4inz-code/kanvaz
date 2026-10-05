@@ -202,6 +202,9 @@ function catalogWarnings(dir, catalog, version, pluginDirs) {
         }
         return out;
       });
+    }).catch(function(e) {
+      /* Warnings-only contract: a corrupt zip or unreadable plugin.json must not crash the whole run. */
+      return ['kanvaz-' + name + '-' + version + '.zip could not be checked against the catalog: ' + e.message];
     });
   });
   return Promise.all(jobs).then(function(lists) { return [].concat.apply([], lists); });
@@ -242,9 +245,14 @@ function main(argv) {
     return Promise.resolve(1);
   }
   var catalogPath = path.join(ROOT, 'official-plugins', 'catalog.json');
-  var catalogP = fs.existsSync(catalogPath)
-    ? catalogWarnings(opts.dir, JSON.parse(fs.readFileSync(catalogPath, 'utf8')), opts.version, opts.pluginDirs)
-    : Promise.resolve([]);
+  var catalogP;
+  try {
+    catalogP = fs.existsSync(catalogPath)
+      ? catalogWarnings(opts.dir, JSON.parse(fs.readFileSync(catalogPath, 'utf8')), opts.version, opts.pluginDirs)
+      : Promise.resolve([]);
+  } catch (e) {
+    catalogP = Promise.resolve(['official-plugins/catalog.json could not be read: ' + e.message]);
+  }
   return Promise.all([verify(opts), catalogP]).then(function(res) {
     var errors = res[0];
     res[1].forEach(function(w) {
