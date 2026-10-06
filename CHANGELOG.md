@@ -4,6 +4,13 @@ All notable changes to Kanvaz are documented here.
 
 ## [Unreleased]
 
+## [9.8.2] — 2026-10-07 — MoodLock: titlebar lock button, flip through references, remembered window position
+### Changed
+- **The MoodLock lock icon is bigger and crisper.** The titlebar button next to Minimize went from 12 px to 16 px (Minimize/Maximize/Close are 11-12 px) with a thinner stroke, geometric-precision rendering and a keyhole so it reads as a padlock at a glance; the corner lock is 18 px in a 32 px button. Checked in a native-resolution screenshot beside the other three buttons.
+
+### Added
+- **MoodLock: flip through references with Left / Right, and the locked window remembers where you parked it.** While MoodLock is on, the arrow keys show the previous / next card of the board in reading order (cards hidden from the Layers panel are skipped, it wraps around, each card is framed) and the corner control shows the position, e.g. "3 / 12". From a multi-card isolation or the whole board, Right starts at the first card and Left at the last. Because flipping replaces the isolation set, leaving MoodLock after stepping ends the isolation entirely. Separately, entering MoodLock moves/resizes the window to where it was last left (stored in `moodlock-window.json` in the app data folder, validated by the new `src/window-bounds.js` so a spot on an unplugged monitor, or one with only a sliver visible, is ignored; the very first use moves nothing), allows a smaller minimum window (220x160), and leaving it saves that spot and restores the exact window you had, including un-maximizing and re-maximizing. Unit-tested (`test/window-bounds-test.js`) and **verified live over CDP**: stepping (14 checks: reading order, wrap-around both ways, framing, no leftover selection, layer-hidden cards skipped, isolation ended on exit, arrows still nudge normally outside MoodLock), the window moving to a saved spot (landed within 7 px of the saved rectangle) and returning exactly on unlock, and a saved spot on a monitor that is not there being ignored.
+
 ### Changed
 - **MoodLock now has a lock button right next to Minimize in the titlebar**, so it can be switched on and off with one click instead of remembering `Ctrl+Shift+L`. It does what the shortcut does: isolates the selected cards (or locks the whole board when nothing is selected) and hides all chrome. Because the titlebar is hidden while locked, the corner lock stays as the way back (and `Esc` / `Ctrl+Shift+L` still work).
 

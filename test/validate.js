@@ -183,6 +183,19 @@ if (fs.existsSync(path.join(__dirname, 'keep-on-top-test.js'))) {
   console.log('  (skipped — test/keep-on-top-test.js missing)');
 }
 
+/* 5d6. Remembered MoodLock window position */
+section('5d6. Window bounds');
+if (fs.existsSync(path.join(__dirname, 'window-bounds-test.js'))) {
+  try {
+    var wbOut = cp.execSync('node "' + path.join(__dirname, 'window-bounds-test.js') + '"', { encoding: 'utf8', timeout: 30000 });
+    if (/ALL WINDOW BOUNDS TESTS PASSED/.test(wbOut)) ok('a remembered window position is only restored if it is still reachable on a connected display');
+    else { bad('window bounds test failed'); console.log(wbOut); }
+  } catch (e) {
+    bad('window bounds test failed');
+    console.log(e.stdout || e.message);
+  }
+}
+
 /* 5e. MCP bridge token auth */
 section('5e. MCP token auth');
 if (fs.existsSync(path.join(__dirname, 'mcp-auth-test.js'))) {
@@ -568,6 +581,11 @@ section('9g. MoodLock and keep-on-top wiring');
   var idxSrc = fs.readFileSync(path.join(SRC, 'index.html'), 'utf8');
   if (idxSrc.indexOf('id="btn-moodlock"') > 0 && idxSrc.indexOf('id="btn-moodlock"') < idxSrc.indexOf('id="btn-minimize"') && /on\('btn-moodlock',\s+function\(\) \{ toggleMoodLock\(\); \}\)/.test(appSrc)) ok('titlebar has the MoodLock button right before Minimize, wired to toggleMoodLock');
   else bad('the titlebar MoodLock button is missing or not wired');
+  var preloadSrc3 = fs.readFileSync(path.join(SRC, 'preload.js'), 'utf8');
+  if (/window-moodlock-window/.test(mainSrc3) && /window-moodlock-window/.test(preloadSrc3) && /setMoodLockWindow\(true\)/.test(appSrc) && /setMoodLockWindow\(false\)/.test(appSrc)) ok('MoodLock saves/restores the window position through main.js (enter and exit)');
+  else bad('MoodLock window remember/restore wiring is incomplete');
+  if (/function isolateOnly\(/.test(cardsSrc) && /moodLockStep:\s+moodLockStep/.test(appSrc) && /moodLockStep\(e\.key === 'ArrowRight'/.test(scSrc)) ok('Left/Right step through references while MoodLock is on');
+  else bad('MoodLock card stepping wiring is incomplete');
   if (/body\.mood-lock-active #top-chrome[\s\S]*?body\.mood-lock-active #side-panel[\s\S]*?body\.mood-lock-active #statusbar/.test(cssSrc)) ok('main.css hides titlebar/toolbar, side panel and status bar under .mood-lock-active');
   else bad('main.css no longer hides all chrome for MoodLock');
 })();

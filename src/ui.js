@@ -1683,6 +1683,7 @@ var KanvazUI_Extended = (function() {
           ['I',           'About'],
           ['Ctrl+Shift+T', 'Top Mode \u2014 force always-on-top, auto-hide chrome, and close the side panel (session only)'],
           ['Ctrl+Shift+L', 'MoodLock \u2014 isolate the selection and hide every toolbar (Esc or the corner lock to leave)'],
+          ['Left / Right', 'While MoodLock is on: previous / next reference'],
           ['?',           'This screen'],
           ['Esc',         'Deselect / close']
         ]

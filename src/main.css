@@ -3925,8 +3925,8 @@ body.mood-lock-active #mood-lock-grip {
 
 #mood-lock-btn {
   -webkit-app-region: no-drag;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3956,4 +3956,18 @@ body.presentation-mode-active .card input,
 body.presentation-mode-active .card [contenteditable] {
   pointer-events: none !important;
   user-select: none !important;
+}
+
+/* MoodLock position counter ("3 / 12") shown while flipping through cards with the arrow keys */
+#mood-lock-pos {
+  display: none;
+  padding: 0 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-3);
+  white-space: nowrap;
+}
+
+body.mood-lock-active #mood-lock-pos:not(:empty) {
+  display: block;
 }

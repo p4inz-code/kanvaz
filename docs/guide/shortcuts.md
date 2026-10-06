@@ -26,6 +26,7 @@ noted below.
 | `Ctrl+K` | Command Palette |
 | `Ctrl+H` | Toggle Home Screen |
 | `Ctrl+Shift+T` | Toggle Top Mode |
+| `Left` / `Right` | While MoodLock is on: previous / next reference |
 | `Ctrl+Shift+L` | MoodLock: isolate the selection and hide every toolbar (see [Isolate View](board-view.md#isolate-view)) |
 
 ## Canvas

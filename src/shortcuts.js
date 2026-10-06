@@ -81,6 +81,11 @@ var KanvazShortcuts = (function() {
        ignored so the locked view can't be changed by accident. */
     if (typeof KanvazApp !== 'undefined' && KanvazApp.isMoodLockActive && KanvazApp.isMoodLockActive()) {
       if (e.key === 'Escape' || (ctrl && shift && keyLower === 'l')) { e.preventDefault(); KanvazApp.toggleMoodLock(); return; }
+      if (!ctrl && !shift && !e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        e.preventDefault();
+        if (KanvazApp.moodLockStep) KanvazApp.moodLockStep(e.key === 'ArrowRight' ? 1 : -1);
+        return;
+      }
       var cameraKey = !ctrl && !e.altKey && (keyLower === 'f' || e.key === '0' || e.key === '+' || e.key === '=' || e.key === '-');
       if (!cameraKey) { if (e.key === 'Tab') e.preventDefault(); return; }
     }

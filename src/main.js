@@ -77,6 +77,8 @@ process.on('unhandledRejection', function(reason) {
 var boardGrants = pathGuard.createGrants();
 var keepOnTop = keepOnTopLib.create({ getWindow: function() { return mainWindow; } });
 var keepOnTopSystemHooked = false;
+var windowBounds = require('./window-bounds');
+var moodLockWin = { normal: null, wasMaximized: false };
 
 /* Every handler that takes a path from the renderer refuses remote (UNC /
    device) and relative paths before touching the filesystem: a card path
@@ -938,6 +940,36 @@ function registerIPC() {
         });
       }
     }
+  });
+
+  /* MoodLock window: it is meant to sit small next to the app you work in (ZBrush, Blender). Entering
+     it moves/resizes the window to where it was last parked (only if that spot is still on a connected
+     display, see window-bounds.js; the very first time nothing moves), allows a smaller minimum size,
+     and leaving it saves that spot and puts the window back exactly where it was. */
+  function moodLockBoundsFile() { return path.join(app.getPath('userData'), 'moodlock-window.json'); }
+  function workAreas() { return electron.screen.getAllDisplays().map(function(d) { return d.workArea; }); }
+  ipcMain.on('window-moodlock-window', function(event, active) {
+    if (!mainWindow) return;
+    try {
+      if (active) {
+        if (moodLockWin.normal) return;
+        moodLockWin.wasMaximized = mainWindow.isMaximized();
+        if (moodLockWin.wasMaximized) mainWindow.unmaximize();
+        moodLockWin.normal = mainWindow.getBounds();
+        mainWindow.setMinimumSize(windowBounds.MIN_W, windowBounds.MIN_H);
+        var saved = null;
+        try { saved = windowBounds.sanitize(JSON.parse(fs.readFileSync(moodLockBoundsFile(), 'utf8')), workAreas()); } catch (e) { /* never parked yet */ }
+        if (saved) mainWindow.setBounds(saved);
+      } else {
+        if (!moodLockWin.normal) return;
+        try { fs.writeFileSync(moodLockBoundsFile(), JSON.stringify(mainWindow.getBounds())); } catch (e) { /* best effort */ }
+        mainWindow.setMinimumSize(320, 240);
+        var back = windowBounds.sanitize(moodLockWin.normal, workAreas());
+        if (back) mainWindow.setBounds(back);
+        if (moodLockWin.wasMaximized) mainWindow.maximize();
+        moodLockWin.normal = null;
+      }
+    } catch (e) { console.warn('[Kanvaz] MoodLock window handling failed:', e.message); }
   });
 
   /* ── IPC: File dialogs ── */

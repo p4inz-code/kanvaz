@@ -1292,13 +1292,14 @@ var KanvazApp = (function() {
      unrelated, so this uses .mood-lock-* names. */
   var moodLockActive  = false;
   var moodLockRestore = null;
+  var moodLockStepped = false;   /* the user flipped through cards with the arrow keys */
 
   function isMoodLockActive() {
     return moodLockActive;
   }
 
-  var MOOD_LOCK_ICON_CLOSED = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
-  var MOOD_LOCK_ICON_OPEN   = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.5-1.5"/></svg>';
+  var MOOD_LOCK_ICON_CLOSED = '<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" shape-rendering=\"geometricPrecision\"><rect x=\"4.5\" y=\"10.5\" width=\"15\" height=\"10\" rx=\"2.2\"/><path d=\"M7.8 10.5V7.8a4.2 4.2 0 0 1 8.4 0v2.7\"/><circle cx=\"12\" cy=\"15.5\" r=\"1.25\" fill=\"currentColor\" stroke=\"none\"/></svg>';
+  var MOOD_LOCK_ICON_OPEN   = '<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" shape-rendering=\"geometricPrecision\"><rect x=\"4.5\" y=\"10.5\" width=\"15\" height=\"10\" rx=\"2.2\"/><path d=\"M7.8 10.5V7.8a4.2 4.2 0 0 1 7.9-2\"/><circle cx=\"12\" cy=\"15.5\" r=\"1.25\" fill=\"currentColor\" stroke=\"none\"/></svg>';
 
   /* Builds the corner control on first use and keeps it in step with Isolate
      View (cards.js calls this whenever isolate turns on or off) and with
@@ -1315,11 +1316,15 @@ var KanvazApp = (function() {
       var grip = document.createElement('div');
       grip.id = 'mood-lock-grip';
       grip.title = 'Drag to move the window';
+      var posEl = document.createElement('span');
+      posEl.id = 'mood-lock-pos';
+      posEl.title = 'Left / Right arrows: previous / next reference';
       var btn = document.createElement('button');
       btn.id = 'mood-lock-btn';
       btn.type = 'button';
       btn.onclick = function(e) { e.stopPropagation(); toggleMoodLock(); };
       ctl.appendChild(grip);
+      ctl.appendChild(posEl);
       ctl.appendChild(btn);
       document.body.appendChild(ctl);
     }
@@ -1333,6 +1338,37 @@ var KanvazApp = (function() {
       b.title = 'MoodLock: hide all toolbars and lock this view (Ctrl+Shift+L)';
       b.setAttribute('aria-label', 'Turn on MoodLock');
     }
+  }
+
+  /* Left/Right while locked: flip through the board's cards one at a time, in reading order (same order
+     Presentation Mode uses), skipping cards hidden from the Layers panel, wrapping at the ends, and
+     framing each one. From the whole board or a multi-card isolation, Right starts at the first card
+     and Left at the last. */
+  function moodLockStep(dir) {
+    if (!moodLockActive || typeof KanvazCards === 'undefined' || !KanvazCards.isolateOnly) return;
+    var ids = readingOrderCardIds().filter(function(id) {
+      var c = KanvazCards.getCard(id);
+      return c && !c.hidden;
+    });
+    if (!ids.length) return;
+    var visible = ids.filter(function(id) {
+      var el = document.getElementById(id);
+      return el && !el.classList.contains('card-isolated-hidden');
+    });
+    var idx;
+    if (visible.length === 1) idx = ids.indexOf(visible[0]) + dir;
+    else idx = dir > 0 ? 0 : ids.length - 1;
+    idx = (idx + ids.length) % ids.length;
+    var id = ids[idx];
+    KanvazCards.isolateOnly([id]);
+    moodLockStepped = true;
+    try {
+      KanvazCards.setMultiSelection([id]);
+      KanvazCanvas.zoomToSelection();
+      KanvazCards.deselectAll();
+    } catch (e) { /* framing is a nicety; the card is already isolated */ }
+    var posEl = document.getElementById('mood-lock-pos');
+    if (posEl) posEl.textContent = (idx + 1) + ' / ' + ids.length;
   }
 
   function toggleMoodLock() {
@@ -1357,8 +1393,10 @@ var KanvazApp = (function() {
     var sidePanelWasOpen = (typeof KanvazSidePanel !== 'undefined' && KanvazSidePanel.isOpen && KanvazSidePanel.isOpen());
     moodLockRestore = { alwaysOnTop: alwaysOnTop, isolatedByUs: isolatedByUs, sidePanelWasOpen: !!sidePanelWasOpen };
     moodLockActive = true;
+    moodLockStepped = false;
 
     syncAlwaysOnTop(true);
+    if (typeof KanvazBridge !== 'undefined' && KanvazBridge.setMoodLockWindow) KanvazBridge.setMoodLockWindow(true);
     if (sidePanelWasOpen) KanvazSidePanel.close();
     if (cardsApi && cardsApi.deselectAll) cardsApi.deselectAll();
     document.body.classList.add('mood-lock-active');
@@ -1376,7 +1414,11 @@ var KanvazApp = (function() {
 
     document.body.classList.remove('mood-lock-active');
     syncAlwaysOnTop(!!r.alwaysOnTop);
-    if (r.isolatedByUs && typeof KanvazCards !== 'undefined' && KanvazCards.isIsolateActive && KanvazCards.isIsolateActive()) {
+    if (typeof KanvazBridge !== 'undefined' && KanvazBridge.setMoodLockWindow) KanvazBridge.setMoodLockWindow(false);
+    var posEl = document.getElementById('mood-lock-pos');
+    if (posEl) posEl.textContent = '';
+    /* after flipping through cards the original isolation set is gone, so end it entirely */
+    if ((r.isolatedByUs || moodLockStepped) && typeof KanvazCards !== 'undefined' && KanvazCards.isIsolateActive && KanvazCards.isIsolateActive()) {
       KanvazCards.toggleIsolate();
     }
     /* same re-check as Top Mode: only reopen the side panel if it is still closed */
@@ -1995,6 +2037,7 @@ var KanvazApp = (function() {
     toggleTopMode:     toggleTopMode,
     isTopModeActive:   isTopModeActive,
     toggleMoodLock:    toggleMoodLock,
+    moodLockStep:      moodLockStep,
     isMoodLockActive:  isMoodLockActive,
     syncMoodLockControl: syncMoodLockControl,
     noteSettingChangedDuringTopMode: noteSettingChangedDuringTopMode,

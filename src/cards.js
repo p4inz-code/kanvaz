@@ -6938,6 +6938,22 @@ var KanvazCards = (function() {
     if (typeof KanvazApp !== 'undefined' && KanvazApp.syncMoodLockControl) KanvazApp.syncMoodLockControl();
   }
 
+  /* MoodLock stepping (app.js): show exactly these cards and hide every other one, whether or not
+     Isolate View was already on. Same DOM-class mechanism as enterIsolate, no selection needed. */
+  function isolateOnly(ids) {
+    var keep = {};
+    for (var i = 0; i < ids.length; i++) keep[ids[i]] = true;
+    var allIds = getAllIds();
+    for (var j = 0; j < allIds.length; j++) {
+      var el = document.getElementById(allIds[j]);
+      if (!el) continue;
+      if (keep[allIds[j]]) el.classList.remove('card-isolated-hidden');
+      else el.classList.add('card-isolated-hidden');
+    }
+    isolateActive = true;
+    if (typeof KanvazApp !== 'undefined' && KanvazApp.syncMoodLockControl) KanvazApp.syncMoodLockControl();
+  }
+
   function exitIsolate() {
     var hidden = document.querySelectorAll('.card-isolated-hidden');
     for (var i = 0; i < hidden.length; i++) hidden[i].classList.remove('card-isolated-hidden');
@@ -7470,6 +7486,7 @@ var KanvazCards = (function() {
     tidyUp:            tidyUp,
     getAllIds:         getAllIds,
     toggleIsolate:     toggleIsolate,
+    isolateOnly:       isolateOnly,
     isIsolateActive:   isIsolateActive,
     groupCards:        groupCards,
     ungroupCards:      ungroupCards,

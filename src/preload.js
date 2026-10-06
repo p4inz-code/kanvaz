@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('KanvazBridge', {
   isMaximized:     function() { return ipcRenderer.invoke('window-is-maximized'); },
   setAlwaysOnTop:  function(flag) { ipcRenderer.send('window-set-always-on-top', flag); },
   setWindowTitle:  function(title) { ipcRenderer.send('set-window-title', title); },
+  setMoodLockWindow: function(active) { ipcRenderer.send('window-moodlock-window', !!active); },
   setMoodLockSize: function(active) { ipcRenderer.send('window-set-moodlock-size', active); },
   dragWindowBy: function(dx, dy) { ipcRenderer.send('window-drag-by', { dx: dx, dy: dy }); },
 
