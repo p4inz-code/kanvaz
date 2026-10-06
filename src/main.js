@@ -76,6 +76,7 @@ process.on('unhandledRejection', function(reason) {
    the recent list it wrote). file-read / file-write refuse everything else. */
 var boardGrants = pathGuard.createGrants();
 var keepOnTop = keepOnTopLib.create({ getWindow: function() { return mainWindow; } });
+var keepOnTopSystemHooked = false;
 
 /* Every handler that takes a path from the renderer refuses remote (UNC /
    device) and relative paths before touching the filesystem: a card path
@@ -768,6 +769,21 @@ function createWindow(hasStartupFile) {
   });
   mainWindow.on('show', function() { keepOnTop.raise(); });
   mainWindow.on('restore', function() { keepOnTop.raise(); });
+  mainWindow.on('blur', function() { setTimeout(function() { keepOnTop.raise(); }, 2000); });
+  /* Other things that reshuffle what is on top without Kanvaz ever being told: unlocking the screen,
+     resuming from sleep, and monitors being plugged in/out or changing resolution (full-screen apps
+     re-create their windows when that happens). Registered once, not per window. */
+  if (!keepOnTopSystemHooked) {
+    keepOnTopSystemHooked = true;
+    try {
+      var reraise = function() { keepOnTop.raise(); setTimeout(function() { keepOnTop.raise(); }, 800); };
+      electron.powerMonitor.on('resume', reraise);
+      electron.powerMonitor.on('unlock-screen', reraise);
+      electron.screen.on('display-added', reraise);
+      electron.screen.on('display-removed', reraise);
+      electron.screen.on('display-metrics-changed', reraise);
+    } catch (e) { console.warn('[Kanvaz] could not register system keep-on-top hooks:', e.message); }
+  }
 
   mainWindow.on('closed', function() {
     mainWindow = null;

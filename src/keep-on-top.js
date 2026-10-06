@@ -18,7 +18,7 @@
    test/keep-on-top-test.js can drive it with a fake window.
    ES5/var-only like the rest of src/. */
 
-var DEFAULT_INTERVAL_MS = 1000;
+var DEFAULT_INTERVAL_MS = 500;
 
 /* opts:
    getWindow:   function returning the BrowserWindow (or null)
