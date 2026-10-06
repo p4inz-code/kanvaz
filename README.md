@@ -250,6 +250,7 @@ The essentials — press **`?`** in-app any time for the full live-filterable re
 | A | Annotate selected card |
 | C | Connections inspector |
 | Ctrl+Shift+T | Top Mode — force always-on-top, hide chrome (toggle) |
+| Ctrl+Shift+L | MoodLock — isolate the selection and hide every toolbar, leaving just the reference |
 | ? | Shortcuts overlay (toggle open/close) |
 
 **[→ Full keyboard shortcuts reference](https://p4inz-code.github.io/kanvaz/guide/shortcuts.html)**

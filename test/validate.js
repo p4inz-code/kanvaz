@@ -168,6 +168,21 @@ if (fs.existsSync(path.join(__dirname, 'doc-assets-test.js'))) {
   console.log('  (skipped — test/doc-assets-test.js missing)');
 }
 
+/* 5d5. Always-on-top vs other topmost apps (ZBrush) */
+section('5d5. Keep on top');
+if (fs.existsSync(path.join(__dirname, 'keep-on-top-test.js'))) {
+  try {
+    var kotOut = cp.execSync('node "' + path.join(__dirname, 'keep-on-top-test.js') + '"', { encoding: 'utf8', timeout: 30000 });
+    if (/ALL KEEP-ON-TOP TESTS PASSED/.test(kotOut)) ok('re-raises above other topmost apps without taking focus; stops when off; macOS full-screen level');
+    else { bad('keep-on-top test failed'); console.log(kotOut); }
+  } catch (e) {
+    bad('keep-on-top test failed');
+    console.log(e.stdout || e.message);
+  }
+} else {
+  console.log('  (skipped — test/keep-on-top-test.js missing)');
+}
+
 /* 5e. MCP bridge token auth */
 section('5e. MCP token auth');
 if (fs.existsSync(path.join(__dirname, 'mcp-auth-test.js'))) {
@@ -531,6 +546,27 @@ section('9f. Save guard wiring');
   else bad('preload no longer forwards file-write opts');
   if (/expectedMtimeMs: expectedMtime/.test(boardsSrc2) && /result\.conflict/.test(boardsSrc2)) ok('boards.js sends expectedMtimeMs and handles result.conflict');
   else bad('boards.js no longer sends expectedMtimeMs / handles conflicts');
+})();
+
+/* 9g. MoodLock + keep-on-top wiring: static guards (these modules are DOM/Electron-coupled) */
+section('9g. MoodLock and keep-on-top wiring');
+(function() {
+  var mainSrc3 = fs.readFileSync(path.join(SRC, 'main.js'), 'utf8');
+  var appSrc = fs.readFileSync(path.join(SRC, 'app.js'), 'utf8');
+  var cardsSrc = fs.readFileSync(path.join(SRC, 'cards.js'), 'utf8');
+  var scSrc = fs.readFileSync(path.join(SRC, 'shortcuts.js'), 'utf8');
+  var cssSrc = fs.readFileSync(path.join(SRC, 'main.css'), 'utf8');
+  if (/keepOnTop\.set\(/.test(mainSrc3) && /mainWindow\.on\('blur'/.test(mainSrc3) && !/mainWindow\.setAlwaysOnTop\(flag\)/.test(mainSrc3)) ok('main.js sets always-on-top through keep-on-top and re-raises on blur');
+  else bad('main.js no longer routes always-on-top through keep-on-top (the ZBrush bug is back)');
+  if (/toggleMoodLock:\s+toggleMoodLock/.test(appSrc) && /isMoodLockActive:\s+isMoodLockActive/.test(appSrc)) ok('app.js exports toggleMoodLock / isMoodLockActive');
+  else bad('app.js lost the MoodLock exports');
+  var guards = (cardsSrc.match(/isMoodLockActive/g) || []).length;
+  if (guards >= 2) ok('cards.js keeps both read-only choke points aware of MoodLock (' + guards + ' references)');
+  else bad('cards.js no longer blocks card edits while MoodLock is on');
+  if (/ctrl && shift && keyLower === 'l'/.test(scSrc) && /isMoodLockActive/.test(scSrc)) ok('shortcuts.js has Ctrl+Shift+L and the MoodLock key allowlist');
+  else bad('shortcuts.js lost MoodLock handling');
+  if (/body\.mood-lock-active #top-chrome[\s\S]*?body\.mood-lock-active #side-panel[\s\S]*?body\.mood-lock-active #statusbar/.test(cssSrc)) ok('main.css hides titlebar/toolbar, side panel and status bar under .mood-lock-active');
+  else bad('main.css no longer hides all chrome for MoodLock');
 })();
 
 /* 10. Version consistency */

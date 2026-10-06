@@ -213,7 +213,7 @@ features = [
     (ACCENT, 'Annotate anything', 'Draw on any card with pen, highlighter, line, arrow, rectangle, ellipse, text, a pixel-measure tool and a color eyedropper.'),
     (GREEN,  'Connections & Map View', 'Link references with 7 kinds of typed relationship, then press M to see the whole web as a node graph.'),
     (AMBER,  'One portable file', 'Everything (boards, positions, annotations, zoom) saves to a single .kanvaz file and restores exactly. Multiple boards per file.'),
-    (ACCENT, 'Themes & Top Mode', 'Press L to switch between dark and light. Ctrl+Shift+T keeps Kanvaz on top and hides the toolbar for a clean floating reference view.'),
+    (ACCENT, 'Themes & Top Mode', 'Press L to switch between dark and light. Ctrl+Shift+T keeps Kanvaz on top; Ctrl+Shift+L (MoodLock) isolates the selection and hides every toolbar, leaving just the reference.'),
 ]
 for color, title, desc in features:
     y = draw_feature_row(c, margin, y, color, title, desc, content_w)

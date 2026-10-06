@@ -12,7 +12,7 @@ and confirmed live against the in-app reference (`?` any time).*
 
 Press **`?`** anywhere in Kanvaz to open this same reference with a
 live filter box. A few of these (Save, Open, Command Palette, Home
-Screen toggle, Top Mode) work even while a text field is focused —
+Screen toggle, Top Mode, MoodLock) work even while a text field is focused —
 noted below.
 
 ## Always available
@@ -26,6 +26,7 @@ noted below.
 | `Ctrl+K` | Command Palette |
 | `Ctrl+H` | Toggle Home Screen |
 | `Ctrl+Shift+T` | Toggle Top Mode |
+| `Ctrl+Shift+L` | MoodLock: isolate the selection and hide every toolbar (see [Isolate View](board-view.md#isolate-view)) |
 
 ## Canvas
 

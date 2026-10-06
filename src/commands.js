@@ -263,6 +263,13 @@ var KanvazCommands = (function() {
     /* v8.7.0: Top Mode's own dedicated key (Ctrl+Shift+T) — same
        "also reachable via the palette" pattern as every other real key
        binding in this file, not just the ones without one. */
+    /* MoodLock: isolate the selection and hide every toolbar, panel and the status
+       bar (see app.js). Also reachable from the lock button in the corner while
+       Isolate View is on. */
+    registerCommand('core.toggleMoodLock', {
+      label: 'Toggle MoodLock (hide all toolbars, isolate selection)', shortcut: 'Ctrl+Shift+L',
+      run: function() { if (typeof KanvazApp !== 'undefined') KanvazApp.toggleMoodLock(); }
+    });
     registerCommand('core.toggleTopMode', {
       label: 'Toggle Top Mode', shortcut: 'Ctrl+Shift+T',
       run: function() { if (typeof KanvazApp !== 'undefined') KanvazApp.toggleTopMode(); }

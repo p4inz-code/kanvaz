@@ -3865,3 +3865,83 @@ body.presentation-mode-active #side-panel {
   from { opacity: 0; transform: translateX(12px); }
   to   { opacity: 1; transform: translateX(0); }
 }
+
+/* ── MoodLock (app.js) ──
+   Hides ALL of Kanvaz's own chrome. Names are .mood-lock-* on purpose: the older
+   .moodlock-* rules above belong to the toolbar auto-hide mechanic. */
+body.mood-lock-active #top-chrome,
+body.mood-lock-active #side-panel,
+body.mood-lock-active #statusbar,
+body.mood-lock-active #minimap-wrap {
+  display: none !important;
+}
+
+#mood-lock-control {
+  display: none;
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 99990;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-2);
+  box-shadow: 0 2px 10px var(--color-shadow);
+  opacity: 0.5;
+  transition: opacity 0.15s ease;
+}
+
+#mood-lock-control:hover,
+#mood-lock-control:focus-within {
+  opacity: 1;
+}
+
+/* shown while Isolate View is on (the way in) and while MoodLock is on (the way out) */
+body.mood-lock-isolated #mood-lock-control,
+body.mood-lock-active #mood-lock-control {
+  display: flex;
+}
+
+/* The titlebar that normally moves the window is hidden by MoodLock, so the locked
+   state carries its own drag grip. */
+#mood-lock-grip {
+  display: none;
+  width: 14px;
+  height: 26px;
+  border-radius: 6px;
+  cursor: move;
+  -webkit-app-region: drag;
+  background-image: radial-gradient(var(--color-text-3) 1.2px, transparent 1.4px);
+  background-size: 5px 5px;
+  background-position: center;
+  opacity: 0.8;
+}
+
+body.mood-lock-active #mood-lock-grip {
+  display: block;
+}
+
+#mood-lock-btn {
+  -webkit-app-region: no-drag;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--color-text-2);
+  cursor: pointer;
+}
+
+#mood-lock-btn:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+body.mood-lock-active #mood-lock-btn {
+  color: var(--color-accent);
+}

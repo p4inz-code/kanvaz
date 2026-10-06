@@ -1243,6 +1243,10 @@ var KanvazApp = (function() {
       KanvazUI.toast('Exit Top Mode first (Ctrl+Shift+T)', 'warning');
       return;
     }
+    if (moodLockActive) {
+      KanvazUI.toast('Exit MoodLock first (Ctrl+Shift+L)', 'warning');
+      return;
+    }
     alwaysOnTop = !alwaysOnTop;
     KanvazBridge.setAlwaysOnTop(alwaysOnTop);
     /* Persist to settings so the value survives restart */
@@ -1266,6 +1270,120 @@ var KanvazApp = (function() {
   function syncAlwaysOnTop(flag) {
     alwaysOnTop = !!flag;
     KanvazBridge.setAlwaysOnTop(alwaysOnTop);
+  }
+
+  /* ── MoodLock ──
+     Requested 2026-10: while working in another app (ZBrush, Blender...) the
+     reference should be just the picture, with none of Kanvaz's own chrome
+     around it. MoodLock = Isolate View on the selected cards (or whatever is
+     already isolated) + the titlebar, toolbar, side panel and status bar all
+     hidden + always-on-top forced, with the board read-only (same single
+     choke points Presentation Mode uses) so a stray click can't move a card.
+     Camera pan/zoom still works. A small lock control in the top-right corner
+     is the way in (it shows while Isolate View is on) and the way out; because
+     the titlebar that normally drags the window is hidden, the locked state
+     also shows a drag grip. Ctrl+Shift+L or Esc leave it too. Session only,
+     like Top Mode: nothing is written to the board file, and leaving restores
+     exactly what was there (always-on-top preference, side panel, and
+     Isolate View if MoodLock was what turned it on). Mutually exclusive with
+     Top Mode and Presentation Mode. Named "MoodLock" for users; the old
+     .moodlock-* CSS classes belong to the chrome auto-hide mechanic and are
+     unrelated, so this uses .mood-lock-* names. */
+  var moodLockActive  = false;
+  var moodLockRestore = null;
+
+  function isMoodLockActive() {
+    return moodLockActive;
+  }
+
+  var MOOD_LOCK_ICON_CLOSED = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+  var MOOD_LOCK_ICON_OPEN   = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.5-1.5"/></svg>';
+
+  /* Builds the corner control on first use and keeps it in step with Isolate
+     View (cards.js calls this whenever isolate turns on or off) and with
+     MoodLock itself. CSS decides visibility from two body classes. */
+  function syncMoodLockControl() {
+    var isolated = !!(typeof KanvazCards !== 'undefined' && KanvazCards.isIsolateActive && KanvazCards.isIsolateActive());
+    if (isolated) document.body.classList.add('mood-lock-isolated');
+    else document.body.classList.remove('mood-lock-isolated');
+
+    var ctl = document.getElementById('mood-lock-control');
+    if (!ctl) {
+      ctl = document.createElement('div');
+      ctl.id = 'mood-lock-control';
+      var grip = document.createElement('div');
+      grip.id = 'mood-lock-grip';
+      grip.title = 'Drag to move the window';
+      var btn = document.createElement('button');
+      btn.id = 'mood-lock-btn';
+      btn.type = 'button';
+      btn.onclick = function(e) { e.stopPropagation(); toggleMoodLock(); };
+      ctl.appendChild(grip);
+      ctl.appendChild(btn);
+      document.body.appendChild(ctl);
+    }
+    var b = document.getElementById('mood-lock-btn');
+    if (moodLockActive) {
+      b.innerHTML = MOOD_LOCK_ICON_CLOSED;
+      b.title = 'MoodLock is on \u2014 click to bring the toolbars back (Ctrl+Shift+L or Esc)';
+      b.setAttribute('aria-label', 'Unlock MoodLock');
+    } else {
+      b.innerHTML = MOOD_LOCK_ICON_OPEN;
+      b.title = 'MoodLock: hide all toolbars and lock this view (Ctrl+Shift+L)';
+      b.setAttribute('aria-label', 'Turn on MoodLock');
+    }
+  }
+
+  function toggleMoodLock() {
+    if (moodLockActive) exitMoodLock(); else enterMoodLock();
+  }
+
+  function enterMoodLock() {
+    if (moodLockActive) return;
+    if (presentationModeActive) exitPresentationMode();
+    if (topModeActive) exitTopMode();
+
+    var cardsApi = (typeof KanvazCards !== 'undefined') ? KanvazCards : null;
+    var wasIsolated = !!(cardsApi && cardsApi.isIsolateActive && cardsApi.isIsolateActive());
+    var isolatedByUs = false;
+    /* Isolate the selection first (it needs the selection), then clear it. With
+       nothing selected and nothing isolated, MoodLock simply locks the whole board. */
+    if (!wasIsolated && cardsApi && cardsApi.getSelectedIds && cardsApi.toggleIsolate && cardsApi.getSelectedIds().length) {
+      cardsApi.toggleIsolate();
+      isolatedByUs = !!(cardsApi.isIsolateActive && cardsApi.isIsolateActive());
+    }
+
+    var sidePanelWasOpen = (typeof KanvazSidePanel !== 'undefined' && KanvazSidePanel.isOpen && KanvazSidePanel.isOpen());
+    moodLockRestore = { alwaysOnTop: alwaysOnTop, isolatedByUs: isolatedByUs, sidePanelWasOpen: !!sidePanelWasOpen };
+    moodLockActive = true;
+
+    syncAlwaysOnTop(true);
+    if (sidePanelWasOpen) KanvazSidePanel.close();
+    if (cardsApi && cardsApi.deselectAll) cardsApi.deselectAll();
+    document.body.classList.add('mood-lock-active');
+    syncMoodLockControl();
+    KanvazUI.toast('MoodLock on \u2014 Ctrl+Shift+L or Esc to unlock');
+  }
+
+  function exitMoodLock() {
+    if (!moodLockActive) return;
+    moodLockActive = false;
+
+    var r = moodLockRestore || { alwaysOnTop: alwaysOnTop, isolatedByUs: false, sidePanelWasOpen: false };
+    moodLockRestore = null;
+
+    document.body.classList.remove('mood-lock-active');
+    syncAlwaysOnTop(!!r.alwaysOnTop);
+    if (r.isolatedByUs && typeof KanvazCards !== 'undefined' && KanvazCards.isIsolateActive && KanvazCards.isIsolateActive()) {
+      KanvazCards.toggleIsolate();
+    }
+    /* same re-check as Top Mode: only reopen the side panel if it is still closed */
+    if (r.sidePanelWasOpen && typeof KanvazSidePanel !== 'undefined' && KanvazSidePanel.toggle
+        && !(KanvazSidePanel.isOpen && KanvazSidePanel.isOpen())) {
+      KanvazSidePanel.toggle();
+    }
+    syncMoodLockControl();
+    KanvazUI.toast('MoodLock off');
   }
 
   /* ── Top Mode (reintroduced, v8.7.0, per direct request) ──
@@ -1317,6 +1435,10 @@ var KanvazApp = (function() {
      current forced-on state. No-ops harmlessly if Top Mode isn't
      active (nothing should call it then, but cheap to guard). */
   function noteSettingChangedDuringTopMode(key, value) {
+    if (moodLockActive && moodLockRestore && key === 'alwaysOnTop') {
+      moodLockRestore.alwaysOnTop = !!value;
+      return;
+    }
     if (!topModeActive || !topModeRestore) return;
     if (key === 'alwaysOnTop' || key === 'autoHideChrome') {
       topModeRestore[key] = !!value;
@@ -1329,6 +1451,7 @@ var KanvazApp = (function() {
 
   function enterTopMode() {
     if (topModeActive) return;
+    if (moodLockActive) exitMoodLock();
     topModeActive = true;
 
     var settings = (typeof KanvazUI_Extended !== 'undefined' && KanvazUI_Extended.getSettings)
@@ -1472,6 +1595,7 @@ var KanvazApp = (function() {
 
   function enterPresentationMode() {
     if (presentationModeActive) return;
+    if (moodLockActive) exitMoodLock();
     if (topModeActive) exitTopMode();
     presentationModeActive = true;
 
@@ -1868,6 +1992,9 @@ var KanvazApp = (function() {
     syncAlwaysOnTop:   syncAlwaysOnTop,
     toggleTopMode:     toggleTopMode,
     isTopModeActive:   isTopModeActive,
+    toggleMoodLock:    toggleMoodLock,
+    isMoodLockActive:  isMoodLockActive,
+    syncMoodLockControl: syncMoodLockControl,
     noteSettingChangedDuringTopMode: noteSettingChangedDuringTopMode,
     togglePresentationMode:  togglePresentationMode,
     isPresentationModeActive: isPresentationModeActive,

@@ -76,6 +76,15 @@ var KanvazShortcuts = (function() {
       return;
     }
 
+    /* MoodLock: same allowlist idea as Presentation Mode. Only the way out and the
+       camera keys (fit, reset zoom, zoom steps) work; every editing shortcut is
+       ignored so the locked view can't be changed by accident. */
+    if (typeof KanvazApp !== 'undefined' && KanvazApp.isMoodLockActive && KanvazApp.isMoodLockActive()) {
+      if (e.key === 'Escape' || (ctrl && shift && keyLower === 'l')) { e.preventDefault(); KanvazApp.toggleMoodLock(); return; }
+      var cameraKey = !ctrl && !e.altKey && (keyLower === 'f' || e.key === '0' || e.key === '+' || e.key === '=' || e.key === '-');
+      if (!cameraKey) return;
+    }
+
     /* ── Always fire regardless of focus ── */
 
     if (ctrl && shift && keyLower === 's') {
@@ -145,6 +154,12 @@ var KanvazShortcuts = (function() {
        Ctrl+S/Ctrl+Shift+S/Ctrl+O/Ctrl+F/Ctrl+H above — "always fire" so
        it's reachable even mid-typing in a note, same reasoning as Ctrl+H
        just above it. Works in both Board and Map view. */
+    if (ctrl && shift && keyLower === 'l') {
+      e.preventDefault();
+      if (typeof KanvazApp !== 'undefined' && KanvazApp.toggleMoodLock) KanvazApp.toggleMoodLock();
+      return;
+    }
+
     if (ctrl && shift && keyLower === 't') {
       e.preventDefault();
       if (typeof KanvazApp !== 'undefined' && KanvazApp.toggleTopMode) KanvazApp.toggleTopMode();

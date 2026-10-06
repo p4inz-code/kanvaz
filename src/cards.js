@@ -133,7 +133,7 @@ var KanvazCards = (function() {
          top-of-file docblock). Camera pan/zoom on the empty canvas
          still works (canvas.js's own listeners are untouched) — only
          card-level interaction is suppressed. */
-      if (typeof KanvazApp !== 'undefined' && KanvazApp.isPresentationModeActive && KanvazApp.isPresentationModeActive()) return;
+      if (typeof KanvazApp !== 'undefined' && ((KanvazApp.isPresentationModeActive && KanvazApp.isPresentationModeActive()) || (KanvazApp.isMoodLockActive && KanvazApp.isMoodLockActive()))) return;
       var target = e.target;
 
       /* Direct feedback: right-click a card for the context menu, then
@@ -294,7 +294,7 @@ var KanvazCards = (function() {
 
     /* ── right-click: card context menu ── */
     world.addEventListener('contextmenu', function(e) {
-      if (typeof KanvazApp !== 'undefined' && KanvazApp.isPresentationModeActive && KanvazApp.isPresentationModeActive()) return;
+      if (typeof KanvazApp !== 'undefined' && ((KanvazApp.isPresentationModeActive && KanvazApp.isPresentationModeActive()) || (KanvazApp.isMoodLockActive && KanvazApp.isMoodLockActive()))) return;
       var cardEl = e.target.closest('.card');
       if (!cardEl) return;
       var card = cards[cardEl.dataset.cardId];
@@ -6934,7 +6934,8 @@ var KanvazCards = (function() {
       }
     }
     isolateActive = true;
-    if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Isolate view on — Shift+I to exit');
+    if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Isolate view on \u2014 Shift+I to exit, or the lock in the corner for MoodLock');
+    if (typeof KanvazApp !== 'undefined' && KanvazApp.syncMoodLockControl) KanvazApp.syncMoodLockControl();
   }
 
   function exitIsolate() {
@@ -6942,6 +6943,7 @@ var KanvazCards = (function() {
     for (var i = 0; i < hidden.length; i++) hidden[i].classList.remove('card-isolated-hidden');
     isolateActive = false;
     if (typeof KanvazUI !== 'undefined') KanvazUI.toast('Isolate view off');
+    if (typeof KanvazApp !== 'undefined' && KanvazApp.syncMoodLockControl) KanvazApp.syncMoodLockControl();
   }
 
   /* Tidy up — packs cards into a grid, closest thing this app has to

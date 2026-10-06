@@ -387,7 +387,7 @@ var KanvazUI_Extended = (function() {
        KanvazApp.noteSettingChangedDuringTopMode so it refreshes what
        gets restored on exit, so the user's real new preference isn't
        silently discarded when they eventually press Ctrl+Shift+T again. */
-    if (typeof KanvazApp !== 'undefined' && KanvazApp.isTopModeActive && KanvazApp.isTopModeActive()) {
+    if (typeof KanvazApp !== 'undefined' && ((KanvazApp.isTopModeActive && KanvazApp.isTopModeActive()) || (KanvazApp.isMoodLockActive && KanvazApp.isMoodLockActive()))) {
       if (KanvazApp.noteSettingChangedDuringTopMode) KanvazApp.noteSettingChangedDuringTopMode('alwaysOnTop', !!settings.alwaysOnTop);
     } else if (typeof KanvazApp !== 'undefined' && KanvazApp.syncAlwaysOnTop) {
       KanvazApp.syncAlwaysOnTop(!!settings.alwaysOnTop);
@@ -1682,6 +1682,7 @@ var KanvazUI_Extended = (function() {
           ['S',           'Settings'],
           ['I',           'About'],
           ['Ctrl+Shift+T', 'Top Mode \u2014 force always-on-top, auto-hide chrome, and close the side panel (session only)'],
+          ['Ctrl+Shift+L', 'MoodLock \u2014 isolate the selection and hide every toolbar (Esc or the corner lock to leave)'],
           ['?',           'This screen'],
           ['Esc',         'Deselect / close']
         ]

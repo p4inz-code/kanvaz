@@ -65,6 +65,8 @@ With a card selected:
 focusing on one cluster of a busy board without deleting or moving
 anything. Press it again (or `Escape`) to bring everything back.
 
+While Isolate View is on, a small **lock** button appears in the top-right corner. Click it (or press `Ctrl+Shift+L`) for **MoodLock**: every toolbar, the titlebar, the side panel and the status bar disappear, Kanvaz stays on top of your other windows, and the board becomes read-only, so what is left is just the reference sitting next to the app you are working in. Camera keys (`F`, `0`, `+`, `-`) and the mouse wheel still work. In the locked state the corner control also has a drag grip so you can still move the window. Click the lock, press `Ctrl+Shift+L`, or press `Escape` to bring everything back exactly as it was. With nothing isolated, `Ctrl+Shift+L` on a selection isolates it first, and on an empty selection it locks the whole board.
+
 ## Zoom and navigation
 
 | Action | Shortcut |

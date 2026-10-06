@@ -24,6 +24,7 @@ var blenderDetect = require('./blender-detect');
 var blenderExport = require('./blender-export');
 var pathGuard = require('./path-guard');
 var saveGuard = require('./save-guard');
+var keepOnTopLib = require('./keep-on-top');
 var mcpAuth = require('./mcp-auth');
 var crashLog = require('./crash-log');
 var linkController = require('./link-controller');
@@ -74,6 +75,7 @@ process.on('unhandledRejection', function(reason) {
 /* Board paths main itself has handed out (native dialogs, OS file-open/argv,
    the recent list it wrote). file-read / file-write refuse everything else. */
 var boardGrants = pathGuard.createGrants();
+var keepOnTop = keepOnTopLib.create({ getWindow: function() { return mainWindow; } });
 
 /* Every handler that takes a path from the renderer refuses remote (UNC /
    device) and relative paths before touching the filesystem: a card path
@@ -757,6 +759,16 @@ function createWindow(hasStartupFile) {
     mainWindow.show();
   });
 
+  /* Always-on-top vs other topmost apps (ZBrush etc.): see keep-on-top.js. When Kanvaz loses
+     focus another app may have just raised itself above it, so put it back, once quickly and
+     once after the other app has finished its own raise. Never takes focus. */
+  mainWindow.on('blur', function() {
+    setTimeout(function() { keepOnTop.raise(); }, 120);
+    setTimeout(function() { keepOnTop.raise(); }, 700);
+  });
+  mainWindow.on('show', function() { keepOnTop.raise(); });
+  mainWindow.on('restore', function() { keepOnTop.raise(); });
+
   mainWindow.on('closed', function() {
     mainWindow = null;
     if (linkCtl) linkCtl.detachWindow();
@@ -862,7 +874,7 @@ function registerIPC() {
   });
 
   ipcMain.on('window-set-always-on-top', function(event, flag) {
-    if (mainWindow) mainWindow.setAlwaysOnTop(flag);
+    keepOnTop.set(!!flag);
   });
 
   /* BUG 6 fix: renderer calls this after save/open with the display
