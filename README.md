@@ -18,6 +18,16 @@
   <a href="https://discord.gg/8UKt8s5FbW"><img src="https://img.shields.io/badge/join-9D7FFF?style=flat-square&logo=discord&logoColor=white&label=discord" alt="Discord"></a>
 </p>
 
+<p align="center">
+  <b><a href="#download-and-install">Download</a></b> ·
+  <a href="#what-makes-kanvaz-different">What's different</a> ·
+  <a href="#how-kanvaz-compares">Compare</a> ·
+  <a href="#supported-file-formats">File formats</a> ·
+  <a href="#keyboard-shortcuts">Shortcuts</a> ·
+  <a href="https://p4inz-code.github.io/kanvaz/guide/">User guide</a> ·
+  <a href="#build-from-source">Build from source</a>
+</p>
+
 # Kanvaz
 
 ### The Reference Operating System, for artists who think in images, not folders.
@@ -28,21 +38,19 @@ Drop in 3D models, images, video, audio, PureRef boards, and files. Wire referen
 
 No account. No cloud. No subscription. Just a canvas that's actually yours.
 
+If you've used PureRef and wanted more than static images, or tried a cloud moodboard tool and didn't want an account standing between you and your own files, this is built for exactly that gap.
+
 <p align="center">
 
-### [⬇ Download for Windows | Linux | Mac, it's free](https://github.com/p4inz-code/kanvaz/releases/latest)
+### [⬇ Download Kanvaz, it's free](https://github.com/p4inz-code/kanvaz/releases/latest)
 
 </p>
-
-> **Note:** Kanvaz isn't code-signed (certificates cost money; this app doesn't). Windows will likely show **"Windows protected your PC."** Click **"More info" → "Run anyway."** On macOS, Gatekeeper will say the app "cannot be opened" the first time — right-click (or Control-click) the app and choose **Open**, then confirm once, and it will launch normally after that. Both are normal for unsigned indie software, not a red flag.
-> Prebuilt installers are cross platform. See [Build installers](#build-installers).
-
-If you've used PureRef and wanted more than static images, or tried a cloud moodboard tool and didn't want an account standing between you and your own files, this is built for exactly that gap.
 
 ---
 
 <p align="center">
-  <img src="assets/gif-card-creation-v9.6.0.gif" alt="Kanvaz walkthrough — home screen, starting a new board, and dropping in a card, live" width="100%">
+  <img src="docs/media/kanvaz-walkthrough.gif" alt="Kanvaz walkthrough: the Home Screen, a new board filling with images, a note, color swatches and a 3D model, live 3D orbit, the Properties panel, then a switch from dark to light theme for Map View as a node network, the Layers panel and the Command Palette" width="100%">
+  <br><i>Half dark, half light: Home, a board filling up, live 3D orbit, Properties, then Map View (typed connections as a node network), Layers and the Command Palette.</i>
 </p>
 
 <table>
@@ -93,6 +101,27 @@ If you've used PureRef and wanted more than static images, or tried a cloud mood
 </p>
 
 </details>
+
+
+---
+
+## Download and install
+
+Grab the file for your system from the [latest release](https://github.com/p4inz-code/kanvaz/releases/latest). No account, no sign-in, and nothing to configure.
+
+| Your system | Download | Notes |
+|---|---|---|
+| **Windows** | `Kanvaz-Setup-<version>.exe` | The installer. Recommended: Start Menu shortcut, "Open with" registration, auto-update. |
+| | `Kanvaz-<version>.exe` | Portable build. Run it from anywhere, nothing is installed. |
+| **macOS, Apple Silicon** (M1 and newer) | `Kanvaz-<version>-arm64.dmg` | Open it and drag Kanvaz into Applications. |
+| **macOS, Intel** | `Kanvaz-<version>.dmg` | Same steps. There is no `-x64` in this name. |
+| **Linux** | `Kanvaz-<version>.AppImage` | `chmod +x` it and run it. |
+
+Not sure which Mac you have? Apple menu, **About This Mac**: an "Apple" chip means Apple Silicon, "Intel" means Intel. Everything else in a release (`.blockmap`, `latest*.yml`, `SHA256SUMS-*.txt`, plugin `.zip` files) is metadata, not something you need to open.
+
+> **Note:** Kanvaz isn't code-signed (certificates cost money; this app doesn't). Windows will likely show **"Windows protected your PC."** Click **"More info" → "Run anyway."** On macOS, Gatekeeper will say the app "cannot be opened" the first time: right-click (or Control-click) the app and choose **Open**, then confirm once, and it will launch normally after that. Both are normal for unsigned indie software, not a red flag. To check a download, compare it with the `SHA256SUMS-*.txt` file attached to the same release.
+
+**First five minutes:** open Kanvaz, choose **New Board** (or one of 14 starter templates), drag any image, video, 3D model or PDF onto the canvas, and press `?` any time for every shortcut. The [Quick Start](https://p4inz-code.github.io/kanvaz/guide/quick-start.html) walks through the rest.
 
 ---
 
@@ -160,23 +189,28 @@ Same canvas, different starting points — VFX/previz, 3D/look-dev, game dev, an
 
 **[→ Full workflow walkthroughs](https://p4inz-code.github.io/kanvaz/guide/workflows.html)**
 
-## Requirements
+---
+
+## Build from source
+
+<details>
+<summary><b>Requirements, running in development, building installers</b></summary>
+
+### Requirements
 
 - Node.js 20+ ([nodejs.org](https://nodejs.org)); this is the version CI builds every release with
 - npm 9+
 
----
 
-## Run in development
+### Run in development
 
 ```bash
 npm install
 npm start
 ```
 
----
 
-## Build installers
+### Build installers
 
 **Windows (installer + portable):**
 ```bash
@@ -197,6 +231,8 @@ only tags the non-default arch) — both built from one command.
 npm run build:linux
 ```
 Output: `dist/Kanvaz-9.8.0.AppImage`
+
+</details>
 
 ---
 
@@ -224,9 +260,33 @@ The essentials — press **`?`** in-app any time for the full live-filterable re
 
 A `.kanvaz` file is a zip container: `board.json` plus one file per embedded asset, each SHA-256-checked for corruption. A damaged asset degrades to that one card showing "missing media" instead of threatening the rest of the file. Older plain-JSON files still open exactly as before — Kanvaz detects the format automatically.
 
-Real preview support covers images, GIF, video, audio, 3D models (`.glb`/`.gltf`/`.obj`/`.fbx`/`.stl`/`.ply`/`.vox`/`.usd`/`.usdz`, `.blend` with Blender installed), PDF, Adobe (PSD/PSB/AI/XD), HDR/EXR, Krita, and PureRef `.pur` import.
+### Supported file formats
 
-**[→ Full supported-format table + file-format internals](https://p4inz-code.github.io/kanvaz/guide/file-formats.html)**
+"Real preview" means Kanvaz decodes the file itself and shows actual content inside the card (an image, a rendered 3D model, an extracted thumbnail) — not just a filename and an icon. Kanvaz only registers OS-level "Open with Kanvaz"/file-association support for formats it can show something real for — a format with no preview path doesn't get associated at all right now, rather than becoming a bare labeled placeholder card. Formats without a working preview are listed under **Planned** below instead of in the main table.
+
+| Format | Extensions | Status |
+|---|---|---|
+| Image | `.jpg` `.jpeg` `.png` `.bmp` `.webp` | ✅ Real preview |
+| Animated GIF | `.gif` | ✅ Real preview (plays inline) |
+| Video | `.mp4` `.webm` `.mov` | ✅ Real preview (plays inline) |
+| Video | `.mkv` `.avi` | ⚠️ Recognized — may not play (Chromium codec limitation) |
+| Audio | `.mp3` `.wav` `.ogg` `.m4a` | ✅ Real preview (plays inline) |
+| 3D Model | `.glb` `.gltf` `.obj` `.stl` `.ply` `.vox` `.usd` `.usda` `.usdc` `.usdz` | ✅ Real preview — orbit, 13 render modes |
+| 3D Model | `.fbx` | ✅ Real preview — best-effort (most complex/least standardized of the group) |
+| 3D Model (materials) | `.mtl` (companion to `.obj`) | ✅ Auto-detected and applied |
+| Blender | `.blend` | ✅ Real preview, if Blender is installed locally (auto-detected or chosen once in Settings) — otherwise a labeled file-reference card |
+| PDF | `.pdf` | ✅ Real preview — scroll/zoom/page nav (no text selection or search-within-PDF yet) |
+| Adobe | `.psd` `.psb` `.ai` `.xd` | ✅ Real preview — full flattened image (PSD/PSB), PDF-compatible view (AI), largest rendition (XD) |
+| Adobe | `.indd` `.indt` | ⚠️ Recognized, no preview |
+| HDR / EXR | `.hdr` `.pic` | ✅ Real preview — tone-mapped from real HDR data |
+| HDR / EXR | `.exr` | ✅ Real preview — NONE/RLE compression only; ZIP/PIZ/PXR24/B44/DWAA/DWAB refused with a clear reason instead of a wrong image |
+| Krita | `.kra` | ✅ Real preview — extracts the document's own embedded composite |
+| Alembic | `.abc` | ❌ Not supported — deliberately deferred, no safe reference implementation available yet (see [ROADMAP.md](https://github.com/p4inz-code/kanvaz/blob/main/docs/ROADMAP.md)) |
+| PureRef | `.pur` | ✅ Real import — every card at its saved position/scale |
+
+**Planned** (no OS-level file association yet — no real preview path exists today, so Kanvaz doesn't claim to open these until one does): ZBrush (`.ztl`), Houdini (`.hip`/`.hipnc`), Maya (`.ma`/`.mb`), Cinema 4D (`.c4d`), Clip Studio Paint (`.clip`), Procreate (`.procreate`). Houdini and Maya are the most likely to follow Blender's own pattern (an optional local-install external-tool conversion); the others have no realistic path yet — see [ROADMAP.md](https://github.com/p4inz-code/kanvaz/blob/main/docs/ROADMAP.md) for the reasoning per format.
+
+**[→ File-format internals and the full reference](https://p4inz-code.github.io/kanvaz/guide/file-formats.html)**
 
 ---
 
