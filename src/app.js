@@ -255,6 +255,7 @@ var KanvazApp = (function() {
     }
 
     /* Titlebar */
+    on('btn-moodlock',      function() { toggleMoodLock(); });
     on('btn-minimize',      function() { KanvazBridge.minimize(); });
     on('btn-maximize',      function() { KanvazBridge.maximize(); });
     on('btn-close',         function() { KanvazBridge.close(); });
