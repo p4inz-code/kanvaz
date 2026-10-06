@@ -1361,6 +1361,7 @@ var KanvazApp = (function() {
     if (sidePanelWasOpen) KanvazSidePanel.close();
     if (cardsApi && cardsApi.deselectAll) cardsApi.deselectAll();
     document.body.classList.add('mood-lock-active');
+    if (document.activeElement && document.activeElement !== document.body && document.activeElement.blur) document.activeElement.blur();
     syncMoodLockControl();
     KanvazUI.toast('MoodLock on \u2014 Ctrl+Shift+L or Esc to unlock');
   }

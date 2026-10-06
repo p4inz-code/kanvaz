@@ -216,21 +216,21 @@ npm start
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz-Setup-9.8.0.exe` and `dist/Kanvaz-9.8.0.exe`
+Output: `dist/Kanvaz-Setup-9.8.1.exe` and `dist/Kanvaz-9.8.1.exe`
 
 **macOS:**
 ```bash
 npm run build:mac
 ```
-Output: `dist/Kanvaz-9.8.0-arm64.dmg` (Apple Silicon) and
-`dist/Kanvaz-9.8.0.dmg` (Intel — no `-x64` suffix, electron-builder
+Output: `dist/Kanvaz-9.8.1-arm64.dmg` (Apple Silicon) and
+`dist/Kanvaz-9.8.1.dmg` (Intel — no `-x64` suffix, electron-builder
 only tags the non-default arch) — both built from one command.
 
 **Linux:**
 ```bash
 npm run build:linux
 ```
-Output: `dist/Kanvaz-9.8.0.AppImage`
+Output: `dist/Kanvaz-9.8.1.AppImage`
 
 </details>
 

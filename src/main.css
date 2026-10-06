@@ -3945,3 +3945,15 @@ body.mood-lock-active #mood-lock-grip {
 body.mood-lock-active #mood-lock-btn {
   color: var(--color-accent);
 }
+
+/* MoodLock / Presentation Mode are read-only: a note's text box would otherwise still take focus on click
+   and accept typing, so make every editable control inside a card inert. */
+body.mood-lock-active .card textarea,
+body.mood-lock-active .card input,
+body.mood-lock-active .card [contenteditable],
+body.presentation-mode-active .card textarea,
+body.presentation-mode-active .card input,
+body.presentation-mode-active .card [contenteditable] {
+  pointer-events: none !important;
+  user-select: none !important;
+}

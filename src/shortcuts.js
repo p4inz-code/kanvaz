@@ -82,7 +82,7 @@ var KanvazShortcuts = (function() {
     if (typeof KanvazApp !== 'undefined' && KanvazApp.isMoodLockActive && KanvazApp.isMoodLockActive()) {
       if (e.key === 'Escape' || (ctrl && shift && keyLower === 'l')) { e.preventDefault(); KanvazApp.toggleMoodLock(); return; }
       var cameraKey = !ctrl && !e.altKey && (keyLower === 'f' || e.key === '0' || e.key === '+' || e.key === '=' || e.key === '-');
-      if (!cameraKey) return;
+      if (!cameraKey) { if (e.key === 'Tab') e.preventDefault(); return; }
     }
 
     /* ── Always fire regardless of focus ── */
