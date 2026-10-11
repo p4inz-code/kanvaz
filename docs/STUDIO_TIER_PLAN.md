@@ -46,7 +46,7 @@ A separate app, not a Kanvaz plugin. Scope: node graphs + hierarchy + **studio p
 - Separate app, separate binary, separate install — not a Kanvaz plugin.
 - Kanvaz's own Map View/AI Export are unaffected and stay free.
 - One-time paid, ceiling $40, floor not below what covers real maintenance (see pricing note below) — exact price still open.
-- Same "Northbyte Studios" branding umbrella as Kanvaz, own product name still open.
+- Same "P4inz Interactive Labs" branding umbrella as Kanvaz, own product name still open.
 
 ### Open questions (need a decision before scoping v1 further)
 1. **Product name** — needs to read as its own thing, not "Kanvaz Pro," to avoid exactly the cannibalization confusion flagged earlier.
