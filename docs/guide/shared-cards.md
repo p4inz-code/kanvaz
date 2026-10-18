@@ -3,12 +3,12 @@ title: "Shared Cards"
 layout: default
 ---
 
-# Shared Cards
+# Shared cards
 
 *Verified against Kanvaz v9.7.0.*
 
 A Shared Card is the same card, live-linked across multiple boards in
-the same `.kanvaz` file — edit it in one place, the change shows up
+the same `.kanvaz` file, edit it in one place, the change shows up
 everywhere it's shared. Useful for a reference asset (a color palette,
 a hero shot, a spec sheet) that's relevant to more than one board
 without keeping duplicate copies in sync by hand.
@@ -24,7 +24,7 @@ nothing.
 ## Unlinking
 
 Right-click a shared card → **Unlink** turns it back into its own
-independent copy on that board only — other boards it's still shared
+independent copy on that board only, other boards it's still shared
 with are unaffected.
 
 ## How it's stored
@@ -32,13 +32,13 @@ with are unaffected.
 Shared content lives in a small content registry at the file level
 (distinct from any one board's own `cards[]`), keyed by a shared ID.
 Each board holds a lightweight instance pointing at that ID, with its
-own independent position — moving a shared card on one board doesn't
+own independent position, moving a shared card on one board doesn't
 move it on another, only its *content* is linked. Deleting the last
 board instance that references a shared ID prunes the now-unused
 registry entry automatically.
 
 ## Related
 
-- [Board View](board-view.md) — cards in general
-- [MCP Bridge](mcp-bridge.md) — `shareCardToBoard`/`unlinkSharedCard`
+- [Board View](board-view.md): cards in general
+- [MCP Bridge](mcp-bridge.md): `shareCardToBoard`/`unlinkSharedCard`
   are exposed as MCP tools too

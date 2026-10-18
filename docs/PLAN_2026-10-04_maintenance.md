@@ -44,8 +44,8 @@ Design (check happens in the main process, where the stat is authoritative):
   refreshed after every successful write, cleared whenever `currentPath` is
   replaced by a path we did not just read. Plain Save / autosave-to-file path /
   `saveBoardToPath` send it. `saveBoardAs` sends none.
-- On conflict the user gets a dialog: **Overwrite** (resend with `force`),
-  **Save As copy** (existing Save As flow), **Cancel** (stay dirty, nothing lost).
+- On conflict the user gets a dialog: Overwrite (resend with `force`),
+  **Save As copy** (existing Save As flow), Cancel (stay dirty, nothing lost).
   The plugin/MCP `saveBoardToPath` path must not hang on a dialog: it resolves
   `{ ok:false, conflict:true, error:... }` instead, and the human decides in the UI.
 - Autosave writes only the recovery file, never `currentPath`, so it is
@@ -121,26 +121,26 @@ checked against the repo.
 
 ## Plan audit (checked against the real code) and what changed
 
-1. **Check placement was wrong.** The plan stat-checked before `packBoard`. Packing a
+1. Check placement was wrong. The plan stat-checked before `packBoard`. Packing a
    large board takes seconds, so the race window was seconds wide. Fixed: write the
    `.tmp` first, then stat-and-compare immediately before `rename`; on conflict delete
    the `.tmp` and leave the real file untouched. Window shrinks to one stat to rename.
-2. **Callers.** `grep` confirms only `boards.js` calls `readFile`/`writeFile`
+2. Callers. `grep` confirms only `boards.js` calls `readFile`/`writeFile`
    (lines 1184, 1273, 1326), so the extra `mtimeMs` field and the optional third
    argument cannot break plugins or other modules.
-3. **Close-flow hang risk.** `handleCloseRequest` and `confirmDiscardIfDirty` pass an
+3. Close-flow hang risk. `handleCloseRequest` and `confirmDiscardIfDirty` pass an
    `onDone` into `saveBoard`. Every conflict branch must call `onDone(false)` (or the
    forced write's real result) exactly once, so closing never hangs and never
    discards. Overwrite -> result of forced write; Cancel and Save-As-copy -> `false`.
-4. **Clock skew is a non-issue.** Both mtimes come from the same file on the same
+4. Clock skew is a non-issue. Both mtimes come from the same file on the same
    filesystem, so client/server clock difference does not matter. Recording that so
    nobody "fixes" it later.
-5. **Item 2 gaps.** (a) The "one release per tag" check also has to flag any draft whose
+5. Item 2 gaps. (a) The "one release per tag" check also has to flag any draft whose
    tag starts with `untagged-`, because the 9.6.0 duplicate looked like that. (b) A
    draft is only visible to a token with push access, so the job needs
    `contents: write`; it only reads. This cannot be exercised offline, so the first real
    tag run is the first real test of that job and must be reported that way.
    (c) Guide parsing must ignore wildcard (`*`) entries and tokens without a file
    extension (for example the `-x64` aside), or it false-fails.
-6. **Release stays untouched.** No version bump and no tag. The new job only runs on
+6. Release stays untouched. No version bump and no tag. The new job only runs on
    tag pushes, so it cannot be seen running until the next real release.

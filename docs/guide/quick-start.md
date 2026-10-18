@@ -3,7 +3,7 @@ title: "Quick Start"
 layout: default
 ---
 
-# Quick Start
+# Quick start
 
 *Verified against Kanvaz v9.7.0.*
 
@@ -16,11 +16,11 @@ Grab the installer for your OS from the
 [latest GitHub release](https://github.com/p4inz-code/kanvaz/releases/latest).
 Kanvaz ships as:
 
-- **Windows** — an NSIS installer (`Kanvaz-Setup-x.y.z.exe`) or a portable `.exe`
-- **macOS** — a `.dmg`
-- **Linux** — an `AppImage` (`chmod +x` it and run; there is no `.deb`)
+- Windows: an NSIS installer (`Kanvaz-Setup-x.y.z.exe`) or a portable `.exe`
+- macOS: a `.dmg`
+- Linux: an `AppImage` (`chmod +x` it and run; there is no `.deb`)
 
-There's no account, no sign-in, and no network call on first launch —
+There's no account, no sign-in, and no network call on first launch
 Kanvaz is fully offline. See [About Kanvaz](about.md) for what that
 actually means in practice.
 
@@ -37,9 +37,9 @@ From the Home Screen, **Quick start** gives you three ways in:
 
 | Option | What it does |
 |---|---|
-| **New Board** | An empty canvas — the default starting point |
-| **Open from computer** | Opens an existing `.kanvaz` file |
-| **Browse templates** | 14 built-in starter boards (Filmmaking, Game Art, Mood Board, VFX, and more) — see [Templates](templates.md) |
+| New Board | An empty canvas, the default starting point |
+| Open from computer | Opens an existing `.kanvaz` file |
+| Browse templates | 14 built-in starter boards (Filmmaking, Game Art, Mood Board, VFX, and more), see [Templates](templates.md) |
 
 ![Board View with a few reference cards on a clean grid](assets/board-view.png)
 
@@ -47,19 +47,19 @@ From the Home Screen, **Quick start** gives you three ways in:
 
 The fastest ways in, all covered in full in [Import & Export](import-export.md):
 
-- **Drag and drop** any image, GIF, video, audio file, 3D model, or PDF straight onto the canvas
-- **Ctrl+V** to paste an image straight from your clipboard
-- **Right-click → Add** for a text note, color swatch, or URL reference
-- **Import → PureRef file** if you're migrating an existing `.pur` board
+- Drag and drop any image, GIF, video, audio file, 3D model, or PDF straight onto the canvas
+- Ctrl+V to paste an image straight from your clipboard
+- Right-click → Add for a text note, color swatch, or URL reference
+- Import → PureRef file if you're migrating an existing `.pur` board
 
 ## 5. Find your way around
 
-- **Board / Map / Scratch** — the three views, top center. See
+- Board / Map / Scratch: the three views, top center. See
   [Board View](board-view.md), [Map View](map-view.md), and
   [Scratch Board](scratch-board.md).
-- **Ctrl+K** — Command Palette, searches every action in the app
-- **`?`** — full keyboard shortcut reference (also [Keyboard Shortcuts](shortcuts.md))
-- The left rail — Properties, Layers, Tasks, Settings (see [Side Panel](side-panel.md))
+- Ctrl+K: Command Palette, searches every action in the app
+- `?`: full keyboard shortcut reference (also [Keyboard Shortcuts](shortcuts.md))
+- The left rail: Properties, Layers, Tasks, Settings (see [Side Panel](side-panel.md))
 
 ## What's next
 

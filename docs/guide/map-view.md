@@ -3,11 +3,11 @@ title: "Map View"
 layout: default
 ---
 
-# Map View
+# Map view
 
 *Verified against Kanvaz v9.7.0.*
 
-Map View shows the same cards as Board View, but as a node graph —
+Map View shows the same cards as Board View, but as a node graph
 every **connection** you've drawn between cards rendered as a labeled,
 color-coded edge. It's the answer to "how does everything on this
 board relate to everything else," especially once a board has grown
@@ -36,7 +36,7 @@ generic "linked to" line:
 Up to 8 connections are allowed between the same pair of cards (for the
 rare case where more than one relationship type genuinely applies).
 Multiple connections between the same pair fan out into separate
-visible arcs instead of overlapping — a real bug found and fixed live
+visible arcs instead of overlapping, a real bug found and fixed live
 during a v9.6.0 QA pass (see `CHANGELOG.md`).
 
 ## Creating a connection
@@ -50,14 +50,14 @@ relationship type.
 - Each node shows the card's type icon, name, and connection count
 - Colors follow the card's tag (if it has one, hashed to a consistent
   hue) or its type otherwise
-- Drag nodes to rearrange the layout — Map View remembers your
+- Drag nodes to rearrange the layout, Map View remembers your
   arrangement per board
 - The same zoom/pan controls as Board View apply here
 
 ## Related
 
-- [Board View](board-view.md) — the underlying cards and their content
-- [Keyboard Shortcuts](shortcuts.md) — Map View has its own key
+- [Board View](board-view.md): the underlying cards and their content
+- [Keyboard Shortcuts](shortcuts.md): Map View has its own key
   handling while active (see `KanvazMapView.handleKey`)
-- [MCP Bridge](mcp-bridge.md) — an AI assistant can create/remove
+- [MCP Bridge](mcp-bridge.md): an AI assistant can create/remove
   connections directly via `connectCards`/`removeConnection`

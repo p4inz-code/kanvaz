@@ -1,6 +1,6 @@
 # Releasing Kanvaz
 
-How to cut a release so a second person can do it without the original maintainer. Every step here was checked against the real files in this repo on 2026-10-04 (`package.json`, `.github/workflows/build.yml`, `test/validate.js`, `.github/release-download-guide.md`) and against the live v9.7.0 release. Steps that could **not** be tested are marked **(untested)**.
+How to cut a release so a second person can do it without the original maintainer. Every step here was checked against the real files in this repo on 2026-10-04 (`package.json`, `.github/workflows/build.yml`, `test/validate.js`, `.github/release-download-guide.md`) and against the live v9.7.0 release. Steps that could **not** be tested are marked (untested).
 
 ## What a release is
 
@@ -10,16 +10,16 @@ A release is a git tag `vX.Y.Z` pushed to `p4inz-code/kanvaz`. GitHub Actions (`
 
 ## Access a second person needs
 
-- **Write access to the repo.** Today the owner (`p4inz-code`) is the only collaborator, so this must be granted first. The owner runs, with the new person's GitHub username:
+- Write access to the repo. Today the owner (`p4inz-code`) is the only collaborator, so this must be granted first. The owner runs, with the new person's GitHub username:
 
   ```bash
   gh api -X PUT repos/p4inz-code/kanvaz/collaborators/<username> -f permission=push
   ```
 
   (That command was not run; it is the documented GitHub API call.) The person accepts the emailed invitation. `push` is enough for everything in this document (pushing `main`, pushing tags, editing releases, re-running workflows). It does not give admin, so they cannot change repo settings or Pages. Separately, the owner can name a successor for the GitHub account itself under GitHub account settings, which is the only provision for the account being unavailable.
-- **`gh` CLI**, authenticated, and Node 20 (CI uses Node 20).
-- **No secrets.** `gh secret list` is empty. CI uses only the built-in `GITHUB_TOKEN`.
-- **No signing certificates.** Installers are deliberately unsigned (owner decision). Windows SmartScreen and macOS Gatekeeper warnings are expected and documented in the README and the release notes. Do not add signing.
+- `gh` CLI, authenticated, and Node 20 (CI uses Node 20).
+- No secrets. `gh secret list` is empty. CI uses only the built-in `GITHUB_TOKEN`.
+- No signing certificates. Installers are deliberately unsigned (owner decision). Windows SmartScreen and macOS Gatekeeper warnings are expected and documented in the README and the release notes. Do not add signing.
 
 ## Before you start
 
@@ -150,9 +150,9 @@ Use this only when a published release has a bad installer and the owner does no
 
 1. Commit and push the fix to `main` and wait for CI.
 2. Back up the files you will replace: `gh release download vX.Y.Z -p <name> -D <backup dir>` (keep it outside the repo).
-3. Build in a **fresh clone** of that commit (`git clone`, `git checkout <sha>`, `npm ci`, `npm run build:win -- --publish never` with `CSC_IDENTITY_AUTO_DISCOVERY=false`), not in the dev checkout, so `node_modules` matches CI. Confirm with `Get-AuthenticodeSignature` that it is unsigned like the CI build.
+3. Build in a fresh clone of that commit (`git clone`, `git checkout <sha>`, `npm ci`, `npm run build:win -- --publish never` with `CSC_IDENTITY_AUTO_DISCOVERY=false`), not in the dev checkout, so `node_modules` matches CI. Confirm with `Get-AuthenticodeSignature` that it is unsigned like the CI build.
 4. Names: copy `Kanvaz Setup X.Y.Z.exe` to `Kanvaz-Setup-X.Y.Z.exe` (and the `.blockmap`). electron-builder already writes dashed names into `latest.yml`; check that its `sha512` and `size` equal `openssl dgst -sha512 -binary <exe> | base64` and `stat`. In `SHA256SUMS-windows-latest.txt` replace only the changed line, in the same `<hash> *<name>` format.
-5. Upload with `gh release upload vX.Y.Z <exe> <blockmap> <sums> --clobber`, then `latest.yml` **last**, so no updater ever reads new metadata before the new installer exists.
+5. Upload with `gh release upload vX.Y.Z <exe> <blockmap> <sums> --clobber`, then `latest.yml` last, so no updater ever reads new metadata before the new installer exists.
 6. Re-download all assets and run `node tools/verify-release.js <dir> X.Y.Z --releases <json> --tag vX.Y.Z`. To prove a change is really in the installer, extract it (full 7-Zip: `7z x -tNsis`) and compare files under `$PLUGINSDIR`.
 7. Record in the CHANGELOG that the tag no longer matches the rebuilt asset byte for byte.
 
@@ -164,7 +164,7 @@ Clients that already downloaded the old build will fail the sha512 check once an
 |---|---|
 | `Validate` fails at `npm audit` | New advisory. `npm audit fix --package-lock-only`, re-run lint/validate, push. |
 | `create-release` fails: "No CHANGELOG.md section found" | Heading missing or not `## [X.Y.Z] — date — summary` with em dashes. Fix the heading, retag per below. |
-| One build leg red | `fail-fast` is off, so the others still finish. `gh run rerun <run-id> --failed`. `create-release` is idempotent and later steps only add assets to the one existing draft. **(untested for a re-run)** Always finish with `verify-release`. |
+| One build leg red | `fail-fast` is off, so the others still finish. `gh run rerun <run-id> --failed`. `create-release` is idempotent and later steps only add assets to the one existing draft. (untested for a re-run) Always finish with `verify-release`. |
 | Two drafts for one tag | The v9.6.0 incident. `verify-release` reports it. Keep the draft holding all installers, delete the other with `gh release delete`, and confirm which is which with `gh release view` first. |
 | Release published before CI built | Installers were silently skipped (the 8-release incident). Do not rely on a fix from memory: re-read the header comment in `build.yml` and test on a throwaway tag first. |
 | Tag pushed with a bad heading or wrong content | Delete the tag and draft, fix, retag. Destructive and public: check `gh release view` and confirm the release is still a draft first. |

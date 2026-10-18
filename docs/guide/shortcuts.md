@@ -3,16 +3,16 @@ title: "Keyboard Shortcuts"
 layout: default
 ---
 
-# Keyboard Shortcuts
+# Keyboard shortcuts
 
-*Verified against Kanvaz v9.7.0 — transcribed directly from `src/shortcuts.js`
+*Verified against Kanvaz v9.7.0, transcribed directly from `src/shortcuts.js`
 and confirmed live against the in-app reference (`?` any time).*
 
 ![The in-app Keyboard Shortcuts reference](assets/shortcuts.png)
 
 Press **`?`** anywhere in Kanvaz to open this same reference with a
 live filter box. A few of these (Save, Open, Command Palette, Home
-Screen toggle, Top Mode, MoodLock) work even while a text field is focused —
+Screen toggle, Top Mode, MoodLock) work even while a text field is focused
 noted below.
 
 ## Always available
@@ -89,16 +89,16 @@ noted below.
 ## Notes on how these are dispatched
 
 - Shortcuts are suppressed while a text field, textarea, or dropdown
-  is focused — except the "Always available" set above, which fires
+  is focused, except the "Always available" set above, which fires
   regardless (so Ctrl+S always saves, even mid-typing in a note).
-- Caps Lock doesn't break modifier detection — shortcuts compare the
+- Caps Lock doesn't break modifier detection, shortcuts compare the
   real Ctrl/Shift key state, never the letter's case.
 - Map View has its own key handling while active; most Board-only
   shortcuts (zoom, per-card operations) are inactive there.
-- Scratch Board owns the number keys 1–7 for its own tools while
+- Scratch Board owns the number keys 1-7 for its own tools while
   active, taking priority over the view-bookmark shortcuts above.
 
 ## Related
 
 - [Board View](board-view.md), [Map View](map-view.md), [Scratch Board](scratch-board.md)
-- [Side Panel](side-panel.md) — what `S`, `Shift+L`, `Insert` open
+- [Side Panel](side-panel.md): what `S`, `Shift+L`, `Insert` open

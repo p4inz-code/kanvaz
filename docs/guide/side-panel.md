@@ -3,7 +3,7 @@ title: "Side Panel"
 layout: default
 ---
 
-# Side Panel
+# Side panel
 
 *Verified against Kanvaz v9.7.0.*
 
@@ -25,7 +25,7 @@ section); `PageUp`/`PageDown` cycle between sections while it's open.
 
 Everything about the selected card: transform (X/Y/W/H), layer
 controls (opacity, bring-to-front/send-to-back), tags, its internal
-ID, and — for text cards — font size and color. The **Custom
+ID, and, for text cards, font size and color. The **Custom
 Properties** section at the bottom is free-form key/value storage for
 whatever your workflow needs (artist, source, shot number, license,
 anything).
@@ -42,15 +42,15 @@ that card on the canvas.
 
 ## Tasks
 
-A per-board checklist — see [Task Tracker](task-tracker.md) for the
+A per-board checklist, see [Task Tracker](task-tracker.md) for the
 full guide, including subtasks and progress tracking.
 
 ## Settings
 
-The full options panel — see [Settings](settings.md) for every option
+The full options panel, see [Settings](settings.md) for every option
 explained.
 
 ## Related
 
-- [Board View](board-view.md) — the canvas these panels operate on
-- [Keyboard Shortcuts](shortcuts.md) — the complete key reference
+- [Board View](board-view.md): the canvas these panels operate on
+- [Keyboard Shortcuts](shortcuts.md): the complete key reference

@@ -1,6 +1,6 @@
-# Security Policy
+# Security policy
 
-## Supported Versions
+## Supported versions
 
 | Version | Supported |
 |---------|-----------|
@@ -9,17 +9,17 @@
 
 *(Table corrected 2026-10-04: it still listed 9.1.x as the supported line while 9.8.x was current.)*
 
-Development continues as an ongoing side project — see `docs/ROADMAP.md` (the "Security & platform hardening" section tracks every open item from the 2026-09-20 audit).
+Development continues as an ongoing side project. See `docs/ROADMAP.md` (the "Security & platform hardening" section tracks every open item from the 2026-09-20 audit).
 
 Only the latest release receives security updates. Kanvaz is a solo-maintained
-open-source project — backporting fixes to older versions is not feasible.
+open-source project, backporting fixes to older versions is not feasible.
 
 Development reopened after v5.3.0 for the v6.x arc (see README.md/CHANGELOG.md/
-docs/ROADMAP.md) — this does not change how a real, confirmed security
+docs/ROADMAP.md), this does not change how a real, confirmed security
 vulnerability is handled. Report it the same way described below; it will
 still be fixed and released.
 
-## Reporting a Vulnerability
+## Reporting a vulnerability
 
 **Do not open a public issue for security vulnerabilities.**
 
@@ -34,84 +34,84 @@ You'll receive an acknowledgment within 48 hours. Fixes for confirmed
 vulnerabilities will be released as soon as possible and credited in the
 changelog (unless you prefer to remain anonymous).
 
-## Security Model
+## Security model
 
 Kanvaz is a **100% offline desktop application**. Key points:
 
-- **No network calls** except a small, fixed set of user-initiated ones, never
+- No network calls except a small, fixed set of user-initiated ones, never
   automatic, never anything else:
-  - "Check for updates" (About screen) — two requests to `api.github.com`.
-  - "Browse Official Plugins" (Settings → Plugins, added 4.4.0) — one request
+  - "Check for updates" (About screen), two requests to `api.github.com`.
+  - "Browse Official Plugins" (Settings → Plugins, added 4.4.0), one request
     to `raw.githubusercontent.com` for a small, static plugin-catalog JSON
     file, plus one more per plugin you actually choose to install (a
     `github.com/.../releases/download/...` zip; the main process refuses any
     `downloadUrl` that isn't `https://` on `github.com`).
-  - **URL card "Fetch preview" button (added 5.0.0)** — only fires when you
+  - URL card "Fetch preview" button (added 5.0.0): only fires when you
     click it on a specific URL card, never on paste/type/load. Requests the
     page's own HTML (capped at 512KB) to read its `<title>`/`og:title` and
     `og:image`, then one more capped request (2MB) for the image itself if
     present. The fetched title/image are embedded into the card and saved
     with the board — reopening a board with an existing preview never
     re-fetches anything.
-  - Every network call is made by the **main process**, never a raw `fetch()`
+  - Every network call is made by the main process, never a raw `fetch()`
     from the renderer or a plugin's own script — see the CSP note below.
 - **MCP Bridge (added 4.4.0, off by default) is local-only, never a network
   feature.** When enabled, Kanvaz listens on a named pipe (Windows) or a Unix
   domain socket (macOS/Linux) for an already-running MCP client on the same
-  machine — never a TCP port, never reachable from another computer, and nothing
+  machine: never a TCP port, never reachable from another computer, and nothing
   it does makes an outbound connection either. See its own README
   (`official-plugins/mcp-bridge/README.md`) for exactly what it can do once
   enabled: every change it makes goes through the same functions the UI itself
   uses, so it's undo-reversible like any manual edit.
-- **No telemetry, analytics, or tracking** of any kind.
-- **No accounts or authentication** — there's nothing to log into.
-- **No remote code execution** — as of 4.1.0, a `.kanvaz` file is a zip
+- No telemetry, analytics, or tracking of any kind.
+- No accounts or authentication: there's nothing to log into.
+- No remote code execution: as of 4.1.0, a `.kanvaz` file is a zip
   container (`board.json` plus one file per embedded asset, each with a
   SHA-256 integrity hash) instead of one giant base64-encoded JSON blob.
   `board.json` itself is parsed with `JSON.parse()`, never `eval()`. Files
   saved by 4.0.1 and earlier (plain JSON with base64 media inline) still
-  open exactly as before — Kanvaz detects the format automatically and only
+  open exactly as before, Kanvaz detects the format automatically and only
   ever writes the new container going forward.
-- **Content Security Policy** is enforced via Electron's CSP header, blocking
+- Content Security Policy is enforced via Electron's CSP header, blocking
   inline scripts and restricting network access. As of 4.2.0, `script-src`
-  also allows `file:` — narrowly, only to load a user-installed plugin's own
+  also allows `file:`, narrowly, only to load a user-installed plugin's own
   entry script (see the Plugin System section below). This did not add
   `unsafe-inline` or `unsafe-eval`; those remain fully blocked. `connect-src`
-  is still scoped to exactly `'self' https://api.github.com` — the 4.4.0
+  is still scoped to exactly `'self' https://api.github.com`. The 4.4.0
   catalog fetch deliberately does NOT add `raw.githubusercontent.com` there;
   it's fetched by the main process (which isn't CSP-constrained) specifically
   so no renderer/plugin script gains a new fetchable host as a side effect of
   this feature existing.
-- **All data stays local** — your `.kanvaz` files never leave your machine.
-- **3D model parsing (added 7.4.0, extended v8.x)** — a `.glb`/`.gltf`/`.obj`/
+- All data stays local: your `.kanvaz` files never leave your machine.
+- 3D model parsing (added 7.4.0, extended v8.x): a `.glb`/`.gltf`/`.obj`/
   `.fbx`/`.stl`/`.ply`/`.vox`/`.usd`/`.usda`/`.usdc`/`.usdz` dropped onto a
   board is parsed entirely in the renderer by a vendored Three.js
   (`src/vendor/three/`, pinned at a specific version, zero native
-  dependencies) — the same trust model already accepted for pdf.js parsing
+  dependencies), the same trust model already accepted for pdf.js parsing
   untrusted PDFs (7.2.0) and Chromium's own image/video/audio decoders
   parsing untrusted media: a malicious file could in principle exploit a bug
   in the parser itself, but there is no elevated privilege gained by doing
-  so — the renderer already has zero direct filesystem/OS access
+  so, the renderer already has zero direct filesystem/OS access
   (`contextIsolation: true`, `nodeIntegration: false`), so a compromised
   parse is contained to whatever a compromised renderer could already do.
   The `.usdz` path additionally decompresses a zip archive client-side via
   a vendored `fflate` (Three.js's own bundled dependency, not this app's
-  own code) before parsing its contents — the same "parser bug has no
+  own code) before parsing its contents. The same "parser bug has no
   elevated privilege" reasoning applies to the decompression step too. The
   `model-load` IPC handler enforces its own 150MB size cap and a strict
   extension allowlist (all eleven formats above) before reading any bytes,
   same pattern as `media-load`.
-- **`.blend` support via an optional external tool (added v8.x) — a
+- **`.blend` support via an optional external tool (added v8.x), a
   genuinely new capability, not just another parsed format.** Unlike
   every format above, `.blend` has no in-app parser at all: if a locally
   installed Blender is found, the `model-convert-external` IPC handler
   shells out to it in headless mode (`child_process.spawn`, a real
-  argument array — never a shell string, so there is no command-injection
+  argument array, never a shell string, so there is no command-injection
   surface even though the input path is renderer-supplied) to convert to
   `.glb`, which is then parsed by the same trusted path as any other
   `.glb`. **This is the first place this app spawns an external process**,
   and per the disclosure above (any installed plugin can call any
-  `KanvazBridge` method, including this one, unscoped) — a plugin can
+  `KanvazBridge` method, including this one, unscoped), a plugin can
   already trigger a Blender conversion the same way it can already read
   or write an arbitrary file. This doesn't hand a plugin anything it
   couldn't already reach some other way (arbitrary file read/write is
@@ -122,27 +122,27 @@ Kanvaz is a **100% offline desktop application**. Key points:
   never renderer-supplied, closing off the "trick it into overwriting an
   arbitrary file via the output path" variant of this risk.
 
-## Plugin System (added in 4.2.0) — trust model
+## Plugin System (added in 4.2.0): trust model
 
 Kanvaz supports third-party plugins (Settings → Plugins → Add a Plugin…).
 Read this section before installing one from anywhere other than Kanvaz's own
 official-plugins releases.
 
-- **Plugins are never auto-discovered or auto-run.** A plugin only loads
+- Plugins are never auto-discovered or auto-run. A plugin only loads
   after you review it in Settings and approve it in a native OS dialog
-  (`dialog.showMessageBox`, not a web page element) — something no script
+  (`dialog.showMessageBox`, not a web page element), something no script
   running inside Kanvaz can script, click, or forge on your behalf.
-- **The sandbox model is convention-based, not process-isolated.** This is a
+- The sandbox model is convention-based, not process-isolated. This is a
   deliberate design choice, the same trust model browser extensions and VS
-  Code extensions use — not an oversight. A plugin's entry script runs in the
+  Code extensions use, not an oversight. A plugin's entry script runs in the
   same renderer page context as the rest of Kanvaz, not in a separate
   sandboxed process, iframe, or worker. Full per-plugin process isolation was
   evaluated for the 4.4.0 stretch and explicitly declined (multi-week
   rearchitect, not worth it against a two-version budget and a two-plugin
-  official ecosystem) — tracked as deliberate future work, not a gap anyone
+  official ecosystem), tracked as deliberate future work, not a gap anyone
   missed.
 - **As of 4.4.0, permission-gated capabilities are genuinely absent from an
-  unapproved plugin's own view of `KanvazPluginAPI` — not just undocumented,
+  unapproved plugin's own view of `KanvazPluginAPI`. Not just undocumented,
   and not just at the object-property level.** Concretely: `KanvazPluginAPI.
   mcpBridge` (the only gated namespace that exists today, unlocked by the
   `server` permission) is a real object on the API view a plugin's own script
@@ -150,7 +150,7 @@ official-plugins releases.
   Closes the specific honesty gap the 4.2.0 release first disclosed below,
   verified by an automated browser test (`test/plugin-scope-test.js`) that
   loads two plugins side by side, one with the permission and one without,
-  and asserts the one without it truly cannot reach it — including the
+  and asserts the one without it truly cannot reach it, including the
   specific bypass an early draft of this actually shipped with and the test
   now guards against: the scope-builder function itself used to be copied
   into every plugin's own scoped object, so ANY plugin could call it on
@@ -158,12 +158,12 @@ official-plugins releases.
   and fixed before release, not after; the test asserts that path is closed.
 - **What this does NOT change, and where the real remaining exposure is: a
   plugin's script still shares the renderer's page context**, and the
-  `KanvazPluginAPI` scoping above is enforced only at the JS-object level —
+  `KanvazPluginAPI` scoping above is enforced only at the JS-object level
   by which object the bare `window.KanvazPluginAPI` identifier happens to
   resolve to at the moment a plugin's own top-level code runs synchronously,
   not by any process, memory, or IPC-transport boundary. `window.KanvazBridge`
-  itself — the underlying preload-exposed bridge `KanvazPluginAPI.mcpBridge`
-  is a thin wrapper over — is **not** scoped per plugin; it's the one flat
+  itself, the underlying preload-exposed bridge `KanvazPluginAPI.mcpBridge`
+  is a thin wrapper over, is **not** scoped per plugin; it's the one flat
   object every loaded script shares. Concretely, this means:
   - Any plugin, even one declaring zero permissions, can call
     `window.KanvazBridge.on('mcp-invoke', ...)` directly and receive every
@@ -215,39 +215,39 @@ official-plugins releases.
     process running as the same OS user can connect and issue tool calls,
     not only the intended `server.js` shim. This is what "local IPC only"
     protects against network exposure, not against another local program.
-- **The practical guidance: only approve plugins from developers you trust**,
+- The practical guidance: only approve plugins from developers you trust,
   the same way you'd vet a browser extension before installing it. Kanvaz's
   own official plugins (published as separate, independently-versioned
-  release assets — never bundled into the base installer) are the safest
+  release assets, never bundled into the base installer) are the safest
   starting point.
-- **This is disclosed, not hidden**, because pretending otherwise would be
+- This is disclosed, not hidden, because pretending otherwise would be
   worse than the limitation itself. Real per-plugin isolation (e.g. one
   sandboxed process/context per plugin) remains a larger architecture change
   tracked as possible future work, not implemented as of 4.4.0.
 
-### MCP Bridge — a high-permission official plugin, read this if you enable it
+### MCP Bridge: a high-permission official plugin, read this if you enable it
 
 `official-plugins/mcp-bridge` is the first official plugin to request the
-`server` permission — worth calling out on its own given what that grants.
+`server` permission, worth calling out on its own given what that grants.
 
-- **Off by default. Three separate steps to ever turn it on the FIRST time**
+- Off by default. Three separate steps to ever turn it on the FIRST time
   (install, approve the consent dialog, flip the Settings → Plugins → MCP
-  Bridge toggle) — none of it auto-starts on its own. After that first time,
+  Bridge toggle), none of it auto-starts on its own. After that first time,
   it remembers your own choice and reopens the listener automatically on
   every subsequent launch, the same way autosave-interval or any other
-  persisted setting does — it does not re-ask on every single launch. If you
+  persisted setting does, it does not re-ask on every single launch. If you
   want it off again, you have to explicitly disable it once; it then stays
   off until you re-enable it.
-- **Main-process re-verification, not just the consent dialog.** Every start
+- Main-process re-verification, not just the consent dialog. Every start
   request is re-checked against the plugin's actual on-disk approval state
-  (`main.js`'s `mcp-bridge-start` handler) before anything opens — the
+  (`main.js`'s `mcp-bridge-start` handler) before anything opens. The
   renderer's own say-so is never trusted alone, same discipline as every
   other plugin IPC handler in this codebase.
-- **Local IPC only.** A named pipe (Windows) or Unix domain socket
-  (macOS/Linux) — never a TCP port. Nothing outside this machine's kernel can
+- Local IPC only. A named pipe (Windows) or Unix domain socket
+  (macOS/Linux), never a TCP port. Nothing outside this machine's kernel can
   reach it, full stop; there is no "bound to the wrong interface"
   misconfiguration possible the way there would be with a TCP listener.
-- **Per-start authentication token (added 2026-09-20).** Every request must carry
+- Per-start authentication token (added 2026-09-20). Every request must carry
   a random 256-bit token that Kanvaz writes to `mcp-bridge.token` in its data
   folder when the bridge starts and deletes when it stops. It stops other users
   and sandboxed apps that cannot read that folder, and any client that never read
@@ -255,7 +255,7 @@ official-plugins releases.
   too).
 - **Card and connection edits land in undo history; board-level and settings
   actions do not.** The card/connection tool handlers call the exact same
-  `KanvazCards`/`KanvazConnections` functions the UI itself uses — an
+  `KanvazCards`/`KanvazConnections` functions the UI itself uses, an
   AI-driven edit is `Ctrl+Z`-reversible exactly like a manual one, by
   construction, not by a separate safety net bolted on afterward. `KanvazHistory`
   is per-board and is cleared on every board switch, so this guarantee does
@@ -263,25 +263,25 @@ official-plugins releases.
   — there is no undo stack for those. `deleteBoard` specifically requires two
   calls (once without `confirm`, which only returns what would be deleted;
   once with `confirm:true`, which actually deletes) as the safety net instead.
-- **As of 4.5.0, the bridge exposes whole-app access** — board management
+- As of 4.5.0, the bridge exposes whole-app access: board management
   (create/list/switch/rename/delete/save), undo/redo, zoom/map-view control,
-  and settings (`getSettings`/`updateSettings`) — not just card/connection
+  and settings (`getSettings`/`updateSettings`), not just card/connection
   editing. The only carve-out is plugin management itself (installing,
   approving, or toggling plugins): that state lives in a main-process-only
   `plugin-state.json` that `KanvazPluginAPI` has no path to, so it's
   structurally unreachable from any plugin, not merely policy-excluded.
   `updateSettings` is whitelisted to the same `SETTINGS_DEFAULTS` keys the
-  Settings UI itself exposes — it cannot write arbitrary keys.
-- **A card's embedded media is never sent over the bridge.** `dataUrl` is
-  stripped to a boolean `hasMedia` flag before anything crosses the pipe — see
+  Settings UI itself exposes. It cannot write arbitrary keys.
+- A card's embedded media is never sent over the bridge. `dataUrl` is
+  stripped to a boolean `hasMedia` flag before anything crosses the pipe. See
   `official-plugins/mcp-bridge/main.js`'s `sanitizeCard()`.
 - **A card's local file path IS sent, on every `listCards`/`getCard`/`search`
-  call that touches a file-reference card — not only when you explicitly add
+  call that touches a file-reference card. Not only when you explicitly add
   one.** `sanitizeCard()` redacts `dataUrl` and drops `pluginData`, but does
-  NOT redact `card.path` (an absolute OS path — on Windows this reveals your
+  NOT redact `card.path` (an absolute OS path, on Windows this reveals your
   username via the home-directory prefix, plus whatever folder structure the
-  path implies). This is by design — `addReference`/`createCard type:"file"`
-  round-trip a path on purpose — but it's worth stating plainly next to the
+  path implies). This is by design, `addReference`/`createCard type:"file"`
+  round-trip a path on purpose. But it's worth stating plainly next to the
   media-stripping bullet above rather than only being implied by the tool
   descriptions in `official-plugins/mcp-bridge/README.md`.
 
@@ -299,9 +299,9 @@ fails the build instead of going unnoticed. The upgrade was verified against the
 packaged Windows build, not just a dev run.
 
 **Consequences of the upgrade, stated plainly:**
-- **32-bit Windows is no longer supported** (Electron ships no ia32 build after
+- 32-bit Windows is no longer supported (Electron ships no ia32 build after
   v22-era). Windows 10 or later, 64-bit.
-- **macOS 12 or later** (`minimumSystemVersion` raised from 10.13).
+- macOS 12 or later (`minimumSystemVersion` raised from 10.13).
 - `File.path` no longer exists in Electron 32+, so dropped files are resolved
   through `webUtils.getPathForFile` (with a fallback for older Electron).
 
@@ -313,9 +313,9 @@ attached to each release). Signing is a release blocker on the roadmap.
 
 ### Changes made in response to the 2026-09-20 audit
 
-- **Electron 22 to 44 and electron-builder 24 to 26** (see above).
-- **Renderer sandbox enabled** (`sandbox: true`; previously `false`).
-- **File IPC trust boundary** (`src/path-guard.js`, `test/path-guard-test.js`):
+- Electron 22 to 44 and electron-builder 24 to 26 (see above).
+- Renderer sandbox enabled (`sandbox: true`; previously `false`).
+- File IPC trust boundary (`src/path-guard.js`, `test/path-guard-test.js`):
   `file-read` / `file-write` only accept a `.kanvaz` path that main itself granted
   (native Open/Save dialog, OS double-click / Open With, or the recent list it
   wrote); the media, PDF, text, model, `.pur` and Blender handlers refuse
@@ -326,32 +326,32 @@ attached to each release). Signing is a release blocker on the roadmap.
   files, `.url`, and more), Windows trailing-dot/space tricks, and NTFS alternate
   data streams. It is a blocklist, not an allowlist, on purpose: professional
   reference formats are open-ended.
-- **URL-card preview SSRF guard** (`src/net-guard.js`): loopback, private,
+- URL-card preview SSRF guard (`src/net-guard.js`): loopback, private,
   link-local, CGNAT and reserved addresses are refused, including names that
   resolve to them (re-checked at connect time, so DNS rebinding does not bypass
   it) and every redirect hop.
-- **MCP Bridge per-start token** (`src/mcp-auth.js`): every request must carry a
+- MCP Bridge per-start token (`src/mcp-auth.js`): every request must carry a
   256-bit token that main generates each time the bridge starts. See the MCP
   section above for what this does and does not protect against.
-- **Plugin approval bound to the exact code reviewed**: consent now records the
+- Plugin approval bound to the exact code reviewed: consent now records the
   version and a SHA-256 of the plugin's whole folder. Any changed, added or
   removed file re-asks for consent; a plugin containing a symlink is refused.
   Plugins approved before this change are asked once more. Plugin ids
   `__proto__`, `constructor` and `prototype` are rejected and plugin state is
   null-prototype.
-- **Blender import** runs with `--disable-autoexec --factory-startup` (a hostile
+- Blender import runs with `--disable-autoexec --factory-startup` (a hostile
   `.blend` could otherwise run embedded Python if the user's Blender has Auto Run
   enabled; proven with a real test file), with a 3-minute timeout, drained
   output, and a cap on the converted model size.
-- **Board files**: a `.kanvaz` container is checked against decompression limits
+- Board files: a `.kanvaz` container is checked against decompression limits
   before anything is inflated (zip-bomb defence); on load, embedded media must be
   `data:` URLs, URL-preview images `data:image/`, and `objectFit` a real CSS
   keyword. glTF/USD external URIs are rewritten to empty data URLs, so a hostile
   model cannot make the viewer fetch a remote or `file://` resource.
-- **Thumbnails** are only stored if they are small raster `data:image` URLs.
-- **Local crash log** (`crash.log` in the data folder, rotating at 1 MB, home
+- Thumbnails are only stored if they are small raster `data:image` URLs.
+- Local crash log (`crash.log` in the data folder, rotating at 1 MB, home
   directory masked, never uploaded).
-- **CI**: read-only default token, write access only on the build job, actions
+- CI: read-only default token, write access only on the build job, actions
   pinned by commit SHA, blocking `npm audit`, an SBOM artifact, and SHA-256
   checksums attached to releases.
 - `PRIVACY.md` corrected to list every network request.
@@ -366,24 +366,24 @@ schemas, the `script-src file:` allowance in the Content-Security-Policy
 ## Kanvaz Link listener (added after 9.0.0, released 9.1.0)
 
 A local connector for the Kanvaz Link Blender add-on. Design and limits:
-- **Local only.** A named pipe (Windows) or Unix socket in a 0700 folder (macOS/Linux), never a TCP port.
-- **Four methods** (`hello`, `deliver`, `status`, `ping`), a 64 KB line cap, at most 4 connections and 8 queued
+- Local only. A named pipe (Windows) or Unix socket in a 0700 folder (macOS/Linux), never a TCP port.
+- Four methods (`hello`, `deliver`, `status`, `ping`), a 64 KB line cap, at most 4 connections and 8 queued
   deliveries. Every request carries a per-start 256-bit token; a wrong token closes the connection. A connection
   that never authenticates is dropped after a fixed timeout, so it cannot hold one of those few connection slots
   indefinitely.
-- **The client can verify Kanvaz:** `hello` returns an HMAC of the client's nonce under the token.
-- **Nothing is accepted without consent.** The first request from a program shows a native dialog (default
+- The client can verify Kanvaz: `hello` returns an HMAC of the client's nonce under the token.
+- Nothing is accepted without consent. The first request from a program shows a native dialog (default
   button: Don't allow). The answer is stored in `link-config.json` keyed by a Unicode-normalised, case-folded,
-  control/bidi/zero-width-stripped version of the program's self-reported name — so a program named `__proto__`
+  control/bidi/zero-width-stripped version of the program's self-reported name. So a program named `__proto__`
   or `constructor` is just an ordinary string key (consent is kept in null-prototype maps), and whitespace/case/
   hidden-character variants of an already-denied name can't slip back in as "new." "This session only" is never
   written to disk. The remembered list is trimmed to a fixed cap while the app is running, not only when its
   file is loaded, so a flood of distinct client names can't grow it without bound.
-- **Files, not bytes.** A delivery names a file inside Kanvaz's private drop folder. Main reads it through
+- Files, not bytes. A delivery names a file inside Kanvaz's private drop folder. Main reads it through
   `path-guard.readDropFile` (refuses symlinks, hard links, alternate data streams, non-regular files, anything
   outside the folder, wrong size or checksum, and a file swapped during the read), deletes it, and sends the
   bytes to the renderer. The renderer is never given a path.
-- **Honest limit:** the token and consent stop other users, sandboxed apps and confused clients. Malware already
+- Honest limit: the token and consent stop other users, sandboxed apps and confused clients. Malware already
   running as you can read the discovery file and write to the drop folder, and no local mechanism can prevent that.
 - The Windows pipe's default access rules are set explicitly (not readable or writable by other users) but that
   has not been verified with a second Windows account.
@@ -401,10 +401,10 @@ Kanvaz can be launched by the OS with a file path (double-click, Explorer/Finder
 second instance, macOS's `open-file` event). `src/openable-types.js`'s `filesFromArgv` is the one filter every
 one of those paths goes through:
 - Only a fixed allowlist of extensions Kanvaz actually turns into a card; anything starting with `-` (a flag),
-  a UNC/device path, or a path naming an NTFS alternate data stream (`photo.png:payload.exe` — looks like a
+  a UNC/device path, or a path naming an NTFS alternate data stream (`photo.png:payload.exe`, looks like a
   plain image by extension, resolves through the filesystem APIs to a hidden stream that could be anything) is
   refused before the path is ever touched.
-- Real, local, regular files only — resolved relative to the launch's own working directory, deduplicated
+- Real, local, regular files only, resolved relative to the launch's own working directory, deduplicated
   case-insensitively on Windows/macOS, capped at 50 files per launch.
 - The `.kanvaz`-board-specific argv path (`findKanvazArg`, separate from the above since a board isn't in the
   media allowlist) has the same leading-`-` guard, closing a gap where a launch flag that happened to end in
@@ -413,9 +413,9 @@ one of those paths goes through:
 **Installer-level fix (the significant one):** `electron-builder`'s NSIS target ignores the `role`/`rank` fields
 entirely (its own `FileAssociation.d.ts` documents both as macOS-only) and unconditionally writes every listed
 extension's Windows *default*-handler registry key. Every previewable type was in the shared `fileAssociations`
-list before 9.1.0 — installing Kanvaz would have silently taken over the Windows default photo/video/audio/PDF
+list before 9.1.0, installing Kanvaz would have silently taken over the Windows default photo/video/audio/PDF
 viewer from whatever the user already had, on every install, for every type. Only `.kanvaz` is in
-`fileAssociations` now; every other type is registered per platform in a way that cannot set a default — macOS
+`fileAssociations` now; every other type is registered per platform in a way that cannot set a default, macOS
 via its own `CFBundleDocumentTypes` (`LSHandlerRank: Alternate` is a real guarantee there), Windows via a
 generated NSIS include (`build/installer.nsh`, from `tools/gen-nsis-associations.js`) that only adds Kanvaz to
 `OpenWithProgids`, never the extension's own default key. Linux's AppImage `MimeType=` list was already

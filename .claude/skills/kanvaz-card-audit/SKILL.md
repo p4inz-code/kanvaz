@@ -10,13 +10,13 @@ Never claim a card looks right from reading CSS or DOM properties. The 3D hover 
 
 ## Two ways to render the real UI
 
-1. **Real Electron (needs the owner's OK: they must say they are offline or ask for it).**
+1. Real Electron (needs the owner's OK: they must say they are offline or ask for it).
    Scratch profile only, and kill only the process whose command line has `remote-debugging-port=9333`:
    `electron.exe --remote-debugging-port=9333 --user-data-dir=<scratch> F:\OBL\Kanvaz`
    Then `node docs/handoff-assets/cdp/run.js tools/card-audit/build-in-app.js` builds one card of every
    type from `tools/card-audit/media` (dismisses the welcome screen, opens a board).
    `tools/card-audit/relayout.js` spreads them out and closes stray pickers.
-2. **No Electron:** `preview_start` with name `card-audit` serves `src/` with a stubbed bridge
+2. No Electron: `preview_start` with name `card-audit` serves `src/` with a stubbed bridge
    (`tools/card-audit/`) into the Browser pane. Good for CSS and layout; anything that needs main
    (file dialogs, IPC, Blender) is stubbed and must be checked in real Electron.
 

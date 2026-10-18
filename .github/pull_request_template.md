@@ -17,7 +17,7 @@
 
 - [ ] `npm run validate` passes clean
 - [ ] No `const`, `let`, arrow functions, or `.forEach()` (ES5 only)
-- [ ] No hardcoded hex colors — uses CSS `--color-*` variables
+- [ ] No hardcoded hex colors, uses CSS `--color-*` variables
 - [ ] No inline `onclick` handlers
 - [ ] Tested in both light and dark themes
 - [ ] Screenshots attached (if UI changed)

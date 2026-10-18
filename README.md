@@ -56,19 +56,19 @@ If you've used PureRef and wanted more than static images, or tried a cloud mood
 <table>
 <tr>
 <td width="50%" align="center">
-<b>🌙 Dark theme</b><br><br>
+<b>Dark theme</b><br><br>
 <img src="assets/screenshot-showcase-dark-v9.6.0.png" alt="Kanvaz reference board in dark theme — image, note, color, and URL cards with a Related To connection" width="100%">
 </td>
 <td width="50%" align="center">
-<b>☀️ Light theme</b><br><br>
+<b>Light theme</b><br><br>
 <img src="assets/screenshot-showcase-light-v9.6.0.png" alt="The same Kanvaz reference board in light theme" width="100%">
 </td>
 </tr>
 </table>
-<p align="center"><i>Same board, either theme — press <code>L</code> to switch, no restart needed.</i></p>
+<p align="center"><i>Same board, either theme, press <code>L</code> to switch, no restart needed.</i></p>
 
 <details>
-<summary><b>More screenshots</b> — Home Screen, Map View, Scratch Board, side panel (Properties/Annotate, Task Tracker), export</summary>
+<summary><b>More screenshots</b>: Home Screen, Map View, Scratch Board, side panel (Properties/Annotate, Task Tracker), export</summary>
 <br>
 
 <p align="center">
@@ -82,7 +82,7 @@ If you've used PureRef and wanted more than static images, or tried a cloud mood
 
 <p align="center">
   <img src="assets/screenshot-scratchboard-v9.6.0.png" alt="Kanvaz Scratch Board — an Illustrator-style drawing layer over the board, pen tool, custom toolbar" width="720">
-  <br><i>Scratch Board: a real drawing layer over your board — pen, highlighter, shapes, eraser, shares the same undo history as everything else.</i>
+  <br><i>Scratch Board: a real drawing layer over your board: pen, highlighter, shapes, eraser, shares the same undo history as everything else.</i>
 </p>
 
 <p align="center">
@@ -97,7 +97,7 @@ If you've used PureRef and wanted more than static images, or tried a cloud mood
 
 <p align="center">
   <img src="assets/screenshot-export-v9.6.0.png" alt="Kanvaz Export as… dialog — format (PNG/JPEG/WEBP/BMP), quality, and size" width="720">
-  <br><i>Export as… — turn any image/GIF/video card into PNG, JPEG, WEBP, or BMP, at any scale.</i>
+  <br><i>Export as…: turn any image/GIF/video card into PNG, JPEG, WEBP, or BMP, at any scale.</i>
 </p>
 
 </details>
@@ -111,17 +111,17 @@ Grab the file for your system from the [latest release](https://github.com/p4inz
 
 | Your system | Download | Notes |
 |---|---|---|
-| **Windows** | `Kanvaz-Setup-<version>.exe` | The installer. Recommended: Start Menu shortcut, "Open with" registration, auto-update. |
+| Windows | `Kanvaz-Setup-<version>.exe` | The installer. Recommended: Start Menu shortcut, "Open with" registration, auto-update. |
 | | `Kanvaz-<version>.exe` | Portable build. Run it from anywhere, nothing is installed. |
-| **macOS, Apple Silicon** (M1 and newer) | `Kanvaz-<version>-arm64.dmg` | Open it and drag Kanvaz into Applications. |
-| **macOS, Intel** | `Kanvaz-<version>.dmg` | Same steps. There is no `-x64` in this name. |
-| **Linux** | `Kanvaz-<version>.AppImage` | `chmod +x` it and run it. |
+| macOS, Apple Silicon (M1 and newer) | `Kanvaz-<version>-arm64.dmg` | Open it and drag Kanvaz into Applications. |
+| macOS, Intel | `Kanvaz-<version>.dmg` | Same steps. There is no `-x64` in this name. |
+| Linux | `Kanvaz-<version>.AppImage` | `chmod +x` it and run it. |
 
 Not sure which Mac you have? Apple menu, **About This Mac**: an "Apple" chip means Apple Silicon, "Intel" means Intel. Everything else in a release (`.blockmap`, `latest*.yml`, `SHA256SUMS-*.txt`, plugin `.zip` files) is metadata, not something you need to open.
 
-> **Note:** Kanvaz isn't code-signed (certificates cost money; this app doesn't). Windows will likely show **"Windows protected your PC."** Click **"More info" → "Run anyway."** On macOS, Gatekeeper will say the app "cannot be opened" the first time: right-click (or Control-click) the app and choose **Open**, then confirm once, and it will launch normally after that. Both are normal for unsigned indie software, not a red flag. To check a download, compare it with the `SHA256SUMS-*.txt` file attached to the same release.
+> **Note:** Kanvaz isn't code-signed (certificates cost money; this app doesn't). Windows will likely show "Windows protected your PC." Click "More info" → "Run anyway." On macOS, Gatekeeper will say the app "cannot be opened" the first time: right-click (or Control-click) the app and choose Open, then confirm once, and it will launch normally after that. Both are normal for unsigned indie software, not a red flag. To check a download, compare it with the `SHA256SUMS-*.txt` file attached to the same release.
 
-**First five minutes:** open Kanvaz, choose **New Board** (or one of 14 starter templates), drag any image, video, 3D model or PDF onto the canvas, and press `?` any time for every shortcut. The [Quick Start](https://p4inz-code.github.io/kanvaz/guide/quick-start.html) walks through the rest.
+**First five minutes:** open Kanvaz, choose New Board (or one of 14 starter templates), drag any image, video, 3D model or PDF onto the canvas, and press `?` any time for every shortcut. The [Quick Start](https://p4inz-code.github.io/kanvaz/guide/quick-start.html) walks through the rest.
 
 ---
 
@@ -129,12 +129,12 @@ Not sure which Mac you have? Apple menu, **About This Mac**: an "Apple" chip mea
 
 Most reference boards stop at "put images on a canvas." These are the ones worth trying first:
 
-- **Real 3D model preview, not a static thumbnail.** Drop in a `.glb`/`.gltf`/`.obj`/`.fbx`/`.stl`/`.ply`/`.vox`/`.usd`/`.usdz` and orbit it live, right on the board — Normal/Wireframe/Matcap shading, animation playback with a scrub bar. `.blend` files preview too, if you have Blender installed; without it, they become a plain file reference instead of failing outright.
-- **Typed connections, visualized as a real graph.** Not just arrows — 7 relationship kinds (Inspired By, Derived From, Used In, Supports, and more), viewable as a node-editor-style Map View when you want to see the whole web of ideas at once. Every bundled template except the freeform Mood Board ships with real connections already wired up, so you see the feature working the moment you open one.
-- **One card, many boards, zero duplication.** Share a reference across a Character board and a Lighting board — edit it once, and it updates everywhere it's used. Most tools make you choose between duplicating a file or losing track of where it lives.
-- **An AI can read and edit your board locally, with your permission.** The MCP Bridge plugin lets Claude Desktop or Claude Code query and modify the active board over local IPC, never the network — every change is undo-reversible like anything else you'd do by hand.
-- **Sell your own plugin. Kanvaz never takes a cut.** Register card types, commands, or full themes through a real runtime API — there's no in-app marketplace standing between you and the people who'd pay for your plugin.
-- **100% offline, and it stays that way.** No account to lose access to, no subscription that stops working, no telemetry phoning home. The only network calls anywhere in the app are ones you click yourself.
+- Real 3D model preview, not a static thumbnail. Drop in a `.glb`/`.gltf`/`.obj`/`.fbx`/`.stl`/`.ply`/`.vox`/`.usd`/`.usdz` and orbit it live, right on the board, Normal/Wireframe/Matcap shading, animation playback with a scrub bar. `.blend` files preview too, if you have Blender installed; without it, they become a plain file reference instead of failing outright.
+- Typed connections, visualized as a real graph. Not just arrows: 7 relationship kinds (Inspired By, Derived From, Used In, Supports, and more), viewable as a node-editor-style Map View when you want to see the whole web of ideas at once. Every bundled template except the freeform Mood Board ships with real connections already wired up, so you see the feature working the moment you open one.
+- One card, many boards, zero duplication. Share a reference across a Character board and a Lighting board, edit it once, and it updates everywhere it's used. Most tools make you choose between duplicating a file or losing track of where it lives.
+- An AI can read and edit your board locally, with your permission. The MCP Bridge plugin lets Claude Desktop or Claude Code query and modify the active board over local IPC, never the network. Every change is undo-reversible like anything else you'd do by hand.
+- Sell your own plugin. Kanvaz never takes a cut. Register card types, commands, or full themes through a real runtime API, there's no in-app marketplace standing between you and the people who'd pay for your plugin.
+- 100% offline, and it stays that way. No account to lose access to, no subscription that stops working, no telemetry phoning home. The only network calls anywhere in the app are ones you click yourself.
 
 ---
 
@@ -142,36 +142,36 @@ Most reference boards stop at "put images on a canvas." These are the ones worth
 
 | | |
 |---|---|
-| 🖼️ **One canvas for everything** | 3D models, images, GIFs, video, audio, notes, colors, URLs, and file pointers. Drop it in, arrange it freely, annotate on top. Multiple boards per file, each with its own view state. |
-| 🔗 **Shared cards across boards** | The same card can live on more than one board with zero duplication. Edit it on either one, and the change is there next time you open the other. |
-| 🧠 **Smart Search** | On-device, lemmatized/fuzzy search ("cars" finds "car"). Fully offline, off by default, about 4.5MB, zero native dependencies. |
-| ✏️ **Real annotation tools** | Pen, highlighter, line, arrow, rectangle, ellipse, text, pixel-measure, and an eyedropper that samples actual pixel color, with a custom color picker and per-stroke opacity, right on top of your reference. |
-| 🕸️ **Connections + Map View** | Link any two references with typed, directional relationships. Visualize the whole web as a node-editor-style graph with bezier cables. |
-| 🧩 **A real plugin ecosystem** | Add card types, commands, themes, or full features without forking Kanvaz. Sell your own plugin if you want. Kanvaz never takes a cut and never runs a marketplace. |
-| 🔒 **100% offline, always** | No accounts, no telemetry, nothing phones home. The only network activity anywhere in the app is a button you click yourself (Check for Updates, Browse Plugins). Never automatic. |
+| One canvas for everything | 3D models, images, GIFs, video, audio, notes, colors, URLs, and file pointers. Drop it in, arrange it freely, annotate on top. Multiple boards per file, each with its own view state. |
+| Shared cards across boards | The same card can live on more than one board with zero duplication. Edit it on either one, and the change is there next time you open the other. |
+| Smart Search | On-device, lemmatized/fuzzy search ("cars" finds "car"). Fully offline, off by default, about 4.5MB, zero native dependencies. |
+| Real annotation tools | Pen, highlighter, line, arrow, rectangle, ellipse, text, pixel-measure, and an eyedropper that samples actual pixel color, with a custom color picker and per-stroke opacity, right on top of your reference. |
+| Connections + Map View | Link any two references with typed, directional relationships. Visualize the whole web as a node-editor-style graph with bezier cables. |
+| A real plugin ecosystem | Add card types, commands, themes, or full features without forking Kanvaz. Sell your own plugin if you want. Kanvaz never takes a cut and never runs a marketplace. |
+| 100% offline, always | No accounts, no telemetry, nothing phones home. The only network activity anywhere in the app is a button you click yourself (Check for Updates, Browse Plugins). Never automatic. |
 
 ---
 
 ## How Kanvaz compares
 
-PureRef and Refern are both genuinely good, actively maintained tools — this is where Kanvaz actually differs from them.
+PureRef and Refern are both genuinely good, actively maintained tools. This is where Kanvaz actually differs from them.
 
 | | Kanvaz | PureRef | Refern | Miro |
 |---|---|---|---|---|
 | Price | Free, MIT | Free | $35 one-time | Subscription; free tier caps at 3 editable boards |
-| Offline / no account | Yes, always | Yes | Yes | No — cloud-only |
-| 3D model preview (orbit, live) | Yes, since v7.4.0 | No | No — `.blend`/`.obj`/`.fbx` not indexed; on their roadmap | No |
+| Offline / no account | Yes, always | Yes | Yes | No, cloud-only |
+| 3D model preview (orbit, live) | Yes, since v7.4.0 | No | No, `.blend`/`.obj`/`.fbx` not indexed; on their roadmap | No |
 | Typed connections / graph view | Yes — 7 relationship types, Map View | No | No | Generic whiteboard linking, not typed |
 | Video/audio playback, PDF preview | Yes | No | Partial | No |
 | Plugin API, sell your own plugin | Yes, no marketplace cut | No | No | App marketplace, Miro takes a cut |
 
-**Where Refern is ahead of Kanvaz today:** hierarchical tags, color-hex search, image-to-image visual similarity search, and 14+ search operators — real depth Kanvaz doesn't match yet. Worth knowing if that kind of search is your main use case.
+**Where Refern is ahead of Kanvaz today:** hierarchical tags, color-hex search, image-to-image visual similarity search, and 14+ search operators, real depth Kanvaz doesn't match yet. Worth knowing if that kind of search is your main use case.
 
-Kosmik, a cloud-synced competitor in this same space, shut down in 2026 and told its users to export their data before losing access. A `.kanvaz` board is a file on your disk — it's readable with or without the app continuing to exist, which is the whole reason "no cloud, ever" is a design decision here, not a marketing line.
+Kosmik, a cloud-synced competitor in this same space, shut down in 2026 and told its users to export their data before losing access. A `.kanvaz` board is a file on your disk: it's readable with or without the app continuing to exist, which is the whole reason "no cloud, ever" is a design decision here, not a marketing line.
 
 ---
 
-Built as an ongoing side project, no fixed roadmap, mostly driven by whatever feedback comes in. Found a bug or want a feature? [Open an issue](https://github.com/p4inz-code/kanvaz/issues) or email **atharva.patil.cg@gmail.com**, both get read. Shipping updates most weeks — see the full [CHANGELOG.md](CHANGELOG.md) for the reasoning behind every one.
+Built as an ongoing side project, no fixed roadmap, mostly driven by whatever feedback comes in. Found a bug or want a feature? [Open an issue](https://github.com/p4inz-code/kanvaz/issues) or email **atharva.patil.cg@gmail.com**, both get read. Shipping updates most weeks, see the full [CHANGELOG.md](CHANGELOG.md) for the reasoning behind every one.
 
 ---
 
@@ -185,7 +185,7 @@ Built as an ongoing side project, no fixed roadmap, mostly driven by whatever fe
 
 ## Workflows by domain
 
-Same canvas, different starting points — VFX/previz, 3D/look-dev, game dev, and handing a pipeline to a team as two portable files (no account, no server).
+Same canvas, different starting points: VFX/previz, 3D/look-dev, game dev, and handing a pipeline to a team as two portable files (no account, no server).
 
 **[→ Full workflow walkthroughs](https://p4inz-code.github.io/kanvaz/guide/workflows.html)**
 
@@ -223,8 +223,8 @@ Output: `dist/Kanvaz-Setup-9.8.2.exe` and `dist/Kanvaz-9.8.2.exe`
 npm run build:mac
 ```
 Output: `dist/Kanvaz-9.8.2-arm64.dmg` (Apple Silicon) and
-`dist/Kanvaz-9.8.2.dmg` (Intel — no `-x64` suffix, electron-builder
-only tags the non-default arch) — both built from one command.
+`dist/Kanvaz-9.8.2.dmg` (Intel, no `-x64` suffix, electron-builder
+only tags the non-default arch). Both built from one command.
 
 **Linux:**
 ```bash
@@ -238,7 +238,7 @@ Output: `dist/Kanvaz-9.8.2.AppImage`
 
 ## Keyboard shortcuts
 
-The essentials — press **`?`** in-app any time for the full live-filterable reference.
+The essentials, press **`?`** in-app any time for the full live-filterable reference.
 
 | Key | Action |
 |-----|--------|
@@ -249,8 +249,8 @@ The essentials — press **`?`** in-app any time for the full live-filterable re
 | M | Toggle Board / Map view |
 | A | Annotate selected card |
 | C | Connections inspector |
-| Ctrl+Shift+T | Top Mode — force always-on-top, hide chrome (toggle) |
-| Ctrl+Shift+L | MoodLock — isolate the selection and hide every toolbar, leaving just the reference |
+| Ctrl+Shift+T | Top Mode, force always-on-top, hide chrome (toggle) |
+| Ctrl+Shift+L | MoodLock, isolate the selection and hide every toolbar, leaving just the reference |
 | ? | Shortcuts overlay (toggle open/close) |
 
 **[→ Full keyboard shortcuts reference](https://p4inz-code.github.io/kanvaz/guide/shortcuts.html)**
@@ -259,33 +259,33 @@ The essentials — press **`?`** in-app any time for the full live-filterable re
 
 ## File format
 
-A `.kanvaz` file is a zip container: `board.json` plus one file per embedded asset, each SHA-256-checked for corruption. A damaged asset degrades to that one card showing "missing media" instead of threatening the rest of the file. Older plain-JSON files still open exactly as before — Kanvaz detects the format automatically.
+A `.kanvaz` file is a zip container: `board.json` plus one file per embedded asset, each SHA-256-checked for corruption. A damaged asset degrades to that one card showing "missing media" instead of threatening the rest of the file. Older plain-JSON files still open exactly as before, Kanvaz detects the format automatically.
 
 ### Supported file formats
 
-"Real preview" means Kanvaz decodes the file itself and shows actual content inside the card (an image, a rendered 3D model, an extracted thumbnail) — not just a filename and an icon. Kanvaz only registers OS-level "Open with Kanvaz"/file-association support for formats it can show something real for — a format with no preview path doesn't get associated at all right now, rather than becoming a bare labeled placeholder card. Formats without a working preview are listed under **Planned** below instead of in the main table.
+"Real preview" means Kanvaz decodes the file itself and shows actual content inside the card (an image, a rendered 3D model, an extracted thumbnail), not just a filename and an icon. Kanvaz only registers OS-level "Open with Kanvaz"/file-association support for formats it can show something real for, a format with no preview path doesn't get associated at all right now, rather than becoming a bare labeled placeholder card. Formats without a working preview are listed under **Planned** below instead of in the main table.
 
 | Format | Extensions | Status |
 |---|---|---|
-| Image | `.jpg` `.jpeg` `.png` `.bmp` `.webp` | ✅ Real preview |
-| Animated GIF | `.gif` | ✅ Real preview (plays inline) |
-| Video | `.mp4` `.webm` `.mov` | ✅ Real preview (plays inline) |
-| Video | `.mkv` `.avi` | ⚠️ Recognized — may not play (Chromium codec limitation) |
-| Audio | `.mp3` `.wav` `.ogg` `.m4a` | ✅ Real preview (plays inline) |
-| 3D Model | `.glb` `.gltf` `.obj` `.stl` `.ply` `.vox` `.usd` `.usda` `.usdc` `.usdz` | ✅ Real preview — orbit, 13 render modes |
-| 3D Model | `.fbx` | ✅ Real preview — best-effort (most complex/least standardized of the group) |
-| 3D Model (materials) | `.mtl` (companion to `.obj`) | ✅ Auto-detected and applied |
-| Blender | `.blend` | ✅ Real preview, if Blender is installed locally (auto-detected or chosen once in Settings) — otherwise a labeled file-reference card |
-| PDF | `.pdf` | ✅ Real preview — scroll/zoom/page nav (no text selection or search-within-PDF yet) |
-| Adobe | `.psd` `.psb` `.ai` `.xd` | ✅ Real preview — full flattened image (PSD/PSB), PDF-compatible view (AI), largest rendition (XD) |
-| Adobe | `.indd` `.indt` | ⚠️ Recognized, no preview |
-| HDR / EXR | `.hdr` `.pic` | ✅ Real preview — tone-mapped from real HDR data |
-| HDR / EXR | `.exr` | ✅ Real preview — NONE/RLE compression only; ZIP/PIZ/PXR24/B44/DWAA/DWAB refused with a clear reason instead of a wrong image |
-| Krita | `.kra` | ✅ Real preview — extracts the document's own embedded composite |
-| Alembic | `.abc` | ❌ Not supported — deliberately deferred, no safe reference implementation available yet (see [ROADMAP.md](https://github.com/p4inz-code/kanvaz/blob/main/docs/ROADMAP.md)) |
-| PureRef | `.pur` | ✅ Real import — every card at its saved position/scale |
+| Image | `.jpg` `.jpeg` `.png` `.bmp` `.webp` | Real preview |
+| Animated GIF | `.gif` | Real preview (plays inline) |
+| Video | `.mp4` `.webm` `.mov` | Real preview (plays inline) |
+| Video | `.mkv` `.avi` | Recognized, may not play (Chromium codec limitation) |
+| Audio | `.mp3` `.wav` `.ogg` `.m4a` | Real preview (plays inline) |
+| 3D Model | `.glb` `.gltf` `.obj` `.stl` `.ply` `.vox` `.usd` `.usda` `.usdc` `.usdz` | Real preview, orbit, 13 render modes |
+| 3D Model | `.fbx` | Real preview, best-effort (most complex/least standardized of the group) |
+| 3D Model (materials) | `.mtl` (companion to `.obj`) | Auto-detected and applied |
+| Blender | `.blend` | Real preview, if Blender is installed locally (auto-detected or chosen once in Settings), otherwise a labeled file-reference card |
+| PDF | `.pdf` | Real preview, scroll/zoom/page nav (no text selection or search-within-PDF yet) |
+| Adobe | `.psd` `.psb` `.ai` `.xd` | Real preview, full flattened image (PSD/PSB), PDF-compatible view (AI), largest rendition (XD) |
+| Adobe | `.indd` `.indt` | Recognized, no preview |
+| HDR / EXR | `.hdr` `.pic` | Real preview, tone-mapped from real HDR data |
+| HDR / EXR | `.exr` | Real preview — NONE/RLE compression only; ZIP/PIZ/PXR24/B44/DWAA/DWAB refused with a clear reason instead of a wrong image |
+| Krita | `.kra` | Real preview, extracts the document's own embedded composite |
+| Alembic | `.abc` | Not supported, deliberately deferred, no safe reference implementation available yet (see [ROADMAP.md](https://github.com/p4inz-code/kanvaz/blob/main/docs/ROADMAP.md)) |
+| PureRef | `.pur` | Real import, every card at its saved position/scale |
 
-**Planned** (no OS-level file association yet — no real preview path exists today, so Kanvaz doesn't claim to open these until one does): ZBrush (`.ztl`), Houdini (`.hip`/`.hipnc`), Maya (`.ma`/`.mb`), Cinema 4D (`.c4d`), Clip Studio Paint (`.clip`), Procreate (`.procreate`). Houdini and Maya are the most likely to follow Blender's own pattern (an optional local-install external-tool conversion); the others have no realistic path yet — see [ROADMAP.md](https://github.com/p4inz-code/kanvaz/blob/main/docs/ROADMAP.md) for the reasoning per format.
+**Planned** (no OS-level file association yet, no real preview path exists today, so Kanvaz doesn't claim to open these until one does): ZBrush (`.ztl`), Houdini (`.hip`/`.hipnc`), Maya (`.ma`/`.mb`), Cinema 4D (`.c4d`), Clip Studio Paint (`.clip`), Procreate (`.procreate`). Houdini and Maya are the most likely to follow Blender's own pattern (an optional local-install external-tool conversion); the others have no realistic path yet, see [ROADMAP.md](https://github.com/p4inz-code/kanvaz/blob/main/docs/ROADMAP.md) for the reasoning per format.
 
 **[→ File-format internals and the full reference](https://p4inz-code.github.io/kanvaz/guide/file-formats.html)**
 
@@ -293,7 +293,7 @@ A `.kanvaz` file is a zip container: `board.json` plus one file per embedded ass
 
 ## Known limitations
 
-Stated plainly, nothing hidden — highlights: custom properties are text-only for now, MKV/AVI may not play (Chromium codec limits, MP4/WebM recommended), `.blend` preview needs a local Blender install, PDF preview has no text search yet, and the macOS build isn't code-signed.
+Stated plainly, nothing hidden: highlights: custom properties are text-only for now, MKV/AVI may not play (Chromium codec limits, MP4/WebM recommended), `.blend` preview needs a local Blender install, PDF preview has no text search yet, and the macOS build isn't code-signed.
 
 **[→ Full known-limitations list](https://p4inz-code.github.io/kanvaz/guide/known-limitations.html)**
 
@@ -312,7 +312,7 @@ Kanvaz keeps getting developed as an ongoing side project, no fixed deadline, mo
 
 ## Documentation
 
-**[→ Full user guide](https://p4inz-code.github.io/kanvaz/guide/)** — quick start, every view and panel, MCP Bridge, plugins, and more, live and searchable.
+**[→ Full user guide](https://p4inz-code.github.io/kanvaz/guide/)**: quick start, every view and panel, MCP Bridge, plugins, and more, live and searchable.
 
 - [Technical Overview](docs/TECHNICAL_OVERVIEW.md): architecture, module map, build conventions
 - [Privacy](PRIVACY.md): what Kanvaz does (and doesn't) do with your data
@@ -326,7 +326,7 @@ Kanvaz keeps getting developed as an ongoing side project, no fixed deadline, mo
 Same engineering philosophy, same author, adjacent problem spaces:
 
 - [3d-ref-skills](https://github.com/p4inz-code/3d-ref-skills)
-- [reference-engineering](https://github.com/p4inz-code/reference-engineering) — the reference-engineering concept itself, proposed and developed independently of Kanvaz
+- [reference-engineering](https://github.com/p4inz-code/reference-engineering): the reference-engineering concept itself, proposed and developed independently of Kanvaz
 
 ## License
 
