@@ -36,9 +36,9 @@ You've got fifty browser tabs open, a folder called "refs_final_v2," and no idea
 
 Drop in 3D models, images, video, audio, PureRef boards, and files. Wire references together with typed connections and see the whole web of them as a real graph. Share the same card across boards with zero duplication. Extend it with plugins, or write your own and sell it.
 
-No account. No cloud. No subscription. Just a canvas that's actually yours.
+There is no account, no cloud and no subscription. The canvas and your files stay on your machine.
 
-If you've used PureRef and wanted more than static images, or tried a cloud moodboard tool and didn't want an account standing between you and your own files, this is built for exactly that gap.
+It's aimed at people who used PureRef and wanted more than static images, or tried a cloud moodboard tool and didn't want an account between them and their own files.
 
 <p align="center">
 
@@ -127,13 +127,13 @@ Not sure which Mac you have? Apple menu, **About This Mac**: an "Apple" chip mea
 
 ## What makes Kanvaz different
 
-Most reference boards stop at "put images on a canvas." These are the ones worth trying first:
+Most reference boards stop at putting images on a canvas. These features go further:
 
-- Real 3D model preview, not a static thumbnail. Drop in a `.glb`/`.gltf`/`.obj`/`.fbx`/`.stl`/`.ply`/`.vox`/`.usd`/`.usdz` and orbit it live, right on the board, Normal/Wireframe/Matcap shading, animation playback with a scrub bar. `.blend` files preview too, if you have Blender installed; without it, they become a plain file reference instead of failing outright.
-- Typed connections, visualized as a real graph. Not just arrows: 7 relationship kinds (Inspired By, Derived From, Used In, Supports, and more), viewable as a node-editor-style Map View when you want to see the whole web of ideas at once. Every bundled template except the freeform Mood Board ships with real connections already wired up, so you see the feature working the moment you open one.
+- 3D model preview you can orbit live, not a static thumbnail. Drop in a `.glb`/`.gltf`/`.obj`/`.fbx`/`.stl`/`.ply`/`.vox`/`.usd`/`.usdz` and orbit it live, right on the board, Normal/Wireframe/Matcap shading, animation playback with a scrub bar. `.blend` files preview too, if you have Blender installed; without it, they become a plain file reference instead of failing outright.
+- Typed connections shown as a graph. There are 7 relationship kinds (Inspired By, Derived From, Used In, Supports, and more), and Map View lays them out like a node editor so you can see the whole web of ideas at once. Every bundled template except the freeform Mood Board comes with connections already set up, so you can see how it works as soon as you open one.
 - One card, many boards, zero duplication. Share a reference across a Character board and a Lighting board, edit it once, and it updates everywhere it's used. Most tools make you choose between duplicating a file or losing track of where it lives.
 - An AI can read and edit your board locally, with your permission. The MCP Bridge plugin lets Claude Desktop or Claude Code query and modify the active board over local IPC, never the network. Every change is undo-reversible like anything else you'd do by hand.
-- Sell your own plugin. Kanvaz never takes a cut. Register card types, commands, or full themes through a real runtime API, there's no in-app marketplace standing between you and the people who'd pay for your plugin.
+- You can sell your own plugin, and Kanvaz never takes a cut. Plugins register card types, commands or full themes through a runtime API, and there is no in-app marketplace between you and the people who'd pay for it.
 - 100% offline, and it stays that way. No account to lose access to, no subscription that stops working, no telemetry phoning home. The only network calls anywhere in the app are ones you click yourself.
 
 ---
@@ -145,16 +145,16 @@ Most reference boards stop at "put images on a canvas." These are the ones worth
 | One canvas for everything | 3D models, images, GIFs, video, audio, notes, colors, URLs, and file pointers. Drop it in, arrange it freely, annotate on top. Multiple boards per file, each with its own view state. |
 | Shared cards across boards | The same card can live on more than one board with zero duplication. Edit it on either one, and the change is there next time you open the other. |
 | Smart Search | On-device, lemmatized/fuzzy search ("cars" finds "car"). Fully offline, off by default, about 4.5MB, zero native dependencies. |
-| Real annotation tools | Pen, highlighter, line, arrow, rectangle, ellipse, text, pixel-measure, and an eyedropper that samples actual pixel color, with a custom color picker and per-stroke opacity, right on top of your reference. |
+| Annotation tools | Pen, highlighter, line, arrow, rectangle, ellipse, text, pixel-measure, and an eyedropper that samples actual pixel color, with a custom color picker and per-stroke opacity, right on top of your reference. |
 | Connections + Map View | Link any two references with typed, directional relationships. Visualize the whole web as a node-editor-style graph with bezier cables. |
-| A real plugin ecosystem | Add card types, commands, themes, or full features without forking Kanvaz. Sell your own plugin if you want. Kanvaz never takes a cut and never runs a marketplace. |
+| Plugins | Add card types, commands, themes, or full features without forking Kanvaz. Sell your own plugin if you want. Kanvaz never takes a cut and never runs a marketplace. |
 | 100% offline, always | No accounts, no telemetry, nothing phones home. The only network activity anywhere in the app is a button you click yourself (Check for Updates, Browse Plugins). Never automatic. |
 
 ---
 
 ## How Kanvaz compares
 
-PureRef and Refern are both genuinely good, actively maintained tools. This is where Kanvaz actually differs from them.
+PureRef and Refern are both good, actively maintained tools. Here is where Kanvaz differs from them.
 
 | | Kanvaz | PureRef | Refern | Miro |
 |---|---|---|---|---|
@@ -165,7 +165,7 @@ PureRef and Refern are both genuinely good, actively maintained tools. This is w
 | Video/audio playback, PDF preview | Yes | No | Partial | No |
 | Plugin API, sell your own plugin | Yes, no marketplace cut | No | No | App marketplace, Miro takes a cut |
 
-**Where Refern is ahead of Kanvaz today:** hierarchical tags, color-hex search, image-to-image visual similarity search, and 14+ search operators, real depth Kanvaz doesn't match yet. Worth knowing if that kind of search is your main use case.
+**Where Refern is ahead of Kanvaz today:** hierarchical tags, color-hex search, image-to-image visual similarity search, and 14+ search operators. Kanvaz doesn't match that depth yet, which matters if search is your main use case.
 
 Kosmik, a cloud-synced competitor in this same space, shut down in 2026 and told its users to export their data before losing access. A `.kanvaz` board is a file on your disk: it's readable with or without the app continuing to exist, which is the whole reason "no cloud, ever" is a design decision here, not a marketing line.
 
@@ -177,7 +177,7 @@ Built as an ongoing side project, no fixed roadmap, mostly driven by whatever fe
 
 ## Features
 
-3D model preview with 13 render modes, PSD/AI/XD/Adobe previews, image/GIF/video/audio cards, note/text/color/URL/file cards, shared cards across boards, tags + Smart Folders, a Photoshop-style Properties panel, a Layers panel, 14 board templates, a full offline multi-profile system, a real annotation toolkit plus a dedicated Scratch Board layer, 7 typed connection kinds with a Map View node graph, a real plugin ecosystem (MCP Bridge, AI Export, Template Maker & Manager), a Command Palette, and more.
+3D model preview with 13 render modes, PSD/AI/XD/Adobe previews, image/GIF/video/audio cards, note/text/color/URL/file cards, shared cards across boards, tags + Smart Folders, a Photoshop-style Properties panel, a Layers panel, 14 board templates, a full offline multi-profile system, an annotation toolkit plus a dedicated Scratch Board layer, 7 typed connection kinds with a Map View node graph, plugins (MCP Bridge, AI Export, Template Maker & Manager), a Command Palette, and more.
 
 **[→ Full feature list](https://p4inz-code.github.io/kanvaz/guide/features.html)**
 
