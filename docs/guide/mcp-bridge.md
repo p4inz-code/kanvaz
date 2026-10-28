@@ -15,7 +15,7 @@ named pipe/socket on your own machine.
 
 ## Installing and connecting
 
-1. Install MCP Bridge like any [plugin](plugins.md), Settings →
+1. Install MCP Bridge like any [plugin](plugins.html), Settings →
    Plugins → Add a Plugin. It declares the `server` permission
    (Kanvaz's only in-use gated permission today), so you'll see and
    approve that explicitly.
@@ -54,6 +54,6 @@ exposed to an AI assistant.
 
 ## Related
 
-- [Plugins](plugins.md): installing MCP Bridge, the permission model
-- [Task Tracker](task-tracker.md): what the Task Tracker tools operate on
-- [Map View](map-view.md): what `connectCards`/`removeConnection` visualize
+- [Plugins](plugins.html): installing MCP Bridge, the permission model
+- [Task Tracker](task-tracker.html): what the Task Tracker tools operate on
+- [Map View](map-view.html): what `connectCards`/`removeConnection` visualize

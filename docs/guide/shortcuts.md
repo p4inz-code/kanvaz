@@ -27,7 +27,7 @@ noted below.
 | `Ctrl+H` | Toggle Home Screen |
 | `Ctrl+Shift+T` | Toggle Top Mode |
 | `Left` / `Right` | While MoodLock is on: previous / next reference |
-| `Ctrl+Shift+L` | MoodLock: isolate the selection and hide every toolbar (see [Isolate View](board-view.md#isolate-view)) |
+| `Ctrl+Shift+L` | MoodLock: isolate the selection and hide every toolbar (see [Isolate View](board-view.html#isolate-view)) |
 
 ## Canvas
 
@@ -100,5 +100,5 @@ noted below.
 
 ## Related
 
-- [Board View](board-view.md), [Map View](map-view.md), [Scratch Board](scratch-board.md)
-- [Side Panel](side-panel.md): what `S`, `Shift+L`, `Insert` open
+- [Board View](board-view.html), [Map View](map-view.html), [Scratch Board](scratch-board.html)
+- [Side Panel](side-panel.html): what `S`, `Shift+L`, `Insert` open

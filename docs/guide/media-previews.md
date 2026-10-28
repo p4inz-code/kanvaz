@@ -36,7 +36,7 @@ material.
 ## Preview quality
 
 Rendering for 3D/PDF/Adobe previews has a Low/Medium/High setting
-(see [Settings](settings.md)): pixel ratio, DPI, and max texture size
+(see [Settings](settings.html)): pixel ratio, DPI, and max texture size
 all climb together from Low to High. A card can also override the
 global setting individually.
 
@@ -53,5 +53,5 @@ tags, connections, notes all work), it just won't show a thumbnail.
 
 ## Related
 
-- [Import & Export](import-export.md): how these files get onto a board
-- [Board View](board-view.md): card types in general
+- [Import & Export](import-export.html): how these files get onto a board
+- [Board View](board-view.html): card types in general

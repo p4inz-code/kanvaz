@@ -56,8 +56,8 @@ relationship type.
 
 ## Related
 
-- [Board View](board-view.md): the underlying cards and their content
-- [Keyboard Shortcuts](shortcuts.md): Map View has its own key
+- [Board View](board-view.html): the underlying cards and their content
+- [Keyboard Shortcuts](shortcuts.html): Map View has its own key
   handling while active (see `KanvazMapView.handleKey`)
-- [MCP Bridge](mcp-bridge.md): an AI assistant can create/remove
+- [MCP Bridge](mcp-bridge.html): an AI assistant can create/remove
   connections directly via `connectCards`/`removeConnection`

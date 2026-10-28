@@ -42,7 +42,8 @@ function run() {
         rel = path.posix.normalize(path.posix.join(path.posix.dirname(f), clean));
       }
       if (!/\.(png|jpe?g|gif|svg|ico|bmp|webp|mp4|webm|md|html|pdf)$/i.test(rel)) continue;
-      if (!fs.existsSync(p(rel))) problems.push(f + ' -> ' + ref + ' (missing: ' + rel + ')');
+      var isGuidePage = /^docs\/guide\/[^/]+\.html$/.test(rel);
+      if (!fs.existsSync(p(rel)) && !(isGuidePage && fs.existsSync(p(rel.replace(/\.html$/, '.md'))))) problems.push(f + ' -> ' + ref + ' (missing: ' + rel + ')');
     }
   });
   assert.deepStrictEqual(problems, [], 'broken asset references:\n  ' + problems.join('\n  '));

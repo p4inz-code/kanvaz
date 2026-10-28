@@ -39,6 +39,6 @@ registry entry automatically.
 
 ## Related
 
-- [Board View](board-view.md): cards in general
-- [MCP Bridge](mcp-bridge.md): `shareCardToBoard`/`unlinkSharedCard`
+- [Board View](board-view.html): cards in general
+- [MCP Bridge](mcp-bridge.html): `shareCardToBoard`/`unlinkSharedCard`
   are exposed as MCP tools too

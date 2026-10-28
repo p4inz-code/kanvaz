@@ -8,7 +8,7 @@ layout: default
 *Verified against Kanvaz v9.7.0.*
 
 Open Settings from the left rail's gear icon, the `S` shortcut, or
-Command Palette → "Open Settings". Settings are per-[profile](profiles.md)
+Command Palette → "Open Settings". Settings are per-[profile](profiles.html)
 — each person sharing an install keeps their own.
 
 ![The Settings panel: Appearance and General sections](assets/settings.png)
@@ -17,7 +17,7 @@ Command Palette → "Open Settings". Settings are per-[profile](profiles.md)
 
 | Option | What it does |
 |---|---|
-| Theme | Dark (default), Light, or any theme a [plugin](plugins.md) registers |
+| Theme | Dark (default), Light, or any theme a [plugin](plugins.html) registers |
 | Show minimap | The small navigator in the canvas corner |
 | Grid lines | The dot/line grid under your cards |
 | Grid style | Reference (default), 3D (origin axes), or Game Dev (tile grid) |
@@ -40,7 +40,7 @@ Command Palette → "Open Settings". Settings are per-[profile](profiles.md)
 | Double-click canvas creates note | A quick way to drop a note card |
 | Snap to grid | Cards snap to the grid on move/resize |
 | Snap increment | Minor (24px) or Major (120px) |
-| Always on top | Whether the window floats above others by default (see the Top Mode note in [Keyboard Shortcuts](shortcuts.md)) |
+| Always on top | Whether the window floats above others by default (see the Top Mode note in [Keyboard Shortcuts](shortcuts.html)) |
 
 ## Files & search
 
@@ -48,12 +48,12 @@ Command Palette → "Open Settings". Settings are per-[profile](profiles.md)
 |---|---|
 | Autosave interval | Seconds between autosaves (10–300) |
 | Default card width | The width new cards are created at |
-| Smart Search | On-device NLP-powered search, off by default; see [Command Palette & Smart Search](search-and-commands.md) |
+| Smart Search | On-device NLP-powered search, off by default; see [Command Palette & Smart Search](search-and-commands.html) |
 
 ## Preview quality
 
 Controls the default render quality for 3D models, PDFs, and Adobe
-file previews (Low/Medium/High), see [Media Previews](media-previews.md).
+file previews (Low/Medium/High), see [Media Previews](media-previews.html).
 High quality is flagged with a warning since it costs more to render.
 
 ## Advanced
@@ -65,12 +65,12 @@ unrelated tools don't get mixed together:
   IDs, run Map View diagnostics, generate 50 test cards, or export
   debug info to the clipboard
 - Plugin Dev: Load an unpacked plugin folder for development
-  (see [Plugins](plugins.md))
+  (see [Plugins](plugins.html))
 - Reset: Reset Kanvaz's settings and cache (does not touch your
   board files)
 
 ## Related
 
-- [Profiles](profiles.md): Settings are scoped per profile
-- [Plugins](plugins.md): plugin-contributed settings panels appear
+- [Profiles](profiles.html): Settings are scoped per profile
+- [Plugins](plugins.html): plugin-contributed settings panels appear
   in their own section below the built-in ones

@@ -1,0 +1,38 @@
+- title: Start here
+  items:
+    - { title: Guide home, url: /guide/ }
+    - { title: Installation & updates, url: /guide/installation.html }
+    - { title: Quick Start, url: /guide/quick-start.html }
+    - { title: About Kanvaz, url: /guide/about.html }
+- title: Learn the canvas
+  items:
+    - { title: Board View, url: /guide/board-view.html }
+    - { title: Map View, url: /guide/map-view.html }
+    - { title: Scratch Board, url: /guide/scratch-board.html }
+    - { title: Side Panel, url: /guide/side-panel.html }
+    - { title: Keyboard Shortcuts, url: /guide/shortcuts.html }
+    - { title: Command Palette & Smart Search, url: /guide/search-and-commands.html }
+- title: Work beside other apps
+  items:
+    - { title: Always on top, Top Mode & MoodLock, url: /guide/working-with-other-apps.html }
+- title: Your references
+  items:
+    - { title: Import & Export, url: /guide/import-export.html }
+    - { title: Media Previews, url: /guide/media-previews.html }
+    - { title: Supported File Formats, url: /guide/file-formats.html }
+    - { title: Templates, url: /guide/templates.html }
+    - { title: Shared Cards, url: /guide/shared-cards.html }
+    - { title: Task Tracker, url: /guide/task-tracker.html }
+- title: Make it yours
+  items:
+    - { title: Settings, url: /guide/settings.html }
+    - { title: Profiles, url: /guide/profiles.html }
+    - { title: Plugins, url: /guide/plugins.html }
+    - { title: MCP Bridge, url: /guide/mcp-bridge.html }
+- title: Reference & help
+  items:
+    - { title: Full feature list, url: /guide/features.html }
+    - { title: Workflows by domain, url: /guide/workflows.html }
+    - { title: Known limitations, url: /guide/known-limitations.html }
+    - { title: Troubleshooting, url: /guide/troubleshooting.html }
+    - { title: Glossary, url: /guide/glossary.html }

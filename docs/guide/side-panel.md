@@ -42,15 +42,15 @@ that card on the canvas.
 
 ## Tasks
 
-A per-board checklist, see [Task Tracker](task-tracker.md) for the
+A per-board checklist, see [Task Tracker](task-tracker.html) for the
 full guide, including subtasks and progress tracking.
 
 ## Settings
 
-The full options panel, see [Settings](settings.md) for every option
+The full options panel, see [Settings](settings.html) for every option
 explained.
 
 ## Related
 
-- [Board View](board-view.md): the canvas these panels operate on
-- [Keyboard Shortcuts](shortcuts.md): the complete key reference
+- [Board View](board-view.html): the canvas these panels operate on
+- [Keyboard Shortcuts](shortcuts.html): the complete key reference

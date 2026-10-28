@@ -10,7 +10,7 @@ layout: default
 Board View is the main canvas, a free-form 2D space where reference
 cards live, get arranged, and get connected. It's the default view
 when you open a board; switch back to it any time from the toolbar or
-the `M` shortcut (which toggles [Map View](map-view.md)).
+the `M` shortcut (which toggles [Map View](map-view.html)).
 
 ![Board View with color, text, and URL cards laid out on a clean grid](assets/board-view.png)
 
@@ -25,7 +25,7 @@ recognizes:
 | GIF | Animated GIFs, played inline |
 | Video | Common video formats, with an inline scrubbable player |
 | Audio | Audio files with a waveform preview |
-| 3D Model | glTF/GLB, OBJ, FBX, and more, see [Media Previews](media-previews.md) |
+| 3D Model | glTF/GLB, OBJ, FBX, and more, see [Media Previews](media-previews.html) |
 | Note | A freeform sticky-note style text card |
 | Text | A single styled text label |
 | Color | A named/hex color swatch, click it to open Kanvaz's own color picker |
@@ -34,7 +34,7 @@ recognizes:
 
 ## Getting cards onto the board
 
-See [Import & Export](import-export.md) for every path in detail
+See [Import & Export](import-export.html) for every path in detail
 drag-and-drop, paste, the Import menu, and PureRef migration all land
 here as cards.
 
@@ -46,15 +46,15 @@ here as cards.
 - Ctrl+D duplicates the selection; Delete removes it
 - Ctrl+G groups 2+ selected cards, Ctrl+Shift+G ungroups
 - Right-click a selection for Align and Distribute. The same
-  operations exposed to the [MCP Bridge](mcp-bridge.md) as
+  operations exposed to the [MCP Bridge](mcp-bridge.html) as
   `alignCards`/`distributeCards`/`tidyUp`
 
 ## Per-card panels
 
 With a card selected:
 
-- `E`: [Properties](side-panel.md#properties) (transform, opacity, tags, custom key/value properties)
-- `C`: Connections (wire it to another card. This is what [Map View](map-view.md) visualizes)
+- `E`: [Properties](side-panel.html#properties) (transform, opacity, tags, custom key/value properties)
+- `C`: Connections (wire it to another card. This is what [Map View](map-view.html) visualizes)
 - `A`: Annotate (draw directly on an image/video/GIF/3D card)
 - `P`: Pin / unpin
 - `H`: hide/show its annotations
@@ -80,10 +80,10 @@ The **lock** button right next to Minimize in the titlebar (or `Ctrl+Shift+L`) t
 | Save/recall a view | `Ctrl+1..9` to save, `1..9` to jump back |
 
 The full reference, including every card and file shortcut, is in
-[Keyboard Shortcuts](shortcuts.md).
+[Keyboard Shortcuts](shortcuts.html).
 
 ## Related
 
-- [Map View](map-view.md): see the same cards as a connection graph
-- [Side Panel](side-panel.md): Properties, Layers, Tasks, Settings
-- [Templates](templates.md): start from a curated card layout instead of blank
+- [Map View](map-view.html): see the same cards as a connection graph
+- [Side Panel](side-panel.html): Properties, Layers, Tasks, Settings
+- [Templates](templates.html): start from a curated card layout instead of blank

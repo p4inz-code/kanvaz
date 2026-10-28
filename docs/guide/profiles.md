@@ -20,7 +20,7 @@ Open **Manage Profiles** from your account avatar (top right).
 
 ## What's per-profile
 
-- Settings (everything in [Settings](settings.md))
+- Settings (everything in [Settings](settings.html))
 - The recent-boards list
 - Recovery snapshots
 
@@ -49,5 +49,5 @@ Rename it any time via Edit.
 
 ## Related
 
-- [Settings](settings.md): what actually lives inside a profile
-- [About Kanvaz](about.md): the offline/no-account model this fits into
+- [Settings](settings.html): what actually lives inside a profile
+- [About Kanvaz](about.html): the offline/no-account model this fits into

@@ -17,7 +17,7 @@ out.
 | Drag and drop | Drop any supported file straight onto the canvas, lands as a card at the drop point |
 | Ctrl+V (paste) | Pastes an image from your clipboard as an image card. Text paste is deliberately *not* wired to card creation, use right-click → Add Note for that. |
 | Import → PureRef file (.pur) | Migrates an existing PureRef board, every image becomes its own Kanvaz card, laid out to match the original positions. Runs off the main thread (a worker), so it stays responsive even on a board with hundreds of images. |
-| "Open with Kanvaz" | Any file type Kanvaz registers itself for (see [Media Previews](media-previews.md)) can be opened directly from your OS file manager or command line |
+| "Open with Kanvaz" | Any file type Kanvaz registers itself for (see [Media Previews](media-previews.html)) can be opened directly from your OS file manager or command line |
 | Right-click → Add | Text note, color swatch, or URL reference, cards that don't come from a file |
 
 ## Getting media out
@@ -45,16 +45,16 @@ batch save (pick a folder, get one file per card).
 
 ### Export a profile
 
-See [Profiles](profiles.md): a whole profile (settings, recent list,
+See [Profiles](profiles.html): a whole profile (settings, recent list,
 recovery data) exports as a portable `.kanvazprofile` file.
 
 ### Export a template
 
-See [Templates](templates.md), a saved template exports as a
+See [Templates](templates.html), a saved template exports as a
 `.kanvaztemplate` file you can hand to someone else.
 
 ## Related
 
-- [Media Previews](media-previews.md): every file type Kanvaz can open and preview
-- [Templates](templates.md): starting from a curated layout instead of importing your own files
-- [MCP Bridge](mcp-bridge.md): an AI assistant can call `createCard` directly, another path media can enter a board
+- [Media Previews](media-previews.html): every file type Kanvaz can open and preview
+- [Templates](templates.html): starting from a curated layout instead of importing your own files
+- [MCP Bridge](mcp-bridge.html): an AI assistant can call `createCard` directly, another path media can enter a board

@@ -36,8 +36,8 @@ scoped API unless its manifest declares `server`.
 | Plugin | What it does |
 |---|---|
 | Theme Creator | Design your own color theme with live preview, save it as a named preset, reset to defaults anytime. Zero permissions. |
-| Template Maker & Manager | Save any board as a reusable template, manage your collection, browse/install community templates. Zero permissions, see [Templates](templates.md). |
-| MCP Bridge | Lets an AI assistant read/edit your active board over a local-only connection. Requires `server`. Off by default; every change it makes lands in undo history like a manual edit, see [MCP Bridge](mcp-bridge.md). |
+| Template Maker & Manager | Save any board as a reusable template, manage your collection, browse/install community templates. Zero permissions, see [Templates](templates.html). |
+| MCP Bridge | Lets an AI assistant read/edit your active board over a local-only connection. Requires `server`. Off by default; every change it makes lands in undo history like a manual edit, see [MCP Bridge](mcp-bridge.html). |
 | AI Export (added 9.7.0) | Exports the current board or every board as a JSON + Markdown pair any AI agent can read, no MCP connection, no server. Zero permissions. Includes each card's tags, properties, and notes (Note-card text and Annotate-tool labels, merged). |
 
 All four are maintained in this repository (`official-plugins/`) and
@@ -52,6 +52,6 @@ writing your own.
 
 ## Related
 
-- [MCP Bridge](mcp-bridge.md): the deepest-reaching official plugin, its own full guide
-- [Templates](templates.md): Template Maker in detail
-- [Settings](settings.md): where plugin-contributed panels appear
+- [MCP Bridge](mcp-bridge.html): the deepest-reaching official plugin, its own full guide
+- [Templates](templates.html): Template Maker in detail
+- [Settings](settings.html): where plugin-contributed panels appear

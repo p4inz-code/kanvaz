@@ -1,4 +1,16 @@
 title: Kanvaz Guide
-description: Free, open-source, 100% offline reference board for VFX and 3D artists.
-theme: jekyll-theme-minimal
+description: Free, open-source, 100% offline reference board for VFX, 3D and game artists.
+url: https://p4inz-code.github.io
+baseurl: /kanvaz
 markdown: kramdown
+kramdown:
+  input: GFM
+  hard_wrap: false
+  toc_levels: 2..3
+# The guide uses its own layout (docs/_layouts/default.html), so no remote theme is applied.
+exclude:
+  - generate_overview_pdf.py
+  - handoff-assets
+  - archive
+  - plugin-scaffold
+  - PLAN_2026-10-04_maintenance.md

@@ -5,7 +5,7 @@ layout: default
 
 # Full feature list
 
-*Moved out of the main README to keep it scannable. See the [Guide index](index.md) for everything else, or [Supported File Formats](file-formats.md) for the format table.*
+*Moved out of the main README to keep it scannable. See the [Guide index](index.html) for everything else, or [Supported File Formats](file-formats.html) for the format table.*
 
 ## Canvas & organization
 - Infinite pan/zoom canvas (8%–500%), multiple boards per file

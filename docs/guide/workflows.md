@@ -5,7 +5,7 @@ layout: default
 
 # Workflows by domain
 
-*Moved out of the main README to keep it scannable. See the [Guide index](index.md) for everything else.*
+*Moved out of the main README to keep it scannable. See the [Guide index](index.html) for everything else.*
 
 Same canvas, three example pipelines, start from whichever is closest to your own work.
 

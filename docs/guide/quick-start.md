@@ -21,7 +21,7 @@ Kanvaz ships as:
 - Linux: an `AppImage` (`chmod +x` it and run; there is no `.deb`)
 
 There's no account, no sign-in, and no network call on first launch
-Kanvaz is fully offline. See [About Kanvaz](about.md) for what that
+Kanvaz is fully offline. See [About Kanvaz](about.html) for what that
 actually means in practice.
 
 ## 2. The first-run welcome
@@ -39,13 +39,13 @@ From the Home Screen, **Quick start** gives you three ways in:
 |---|---|
 | New Board | An empty canvas, the default starting point |
 | Open from computer | Opens an existing `.kanvaz` file |
-| Browse templates | 14 built-in starter boards (Filmmaking, Game Art, Mood Board, VFX, and more), see [Templates](templates.md) |
+| Browse templates | 14 built-in starter boards (Filmmaking, Game Art, Mood Board, VFX, and more), see [Templates](templates.html) |
 
 ![Board View with a few reference cards on a clean grid](assets/board-view.png)
 
 ## 4. Get references onto the canvas
 
-The fastest ways in, all covered in full in [Import & Export](import-export.md):
+The fastest ways in, all covered in full in [Import & Export](import-export.html):
 
 - Drag and drop any image, GIF, video, audio file, 3D model, or PDF straight onto the canvas
 - Ctrl+V to paste an image straight from your clipboard
@@ -55,15 +55,15 @@ The fastest ways in, all covered in full in [Import & Export](import-export.md):
 ## 5. Find your way around
 
 - Board / Map / Scratch: the three views, top center. See
-  [Board View](board-view.md), [Map View](map-view.md), and
-  [Scratch Board](scratch-board.md).
+  [Board View](board-view.html), [Map View](map-view.html), and
+  [Scratch Board](scratch-board.html).
 - Ctrl+K: Command Palette, searches every action in the app
-- `?`: full keyboard shortcut reference (also [Keyboard Shortcuts](shortcuts.md))
-- The left rail: Properties, Layers, Tasks, Settings (see [Side Panel](side-panel.md))
+- `?`: full keyboard shortcut reference (also [Keyboard Shortcuts](shortcuts.html))
+- The left rail: Properties, Layers, Tasks, Settings (see [Side Panel](side-panel.html))
 
 ## What's next
 
-- [Board View](board-view.md) to learn card types, selection, and grouping
-- [Templates](templates.md) if you'd rather start from a curated layout
-- [Profiles](profiles.md) if more than one person uses this install
-- [About Kanvaz](about.md) for the offline/privacy model in full
+- [Board View](board-view.html) to learn card types, selection, and grouping
+- [Templates](templates.html) if you'd rather start from a curated layout
+- [Profiles](profiles.html) if more than one person uses this install
+- [About Kanvaz](about.html) for the offline/privacy model in full

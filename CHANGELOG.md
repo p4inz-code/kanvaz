@@ -3,6 +3,12 @@
 All notable changes to Kanvaz are documented here.
 
 ## [Unreleased]
+### Changed
+- **The user guide on GitHub Pages is redesigned.** New layout with grouped sidebar navigation, a right-hand "On this page" outline, light and dark themes, previous/next links, copy buttons on code, and a phone-friendly menu. Every page now links to the others with working `.html` links. Added a Star / Discord / Support / Request-a-feature block to every page, and a walkthrough GIF and screenshot on the guide home.
+
+### Added
+- **Three new guide pages:** Installation & updates (which file to download, unsigned-app warnings, checksums, updating, uninstalling), Always on top, Top Mode & MoodLock (including the v9.8.1 ZBrush fix and the v9.8.2 lock button), and Troubleshooting (window, saving, media, plugin and update problems). Plus a Glossary.
+- The doc test now accepts guide links written as `.html` when the matching `.md` page exists.
 
 ## [9.8.2] — 2026-10-07 — MoodLock: titlebar lock button, flip through references, remembered window position
 ### Changed

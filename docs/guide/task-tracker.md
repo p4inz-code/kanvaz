@@ -10,7 +10,7 @@ layout: default
 A simple checklist attached to your `.kanvaz` file, for the
 "remember to actually gather these 6 references" layer of work that
 doesn't belong as its own card. Open it from the side panel's Tasks
-icon (see [Side Panel](side-panel.md)).
+icon (see [Side Panel](side-panel.html)).
 
 ## Shape
 
@@ -42,6 +42,6 @@ flat, file-wide list by design, not per-board.
 
 ## Related
 
-- [Side Panel](side-panel.md): where the Tasks panel lives
-- [MCP Bridge](mcp-bridge.md): an AI assistant can list/add tasks and
+- [Side Panel](side-panel.html): where the Tasks panel lives
+- [MCP Bridge](mcp-bridge.html): an AI assistant can list/add tasks and
   toggle subtasks directly (`listTasks`, `addTask`, `toggleSubtask`)

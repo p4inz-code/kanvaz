@@ -5,7 +5,7 @@ layout: default
 
 # Known limitations
 
-*Moved out of the main README to keep it scannable. See the [Guide index](index.md) for everything else. These are stated plainly on purpose. No known rough edge is hidden.*
+*Moved out of the main README to keep it scannable. See the [Guide index](index.html) for everything else. These are stated plainly on purpose. No known rough edge is hidden.*
 
 - Custom key-value properties are text values only, no dropdown/date/number field types yet.
 - MKV and AVI video files may not play (a Chromium codec limitation). MP4 (H.264) and WebM are recommended. Kanvaz tells you plainly when this is why a video card failed, instead of a generic "missing media" message.

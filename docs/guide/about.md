@@ -24,11 +24,11 @@ planning a shot, a level, or a project.
 - Not a cloud service. There's no account, no sign-in, and no
   server. Your boards are plain files on your own disk.
 - Not a sync tool. If you want a board on two machines, you move
-  the `.kanvaz` file yourself (or use [Shared Cards](shared-cards.md)
-  / [Profile export](profiles.md) for the specific cases those cover).
+  the `.kanvaz` file yourself (or use [Shared Cards](shared-cards.html)
+  / [Profile export](profiles.html) for the specific cases those cover).
 - Not a video/image editor. Kanvaz previews and organizes media;
   it doesn't re-encode video or paint on images. See
-  [Import & Export](import-export.md) for exactly what it *can* export.
+  [Import & Export](import-export.html) for exactly what it *can* export.
 
 ## Offline and privacy, specifically
 
@@ -38,21 +38,21 @@ opt-in and both disclosed here:
 
 1. Check for updates: only when you click the button in this
    dialog, or if the Settings option for automatic checks is on
-   (installed Windows/Linux builds only; see [Settings](settings.md)).
+   (installed Windows/Linux builds only; see [Settings](settings.html)).
 2. Browse community templates / MCP Bridge tool calls: only if
-   you explicitly use those features. See [Templates](templates.md)
-   and [MCP Bridge](mcp-bridge.md).
+   you explicitly use those features. See [Templates](templates.html)
+   and [MCP Bridge](mcp-bridge.html).
 
 Nothing else: not your boards, not your media, not usage
 analytics, ever leaves your machine. See `SECURITY.md` in the
 repository for the full disclosed trust model, including how the
-[plugin system](plugins.md) is sandboxed.
+[plugin system](plugins.html) is sandboxed.
 
 ## Getting help
 
 - View on GitHub: the source, issue tracker, and releases
 - Keyboard Shortcuts: the full reference, also at
-  [Keyboard Shortcuts](shortcuts.md)
+  [Keyboard Shortcuts](shortcuts.html)
 - This guide folder (`docs/guide/`): everything else
 
 ## Credit

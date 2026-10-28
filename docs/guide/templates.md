@@ -28,7 +28,7 @@ just an empty grid with a label.
 
 ## Your own templates (Template Maker plugin)
 
-The official **Template Maker** plugin (see [Plugins](plugins.md) for
+The official **Template Maker** plugin (see [Plugins](plugins.html) for
 installing it) adds a Settings panel with:
 
 | Action | What it does |
@@ -53,5 +53,5 @@ reusing it later never needs the network again.
 
 ## Related
 
-- [Plugins](plugins.md): installing/enabling Template Maker
-- [Import & Export](import-export.md): other ways media gets onto a board
+- [Plugins](plugins.html): installing/enabling Template Maker
+- [Import & Export](import-export.html): other ways media gets onto a board

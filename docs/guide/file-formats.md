@@ -5,7 +5,7 @@ layout: default
 
 # Supported file formats
 
-*Moved out of the main README to keep it scannable. This is the full reference. See the [Guide index](index.md) for everything else.*
+*Moved out of the main README to keep it scannable. This is the full reference. See the [Guide index](index.html) for everything else.*
 
 "Real preview" means Kanvaz decodes the file itself and shows actual content inside the card (an image, a rendered 3D model, an extracted thumbnail), not just a filename and an icon. Kanvaz only registers OS-level "Open with Kanvaz"/file-association support for formats it can show something real for, a format with no preview path doesn't get associated at all right now, rather than becoming a bare labeled placeholder card. Formats without a working preview are listed under **Planned** below instead of in the main table.
 

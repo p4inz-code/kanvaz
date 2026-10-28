@@ -15,13 +15,13 @@ content.
 ## Command palette
 
 `Ctrl+K` opens a fuzzy-searchable list of every registered action in
-Kanvaz, core commands and anything a [plugin](plugins.md) registers
+Kanvaz, core commands and anything a [plugin](plugins.html) registers
 via `registerCommand`. It's reachable even while a text field is
 focused, and works identically whether you're in Board or Map view.
 
 Type to filter, arrow keys to navigate, Enter to run. Each result
 shows its keyboard shortcut, if it has one. See
-[Keyboard Shortcuts](shortcuts.md) for the full list.
+[Keyboard Shortcuts](shortcuts.html) for the full list.
 
 ## Card search
 
@@ -34,7 +34,7 @@ reuse.
 ## Smart search
 
 An optional, **off-by-default** on-device NLP search (toggle it in
-[Settings](settings.md) → Files & Search). Once enabled, it indexes
+[Settings](settings.html) → Files & Search). Once enabled, it indexes
 card text/tags/names with lemmatized matching, searching "running"
 also finds "run" and "runs". And ranks results by relevance rather
 than plain substring matching. It runs entirely on your machine, in a
@@ -42,6 +42,6 @@ background worker, and re-indexes as your board changes.
 
 ## Related
 
-- [Keyboard Shortcuts](shortcuts.md): the complete key reference
-- [Settings](settings.md): enabling Smart Search
-- [Plugins](plugins.md): how a plugin adds its own palette commands
+- [Keyboard Shortcuts](shortcuts.html): the complete key reference
+- [Settings](settings.html): enabling Smart Search
+- [Plugins](plugins.html): how a plugin adds its own palette commands
