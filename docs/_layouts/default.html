@@ -63,10 +63,10 @@
     </article>
 
     <nav class="pager" aria-label="Previous and next page">
-      {% if cur > 0 %}{% assign prev = all_pages[cur | minus: 1] %}
+      {% if cur > 0 %}{% assign pi = cur | minus: 1 %}{% assign prev = all_pages[pi] %}
       <a class="prev" href="{{ prev.url | relative_url }}"><span>Previous</span>{{ prev.title }}</a>{% else %}<span></span>{% endif %}
       {% assign last = all_pages.size | minus: 1 %}
-      {% if cur >= 0 and cur < last %}{% assign next = all_pages[cur | plus: 1] %}
+      {% if cur >= 0 and cur < last %}{% assign ni = cur | plus: 1 %}{% assign next = all_pages[ni] %}
       <a class="next" href="{{ next.url | relative_url }}"><span>Next</span>{{ next.title }}</a>{% endif %}
     </nav>
 
