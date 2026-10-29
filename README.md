@@ -13,9 +13,9 @@
 
 <p align="center">
   <a href="https://github.com/p4inz-code/kanvaz/releases/latest"><img src="https://img.shields.io/github/v/release/p4inz-code/kanvaz?style=flat-square&labelColor=1c1a30&color=f0b45e&label=release" alt="Latest release"></a>
-  <a href="https://github.com/p4inz-code/kanvaz/releases/latest"><img src="https://img.shields.io/github/downloads/p4inz-code/kanvaz/total?style=flat-square&labelColor=1c1a30&color=f0b45e&label=downloads" alt="Downloads"></a>
-  <a href="https://github.com/p4inz-code/kanvaz/stargazers"><img src="https://img.shields.io/github/stars/p4inz-code/kanvaz?style=flat-square&labelColor=1c1a30&color=f0b45e&label=stars" alt="Stars"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/p4inz-code/kanvaz?style=flat-square&labelColor=1c1a30&color=f0b45e&label=license" alt="MIT license"></a>
+  <a href="https://github.com/p4inz-code/kanvaz/releases/latest"><img src="https://img.shields.io/github/downloads/p4inz-code/kanvaz/total?style=flat-square&labelColor=1c1a30&color=9d7fff&label=downloads" alt="Downloads"></a>
+  <a href="https://github.com/p4inz-code/kanvaz/stargazers"><img src="https://img.shields.io/github/stars/p4inz-code/kanvaz?style=flat-square&labelColor=1c1a30&color=3fc5b8&label=stars" alt="Stars"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/p4inz-code/kanvaz?style=flat-square&labelColor=1c1a30&color=e86054&label=license" alt="MIT license"></a>
 </p>
 
 <p align="center"><img src="assets/readme/divider.svg" width="70%" alt=""></p>

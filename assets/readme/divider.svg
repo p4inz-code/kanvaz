@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 40" width="900" height="40" role="img" aria-label="">
 <style>.flow{stroke-dasharray:5 9;animation:flow 2.6s linear infinite}@keyframes flow{to{stroke-dashoffset:-28}}@media (prefers-reduced-motion:reduce){.flow{animation:none}}</style>
-<path d="M30,20 C150,2 230,38 330,20 S520,2 600,20 S780,38 870,20" fill="none" stroke="#f0b45e" stroke-opacity="0.22" stroke-width="5" stroke-linecap="round"/>
-<path class="flow" d="M30,20 C150,2 230,38 330,20 S520,2 600,20 S780,38 870,20" fill="none" stroke="#f0b45e" stroke-width="2" stroke-linecap="round"/>
-<circle cx="30" cy="20" r="5" fill="#f0b45e"/><circle cx="450" cy="11" r="6" fill="#8a6cff"/><circle cx="870" cy="20" r="5" fill="#8a6cff"/>
+<path d="M30,20 C150,2 230,38 330,20 S520,2 600,20 S780,38 870,20" fill="none" stroke="#c79a54" stroke-opacity="0.22" stroke-width="5" stroke-linecap="round"/>
+<path class="flow" d="M30,20 C150,2 230,38 330,20 S520,2 600,20 S780,38 870,20" fill="none" stroke="#c79a54" stroke-width="2" stroke-linecap="round"/>
+<circle cx="30" cy="20" r="5" fill="#c79a54"/><circle cx="450" cy="11" r="6" fill="#8a6cff"/><circle cx="870" cy="20" r="5" fill="#8a6cff"/>
 </svg>
