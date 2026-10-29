@@ -21,7 +21,7 @@ recognizes:
 
 | Type | What it holds |
 |---|---|
-| Image | Any raster image — PNG, JPG, WEBP, TIFF, and more |
+| Image | Any raster image, PNG, JPG, WEBP, TIFF, and more |
 | GIF | Animated GIFs, played inline |
 | Video | Common video formats, with an inline scrubbable player |
 | Audio | Audio files with a waveform preview |

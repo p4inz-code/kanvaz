@@ -24,7 +24,7 @@ layout: default
 | Adobe | `.psd` `.psb` `.ai` `.xd` | Real preview, full flattened image (PSD/PSB), PDF-compatible view (AI), largest rendition (XD) |
 | Adobe | `.indd` `.indt` | Recognized, no preview |
 | HDR / EXR | `.hdr` `.pic` | Real preview, tone-mapped from real HDR data |
-| HDR / EXR | `.exr` | Real preview — NONE/RLE compression only; ZIP/PIZ/PXR24/B44/DWAA/DWAB refused with a clear reason instead of a wrong image |
+| HDR / EXR | `.exr` | Real preview, NONE/RLE compression only; ZIP/PIZ/PXR24/B44/DWAA/DWAB refused with a clear reason instead of a wrong image |
 | Krita | `.kra` | Real preview, extracts the document's own embedded composite |
 | Alembic | `.abc` | Not supported, deliberately deferred, no safe reference implementation available yet (see [ROADMAP.md](https://github.com/p4inz-code/kanvaz/blob/main/docs/ROADMAP.md)) |
 | PureRef | `.pur` | Real import, every card at its saved position/scale |

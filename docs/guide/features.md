@@ -8,7 +8,7 @@ layout: default
 *Moved out of the main README to keep it scannable. See the [Guide index](index.html) for everything else, or [Supported File Formats](file-formats.html) for the format table.*
 
 ## Canvas & organization
-- Infinite pan/zoom canvas (8%–500%), multiple boards per file
+- Infinite pan/zoom canvas (8% to 500%), multiple boards per file
 - Real board thumbnails on the Home Screen (generated from the actual card layout at save time)
 - 3D model cards (`.glb`/`.gltf`/`.obj`/`.fbx`/`.stl`/`.ply`/`.vox`/`.usd`/`.usdz`, up to 150MB, plus `.blend` if Blender is installed, auto-detected across drives, PATH, the registry and package managers, or chosen once and remembered): orbit with the mouse, 13 render modes (Shaded, Clay, Matcap, Wireframe, Wire on Shaded, Normals, Normal Map, Albedo, UV Grid, Roughness, Metalness, Occlusion, Alpha) grouped in one picker with unavailable modes greyed and explained, camera view presets and a turntable, animation playback with a clip picker and scrub bar, background color picker, read-only model stats (tris/verts/materials/textures/size). Alt+drag or Ctrl/Cmd+middle-mouse pans the whole board even with the cursor over the model, you're never trapped inside its orbit controls
 - Adobe file previews (PSD/PSB/AI/XD/INDD): a real decoded preview inside the card, not just an icon: full flattened image for PSD/PSB, the PDF-compatible view for AI, the largest rendition for XD
@@ -23,7 +23,7 @@ layout: default
 - Always-on-top by default (toggleable in Settings)
 - Top Mode (`Ctrl+Shift+T`): one keystroke forces always-on-top, hides the toolbar chrome, and closes the side panel for a genuine floating-reference view. Press it again to restore everything exactly as it was. Session-only, nothing is written to Settings
 - MoodLock (the lock button next to Minimize in the titlebar, `Ctrl+Shift+L`, or the corner lock while Isolate View is on): isolates the selected cards and hides every piece of Kanvaz chrome (titlebar, toolbar, side panel and rail, status bar, minimap) so only the reference is left, forces always-on-top, and makes the board read-only so a stray click can't move anything. A small lock with a drag grip stays in the top-right corner to move the window and to unlock; `Ctrl+Shift+L` or `Esc` also unlock, and everything is restored exactly as it was. Left / Right flip through the board's cards while locked, and the locked window's position is remembered between uses. Session-only
-- Presentation Mode (Command Palette): a read-only mode for showing a board to someone else: hides the toolbar and side panel, clears selection, steps card-by-card with the arrow keys, blocks every edit/drag/delete path while active. Escape restores everything exactly as it was
+- Presentation Mode (Command Palette): a read-only mode for showing a board to someone else: hides the toolbar and side panel, clears selection, steps card-by-card in reading order (top to bottom, left to right) with the arrow keys, blocks every edit/drag/delete path while active. Escape restores everything exactly as it was
 
 ## Card design & templates
 - Every card shows an always-visible name and at-a-glance metadata (resolution, duration, character count) plus one clean type badge

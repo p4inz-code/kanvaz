@@ -8,8 +8,7 @@ layout: default
 *Verified against Kanvaz v9.7.0.*
 
 Three ways to start from an existing layout instead of a blank board:
-built-in templates, your own saved templates, and community templates
-— the last two both via the official **Template Maker** plugin.
+built-in templates, your own saved templates, and community templates, the last two both via the official **Template Maker** plugin.
 
 ## Built-in templates
 

@@ -8,8 +8,7 @@ layout: default
 *Verified against Kanvaz v9.7.0.*
 
 Open Settings from the left rail's gear icon, the `S` shortcut, or
-Command Palette → "Open Settings". Settings are per-[profile](profiles.html)
-— each person sharing an install keeps their own.
+Command Palette → "Open Settings". Settings are per-[profile](profiles.html), so each person sharing an install keeps their own.
 
 ![The Settings panel: Appearance and General sections](assets/settings.png)
 
@@ -46,7 +45,7 @@ Command Palette → "Open Settings". Settings are per-[profile](profiles.html)
 
 | Option | What it does |
 |---|---|
-| Autosave interval | Seconds between autosaves (10–300) |
+| Autosave interval | Seconds between autosaves (10 to 300) |
 | Default card width | The width new cards are created at |
 | Smart Search | On-device NLP-powered search, off by default; see [Command Palette & Smart Search](search-and-commands.html) |
 

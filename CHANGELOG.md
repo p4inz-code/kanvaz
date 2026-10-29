@@ -10,6 +10,7 @@ All notable changes to Kanvaz are documented here.
 
 ### Added
 - **Three new guide pages:** Installation & updates (which file to download, unsigned-app warnings, checksums, updating, uninstalling), Always on top, Top Mode & MoodLock (including the v9.8.1 ZBrush fix and the v9.8.2 lock button), and Troubleshooting (window, saving, media, plugin and update problems). Plus a Glossary.
+- **Docs and repo pages, one palette and no generated look.** The landing page, guide and both READMEs now share one ink, cream and amber palette. The Kanvaz README has a photographic pinboard hero built from real screenshots (new `assets/readme/`), SVG buttons and four matching badges, and the guide lost its remaining dashes and most bold. The Presentation Mode line in the feature list now says cards step in reading order.
 - The doc test now accepts guide links written as `.html` when the matching `.md` page exists.
 
 ## [9.8.2] — 2026-10-07 — MoodLock: titlebar lock button, flip through references, remembered window position

@@ -198,3 +198,15 @@ table.compare .no { color: var(--text-2); }
 .l-cta-box { text-align: center; border: 1px solid var(--line); border-radius: 18px; padding: 34px 20px; margin-top: 20px; }
 .l-cta-box p { max-width: 560px; margin: 0 auto 18px; color: var(--text-2); }
 .l-foot { text-align: center; color: var(--text-2); font-size: .85rem; padding: 26px 0 8px; }
+
+/* one palette with the READMEs: ink, cream, amber */
+.btn { background: #f0b45e; color: #1c1530 !important; }
+.btn:hover { filter: brightness(1.06); }
+.btn.ghost { background: transparent; color: var(--text) !important; border: 1px solid var(--line); }
+.star-btn { color: #b87a12 !important; border-color: #e3c58f; }
+:root[data-theme="dark"] .star-btn { color: #f0b45e !important; border-color: #5a4a2c; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .star-btn { color: #f0b45e !important; border-color: #5a4a2c; } }
+.star-btn:hover { background: #f0b45e; color: #1c1530 !important; }
+.support { border-color: #e3c58f; }
+:root[data-theme="dark"] .support { border-color: #5a4a2c; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .support { border-color: #5a4a2c; } }

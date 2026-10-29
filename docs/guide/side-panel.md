@@ -7,15 +7,14 @@ layout: default
 
 *Verified against Kanvaz v9.7.0.*
 
-The left rail is the home for everything that isn't the canvas itself
-— four sections, each toggleable from its own rail icon or a
+The left rail is the home for everything that isn't the canvas itself, four sections, each toggleable from its own rail icon or a
 shortcut, remembering whichever section you last had open.
 
 | Section | Rail icon | Shortcut |
 |---|---|---|
 | Properties | sliders | `E` (with a card selected) |
 | Layers | stacked squares | `Shift+L` |
-| Tasks | checkbox | — (rail icon only) |
+| Tasks | checkbox | none (rail icon only) |
 | Settings | gear | `S` |
 
 `Insert` toggles the whole panel open/closed (remembering the last

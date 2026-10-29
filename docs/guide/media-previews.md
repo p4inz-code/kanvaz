@@ -20,7 +20,7 @@ directly ("Open with Kanvaz").
 | Video | MP4, WEBM, MOV, MKV, AVI, inline scrubbable player |
 | Audio | MP3, WAV, OGG, M4A, with a waveform preview |
 | 3D Model | GLB, GLTF, OBJ, FBX, STL, PLY, VOX, USD/USDA/USDC/USDZ |
-| Blender File | `.blend` — Kanvaz uses a local Blender install to export a real thumbnail, if one is detected (see `blender-detect.js`) |
+| Blender File | `.blend`, Kanvaz uses a local Blender install to export a real thumbnail, if one is detected (see `blender-detect.js`) |
 | PDF Document | PDF, page-by-page preview |
 | Adobe File | PSD, PSB, AI, XD, INDD, INDT |
 | HDR/EXR Image | Radiance `.hdr`/`.pic`, OpenEXR `.exr`, tone-mapped preview (not color-managed); some EXR compression methods aren't decoded yet |

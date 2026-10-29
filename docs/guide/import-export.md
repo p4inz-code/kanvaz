@@ -35,7 +35,7 @@ external site to convert a file.
 | PNG | Lossless, default |
 | JPEG | Lossy, adjustable quality |
 | WEBP | Lossy, adjustable quality |
-| BMP | Uncompressed 24-bit, hand-rolled encoder (added by direct request — Chromium's canvas API doesn't produce BMP natively) |
+| BMP | Uncompressed 24-bit, hand-rolled encoder (added by direct request, Chromium's canvas API doesn't produce BMP natively) |
 
 A video card's export is explicitly labeled "current frame", Kanvaz
 has no video encoder, so this always exports a still, never the clip.
