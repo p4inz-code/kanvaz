@@ -3,6 +3,8 @@
 All notable changes to Kanvaz are documented here.
 
 ## [Unreleased]
+### Security
+- **Electron 44.4.3 to 44.10.0** (fixes two advisories, pointer-lock frame attribution and the eMudhra intermediate certificates) plus a lockfile refresh. This is what turned the CI "npm audit" step red. Same major version, `npm audit` is clean, lint and validate pass; a live smoke test of the app is still to do before the next release.
 ### Changed
 - **The user guide on GitHub Pages is redesigned.** New layout with grouped sidebar navigation, a right-hand "On this page" outline, light and dark themes, previous/next links, copy buttons on code, and a phone-friendly menu. Every page now links to the others with working `.html` links. Added a Star / Discord / Support / Request-a-feature block to every page, and a walkthrough GIF and screenshot on the guide home.
 

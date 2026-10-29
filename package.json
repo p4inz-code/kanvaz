@@ -29,7 +29,7 @@
     "test:plugins": "node test/plugin-loader-test.js"
   },
   "devDependencies": {
-    "electron": "44.4.3",
+    "electron": "44.10.0",
     "electron-builder": "26.15.3",
     "puppeteer-core": "^25.3.0"
   },
