@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 420" width="1200" height="420" role="img" aria-label="Kanvaz: your references, connected. Cards linked by glowing cables on an infinite canvas.">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbfaff"/><stop offset="1" stop-color="#efeafd"/></linearGradient>
+<pattern id="dots" width="28" height="28" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.3" fill="#4b3a9a" fill-opacity="0.10"/></pattern>
+<linearGradient id="ttl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9d7fff"/><stop offset="1" stop-color="#5ec8d8"/></linearGradient>
+</defs>
+<style>
+.flow{stroke-dasharray:6 10;animation:flow 2.4s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-32}}
+.bob{animation:bob 6s ease-in-out infinite}.bob2{animation:bob 7.5s ease-in-out infinite reverse}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+.pulse{animation:pulse 3s ease-in-out infinite}@keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.flow,.bob,.bob2,.pulse{animation:none}}
+</style>
+<rect width="1200" height="420" rx="22" fill="url(#bg)"/>
+<rect width="1200" height="420" rx="22" fill="url(#dots)"/>
+<path d="M145,170 C145,205 175,215 175,250" fill="none" stroke="#7c5cfc" stroke-opacity="0.25" stroke-width="5" stroke-linecap="round"/>
+<path class="flow" d="M145,170 C145,205 175,215 175,250" fill="none" stroke="#7c5cfc" stroke-width="2.2" stroke-linecap="round"/>
+<path d="M220,96 C400,-30 760,-30 930,96" fill="none" stroke="#7c5cfc" stroke-opacity="0.25" stroke-width="5" stroke-linecap="round"/>
+<path class="flow" d="M220,96 C400,-30 760,-30 930,96" fill="none" stroke="#7c5cfc" stroke-width="2.2" stroke-linecap="round"/>
+<path d="M240,298 C400,440 700,440 880,372" fill="none" stroke="#7c5cfc" stroke-opacity="0.25" stroke-width="5" stroke-linecap="round"/>
+<path class="flow" d="M240,298 C400,440 700,440 880,372" fill="none" stroke="#7c5cfc" stroke-width="2.2" stroke-linecap="round"/>
+<path d="M1005,164 C1005,210 1055,190 1055,240" fill="none" stroke="#7c5cfc" stroke-opacity="0.25" stroke-width="5" stroke-linecap="round"/>
+<path class="flow" d="M1005,164 C1005,210 1055,190 1055,240" fill="none" stroke="#7c5cfc" stroke-width="2.2" stroke-linecap="round"/>
+<g class="bob">
+<rect x="70" y="70" width="150" height="100" rx="12" fill="#cfe0ff" stroke="#2a2050" stroke-opacity="0.16"/>
+<path d="M84,154 l30,-34 l22,24 l16,-14 l34,30 z" fill="#7c5cfc" fill-opacity="0.55"/><circle cx="190" cy="96" r="9" fill="#ffd166" fill-opacity="0.9"/>
+<text x="82" y="161" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#2a2050" fill-opacity="0.75">image</text>
+</g>
+<g class="bob2">
+<rect x="110" y="250" width="130" height="96" rx="12" fill="#ffe3c4" stroke="#2a2050" stroke-opacity="0.16"/>
+<rect x="124" y="266" width="88" height="6" rx="3" fill="#2a2050" fill-opacity="0.35"/>
+<rect x="124" y="282" width="96" height="6" rx="3" fill="#2a2050" fill-opacity="0.35"/>
+<rect x="124" y="298" width="70" height="6" rx="3" fill="#2a2050" fill-opacity="0.35"/>
+<rect x="124" y="314" width="52" height="6" rx="3" fill="#2a2050" fill-opacity="0.35"/>
+<text x="122" y="337" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#2a2050" fill-opacity="0.75">note</text>
+</g>
+<g class="bob">
+<rect x="930" y="60" width="150" height="104" rx="12" fill="#e1d4ff" stroke="#2a2050" stroke-opacity="0.16"/>
+<path d="M1005,70 l32,18 v28 l-32,17 l-32,-17 v-28 z" fill="none" stroke="#7c5cfc" stroke-width="2.4"/><path d="M1005,70 v45 M973,88 l32,18 l32,-18" fill="none" stroke="#7c5cfc" stroke-opacity="0.6" stroke-width="1.6"/>
+<text x="942" y="155" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#2a2050" fill-opacity="0.75">3D model</text>
+</g>
+<g class="bob2">
+<rect x="990" y="240" width="130" height="100" rx="12" fill="#c6efe9" stroke="#2a2050" stroke-opacity="0.16"/>
+<circle cx="1055.0" cy="290.0" r="22" fill="#7c5cfc" fill-opacity="0.9"/><path d="M1048.0,279.0 l20,11 l-20,11 z" fill="#ffffff"/>
+<text x="1002" y="331" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#2a2050" fill-opacity="0.75">video</text>
+</g>
+<g class="bob">
+<rect x="880" y="340" width="90" height="56" rx="12" fill="#7c5cfc" stroke="#2a2050" stroke-opacity="0.16"/>
+<rect x="888" y="348" width="74" height="40" rx="8" fill="#7c5cfc" fill-opacity="0.85"/>
+</g>
+<circle class="pulse" cx="145" cy="170" r="4.5" fill="#7c5cfc"/>
+<circle class="pulse" cx="175" cy="250" r="4.5" fill="#7c5cfc"/>
+<circle class="pulse" cx="220" cy="96" r="4.5" fill="#7c5cfc"/>
+<circle class="pulse" cx="930" cy="96" r="4.5" fill="#7c5cfc"/>
+<circle class="pulse" cx="240" cy="298" r="4.5" fill="#7c5cfc"/>
+<circle class="pulse" cx="880" cy="372" r="4.5" fill="#7c5cfc"/>
+<circle class="pulse" cx="1005" cy="164" r="4.5" fill="#7c5cfc"/>
+<circle class="pulse" cx="1055" cy="240" r="4.5" fill="#7c5cfc"/>
+<text x="600" y="168" text-anchor="middle" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="86" font-weight="800" letter-spacing="-2" fill="url(#ttl)">Kanvaz</text>
+<text x="600" y="214" text-anchor="middle" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="26" font-weight="600" fill="#1c1730">Your references, connected.</text>
+<text x="600" y="248" text-anchor="middle" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="16" fill="#5a5478">A free reference board for VFX and 3D artists. Infinite canvas, Map View, 3D, video.</text>
+<rect x="328" y="282" width="128" height="32" rx="16" fill="#e6defc"/>
+<text x="392" y="303" text-anchor="middle" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#5b3fd0">100% offline</text>
+<rect x="470" y="282" width="188" height="32" rx="16" fill="#e6defc"/>
+<text x="564" y="303" text-anchor="middle" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#5b3fd0">Free and open source</text>
+<rect x="672" y="282" width="200" height="32" rx="16" fill="#e6defc"/>
+<text x="772" y="303" text-anchor="middle" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#5b3fd0">Windows / macOS / Linux</text>
+</svg>
