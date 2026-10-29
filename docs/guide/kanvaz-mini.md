@@ -6,7 +6,7 @@ description: "The smaller version of Kanvaz for quick setups: a tiny always-on-t
 
 # Kanvaz Mini
 
-*Kanvaz Mini 0.1.0. The first version is built and tested. It will be released as its own app with its own repository, and this page will link to it when it is.*
+*Kanvaz Mini 0.1.0 is out. Download it from its own repository: [github.com/p4inz-code/kanvaz-mini](https://github.com/p4inz-code/kanvaz-mini/releases/latest).*
 
 Kanvaz Mini is a smaller version of Kanvaz for people who want a quick setup. It is a tiny window that stays on top of your work and holds a handful of reference images. You drop images in and carry on drawing. There is nothing to configure and nothing to learn.
 
@@ -43,7 +43,7 @@ If you outgrow Mini, drag the same images into Kanvaz. Your files stay where the
 
 ## Quick start
 
-1. Download Kanvaz Mini and run it. The Windows portable file needs no install.
+1. [Download Kanvaz Mini](https://github.com/p4inz-code/kanvaz-mini/releases/latest) and run it. The Windows portable file needs no install, though it opens more slowly than the installed one.
 2. Drag images onto it, or press `Ctrl+V` to paste one.
 3. Press `A` to tidy them into rows, `F` to fit them in the window, and `P` if you want it to stop floating on top.
 4. Press `?` any time for the key list.

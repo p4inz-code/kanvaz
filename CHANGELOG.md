@@ -4,7 +4,7 @@ All notable changes to Kanvaz are documented here.
 
 ## [Unreleased]
 ### Added
-- **Kanvaz Mini is introduced.** The README, the landing page and a new guide page (Kanvaz Mini) describe it as the smaller version of Kanvaz for quick setups: a separate app with its own repository to come, not a mode inside Kanvaz. The guide page covers what it does, how it differs from Kanvaz, the keys and its limits. Screenshots are in `assets/mini/`. The FAQ gained a Is there a smaller, quicker version entry.
+- **Kanvaz Mini is introduced.** The README, the landing page and a new guide page (Kanvaz Mini) describe it as the smaller version of Kanvaz for quick setups: a separate app with its own repository ([kanvaz-mini](https://github.com/p4inz-code/kanvaz-mini), first release 0.1.0), not a mode inside Kanvaz. The guide page covers what it does, how it differs from Kanvaz, the keys and its limits. Screenshots are in `assets/mini/`. The FAQ gained a Is there a smaller, quicker version entry.
 ### Security
 - **Electron 44.4.3 to 44.10.0** (fixes two advisories, pointer-lock frame attribution and the eMudhra intermediate certificates) plus a lockfile refresh. This is what turned the CI "npm audit" step red. Same major version, `npm audit` is clean, lint and validate pass; a live smoke test of the app is still to do before the next release.
 ### Changed

@@ -172,7 +172,7 @@ Kanvaz is built for heavy work. Sometimes you only need three or four pictures b
 
 It is a separate app, not a mode inside Kanvaz. Mini takes images and GIFs, lets you move, scale, rotate, flip and arrange them, checks values in grayscale with one key, and has a click-through tracing mode for drawing over a reference. It opens PureRef boards, remembers your last session and never touches the network. Kanvaz stays the place for 3D, video, connections and plugins.
 
-Mini 0.1.0 is built and tested (34 live checks against the Windows build). It will be released with its own repository, and this page will link to it then. Details are in the guide: [Kanvaz Mini](https://p4inz-code.github.io/kanvaz/guide/kanvaz-mini.html).
+Kanvaz Mini 0.1.0 is out: [download it from its repository](https://github.com/p4inz-code/kanvaz-mini/releases/latest). There are builds for Windows (installer and portable) and Linux. Details are in the guide: [Kanvaz Mini](https://p4inz-code.github.io/kanvaz/guide/kanvaz-mini.html).
 
 <p align="center"><img src="assets/readme/divider.svg" width="70%" alt=""></p>
 
