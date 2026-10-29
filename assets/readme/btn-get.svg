@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 60" width="260" height="60" role="img" aria-label="Download Kanvaz">
+<rect x="1" y="1" width="258" height="58" rx="14" fill="#7c5cfc"/>
+<rect x="1" y="1" width="258" height="58" rx="14" fill="none" stroke="#ffffff" stroke-opacity="0.22"/>
+<g transform="translate(20,17)" fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2v16M6 11l7 7 7-7M3 25h20"/></g>
+<text x="58" y="27" font-family="-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="17" font-weight="700" fill="#ffffff">Download Kanvaz</text>
+<text x="58" y="45" font-family="-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="12" fill="#ffffff" fill-opacity="0.85">Windows, macOS, Linux. Free.</text>
+</svg>

@@ -6,7 +6,7 @@
 <p align="center"><b>Your references, connected.</b><br>A free, open-source, offline reference board for VFX and 3D artists.</p>
 
 <p align="center">
-  <a href="https://github.com/p4inz-code/kanvaz/releases/latest"><img src="assets/readme/btn-download.svg" alt="Download Kanvaz, free for Windows, macOS and Linux" width="260"></a>
+  <a href="https://github.com/p4inz-code/kanvaz/releases/latest"><img src="assets/readme/btn-get.svg" alt="Download Kanvaz, free for Windows, macOS and Linux" width="260"></a>
   <a href="https://p4inz-code.github.io/kanvaz/guide/"><img src="assets/readme/btn-guide.svg" alt="Read the user guide" width="260"></a>
   <a href="https://discord.gg/8UKt8s5FbW"><img src="assets/readme/btn-discord.svg" alt="Join the Discord" width="260"></a>
 </p>
