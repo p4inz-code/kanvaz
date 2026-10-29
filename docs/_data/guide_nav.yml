@@ -5,6 +5,7 @@
     - { title: Quick Start, url: /guide/quick-start.html }
     - { title: FAQ, url: /guide/faq.html }
     - { title: Cookbook, url: /guide/cookbook.html }
+    - { title: Kanvaz Mini, url: /guide/kanvaz-mini.html }
     - { title: About Kanvaz, url: /guide/about.html }
 - title: Learn the canvas
   items:

@@ -20,6 +20,10 @@ Yes. It is open source under the MIT license. There is no paid tier, no trial an
 
 Yes. The MIT license allows commercial use, and the boards and files you make are yours. Read the [license](https://github.com/p4inz-code/kanvaz/blob/main/LICENSE) if you need the exact wording for a contract.
 
+### Is there a smaller, quicker version?
+
+Yes, Kanvaz Mini. It is a separate app: a tiny always-on-top window you drop images into, with no setup. Kanvaz stays the tool for heavy work. See [Kanvaz Mini](kanvaz-mini.html).
+
 ### Which systems does it run on?
 
 64-bit Windows, macOS 12 or later (Apple Silicon and Intel) and Linux (AppImage). It is a desktop app. There is no web version and no phone or tablet app.

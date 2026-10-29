@@ -28,6 +28,7 @@ A free, offline reference board for artists. This guide covers everything: insta
 <a href="{{ '/guide/troubleshooting.html' | relative_url }}"><b>Troubleshooting</b><span>Fixes for the most common problems.</span></a>
 <a href="{{ '/guide/faq.html' | relative_url }}"><b>FAQ</b><span>Quick answers, grouped by topic.</span></a>
 <a href="{{ '/guide/cookbook.html' | relative_url }}"><b>Cookbook</b><span>Step-by-step recipes for real jobs.</span></a>
+<a href="{{ '/guide/kanvaz-mini.html' | relative_url }}"><b>Kanvaz Mini</b><span>The smaller version for quick setups.</span></a>
 </div>
 
 ## What you get
@@ -71,6 +72,7 @@ A free, offline reference board for artists. This guide covers everything: insta
 - [Workflows](workflows.html): how people combine the features
 - [Known limitations](known-limitations.html): what is deliberate or not built yet
 - [FAQ](faq.html): quick answers, grouped by topic
+- [Kanvaz Mini](kanvaz-mini.html): the smaller version for quick setups
 - [Cookbook](cookbook.html): ten step-by-step recipes
 - [System requirements and performance](requirements-and-performance.html)
 - [Privacy and your data](privacy-and-your-data.html): every network request Kanvaz can make
