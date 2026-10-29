@@ -1,25 +1,21 @@
 <p align="center">
-  <img src="assets/readme/hero.jpg" alt="Kanvaz: your references, connected. Screenshots of the board, Map View, Scratch Board and Task Tracker pinned up like prints on a reference wall." width="100%">
+  <img src="assets/readme/hero.jpg" alt="Kanvaz boards pinned up like prints on a reference wall: the main board with image, note, color and 3D cards, Map View, the Command Palette, a dark-theme board and the Layers panel." width="100%">
+</p>
+
+<h1 align="center">Kanvaz</h1>
+<p align="center"><b>Your references, connected.</b><br>A free, open-source, offline reference board for VFX and 3D artists.</p>
+
+<p align="center">
+  <a href="https://github.com/p4inz-code/kanvaz/releases/latest"><img src="assets/readme/btn-download.svg" alt="Download Kanvaz, free for Windows, macOS and Linux" width="260"></a>
+  <a href="https://p4inz-code.github.io/kanvaz/guide/"><img src="assets/readme/btn-guide.svg" alt="Read the user guide" width="260"></a>
+  <a href="https://discord.gg/8UKt8s5FbW"><img src="assets/readme/btn-discord.svg" alt="Join the Discord" width="260"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/p4inz-code/kanvaz/releases/latest"><img src="https://img.shields.io/github/v/release/p4inz-code/kanvaz?style=flat-square&color=9D7FFF" alt="Release"></a>
-  <a href="https://github.com/p4inz-code/kanvaz/releases/latest"><img src="https://img.shields.io/github/downloads/p4inz-code/kanvaz/total?style=flat-square&color=4ECDC4&label=downloads" alt="Downloads"></a>
-  <a href="https://github.com/p4inz-code/kanvaz/stargazers"><img src="https://img.shields.io/github/stars/p4inz-code/kanvaz?style=flat-square&color=FFD700" alt="Stars"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/p4inz-code/kanvaz?style=flat-square&color=FF6B6B" alt="License"></a>
-  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue?style=flat-square" alt="Platform">
-  <img src="https://img.shields.io/badge/offline-100%25-green?style=flat-square" alt="Offline">
-</p>
-
-<p align="center">
-  <a href="https://github.com/p4inz-code/kanvaz/commits/main"><img src="https://img.shields.io/github/last-commit/p4inz-code/kanvaz?style=flat-square&color=9D7FFF&label=last%20commit" alt="Last commit"></a>
-  <a href="https://github.com/p4inz-code/kanvaz/commits/main"><img src="https://img.shields.io/github/commit-activity/m/p4inz-code/kanvaz?style=flat-square&color=9D7FFF&label=commits" alt="Commits per month"></a>
-</p>
-
-<p align="center">
-  <a href="https://github.com/p4inz-code/kanvaz/releases/latest"><img src="https://img.shields.io/badge/Download-free-9D7FFF?style=for-the-badge&logo=github&logoColor=white" alt="Download Kanvaz, it's free"></a>
-  <a href="https://p4inz-code.github.io/kanvaz/guide/"><img src="https://img.shields.io/badge/Read%20the-guide-4ECDC4?style=for-the-badge" alt="Read the user guide"></a>
-  <a href="https://discord.gg/8UKt8s5FbW"><img src="https://img.shields.io/badge/Join-Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join the Discord"></a>
+  <a href="https://github.com/p4inz-code/kanvaz/releases/latest"><img src="https://img.shields.io/github/v/release/p4inz-code/kanvaz?style=flat-square&labelColor=1c1a30&color=f0b45e&label=release" alt="Latest release"></a>
+  <a href="https://github.com/p4inz-code/kanvaz/releases/latest"><img src="https://img.shields.io/github/downloads/p4inz-code/kanvaz/total?style=flat-square&labelColor=1c1a30&color=9d7fff&label=downloads" alt="Downloads"></a>
+  <a href="https://github.com/p4inz-code/kanvaz/stargazers"><img src="https://img.shields.io/github/stars/p4inz-code/kanvaz?style=flat-square&labelColor=1c1a30&color=3fc5b8&label=stars" alt="Stars"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/p4inz-code/kanvaz?style=flat-square&labelColor=1c1a30&color=e86054&label=license" alt="MIT license"></a>
 </p>
 
 <p align="center"><img src="assets/readme/divider.svg" width="70%" alt=""></p>
