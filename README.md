@@ -1,8 +1,5 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/hero-dark.svg">
-    <img src="assets/readme/hero-light.svg" alt="Kanvaz: your references, connected. Cards linked by glowing cables on an infinite canvas." width="100%">
-  </picture>
+  <img src="assets/readme/hero.jpg" alt="Kanvaz: your references, connected. Screenshots of the board, Map View, Scratch Board and Task Tracker pinned up like prints on a reference wall." width="100%">
 </p>
 
 <p align="center">
@@ -17,7 +14,6 @@
 <p align="center">
   <a href="https://github.com/p4inz-code/kanvaz/commits/main"><img src="https://img.shields.io/github/last-commit/p4inz-code/kanvaz?style=flat-square&color=9D7FFF&label=last%20commit" alt="Last commit"></a>
   <a href="https://github.com/p4inz-code/kanvaz/commits/main"><img src="https://img.shields.io/github/commit-activity/m/p4inz-code/kanvaz?style=flat-square&color=9D7FFF&label=commits" alt="Commits per month"></a>
-  <a href="https://discord.gg/8UKt8s5FbW"><img src="https://img.shields.io/badge/join-9D7FFF?style=flat-square&logo=discord&logoColor=white&label=discord" alt="Discord"></a>
 </p>
 
 <p align="center">
