@@ -77,7 +77,7 @@ Kanvaz ships fixes and features often, and every release is written up in the [c
 
 - On GitHub choose **Watch → Custom → Releases** to hear about new versions and nothing else.
 - Join the [Discord](https://discord.gg/8UKt8s5FbW) to share boards, ask questions and vote on what gets built next.
-- Missing something? [Request a feature](https://github.com/p4inz-code/kanvaz/issues/new). Most requests that fit end up shipped.
+- Missing something? [Request a feature](https://github.com/p4inz-code/kanvaz/issues/new). Every request gets read.
 - Kanvaz is free and stays free. If it saves you time you can [support development](https://p4inz-code.github.io/donate/), and a [star on GitHub](https://github.com/p4inz-code/kanvaz) helps other artists find it.
 
 ---
