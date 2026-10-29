@@ -49,6 +49,14 @@ function run() {
   assert.deepStrictEqual(problems, [], 'broken asset references:\n  ' + problems.join('\n  '));
   console.log('  ✓ every image/link target referenced by README, landing page and ' + (files.length - 2) + ' guide pages exists');
 
+
+  /* ── 1b. every guide page is reachable from the sidebar navigation ── */
+  var navTxt = fs.readFileSync(p('docs', '_data', 'guide_nav.yml'), 'utf8');
+  var orphans = fs.readdirSync(p('docs', 'guide')).filter(function(f) { return /\.md$/.test(f) && f !== 'index.md'; })
+    .filter(function(f) { return navTxt.indexOf('/guide/' + f.replace(/\.md$/, '.html')) === -1; });
+  assert.deepStrictEqual(orphans, [], 'guide pages missing from docs/_data/guide_nav.yml: ' + orphans.join(', '));
+  console.log('  ✓ every guide page appears in the sidebar navigation');
+
   /* ── 2. installer + icon files named in package.json exist and are valid ── */
   var build = JSON.parse(fs.readFileSync(p('package.json'), 'utf8')).build;
   var named = [build.win && build.win.icon, build.mac && build.mac.icon, build.linux && build.linux.icon,

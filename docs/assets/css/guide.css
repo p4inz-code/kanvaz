@@ -210,3 +210,22 @@ table.compare .no { color: var(--text-2); }
 .support { border-color: #e3c58f; }
 :root[data-theme="dark"] .support { border-color: #5a4a2c; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .support { border-color: #5a4a2c; } }
+
+/* search */
+.search-btn { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 10px 0 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-2, transparent); color: var(--text-2); font: inherit; font-size: 14px; cursor: pointer; }
+.search-btn:hover { border-color: var(--accent); color: var(--text); }
+.search-btn kbd, .sm kbd { font: 600 11px ui-monospace, Consolas, monospace; padding: 1px 6px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; color: var(--text-2); background: var(--bg); }
+@media (max-width: 640px) { .search-btn span, .search-btn kbd { display: none; } .search-btn { width: 36px; padding: 0; justify-content: center; } }
+.sm { position: fixed; inset: 0; z-index: 200; background: rgba(10, 9, 24, .62); backdrop-filter: blur(3px); display: flex; justify-content: center; align-items: flex-start; padding: 10vh 16px 0; }
+.sm[hidden] { display: none; }
+.sm-box { width: min(680px, 100%); background: var(--bg); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 30px 80px rgba(0, 0, 0, .5); overflow: hidden; }
+.sm-box input { width: 100%; border: 0; border-bottom: 1px solid var(--line); padding: 18px 20px; font: inherit; font-size: 1.05rem; background: transparent; color: var(--text); outline: none; }
+#sm-list { list-style: none; margin: 0; padding: 6px; max-height: 52vh; overflow: auto; }
+#sm-list li a { display: block; padding: 10px 14px; border-radius: 10px; color: var(--text); text-decoration: none; }
+#sm-list li a b { display: block; font-size: .98rem; }
+#sm-list li a span { display: block; color: var(--text-2); font-size: .84rem; line-height: 1.4; margin-top: 2px; }
+#sm-list li.on a, #sm-list li a:hover { background: var(--bg-3, rgba(124, 92, 252, .12)); }
+#sm-list mark { background: rgba(240, 180, 94, .35); color: inherit; border-radius: 3px; padding: 0 1px; }
+#sm-list .none { padding: 18px 16px; color: var(--text-2); }
+.sm-foot { display: flex; gap: 18px; padding: 10px 16px; border-top: 1px solid var(--line); color: var(--text-2); font-size: .78rem; }
+body.sm-open { overflow: hidden; }

@@ -3,6 +3,8 @@
     - { title: Guide home, url: /guide/ }
     - { title: Installation & updates, url: /guide/installation.html }
     - { title: Quick Start, url: /guide/quick-start.html }
+    - { title: FAQ, url: /guide/faq.html }
+    - { title: Cookbook, url: /guide/cookbook.html }
     - { title: About Kanvaz, url: /guide/about.html }
 - title: Learn the canvas
   items:
@@ -34,5 +36,8 @@
     - { title: Full feature list, url: /guide/features.html }
     - { title: Workflows by domain, url: /guide/workflows.html }
     - { title: Known limitations, url: /guide/known-limitations.html }
+    - { title: System requirements, url: /guide/requirements-and-performance.html }
+    - { title: Privacy and your data, url: /guide/privacy-and-your-data.html }
     - { title: Troubleshooting, url: /guide/troubleshooting.html }
     - { title: Glossary, url: /guide/glossary.html }
+    - { title: Contact and support, url: /guide/contact.html }

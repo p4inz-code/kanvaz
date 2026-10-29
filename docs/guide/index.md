@@ -26,6 +26,8 @@ A free, offline reference board for artists. This guide covers everything: insta
 <a href="{{ '/guide/quick-start.html' | relative_url }}"><b>Quick Start</b><span>From install to your first board in five minutes.</span></a>
 <a href="{{ '/guide/working-with-other-apps.html' | relative_url }}"><b>Beside ZBrush &amp; Blender</b><span>Always on top, Top Mode and MoodLock.</span></a>
 <a href="{{ '/guide/troubleshooting.html' | relative_url }}"><b>Troubleshooting</b><span>Fixes for the most common problems.</span></a>
+<a href="{{ '/guide/faq.html' | relative_url }}"><b>FAQ</b><span>Quick answers, grouped by topic.</span></a>
+<a href="{{ '/guide/cookbook.html' | relative_url }}"><b>Cookbook</b><span>Step-by-step recipes for real jobs.</span></a>
 </div>
 
 ## What you get
@@ -68,6 +70,11 @@ A free, offline reference board for artists. This guide covers everything: insta
 - [Features](features.html): the full feature list
 - [Workflows](workflows.html): how people combine the features
 - [Known limitations](known-limitations.html): what is deliberate or not built yet
+- [FAQ](faq.html): quick answers, grouped by topic
+- [Cookbook](cookbook.html): ten step-by-step recipes
+- [System requirements and performance](requirements-and-performance.html)
+- [Privacy and your data](privacy-and-your-data.html): every network request Kanvaz can make
+- [Contact and support](contact.html): where to ask, and what to include
 - [Glossary](glossary.html): every term in plain language
 - [About Kanvaz](about.html): the offline and privacy model
 

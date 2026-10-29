@@ -85,3 +85,86 @@
     pre.appendChild(b);
   });
 })();
+
+/* ---- search: loads search.json on first open, fuzzy-ish scoring, keyboard driven ---- */
+(function () {
+  var sm = document.getElementById('sm'), input = document.getElementById('sm-input'), list = document.getElementById('sm-list');
+  var btn = document.getElementById('search-btn');
+  if (!sm || !input || !list || !window.KZ_SEARCH) return;
+  var docs = null, loading = false, sel = 0, hits = [];
+
+  function strip(s) { return s.replace(/[#*`>|_\[\]()!]/g, ' ').replace(/\s+/g, ' '); }
+  function load(cb) {
+    if (docs) return cb();
+    if (loading) return;
+    loading = true;
+    fetch(window.KZ_SEARCH).then(function (r) { return r.json(); }).then(function (j) {
+      docs = j.map(function (d) { var c = strip(d.c); return { t: d.t, u: d.u, d: d.d, c: c, tl: d.t.toLowerCase(), dl: d.d.toLowerCase(), cl: c.toLowerCase() }; });
+      cb();
+    }).catch(function () { list.innerHTML = '<li class="none">Search could not load. Check your connection and try again.</li>'; loading = false; });
+  }
+  function esc(s) { return s.replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function mark(s, toks) {
+    var lo = s.toLowerCase(), on = new Array(s.length + 1), k, i, at;
+    toks.forEach(function (t) {
+      if (t.length < 2) return;
+      at = 0;
+      while ((at = lo.indexOf(t, at)) >= 0) { for (k = at; k < at + t.length; k++) on[k] = 1; at += t.length; }
+    });
+    var out = '', open = false;
+    for (i = 0; i < s.length; i++) {
+      if (on[i] && !open) { out += '<mark>'; open = true; }
+      if (!on[i] && open) { out += '</mark>'; open = false; }
+      out += esc(s.charAt(i));
+    }
+    return out + (open ? '</mark>' : '');
+  }
+  function run(q) {
+    q = q.trim().toLowerCase();
+    if (!q) { hits = docs.slice(0, 8).map(function (d) { return { d: d, s: 0, snip: d.d }; }); return render([]); }
+    var toks = q.split(/\s+/).filter(Boolean);
+    hits = [];
+    docs.forEach(function (d) {
+      var s = 0, ok = true, first = -1;
+      toks.forEach(function (t) {
+        var inT = d.tl.indexOf(t) >= 0, inD = d.dl.indexOf(t) >= 0, ic = d.cl.indexOf(t);
+        if (!inT && !inD && ic < 0) { ok = false; return; }
+        if (inT) s += 12; if (inD) s += 5;
+        if (ic >= 0) { s += 2; var n = 0, p = ic; while (p >= 0 && n < 6) { n++; p = d.cl.indexOf(t, p + t.length); } s += n; if (first < 0 || ic < first) first = ic; }
+      });
+      if (!ok) return;
+      var snip = first >= 0 ? (first > 50 ? '...' : '') + d.c.slice(Math.max(0, first - 50), first + 130) + '...' : d.d;
+      hits.push({ d: d, s: s, snip: snip });
+    });
+    hits.sort(function (a, b) { return b.s - a.s; });
+    hits = hits.slice(0, 9);
+    render(toks);
+  }
+  function render(toks) {
+    sel = 0;
+    if (!hits.length) { list.innerHTML = '<li class="none">Nothing found. Try fewer words, or see <a href="' + window.KZ_SEARCH.replace('search.json', 'guide/contact.html') + '">Contact and support</a>.</li>'; return; }
+    list.innerHTML = hits.map(function (h, i) {
+      return '<li role="option" data-i="' + i + '"' + (i === 0 ? ' class="on"' : '') + '><a href="' + h.d.u + '"><b>' + mark(h.d.t, toks) + '</b><span>' + mark(h.snip || '', toks) + '</span></a></li>';
+    }).join('');
+  }
+  function move(n) {
+    var items = list.querySelectorAll('li[data-i]'); if (!items.length) return;
+    items[sel].classList.remove('on'); sel = (sel + n + items.length) % items.length; items[sel].classList.add('on');
+    items[sel].scrollIntoView({ block: 'nearest' });
+  }
+  function open() { sm.hidden = false; document.body.classList.add('sm-open'); input.value = ''; input.focus(); load(function () { run(''); }); }
+  function close() { sm.hidden = true; document.body.classList.remove('sm-open'); }
+  if (btn) btn.addEventListener('click', open);
+  sm.addEventListener('mousedown', function (e) { if (e.target === sm) close(); });
+  input.addEventListener('input', function () { if (docs) run(input.value); });
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); move(1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); move(-1); }
+    else if (e.key === 'Enter') { var a = list.querySelector('li.on a'); if (a) window.location = a.href; }
+  });
+  document.addEventListener('keydown', function (e) {
+    var tag = (document.activeElement && document.activeElement.tagName) || '';
+    if (e.key === 'Escape' && !sm.hidden) { close(); }
+    else if ((e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(tag)) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k')) { e.preventDefault(); open(); }
+  });
+})();
