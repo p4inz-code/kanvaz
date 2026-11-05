@@ -33,6 +33,8 @@ list at any time. Dismiss it and you land on the **Home Screen**.
 
 ## 3. Start a board
 
+<figure class="shot"><img src="assets/home.png" alt="The Kanvaz Home Screen with New Board, Open and Browse templates" loading="lazy"><figcaption>The Home Screen: start a new board, open a file, or pick a template.</figcaption></figure>
+
 From the Home Screen, **Quick start** gives you three ways in:
 
 | Option | What it does |

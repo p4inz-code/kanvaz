@@ -14,6 +14,8 @@ icon (see [Side Panel](side-panel.html)).
 
 ## Shape
 
+<figure class="shot"><img src="assets/task-tracker.png" alt="The Task Tracker section of the side panel, with tasks, subtasks, progress and a completion toast" loading="lazy"><figcaption>The Task Tracker beside a board: tasks, subtasks and a completion toast.</figcaption></figure>
+
 - One flat list, file-level: not tied to any single board within a
   multi-board file
 - Each task has text, a done/not-done state, up to 5 subtasks, and

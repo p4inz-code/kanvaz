@@ -51,6 +51,8 @@ here as cards.
 
 ## Per-card panels
 
+<figure class="shot"><img src="assets/annotate.png" alt="The Properties panel with the Annotate toolbar open on an image card" loading="lazy"><figcaption>Annotate any card: brush width and color are in Properties.</figcaption></figure>
+
 With a card selected:
 
 - `E`: [Properties](side-panel.html#properties) (transform, opacity, tags, custom key/value properties)

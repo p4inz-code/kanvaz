@@ -33,6 +33,33 @@ layout: default
 
 ## File format internals
 
+<figure class="diagram">
+<svg viewBox="0 0 720 250" role="img" aria-labelledby="ff-t ff-d" xmlns="http://www.w3.org/2000/svg">
+  <title id="ff-t">What is inside a .kanvaz file</title>
+  <desc id="ff-d">A .kanvaz file is a zip container holding board.json and one file per embedded asset, each checked with a SHA-256 hash.</desc>
+  <rect x="20" y="16" width="680" height="218" rx="18" fill="var(--bg-2)" stroke="var(--line)"/>
+  <text x="40" y="46" font-size="16" font-weight="700" fill="var(--text)">my-board.kanvaz  (a zip container)</text>
+  <rect x="40" y="64" width="290" height="150" rx="12" fill="var(--accent-bg)" stroke="var(--accent)"/>
+  <text x="58" y="92" font-size="15" font-weight="700" fill="var(--accent)">board.json</text>
+  <g font-size="13.5" fill="var(--text-2)">
+    <text x="58" y="120">boards, cards and their positions</text>
+    <text x="58" y="142">connections and tags</text>
+    <text x="58" y="164">shared-card registry</text>
+    <text x="58" y="186">one hash for every asset</text>
+  </g>
+  <g>
+    <rect x="360" y="64" width="150" height="40" rx="10" fill="var(--bg-3)" stroke="var(--line)"/><text x="376" y="89" font-size="13.5" fill="var(--text)">image-01.png</text>
+    <rect x="530" y="64" width="150" height="40" rx="10" fill="var(--bg-3)" stroke="var(--line)"/><text x="546" y="89" font-size="13.5" fill="var(--text)">clip-02.mp4</text>
+    <rect x="360" y="116" width="150" height="40" rx="10" fill="var(--bg-3)" stroke="var(--line)"/><text x="376" y="141" font-size="13.5" fill="var(--text)">model-03.glb</text>
+    <rect x="530" y="116" width="150" height="40" rx="10" fill="var(--bg-3)" stroke="var(--line)"/><text x="546" y="141" font-size="13.5" fill="var(--text)">sound-04.wav</text>
+  </g>
+  <text x="360" y="186" font-size="13.5" fill="var(--text-2)">Each asset is checked with SHA-256 when the</text>
+  <text x="360" y="206" font-size="13.5" fill="var(--text-2)">board opens. A damaged one only turns its own</text>
+  <text x="360" y="226" font-size="13.5" fill="var(--text-2)">card into "missing media".</text>
+</svg>
+<figcaption>Any zip tool can open a .kanvaz file, so your media is never locked inside.</figcaption>
+</figure>
+
 As of 4.1.0, a `.kanvaz` file is a zip container: `board.json` (the board/card/connection structure) plus one file per embedded image/video/audio asset, each with a SHA-256 hash recorded for corruption detection. This replaced the old plain-JSON-with-everything-base64-encoded format, which inflated media by about 33% and put your whole board at risk if a single byte anywhere in that one giant JSON string got corrupted. A damaged asset now degrades to that one card showing "missing media" instead of threatening the rest of the file.
 
 As of 6.4.0, `board.json` also carries a top-level `sharedCards` registry. The content of any card shared across boards lives there once, keyed by a stable id, with each board's own `cards[]` holding only a lightweight position/size stub that references it. This is fully additive: older files simply have no stubs referencing anything and load with an empty registry.

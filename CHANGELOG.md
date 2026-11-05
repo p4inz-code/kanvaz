@@ -4,6 +4,9 @@ All notable changes to Kanvaz are documented here.
 
 ## [Unreleased]
 
+### Changed
+- **Guide site: more media and a custom interface.** Screenshots, two diagrams and a MoodLock walkthrough now sit in the pages they explain, with a gallery on the guide home. Images open in a viewer with arrow keys. The site has its own scrollbars, a reading progress bar, a back-to-top button, OS tabs on the Installation page and styled callouts.
+
 ## [9.8.3] — 2026-11-05 — Electron 44.10.0 security update, a searchable guide site, Kanvaz Mini, weekly maintenance
 ### Security
 - **Electron 44.4.3 to 44.10.0.** Fixes two advisories (pointer-lock requests attributed to the wrong frame, and the eMudhra intermediate certificates) and refreshes the lockfile. This is what had turned the CI `npm audit` step red. Checked live on the real 44.10.0 binary: the app boots, cards can be created, MoodLock and Top Mode turn on and off, undo and redo work, Map View opens and closes, and the plugin API is present (12 checks).

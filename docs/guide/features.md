@@ -8,6 +8,8 @@ layout: default
 *Moved out of the main README to keep it scannable. See the [Guide index](index.html) for everything else, or [Supported File Formats](file-formats.html) for the format table.*
 
 ## Canvas & organization
+
+<div class="shot-pair"><figure class="shot"><img src="assets/showcase-dark.png" alt="Kanvaz in the dark theme: image, note, color and URL cards on a board" loading="lazy"><figcaption>Dark theme</figcaption></figure><figure class="shot"><img src="assets/showcase-light.png" alt="The same Kanvaz board in the light theme" loading="lazy"><figcaption>Light theme. Press L to switch.</figcaption></figure></div>
 - Infinite pan/zoom canvas (8% to 500%), multiple boards per file
 - Real board thumbnails on the Home Screen (generated from the actual card layout at save time)
 - 3D model cards (`.glb`/`.gltf`/`.obj`/`.fbx`/`.stl`/`.ply`/`.vox`/`.usd`/`.usdz`, up to 150MB, plus `.blend` if Blender is installed, auto-detected across drives, PATH, the registry and package managers, or chosen once and remembered): orbit with the mouse, 13 render modes (Shaded, Clay, Matcap, Wireframe, Wire on Shaded, Normals, Normal Map, Albedo, UV Grid, Roughness, Metalness, Occlusion, Alpha) grouped in one picker with unavailable modes greyed and explained, camera view presets and a turntable, animation playback with a clip picker and scrub bar, background color picker, read-only model stats (tris/verts/materials/textures/size). Alt+drag or Ctrl/Cmd+middle-mouse pans the whole board even with the cursor over the model, you're never trapped inside its orbit controls

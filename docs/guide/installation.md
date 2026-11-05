@@ -28,16 +28,28 @@ Everything else attached to a release is metadata, not something you open: `.blo
 
 Kanvaz is not code-signed (certificates cost money and this app is free). Both warnings below are normal for unsigned software and not a sign that anything is wrong.
 
-Windows: SmartScreen shows "Windows protected your PC." Click More info → Run anyway.
+<div class="tabs" data-tabs>
+<section data-tab="Windows" markdown="1">
 
-macOS: Gatekeeper says the app "cannot be opened." Right-click (or Control-click) the app and choose Open, then confirm once. After that it opens normally.
+SmartScreen shows "Windows protected your PC." Click More info, then Run anyway.
 
-Linux: no warning. Make the AppImage executable first:
+</section>
+<section data-tab="macOS" markdown="1">
+
+Gatekeeper says the app "cannot be opened." Right-click (or Control-click) the app and choose Open, then confirm once. After that it opens normally.
+
+</section>
+<section data-tab="Linux" markdown="1">
+
+There is no warning. Make the AppImage executable first, then run it:
 
 ```bash
 chmod +x Kanvaz-*.AppImage
 ./Kanvaz-*.AppImage
 ```
+
+</section>
+</div>
 
 The first time you open Kanvaz a short welcome card appears, then the Home Screen. See the [Quick Start](quick-start.html).
 

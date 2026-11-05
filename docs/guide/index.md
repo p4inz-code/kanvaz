@@ -31,6 +31,17 @@ A free, offline reference board for artists. This guide covers everything: insta
 <a href="{{ '/guide/kanvaz-mini.html' | relative_url }}"><b>Kanvaz Mini</b><span>The smaller version for quick setups.</span></a>
 </div>
 
+## A look inside
+
+<div class="gallery" markdown="0">
+<a href="{{ '/guide/features.html' | relative_url }}"><img src="assets/showcase-dark.png" alt="A Kanvaz board in the dark theme" loading="lazy"><span>Boards, dark and light</span></a>
+<a href="{{ '/guide/task-tracker.html' | relative_url }}"><img src="assets/task-tracker.png" alt="The Task Tracker panel" loading="lazy"><span>Task Tracker</span></a>
+<a href="{{ '/guide/board-view.html' | relative_url }}"><img src="assets/annotate.png" alt="Annotating an image card" loading="lazy"><span>Annotate</span></a>
+<a href="{{ '/guide/import-export.html' | relative_url }}"><img src="assets/export.png" alt="The Export as dialog" loading="lazy"><span>Export</span></a>
+<a href="{{ '/guide/working-with-other-apps.html' | relative_url }}"><img src="assets/moodlock-on.png" alt="MoodLock showing only the reference" loading="lazy"><span>MoodLock</span></a>
+<a href="{{ '/guide/quick-start.html' | relative_url }}"><img src="assets/home.png" alt="The Home Screen" loading="lazy"><span>Home Screen</span></a>
+</div>
+
 ## What you get
 
 - **An infinite canvas** for images, video, audio, 3D models, PDFs, notes and PureRef boards.

@@ -24,6 +24,8 @@ out.
 
 ### Export as image
 
+<figure class="shot"><img src="assets/export.png" alt="The Export as dialog with format, quality and size options" loading="lazy"><figcaption>Export as: pick PNG, JPEG, WEBP or BMP, the quality and the scale.</figcaption></figure>
+
 Right-click a selection of image/GIF/video cards → **Export as…**.
 Each card is re-encoded independently into its own file. This is
 distinct from a board screenshot; it's a genuine format converter for

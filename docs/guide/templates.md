@@ -12,6 +12,8 @@ built-in templates, your own saved templates, and community templates, the last 
 
 ## Built-in templates
 
+<figure class="shot"><img src="assets/home.png" alt="The Home Screen showing the Start from a template row" loading="lazy"><figcaption>Templates appear on the Home Screen, under Start from a template.</figcaption></figure>
+
 14 curated starter boards, reachable from the Home Screen's **Start
 from a template** row or **Browse all**:
 
