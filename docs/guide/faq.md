@@ -180,6 +180,10 @@ Yes, with profiles. Each profile has its own settings, recent boards and recover
 
 A plugin does nothing until you approve the permissions it asks for, and you are asked again if its files change. Once approved, a plugin is trusted like a browser extension and is not sandboxed, so install only plugins from developers you trust. See [Plugins](plugins.html).
 
+### Can I write my own plugin?
+
+Yes. A plugin is a folder with two files and no build step, and you can sell it. See [Build your first plugin](build-a-plugin.html).
+
 ### Can an AI assistant use my board?
 
 With the MCP Bridge plugin, an AI client on your own machine can read and edit the open board over a local pipe. It never opens a network port and every change can be undone. The AI Export plugin makes a JSON and Markdown copy of a board for any AI tool without a live connection. See [MCP Bridge](mcp-bridge.html).

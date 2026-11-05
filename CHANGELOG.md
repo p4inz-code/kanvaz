@@ -4,6 +4,12 @@ All notable changes to Kanvaz are documented here.
 
 ## [Unreleased]
 ### Added
+- **Build your first plugin**, a new guide page, plus a working example in `docs/plugin-examples/card-counter`. It is written from the plugin API source and has not been loaded into a running Kanvaz yet.
+- Issue-template contact links (Discord, Troubleshooting, guide search).
+
+### Changed
+- **CONTRIBUTING.md is rewritten.** It still said Electron 22, 16 source files and six version locations, none of which is true any more. It now describes the current rules (ES5 and var only, colors from CSS variables), the real checks `npm run validate` runs, and the other ways to help: bug reports, guide fixes, plugins.
+### Added
 - **Kanvaz Mini is introduced.** The README, the landing page and a new guide page (Kanvaz Mini) describe it as the smaller version of Kanvaz for quick setups: a separate app with its own repository ([kanvaz-mini](https://github.com/p4inz-code/kanvaz-mini), first release 0.1.0), not a mode inside Kanvaz. The guide page covers what it does, how it differs from Kanvaz, the keys and its limits. Screenshots are in `assets/mini/`. The FAQ gained a Is there a smaller, quicker version entry.
 ### Security
 - **Electron 44.4.3 to 44.10.0** (fixes two advisories, pointer-lock frame attribution and the eMudhra intermediate certificates) plus a lockfile refresh. This is what turned the CI "npm audit" step red. Same major version, `npm audit` is clean, lint and validate pass; a live smoke test of the app is still to do before the next release.

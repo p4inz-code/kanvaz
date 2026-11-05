@@ -55,3 +55,7 @@ writing your own.
 - [MCP Bridge](mcp-bridge.html): the deepest-reaching official plugin, its own full guide
 - [Templates](templates.html): Template Maker in detail
 - [Settings](settings.html): where plugin-contributed panels appear
+
+## Writing your own
+
+A plugin is a folder with two files and no build step. [Build your first plugin](build-a-plugin.html) takes you from nothing to a working one.

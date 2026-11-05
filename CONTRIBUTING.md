@@ -1,24 +1,33 @@
 # Contributing to Kanvaz
 
-Thanks for your interest in contributing to Kanvaz! This document covers the
-rules and workflow for getting your changes merged.
+Thanks for wanting to help. Kanvaz is a one-person project, so a small, focused change that comes with a clear description is the easiest kind to merge. Bug reports, guide fixes and plugins are as welcome as code.
 
-## Ground rules
+## Ways to help
 
-Kanvaz has a **locked tech stack**. These are non-negotiable:
+- **Report a bug.** Include your Kanvaz version and operating system, the steps to reproduce it, and the text from Command Palette (`Ctrl+K`) then "Export debug info". A screenshot or short recording helps a lot.
+- **Ask for a feature.** Describe the problem you are trying to solve, not only the solution you have in mind.
+- **Fix or improve the guide.** Pages in `docs/guide/` are plain Markdown. Many pages are stamped with the version they were last checked against, and re-checking one against the app is a good first contribution. Every page has an "Improve this page" link.
+- **Build a plugin.** The [guide page](https://p4inz-code.github.io/kanvaz/guide/build-a-plugin.html) gets you from nothing to a working plugin, and there is an example in `docs/plugin-examples/`. You can sell a plugin, and Kanvaz takes no cut.
+- **Pick up an issue.** Look for [good first issue](https://github.com/p4inz-code/kanvaz/labels/good%20first%20issue) and [help wanted](https://github.com/p4inz-code/kanvaz/labels/help%20wanted).
+- **Try the Discord.** Questions and ideas are welcome there: https://discord.gg/8UKt8s5FbW
+
+## Ground rules for code
+
+Kanvaz keeps a deliberately small, plain stack so one person can maintain it.
 
 | Rule | Details |
-|------|---------|
-| ES5 only | `var` only, no `const`, `let`, arrow functions, or `.forEach()` |
-| Vanilla JS | No frameworks, no transpilers, no bundlers |
-| Vanilla CSS | CSS custom properties are fine; no preprocessors |
-| Electron 22.3.27 | Do not upgrade Electron or electron-builder |
-| No `npm audit fix --force` | The 6 high-severity vulns are build-time only and intentionally tolerated |
+|---|---|
+| ES5, `var` only | No `const`, `let`, arrow functions or `.forEach()` in `src/`. The linter enforces this |
+| Vanilla JS and CSS | No frameworks, transpilers or bundlers |
+| Colors | Use the `--color-*` CSS variables, never hardcoded hex, so light and dark themes both work |
+| No inline `onclick` | The page's content security policy blocks it |
+| Comments | Explain why, not what. Keep functions short |
 
-The custom linter (`npm run lint`) enforces these rules. If it flags your code,
-fix the code, don't loosen the linter.
+`src/main.js`, `src/preload.js` and the other main-process files run in Node and are checked by the same linter, with their own rules.
 
-## Development setup
+Electron and electron-builder upgrades are done by the maintainer, because they need a live test of the app. Please do not open a pull request that only bumps them.
+
+## Set up
 
 ```bash
 git clone https://github.com/p4inz-code/kanvaz.git
@@ -27,61 +36,33 @@ npm install
 npm start
 ```
 
-## Before you submit
-
-Run the full validation suite:
+## Before you open a pull request
 
 ```bash
+npm run lint
 npm run validate
 ```
 
-This checks syntax (all 16 source files), lint rules, and version consistency.
-Your PR will not be merged if validate fails.
-
-## Version locations
-
-Kanvaz tracks its version in **6 locked locations**. If your change involves a
-version bump (it probably doesn't, maintainer handles releases), all 6 must
-match:
-
-1. `package.json` → `version`
-2. `src/boards.js` → `VERSION` constant
-3. `src/ui.js` → About dialog version string (×2)
-4. `README.md` → build output filenames
-5. `docs/generate_overview_pdf.py` → footer pill
-
-## Code style
-
-- IIFE module pattern: each file is a self-contained module
-- `var` for all declarations
-- No inline `onclick` handlers (CSP violation)
-- Use CSS custom properties (`--color-*`) for colors. No hardcoded hex in JS
-- Keep functions short and readable
-- Comments explain *why*, not *what*
-
-## Filing issues
-
-- Bug reports: include your OS, Kanvaz version (About screen or
-  `KanvazBoards.getVersion()` in DevTools), and steps to reproduce. A
-  screenshot or screen recording helps enormously.
-- Feature requests: describe the problem you're trying to solve, not just
-  the solution you want.
+`npm run validate` runs the whole suite: syntax checks for every file in `src/`, the linter, version consistency, the unit tests, and checks that every image and link in the README, landing page and guide exists. A pull request will not be merged while it fails.
 
 ## Pull requests
 
-1. Fork the repo and create a branch from `main`
-2. Keep PRs focused: one feature or fix per PR
-3. Run `npm run validate` before pushing
-4. Write a clear PR description: what changed, why, and how to test it
-5. If your PR touches UI, include before/after screenshots
+1. Fork the repository and branch from `main`.
+2. Keep it focused: one change per pull request.
+3. Add a line under `[Unreleased]` in `CHANGELOG.md` saying what changed and why.
+4. If it changes something you can see, include before and after screenshots.
+5. Say how you tested it. For anything that changes how the app behaves, run it and try it.
 
-## Architecture
+Version numbers are the maintainer's job. If you are curious how a release is cut, see [docs/RELEASING.md](docs/RELEASING.md).
 
-The codebase is 16 source files in `src/`, each wrapped in an IIFE. Boot order
-matters, see `docs/TECHNICAL_OVERVIEW.md` for the module map and dependency
-chain.
+## Where things are
+
+The code is in `src/`, one module per file, loaded in a fixed order. [docs/TECHNICAL_OVERVIEW.md](docs/TECHNICAL_OVERVIEW.md) has the module map and the dependency order. Official plugins live in `official-plugins/`.
+
+## Security
+
+Please do not report security problems in a public issue. Read [SECURITY.md](SECURITY.md) and email instead.
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the
-MIT License.
+By contributing, you agree that your work is licensed under the MIT license, like the rest of the project.

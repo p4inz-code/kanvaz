@@ -65,6 +65,7 @@ A free, offline reference board for artists. This guide covers everything: insta
 - [Profiles](profiles.html): several people, one install
 - [Plugins](plugins.html): the trust model and the four official plugins
 - [MCP Bridge](mcp-bridge.html): let an AI assistant drive your board
+- [Build your first plugin](build-a-plugin.html): a folder, two files, no build step
 
 ## Reference and help
 

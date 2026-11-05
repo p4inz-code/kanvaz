@@ -32,6 +32,7 @@
     - { title: Profiles, url: /guide/profiles.html }
     - { title: Plugins, url: /guide/plugins.html }
     - { title: MCP Bridge, url: /guide/mcp-bridge.html }
+    - { title: Build your first plugin, url: /guide/build-a-plugin.html }
 - title: Reference & help
   items:
     - { title: Full feature list, url: /guide/features.html }

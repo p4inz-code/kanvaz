@@ -1,0 +1,10 @@
+{
+  "id": "yourname.card-counter",
+  "name": "Card Counter",
+  "version": "1.0.0",
+  "kanvazApiVersion": 1,
+  "entry": "main.js",
+  "permissions": [],
+  "description": "Adds a Command Palette entry that tells you how many cards are on the board and how many are selected.",
+  "author": "Your Name"
+}

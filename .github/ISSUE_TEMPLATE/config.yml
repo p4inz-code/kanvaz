@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Ask a question or share a board on Discord
+    url: https://discord.gg/8UKt8s5FbW
+    about: Quick questions, ideas and show-and-tell are easier there than in an issue.
+  - name: Troubleshooting guide
+    url: https://p4inz-code.github.io/kanvaz/guide/troubleshooting.html
+    about: Fixes for the most common problems, usually answered in a minute.
+  - name: Search the user guide
+    url: https://p4inz-code.github.io/kanvaz/guide/
+    about: Press / on the site to search every page.
