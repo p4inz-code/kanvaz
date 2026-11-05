@@ -207,6 +207,6 @@
     "jszip": "^3.10.1",
     "wink-distance": "^2.0.2",
     "wink-eng-lite-web-model": "^1.8.1",
-    "wink-nlp": "^1.14.3"
+    "wink-nlp": "^2.4.0"
   }
 }
