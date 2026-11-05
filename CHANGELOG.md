@@ -3,26 +3,22 @@
 All notable changes to Kanvaz are documented here.
 
 ## [Unreleased]
+
+## [9.8.3] — 2026-11-05 — Electron 44.10.0 security update, a searchable guide site, Kanvaz Mini, weekly maintenance
+### Security
+- **Electron 44.4.3 to 44.10.0.** Fixes two advisories (pointer-lock requests attributed to the wrong frame, and the eMudhra intermediate certificates) and refreshes the lockfile. This is what had turned the CI `npm audit` step red. Checked live on the real 44.10.0 binary: the app boots, cards can be created, MoodLock and Top Mode turn on and off, undo and redo work, Map View opens and closes, and the plugin API is present (12 checks).
+
 ### Added
-- **A z-order diagnostic for Kanvaz going behind ZBrush** (`tools/zorder-diagnostic.ps1`, linked from Troubleshooting). Run while the problem is happening, it lists the windows from the top of the stack, marks TOPMOST and monitor-filling ones, and says where Kanvaz sits compared with the app you name (`-Watch 10` samples for ten seconds). The keep-on-top fix in v9.8.1 was tested against a stand-in topmost window, not ZBrush itself, so this gives real evidence if it still happens.
-- **Weekly maintenance runs on its own.** Dependabot opens weekly pull requests for dependencies (security fixes included), and a new Weekly check workflow runs lint, validate and `npm audit` every Monday plus a live check of the guide site (`tools/check-live-site.js`: every page, link, image and anchor). Both are there so a new advisory or a broken link shows up within a week instead of on the next push.
-- **Build your first plugin**, a new guide page, plus a working example in `docs/plugin-examples/card-counter`. It is written from the plugin API source and has not been loaded into a running Kanvaz yet.
+- **The user guide is now a searchable site.** Press `/` (or `Ctrl+K`) anywhere for instant search across every page, with highlighted matches and keyboard navigation. It has a new layout (grouped sidebar, "On this page" outline, light and dark themes, previous and next links, phone menu) and new pages: Installation and updates, Always on top, Top Mode and MoodLock, Troubleshooting, FAQ (about 40 answers), Cookbook (ten recipes), System requirements and performance, Privacy and your data, Contact and support, Build your first plugin, Kanvaz Mini and a Glossary. The doc test checks that every page is in the sidebar.
+- **Kanvaz Mini is introduced.** The README, landing page and a guide page describe it as the smaller version of Kanvaz for quick setups: a separate app with its own repository ([kanvaz-mini](https://github.com/p4inz-code/kanvaz-mini), first release 0.1.0), not a mode inside Kanvaz.
+- **Build your first plugin**, a guide page, with a working example in `docs/plugin-examples/card-counter`. It is written from the plugin API source and has not been loaded into a running Kanvaz yet.
+- **A z-order diagnostic for "Kanvaz goes behind ZBrush"** (`tools/zorder-diagnostic.ps1`, linked from Troubleshooting). Run while the problem is happening, it lists the windows from the top of the stack, marks TOPMOST and monitor-filling ones, and says where Kanvaz sits compared with the app you name (`-Watch 10` samples for ten seconds). The keep-on-top fix in v9.8.1 was tested against a stand-in topmost window, not ZBrush itself, so this gives real evidence if it still happens.
+- **Weekly maintenance runs on its own.** Dependabot opens weekly pull requests for dependencies, and a Weekly check workflow runs lint, validate and `npm audit` every Monday plus a live check of the guide site (`tools/check-live-site.js`: every page, link, image and anchor), so a new advisory or a broken link shows up within a week.
 - Issue-template contact links (Discord, Troubleshooting, guide search).
 
 ### Changed
-- **CONTRIBUTING.md is rewritten.** It still said Electron 22, 16 source files and six version locations, none of which is true any more. It now describes the current rules (ES5 and var only, colors from CSS variables), the real checks `npm run validate` runs, and the other ways to help: bug reports, guide fixes, plugins.
-### Added
-- **Kanvaz Mini is introduced.** The README, the landing page and a new guide page (Kanvaz Mini) describe it as the smaller version of Kanvaz for quick setups: a separate app with its own repository ([kanvaz-mini](https://github.com/p4inz-code/kanvaz-mini), first release 0.1.0), not a mode inside Kanvaz. The guide page covers what it does, how it differs from Kanvaz, the keys and its limits. Screenshots are in `assets/mini/`. The FAQ gained a Is there a smaller, quicker version entry.
-### Security
-- **Electron 44.4.3 to 44.10.0** (fixes two advisories, pointer-lock frame attribution and the eMudhra intermediate certificates) plus a lockfile refresh. This is what turned the CI "npm audit" step red. Same major version, `npm audit` is clean, lint and validate pass; a live smoke test of the app is still to do before the next release.
-### Changed
-- **The user guide on GitHub Pages is redesigned.** New layout with grouped sidebar navigation, a right-hand "On this page" outline, light and dark themes, previous/next links, copy buttons on code, and a phone-friendly menu. Every page now links to the others with working `.html` links. Added a Star / Discord / Support / Request-a-feature block to every page, and a walkthrough GIF and screenshot on the guide home.
-
-### Added
-- **Three new guide pages:** Installation & updates (which file to download, unsigned-app warnings, checksums, updating, uninstalling), Always on top, Top Mode & MoodLock (including the v9.8.1 ZBrush fix and the v9.8.2 lock button), and Troubleshooting (window, saving, media, plugin and update problems). Plus a Glossary.
-- **Docs and repo pages, one palette and no generated look.** The landing page, guide and both READMEs now share one purple palette. The Kanvaz README has a photographic pinboard hero built from real screenshots (new `assets/readme/`), SVG buttons and four matching badges, and the guide lost its remaining dashes and most bold. The Presentation Mode line in the feature list now says cards step in reading order.
-- **The guide is now a searchable site.** Press `/` (or `Ctrl+K`) anywhere for instant search across every page, with highlighted matches and keyboard navigation. New pages: FAQ (about 40 answers by topic), Cookbook (ten step-by-step recipes), System requirements and performance, Privacy and your data (every network request), and Contact and support. The landing page has a Need a hand section. The doc test now checks that every guide page is in the sidebar.
-- The doc test now accepts guide links written as `.html` when the matching `.md` page exists.
+- **CONTRIBUTING.md is rewritten.** It still said Electron 22, 16 source files and six version locations, none of which was true. It now describes the current rules (ES5 and var only, colors from CSS variables), the real checks `npm run validate` runs, and the other ways to help: bug reports, guide fixes and plugins.
+- **README, landing page and guide share one look.** The Kanvaz README has a hero built from real screenshots, SVG buttons and matching badges. Dashes and stray bold were removed from the guide, and the Presentation Mode line in the feature list now says cards step in reading order.
 
 ## [9.8.2] — 2026-10-07 — MoodLock: titlebar lock button, flip through references, remembered window position
 ### Changed
