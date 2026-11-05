@@ -1,0 +1,32 @@
+name: Weekly check
+
+# Runs every Monday even when nobody pushed, so a silent break (a new npm advisory, a broken
+# link on the guide site) shows up within a week. A failed run is emailed to the repo owner.
+on:
+  schedule:
+    - cron: '30 3 * * 1'
+  workflow_dispatch:
+
+jobs:
+  repo:
+    name: Lint, validate and audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run validate
+      - run: npm audit --audit-level=high
+
+  site:
+    name: Guide site links
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node tools/check-live-site.js

@@ -4,6 +4,7 @@ All notable changes to Kanvaz are documented here.
 
 ## [Unreleased]
 ### Added
+- **Weekly maintenance runs on its own.** Dependabot opens weekly pull requests for dependencies (security fixes included), and a new Weekly check workflow runs lint, validate and `npm audit` every Monday plus a live check of the guide site (`tools/check-live-site.js`: every page, link, image and anchor). Both are there so a new advisory or a broken link shows up within a week instead of on the next push.
 - **Build your first plugin**, a new guide page, plus a working example in `docs/plugin-examples/card-counter`. It is written from the plugin API source and has not been loaded into a running Kanvaz yet.
 - Issue-template contact links (Discord, Troubleshooting, guide search).
 

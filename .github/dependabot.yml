@@ -1,0 +1,23 @@
+# Weekly dependency updates. Security updates are opened as pull requests so a new advisory
+# never turns CI red by surprise (it happened twice with no code change).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: [dependencies]
+    commit-message:
+      prefix: "deps"
+    groups:
+      build-tooling:
+        patterns: ["electron-builder", "electron-builder-*", "app-builder-*"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    labels: [dependencies]
+    commit-message:
+      prefix: "ci"
