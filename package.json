@@ -204,7 +204,7 @@
   },
   "dependencies": {
     "electron-updater": "^6.8.9",
-    "jszip": "^3.10.1",
+    "jszip": "^3.10.2",
     "wink-distance": "^2.0.2",
     "wink-eng-lite-web-model": "^1.8.1",
     "wink-nlp": "^1.14.3"
