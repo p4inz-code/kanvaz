@@ -4,6 +4,7 @@ All notable changes to Kanvaz are documented here.
 
 ## [Unreleased]
 ### Added
+- **A z-order diagnostic for Kanvaz going behind ZBrush** (`tools/zorder-diagnostic.ps1`, linked from Troubleshooting). Run while the problem is happening, it lists the windows from the top of the stack, marks TOPMOST and monitor-filling ones, and says where Kanvaz sits compared with the app you name (`-Watch 10` samples for ten seconds). The keep-on-top fix in v9.8.1 was tested against a stand-in topmost window, not ZBrush itself, so this gives real evidence if it still happens.
 - **Weekly maintenance runs on its own.** Dependabot opens weekly pull requests for dependencies (security fixes included), and a new Weekly check workflow runs lint, validate and `npm audit` every Monday plus a live check of the guide site (`tools/check-live-site.js`: every page, link, image and anchor). Both are there so a new advisory or a broken link shows up within a week instead of on the next push.
 - **Build your first plugin**, a new guide page, plus a working example in `docs/plugin-examples/card-counter`. It is written from the plugin API source and has not been loaded into a running Kanvaz yet.
 - Issue-template contact links (Discord, Troubleshooting, guide search).

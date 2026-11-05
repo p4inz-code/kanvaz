@@ -37,6 +37,14 @@ Kanvaz is on top by default, and since v9.8.1 it re-raises itself when another a
 
 More: [Always on top, Top Mode & MoodLock](working-with-other-apps.html#always-on-top).
 
+Still going behind it? Please run the diagnostic while it is happening, so the cause can be found instead of guessed. It only reads window information, changes nothing and sends nothing. Download [`zorder-diagnostic.ps1`](https://github.com/p4inz-code/kanvaz/blob/main/tools/zorder-diagnostic.ps1), then in PowerShell run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File zorder-diagnostic.ps1 -App ZBrush
+```
+
+It lists the windows from the top of the screen stack down, marks which ones are TOPMOST or fill a whole monitor, and says where Kanvaz sits compared with the app you named. Add `-Watch 10` to sample for ten seconds and see how often Kanvaz stays above. Open an issue with the output (skim it first, it contains window titles). It also helps to say which Kanvaz version you run and whether ZBrush is in its full-screen mode or running as administrator.
+
 ### The toolbar, side panel or status bar disappeared
 
 You are in one of the modes that hides them:
