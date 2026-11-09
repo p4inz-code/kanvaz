@@ -6,6 +6,7 @@
   <title>{% if page.title and page.url != '/guide/' %}{{ page.title }} · {% endif %}Kanvaz Guide</title>
   <meta name="description" content="{% if page.description %}{{ page.description }}{% else %}{{ site.description }}{% endif %}">
   <meta name="theme-color" content="#9D7FFF">
+  {% include identity.html %}
   <link rel="canonical" href="{{ site.url }}{{ page.url | replace: 'index.html', '' }}">
   <link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
   <link rel="icon" type="image/png" href="{{ '/assets/img/icon.png' | relative_url }}">
@@ -93,6 +94,7 @@
         <a href="{{ '/guide/troubleshooting.html' | relative_url }}">Troubleshooting</a>
       </p>
       <p class="muted">Kanvaz is free and open source (MIT), 100% offline. Made by Atharva Patil | P4inz | P4inz Interactive Labs.</p>
+      <p class="muted"><a href="{{ site.data.studio.portfolio }}">Portfolio</a> · <a href="{{ '/guide/more-by-p4inz.html' | relative_url }}">More by P4inz</a> · <a href="{{ site.data.studio.github }}">GitHub</a> · <a href="{{ site.data.studio.linkedin }}">LinkedIn</a></p>
     </footer>
   </main>
 

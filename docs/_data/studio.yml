@@ -1,0 +1,23 @@
+person: Atharva Patil
+aliases: [p4inz, P4INZ, painz, "P4inz Interactive Labs", "Northbyte Studios", "Obsidian Labs"]
+portfolio: https://atharvapatil.tech/
+github: https://github.com/p4inz-code
+linkedin: https://www.linkedin.com/in/p4inz
+discord: https://discord.gg/8UKt8s5FbW
+donate: https://p4inz-code.github.io/donate/
+npm: https://www.npmjs.com/~p4inz-code
+projects:
+  - { name: Kanvaz, line: "Your canvas. Your references.", tags: [Electron, MIT, Reference board, Offline], url: "https://p4inz-code.github.io/kanvaz/", repo: "https://github.com/p4inz-code/kanvaz", site: "https://atharvapatil.tech/kanvaz/" }
+  - { name: Kanvaz Mini, line: "The smaller reference board for quick setups.", tags: [Electron, MIT, Reference board, Always on top], url: "https://p4inz-code.github.io/kanvaz/guide/kanvaz-mini.html", repo: "https://github.com/p4inz-code/kanvaz-mini" }
+  - { name: Mission OS, line: "A privacy-first Linux OS for developers, designers and systems engineers.", tags: [Linux, GPLv3, Privacy], repo: "https://github.com/p4inz-code/mission-os", site: "https://atharvapatil.tech/mission-os/" }
+  - { name: Nexus, line: "Your private files, sealed behind one password.", tags: [WPF, AES-256-GCM, Windows], repo: "https://github.com/p4inz-code/nexus-desktop", site: "https://atharvapatil.tech/nexus/" }
+  - { name: Pursue OS, line: "One operating system for the investigation workflow.", tags: [Linux, OSINT, Apache 2.0], repo: "https://github.com/p4inz-code/pursue-os", site: "https://atharvapatil.tech/pursue-os/" }
+  - { name: Veris, line: "Investigate. Correlate. Explain. Trust.", tags: [TypeScript, Offline-first, OSINT], repo: "https://github.com/p4inz-code/veris" }
+  - { name: Project Ascent, line: "A precision platformer where the only thing between you and the top is your timing.", tags: [Godot 4, GDScript, Platformer, Game], repo: "https://github.com/p4inz-code/project-ascent", site: "https://atharvapatil.tech/ascent/" }
+  - { name: Obscura, line: "Luau AST toolkit for Roblox developers.", tags: [Luau, MIT, Roblox], repo: "https://github.com/p4inz-code/obscura" }
+  - { name: Glint, line: "Brightness and volume, sharpened.", tags: [".NET 8", Windows, Utility], repo: "https://github.com/p4inz-code/glint" }
+  - { name: MINK, line: "A general-purpose programming language, built from first principles.", tags: [Rust, Compilers, Systems], repo: "https://github.com/p4inz-code/mink" }
+  - { name: CrossPort, line: "Move files between drives, and prove what landed.", tags: [Utility, Windows], repo: "https://github.com/p4inz-code/Crossport" }
+  - { name: DRAFT, line: "Sketch it. The agent sees exactly what you sketched.", tags: [MCP, Desktop], repo: "https://github.com/p4inz-code/Draft" }
+  - { name: 3D Ref Skills, line: "Reference engineering for 3D artists.", tags: [Open source, AI skills, 3D], repo: "https://github.com/p4inz-code/3d-ref-skills" }
+  - { name: Reference Engineering, line: "The methodology behind 3D Ref Skills, written down properly.", tags: [Open source, Methodology, 3D], repo: "https://github.com/p4inz-code/reference-engineering" }

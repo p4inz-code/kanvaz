@@ -282,3 +282,20 @@
   var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }); }, { threshold: 0.08 });
   els.forEach(function (el, i) { if (el.getBoundingClientRect().top < window.innerHeight) return; el.classList.add('js-reveal'); io.observe(el); });
 })();
+
+/* project tag filter on the More by P4inz page */
+(function () {
+  var box = document.getElementById('chips'), cards = [].slice.call(document.querySelectorAll('.proj-card'));
+  if (!box || !cards.length) return;
+  var counts = {}; cards.forEach(function (c) { c.getAttribute('data-tags').split('|').forEach(function (t) { counts[t] = (counts[t] || 0) + 1; }); });
+  var tags = Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a] || a.localeCompare(b); });
+  var on = null;
+  function apply() { cards.forEach(function (c) { c.hidden = !!on && c.getAttribute('data-tags').split('|').indexOf(on) < 0; }); [].slice.call(box.children).forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-t') === (on || ''))); }); }
+  ['All'].concat(tags).forEach(function (t) {
+    var b = document.createElement('button'); b.type = 'button'; b.setAttribute('data-t', t === 'All' ? '' : t); b.textContent = t === 'All' ? 'All' : t + ' (' + counts[t] + ')';
+    b.addEventListener('click', function () { on = t === 'All' || on === t ? null : t; apply(); });
+    box.appendChild(b);
+  });
+  var q = (location.hash || '').slice(1); if (q && counts[decodeURIComponent(q)]) on = decodeURIComponent(q);
+  apply();
+})();
