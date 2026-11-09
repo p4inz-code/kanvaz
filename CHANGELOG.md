@@ -4,10 +4,10 @@ All notable changes to Kanvaz are documented here.
 
 ## [Unreleased]
 
-##### Added
+### Added
 - **More by P4inz.** A new guide page links the portfolio, GitHub, LinkedIn, Discord and every project, with tag filters. The site now carries author keywords (Atharva Patil, p4inz, P4INZ, painz) and structured data, so searching those names leads here and to the other sites.
 
-# Changed
+### Changed
 - **Guide site: more media and a custom interface.** Screenshots, two diagrams and a MoodLock walkthrough now sit in the pages they explain, with a gallery on the guide home. Images open in a viewer with arrow keys. The site has its own scrollbars, a reading progress bar, a back-to-top button, OS tabs on the Installation page and styled callouts.
 
 ## [9.8.3] — 2026-11-05 — Electron 44.10.0 security update, a searchable guide site, Kanvaz Mini, weekly maintenance
