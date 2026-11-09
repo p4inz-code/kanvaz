@@ -6,6 +6,8 @@
   <title>{% if page.title and page.url != '/guide/' %}{{ page.title }} · {% endif %}Kanvaz Guide</title>
   <meta name="description" content="{% if page.description %}{{ page.description }}{% else %}{{ site.description }}{% endif %}">
   <meta name="theme-color" content="#9D7FFF">
+  <link rel="canonical" href="{{ site.url }}{{ page.url | replace: 'index.html', '' }}">
+  <link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
   <link rel="icon" type="image/png" href="{{ '/assets/img/icon.png' | relative_url }}">
   <link rel="stylesheet" href="{{ '/assets/css/guide.css' | relative_url }}">
   <script>

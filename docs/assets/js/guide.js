@@ -273,3 +273,12 @@
     else if (e.key === 'ArrowRight') show(cur + 1);
   }, true);
 })();
+
+/* reveal home sections and cards as they scroll into view */
+(function () {
+  if (!('IntersectionObserver' in window)) return;
+  var els = [].slice.call(document.querySelectorAll('.landing section, .feat, .l-shot'));
+  if (!els.length) return;
+  var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }); }, { threshold: 0.08 });
+  els.forEach(function (el, i) { if (el.getBoundingClientRect().top < window.innerHeight) return; el.classList.add('js-reveal'); io.observe(el); });
+})();

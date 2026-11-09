@@ -323,3 +323,9 @@ button, summary { -webkit-tap-highlight-color: transparent; }
 .cards a:hover::after { opacity: 1; }
 
 @media print { #progress, #to-top, #lb { display: none !important; } }
+
+/* scroll reveal on the home page */
+@media (prefers-reduced-motion: no-preference) {
+  .js-reveal { opacity: 0; transform: translateY(18px); transition: opacity .55s ease, transform .55s ease; }
+  .js-reveal.in { opacity: 1; transform: none; }
+}
