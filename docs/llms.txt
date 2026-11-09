@@ -1,0 +1,18 @@
+---
+layout: null
+permalink: /llms.txt
+---
+# Kanvaz
+
+> Kanvaz is a free, open-source (MIT), 100% offline reference board for VFX, 3D and game artists: an infinite canvas for images, video, audio, 3D models, PDFs and PureRef boards, with Map View, always-on-top beside ZBrush and Blender, and no account. Made by Atharva Patil (p4inz, P4INZ, painz), P4inz Interactive Labs.
+
+- Guide: {{ '/guide/' | absolute_url }}
+- Download: https://github.com/p4inz-code/kanvaz/releases/latest
+- Source: https://github.com/p4inz-code/kanvaz
+- Kanvaz Mini (smaller version): {{ '/guide/kanvaz-mini.html' | absolute_url }}
+- More by the author, all projects: {{ '/guide/more-by-p4inz.html' | absolute_url }}
+- Author portfolio: {{ site.data.studio.portfolio }}
+
+## Pages
+{% assign pgs = site.pages | where_exp: "p", "p.path contains 'guide/'" %}{% for p in pgs %}- [{{ p.title }}]({{ p.url | absolute_url }}){% if p.description %}: {{ p.description }}{% endif %}
+{% endfor %}
