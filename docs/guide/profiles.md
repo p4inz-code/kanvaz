@@ -1,6 +1,7 @@
 ---
 title: "Profiles"
 layout: default
+description: "Kanvaz profiles: separate settings and workspaces for different kinds of work."
 ---
 
 # Profiles

@@ -1,6 +1,7 @@
 ---
 title: "Plugins"
 layout: default
+description: "Kanvaz plugins: what they can do, the official ones, and how to install and manage them."
 ---
 
 # Plugins

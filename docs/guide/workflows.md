@@ -1,6 +1,7 @@
 ---
 title: "Workflows by Domain"
 layout: default
+description: "Kanvaz workflows by domain: how concept artists, 3D artists, VFX and game teams use boards."
 ---
 
 # Workflows by domain

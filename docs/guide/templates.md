@@ -1,6 +1,7 @@
 ---
 title: "Templates"
 layout: default
+description: "Kanvaz templates: start a board from a built-in layout or save your own."
 ---
 
 # Templates

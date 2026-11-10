@@ -1,6 +1,7 @@
 ---
 title: "Import & Export"
 layout: default
+description: "Import images, PureRef boards and more into Kanvaz, and export a board as PNG, JPEG, WEBP, BMP or PDF."
 ---
 
 # Import & export

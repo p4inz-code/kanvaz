@@ -1,6 +1,7 @@
 ---
 title: "Settings"
 layout: default
+description: "Every Kanvaz setting explained: appearance, behavior, window and storage options."
 ---
 
 # Settings

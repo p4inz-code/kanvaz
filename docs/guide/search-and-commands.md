@@ -1,6 +1,7 @@
 ---
 title: "Command Palette & Smart Search"
 layout: default
+description: "The Kanvaz command palette and Smart Search: find any card, board or action fast."
 ---
 
 # Command palette & smart search

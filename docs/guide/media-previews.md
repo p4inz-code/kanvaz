@@ -1,6 +1,7 @@
 ---
 title: "Media Previews"
 layout: default
+description: "How Kanvaz previews video, audio, 3D models, PDFs and animated images inside cards."
 ---
 
 # Media previews

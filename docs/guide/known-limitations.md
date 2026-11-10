@@ -1,6 +1,7 @@
 ---
 title: "Known Limitations"
 layout: default
+description: "What Kanvaz does not do yet, stated plainly, so you know before you rely on it."
 ---
 
 # Known limitations

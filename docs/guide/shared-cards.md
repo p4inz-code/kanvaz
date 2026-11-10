@@ -1,6 +1,7 @@
 ---
 title: "Shared Cards"
 layout: default
+description: "Shared cards in Kanvaz: reuse one card across several boards and keep them in sync."
 ---
 
 # Shared cards

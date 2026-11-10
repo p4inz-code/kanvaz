@@ -1,6 +1,7 @@
 ---
 title: "Full Feature List"
 layout: default
+description: "The full Kanvaz feature list: canvas, Map View, media cards, tasks, export, plugins and more."
 ---
 
 # Full feature list

@@ -1,6 +1,7 @@
 ---
 title: "Supported File Formats"
 layout: default
+description: "Every file type Kanvaz can import, preview or export, plus how the .kanvaz file is built."
 ---
 
 # Supported file formats

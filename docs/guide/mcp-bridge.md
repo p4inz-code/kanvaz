@@ -1,6 +1,7 @@
 ---
 title: "MCP Bridge"
 layout: default
+description: "The MCP Bridge plugin: let an AI assistant read and work with your Kanvaz boards."
 ---
 
 # MCP bridge

@@ -1,6 +1,7 @@
 ---
 title: "Keyboard Shortcuts"
 layout: default
+description: "All Kanvaz keyboard shortcuts in one table, taken straight from the app."
 ---
 
 # Keyboard shortcuts

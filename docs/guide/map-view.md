@@ -1,6 +1,7 @@
 ---
 title: "Map View"
 layout: default
+description: "Map View in Kanvaz: wire references together and see a board as a node graph."
 ---
 
 # Map view

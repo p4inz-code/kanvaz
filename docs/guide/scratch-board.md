@@ -1,6 +1,7 @@
 ---
 title: "Scratch Board"
 layout: default
+description: "The Kanvaz Scratch Board: a freeform sketch and notes layer that lives with each board."
 ---
 
 # Scratch board

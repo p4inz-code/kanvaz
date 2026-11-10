@@ -1,6 +1,7 @@
 ---
 title: "Board View"
 layout: default
+description: "How the Kanvaz infinite canvas works: moving, resizing, aligning and annotating cards on a board."
 ---
 
 # Board view

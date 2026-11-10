@@ -288,7 +288,7 @@
   var box = document.getElementById('chips'), cards = [].slice.call(document.querySelectorAll('.proj-card'));
   if (!box || !cards.length) return;
   var counts = {}; cards.forEach(function (c) { c.getAttribute('data-tags').split('|').forEach(function (t) { counts[t] = (counts[t] || 0) + 1; }); });
-  var tags = Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a] || a.localeCompare(b); });
+  var tags = Object.keys(counts).filter(function (t) { return counts[t] > 1; }).sort(function (a, b) { return counts[b] - counts[a] || a.localeCompare(b); });
   var on = null;
   function apply() { cards.forEach(function (c) { c.hidden = !!on && c.getAttribute('data-tags').split('|').indexOf(on) < 0; }); [].slice.call(box.children).forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-t') === (on || ''))); }); }
   ['All'].concat(tags).forEach(function (t) {

@@ -1,6 +1,7 @@
 ---
 title: "About Kanvaz"
 layout: default
+description: "What Kanvaz is, who makes it, and why it is free, open source and fully offline."
 ---
 
 # About Kanvaz

@@ -1,6 +1,7 @@
 ---
 title: "Task Tracker"
 layout: default
+description: "The Kanvaz Task Tracker: per-board checklists with subtasks and progress."
 ---
 
 # Task tracker

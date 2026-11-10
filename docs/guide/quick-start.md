@@ -1,6 +1,7 @@
 ---
 title: "Quick Start"
 layout: default
+description: "From install to your first Kanvaz reference board in about five minutes."
 ---
 
 # Quick start

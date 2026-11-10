@@ -1,6 +1,7 @@
 ---
 title: "Side Panel"
 layout: default
+description: "The Kanvaz side panel: layers, properties and the task tracker beside your board."
 ---
 
 # Side panel
