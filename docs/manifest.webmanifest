@@ -1,0 +1,5 @@
+---
+layout: null
+permalink: /manifest.webmanifest
+---
+{"name":"Kanvaz Guide","short_name":"Kanvaz","start_url":"{{ '/guide/' | relative_url }}","scope":"{{ '/' | relative_url }}","display":"browser","background_color":"#0e0e12","theme_color":"#9d7fff","icons":[{"src":"{{ '/assets/img/icon.png' | relative_url }}","sizes":"any","type":"image/png"}]}
