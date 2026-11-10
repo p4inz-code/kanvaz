@@ -4,6 +4,11 @@ All notable changes to Kanvaz are documented here.
 
 ## [Unreleased]
 
+## [9.8.4] — 2026-11-10 — Electron 45, dependency updates, a refreshed guide site
+
+### Security
+- **Electron 44.10.0 to 45.2.3.** Checked live: the app launches, the Home Screen renders, the About screen reports 9.8.4 and the console is clean. The remaining dependency bumps are jszip 3.10.2, electron-updater 6.8.11, electron-builder 26.18.0 and wink-nlp 2.4.0 (smart search tests pass).
+
 ### Added
 - **More by P4inz.** A new guide page links the portfolio, GitHub, LinkedIn, Discord and every project, with tag filters. The site now carries author keywords (Atharva Patil, p4inz, P4INZ, painz) and structured data, so searching those names leads here and to the other sites.
 
