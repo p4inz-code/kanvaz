@@ -277,7 +277,7 @@
 /* reveal home sections and cards as they scroll into view */
 (function () {
   if (!('IntersectionObserver' in window)) return;
-  var els = [].slice.call(document.querySelectorAll('.landing section, .feat, .l-shot'));
+  var els = [].slice.call(document.querySelectorAll('.lp-reveal'));
   if (!els.length) return;
   var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }); }, { threshold: 0.08 });
   els.forEach(function (el, i) { if (el.getBoundingClientRect().top < window.innerHeight) return; el.classList.add('js-reveal'); io.observe(el); });
@@ -298,4 +298,18 @@
   });
   var q = (location.hash || '').slice(1); if (q && counts[decodeURIComponent(q)]) on = decodeURIComponent(q);
   apply();
+})();
+
+/* home page: swap the still screenshot for the walkthrough GIF only when asked (it is large) */
+(function () {
+  var btn = document.getElementById('tour-btn');
+  if (!btn) return;
+  btn.addEventListener('click', function () {
+    var img = document.querySelector('.lp-hero-art .p-a img');
+    var gif = btn.getAttribute('data-gif');
+    if (img && gif) { img.removeAttribute('width'); img.removeAttribute('height'); img.src = gif; img.alt = 'Kanvaz walkthrough: home screen, canvas, Map View, dark and light themes'; }
+    var cap = document.querySelector('.lp-hero-art .p-a figcaption');
+    if (cap) cap.textContent = 'The 14 second tour';
+    btn.hidden = true;
+  });
 })();

@@ -87,7 +87,7 @@ function run() {
   /* ── 3b. the landing page's "Source Modules" stat equals the real src/*.js count ── */
   var realModules = fs.readdirSync(p('src')).filter(function(f) { return /\.js$/.test(f); }).length;
   var landing = fs.readFileSync(p('docs', 'index.html'), 'utf8');
-  var mm = landing.match(/stat-value">(\d+)<\/div>\s*<div class="stat-label">Source Modules/);
+  var mm = landing.match(/<b>(\d+)<\/b> source modules/);
   assert.ok(mm, 'could not find the Source Modules stat on docs/index.html');
   assert.strictEqual(Number(mm[1]), realModules, 'docs/index.html says ' + mm[1] + ' source modules but src/ has ' + realModules);
   console.log('  ✓ landing page Source Modules stat (' + mm[1] + ') equals the real src/*.js count');

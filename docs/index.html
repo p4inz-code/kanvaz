@@ -1,70 +1,102 @@
 ---
 layout: landing
 ---
-<section class="l-hero">
-  <span class="pill">100% offline &bull; Free &bull; Open source</span>
-  <h1>Your references,<br><em>connected.</em></h1>
-  <p class="lead">A free reference board for VFX and 3D artists. Drop in images, video, 3D models and PureRef boards, wire them together on an infinite canvas, and keep it floating over ZBrush or Blender. No account, no cloud.</p>
-  <div class="l-cta">
-    <a class="btn big" href="https://github.com/p4inz-code/kanvaz/releases/latest"><span id="dl-label">Download Kanvaz</span></a>
-    <a class="btn big ghost" href="{{ '/guide/' | relative_url }}">Read the guide</a>
+<section class="lp-hero">
+  <div class="lp-hero-text">
+    <p class="lp-kicker">Reference board <span>/</span> free <span>/</span> offline <span>/</span> MIT</p>
+    <h1>Your references,<br><span class="lp-wire">connected.</span></h1>
+    <p class="lp-lead">A reference board for VFX and 3D artists. Drop in images, video, 3D models and PureRef boards, wire them together on an infinite canvas, and keep it floating on top of the app you are working in.</p>
+    <div class="lp-cta">
+      <a class="lp-btn" href="https://github.com/p4inz-code/kanvaz/releases/latest"><span id="dl-label">Download Kanvaz</span></a>
+      <a class="lp-link" href="{{ '/guide/' | relative_url }}">Read the guide <span aria-hidden="true">&rarr;</span></a>
+    </div>
+    <p class="lp-fine">Windows, macOS and Linux. <a href="{{ '/guide/installation.html' | relative_url }}">Which file do I download?</a></p>
+    <p class="lp-note" aria-hidden="true">no account, no cloud, no catch
+      <svg viewBox="0 0 60 40" width="54" height="36" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6c14-3 30 2 36 18 2 5 3 9 3 12M43 36l-6-6M43 36l7-5"/></svg>
+    </p>
   </div>
-  <p class="fine">Windows, macOS and Linux &middot; <a href="{{ '/guide/installation.html' | relative_url }}">which file do I download?</a></p>
-  <figure class="l-shot"><img src="https://raw.githubusercontent.com/p4inz-code/kanvaz/main/docs/media/kanvaz-walkthrough.gif" alt="Kanvaz walkthrough: home screen, canvas, Map View, dark and light themes"></figure>
-</section>
 
-<section class="stats">
-  <div class="stat"><div class="stat-value">56</div>
-  <div class="stat-label">Source Modules</div></div>
-  <div class="stat"><div class="stat-value">79</div>
-  <div class="stat-label">Releases</div></div>
-  <div class="stat"><div class="stat-value">14</div>
-  <div class="stat-label">Board Templates</div></div>
-  <div class="stat"><div class="stat-value">0</div>
-  <div class="stat-label">Network Calls</div></div>
-  <div class="stat"><div class="stat-value">MIT</div>
-  <div class="stat-label">License</div></div>
-</section>
-
-<section class="l-sec">
-  <h2>Built for how artists really work</h2>
-  <p class="sub">Everything here is in the free download.</p>
-  <div class="feats">
-    <a class="feat" href="{{ '/guide/board-view.html' | relative_url }}"><img src="https://raw.githubusercontent.com/p4inz-code/kanvaz/main/assets/screenshot-cards-v7.9.0.png" alt="Infinite canvas" loading="lazy"><b>Infinite canvas</b><span>Images, GIFs, video, audio, 3D, PDFs and notes on one board. Pan, zoom, align, annotate.</span></a>
-    <a class="feat" href="{{ '/guide/map-view.html' | relative_url }}"><img src="https://raw.githubusercontent.com/p4inz-code/kanvaz/main/assets/screenshot-mapview-v9.6.0.png" alt="Map View" loading="lazy"><b>Map View</b><span>See every reference and its connections as a real node graph. Drag ports to relate cards.</span></a>
-    <a class="feat" href="{{ '/guide/scratch-board.html' | relative_url }}"><img src="https://raw.githubusercontent.com/p4inz-code/kanvaz/main/assets/screenshot-scratchboard-v9.6.0.png" alt="Scratch Board" loading="lazy"><b>Scratch Board</b><span>A freeform sketch and notes layer that lives with each board.</span></a>
-    <a class="feat" href="{{ '/guide/task-tracker.html' | relative_url }}"><img src="https://raw.githubusercontent.com/p4inz-code/kanvaz/main/assets/screenshot-tasktracker-v9.6.0.png" alt="Task tracker" loading="lazy"><b>Task tracker</b><span>Per-board checklists next to the work they belong to.</span></a>
-    <a class="feat" href="{{ '/guide/side-panel.html' | relative_url }}"><img src="https://raw.githubusercontent.com/p4inz-code/kanvaz/main/assets/screenshot-layers-v7.22.0.png" alt="Layers and properties" loading="lazy"><b>Layers &amp; properties</b><span>Hide, lock and rename cards. Fine control over position, size and color.</span></a>
-    <a class="feat" href="{{ '/guide/import-export.html' | relative_url }}"><img src="https://raw.githubusercontent.com/p4inz-code/kanvaz/main/assets/screenshot-export-v9.6.0.png" alt="Import and export" loading="lazy"><b>Import &amp; export</b><span>Open PureRef files, drop in almost anything, export PNG, PDF or a shareable board.</span></a>
+  <div class="lp-hero-art" aria-label="Kanvaz screenshots">
+    <svg class="lp-hero-wire" viewBox="0 0 400 300" preserveAspectRatio="none" aria-hidden="true"><path d="M70 92 C 170 40, 230 250, 330 208" /></svg>
+    <figure class="print p-a">
+      <img src="{{ '/guide/assets/showcase-dark.png' | relative_url }}" alt="A Kanvaz board in the dark theme with image, note, color and URL cards" width="1500" height="878" fetchpriority="high">
+      <figcaption>The board</figcaption>
+    </figure>
+    <figure class="print p-b">
+      <img src="https://raw.githubusercontent.com/p4inz-code/kanvaz/main/assets/screenshot-mapview-v9.6.0.png" alt="Map View showing references as a connected node graph" loading="lazy">
+      <figcaption>Map View</figcaption>
+    </figure>
+    <button class="lp-tour" type="button" id="tour-btn" data-gif="https://raw.githubusercontent.com/p4inz-code/kanvaz/main/docs/media/kanvaz-walkthrough.gif">Play the 14 second tour</button>
   </div>
 </section>
 
-<section class="l-sec l-split">
+<section class="lp-ledger lp-reveal" aria-label="Kanvaz in numbers">
+  <p><b>56</b> source modules</p>
+  <p><b>79</b> releases</p>
+  <p><b>14</b> board templates</p>
+  <p><b>0</b> accounts needed</p>
+  <p>network calls only when you ask</p>
+  <p><b>MIT</b> license</p>
+</section>
+
+<section class="lp-sec">
+  <header class="lp-sec-head lp-reveal">
+    <p class="lp-label">What is inside</p>
+    <h2>Built for how artists really work</h2>
+    <p>Everything here is in the free download.</p>
+  </header>
+
+  <article class="lp-row lp-reveal">
+    <a class="print" href="{{ '/guide/board-view.html' | relative_url }}"><img src="https://raw.githubusercontent.com/p4inz-code/kanvaz/main/assets/screenshot-cards-v7.9.0.png" alt="Infinite canvas with image, video and note cards" loading="lazy"></a>
+    <div class="lp-row-text"><span class="lp-num">01</span><h3>Infinite canvas</h3><p>Images, GIFs, video, audio, 3D, PDFs and notes on one board. Pan, zoom, align, annotate.</p><a href="{{ '/guide/board-view.html' | relative_url }}">How the canvas works <span aria-hidden="true">&rarr;</span></a></div>
+  </article>
+  <article class="lp-row flip lp-reveal">
+    <a class="print" href="{{ '/guide/map-view.html' | relative_url }}"><img src="https://raw.githubusercontent.com/p4inz-code/kanvaz/main/assets/screenshot-mapview-v9.6.0.png" alt="Map View node graph" loading="lazy"></a>
+    <div class="lp-row-text"><span class="lp-num">02</span><h3>Map View</h3><p>See every reference and its connections as a real node graph. Drag ports to relate cards.</p><a href="{{ '/guide/map-view.html' | relative_url }}">Wire your references <span aria-hidden="true">&rarr;</span></a></div>
+  </article>
+  <article class="lp-row lp-reveal">
+    <a class="print" href="{{ '/guide/scratch-board.html' | relative_url }}"><img src="https://raw.githubusercontent.com/p4inz-code/kanvaz/main/assets/screenshot-scratchboard-v9.6.0.png" alt="Scratch Board sketch layer" loading="lazy"></a>
+    <div class="lp-row-text"><span class="lp-num">03</span><h3>Scratch Board</h3><p>A freeform sketch and notes layer that lives with each board.</p><a href="{{ '/guide/scratch-board.html' | relative_url }}">Draw on your board <span aria-hidden="true">&rarr;</span></a></div>
+  </article>
+
+  <div class="lp-trio lp-reveal">
+    <a class="lp-mini" href="{{ '/guide/task-tracker.html' | relative_url }}"><img src="https://raw.githubusercontent.com/p4inz-code/kanvaz/main/assets/screenshot-tasktracker-v9.6.0.png" alt="Task tracker" loading="lazy"><span class="lp-num">04</span><h3>Task tracker</h3><p>Per-board checklists next to the work they belong to.</p></a>
+    <a class="lp-mini" href="{{ '/guide/side-panel.html' | relative_url }}"><img src="https://raw.githubusercontent.com/p4inz-code/kanvaz/main/assets/screenshot-layers-v7.22.0.png" alt="Layers and properties" loading="lazy"><span class="lp-num">05</span><h3>Layers and properties</h3><p>Hide, lock and rename cards. Fine control over position, size and color.</p></a>
+    <a class="lp-mini" href="{{ '/guide/import-export.html' | relative_url }}"><img src="https://raw.githubusercontent.com/p4inz-code/kanvaz/main/assets/screenshot-export-v9.6.0.png" alt="Import and export" loading="lazy"><span class="lp-num">06</span><h3>Import and export</h3><p>Open PureRef files, drop in almost anything, export PNG, PDF or a shareable board.</p></a>
+  </div>
+</section>
+
+<section class="lp-sec lp-split lp-reveal">
   <div>
-    <h2>Stays beside your work</h2>
-    <p>Always on top over ZBrush, Blender and Photoshop, even apps that also float. <b>MoodLock</b> hides every toolbar and shows just the picture, with Left and Right to flip through references and a window that remembers where you parked it.</p>
-    <p><a href="{{ '/guide/working-with-other-apps.html' | relative_url }}">How Always on top, Top Mode and MoodLock work &rarr;</a></p>
+    <p class="lp-label">Beside your work</p>
+    <h2>Stays on top while you create</h2>
+    <p>Kanvaz can stay on top of the apps you work in, even other apps that also float. MoodLock hides every toolbar and shows just the picture, with Left and Right to flip through references and a window that remembers where you parked it.</p>
+    <p><a href="{{ '/guide/working-with-other-apps.html' | relative_url }}">How Always on top, Top Mode and MoodLock work <span aria-hidden="true">&rarr;</span></a></p>
   </div>
-  <ul class="ticks">
-    <li>Always on top, re-raised automatically</li>
-    <li>Top Mode: floating, minimal chrome</li>
-    <li>MoodLock: read-only, picture only</li>
-    <li>Presentation mode for clients</li>
+  <ul class="lp-ticks">
+    <li><b>Always on top</b>re-raised automatically</li>
+    <li><b>Top Mode</b>floating, minimal chrome</li>
+    <li><b>MoodLock</b>read-only, picture only</li>
+    <li><b>Presentation mode</b>for clients and reviews</li>
   </ul>
 </section>
 
-<section class="l-sec l-split">
+<section class="lp-sec lp-split lp-mini-sec lp-reveal">
+  <a class="print p-mini" href="{{ '/guide/kanvaz-mini.html' | relative_url }}"><img src="https://raw.githubusercontent.com/p4inz-code/kanvaz/main/assets/mini/mini-small.png" alt="Kanvaz Mini at its default small size, holding eight reference images" loading="lazy"></a>
   <div>
+    <p class="lp-label">The small one</p>
     <h2>Need it quick? Kanvaz Mini</h2>
-    <p>Kanvaz Mini is the smaller version for quick setups. A tiny window that stays on top and opens straight to a drop zone. Move, scale and arrange a handful of images, check values in grayscale, or trace over a reference with click-through mode. It never touches the network.</p>
-    <p><a href="https://github.com/p4inz-code/kanvaz-mini/releases/latest">Download Kanvaz Mini</a> &nbsp;|&nbsp; <a href="{{ '/guide/kanvaz-mini.html' | relative_url }}">About Kanvaz Mini &rarr;</a></p>
+    <p>Kanvaz Mini is the smaller version for quick setups. A tiny window that stays on top and opens straight to a drop zone. Move, scale and arrange a handful of images, check values in grayscale, pull the main colors out of a picture, or trace over a reference with click-through mode. It never touches the network.</p>
+    <p><a href="https://github.com/p4inz-code/kanvaz-mini/releases/latest">Download Kanvaz Mini</a> <span class="lp-sep">/</span> <a href="{{ '/guide/kanvaz-mini.html' | relative_url }}">About Kanvaz Mini <span aria-hidden="true">&rarr;</span></a></p>
   </div>
-  <a href="{{ '/guide/kanvaz-mini.html' | relative_url }}"><img src="https://raw.githubusercontent.com/p4inz-code/kanvaz/main/assets/mini/mini-small.png" alt="Kanvaz Mini at its default small size, holding eight reference images" loading="lazy" style="width:100%;border-radius:12px;border:1px solid var(--line)"></a>
 </section>
 
-<section class="l-sec">
-  <h2>Why Kanvaz?</h2>
-  <p class="sub">How it compares to other reference tools</p>
+<section class="lp-sec lp-reveal">
+  <header class="lp-sec-head">
+    <p class="lp-label">Honestly</p>
+    <h2>How it compares</h2>
+    <p>Other reference tools, side by side.</p>
+  </header>
   <div class="table-wrap">
 <table class="compare">
       <thead>
@@ -143,33 +175,39 @@ layout: landing
       </tbody>
     </table>
   </div>
-  <p class="fine">&mdash; = not independently verified, left blank rather than guessed. PureRef and Refern are both genuinely good, actively maintained tools. See the <a href="https://github.com/p4inz-code/kanvaz#how-kanvaz-compares">fuller comparison</a> for where each one is ahead of Kanvaz.</p>
+  <p class="lp-fine-print">A dash means not independently verified, left blank rather than guessed. PureRef and Refern are both genuinely good, actively maintained tools. See the <a href="https://github.com/p4inz-code/kanvaz#how-kanvaz-compares">fuller comparison</a> for where each one is ahead of Kanvaz.</p>
 </section>
 
-<section class="l-sec">
-  <h2>Need a hand?</h2>
-  <p class="sub">Most answers are one search away. Press <kbd>/</kbd> anywhere on this site.</p>
-  <div class="cards">
-    <a href="{{ '/guide/faq.html' | relative_url }}"><b>FAQ</b><span>Quick answers, grouped by topic.</span></a>
-    <a href="{{ '/guide/cookbook.html' | relative_url }}"><b>Cookbook</b><span>Ten step-by-step recipes for real jobs.</span></a>
-    <a href="{{ '/guide/troubleshooting.html' | relative_url }}"><b>Troubleshooting</b><span>Windows, saving, media and updates.</span></a>
-    <a href="{{ '/guide/contact.html' | relative_url }}"><b>Contact and support</b><span>Issues, Discord and email, and what to include.</span></a>
-  </div>
+<section class="lp-sec lp-reveal">
+  <header class="lp-sec-head">
+    <p class="lp-label">Stuck?</p>
+    <h2>Need a hand?</h2>
+    <p>Most answers are one search away. Press <kbd>/</kbd> anywhere on this site.</p>
+  </header>
+  <ul class="lp-help">
+    <li><a href="{{ '/guide/faq.html' | relative_url }}"><b>FAQ</b><span>Quick answers, grouped by topic.</span></a></li>
+    <li><a href="{{ '/guide/cookbook.html' | relative_url }}"><b>Cookbook</b><span>Ten step-by-step recipes for real jobs.</span></a></li>
+    <li><a href="{{ '/guide/troubleshooting.html' | relative_url }}"><b>Troubleshooting</b><span>Windows, saving, media and updates.</span></a></li>
+    <li><a href="{{ '/guide/contact.html' | relative_url }}"><b>Contact and support</b><span>Issues, Discord and email, and what to include.</span></a></li>
+  </ul>
 </section>
 
-<section class="l-sec l-cta-box">
-  <h2>Free, and staying free</h2>
-  <p>Kanvaz is built and maintained by one person. A star helps other artists find it, and a coffee-sized donation keeps it going.</p>
-  <div class="l-cta">
-    <a class="btn big" href="https://github.com/p4inz-code/kanvaz/releases/latest">Download Kanvaz</a>
-    <a class="btn big ghost" href="https://github.com/p4inz-code/kanvaz">&#9733; Star on GitHub</a>
-    <a class="btn big ghost" href="https://discord.gg/8UKt8s5FbW">Join the Discord</a>
-    <a class="btn big ghost" href="https://p4inz-code.github.io/donate/">Support development</a>
+<section class="lp-sec lp-reveal">
+  <div class="lp-pinned">
+    <h2>Free, and staying free</h2>
+    <p>Kanvaz is built and maintained by one person. A star helps other artists find it, and a coffee-sized donation keeps it going.</p>
+    <div class="lp-cta">
+      <a class="lp-btn" href="https://github.com/p4inz-code/kanvaz/releases/latest">Download Kanvaz</a>
+      <a class="lp-link" href="https://github.com/p4inz-code/kanvaz">Star on GitHub <span aria-hidden="true">&rarr;</span></a>
+      <a class="lp-link" href="https://discord.gg/8UKt8s5FbW">Join the Discord <span aria-hidden="true">&rarr;</span></a>
+      <a class="lp-link" href="https://p4inz-code.github.io/donate/">Support development <span aria-hidden="true">&rarr;</span></a>
+    </div>
   </div>
 </section>
 
 <footer class="l-foot">
-  Made by <a href="https://github.com/p4inz-code">Atharva Patil</a> &mdash; P4inz Interactive Labs, India
+  Made by <a href="https://github.com/p4inz-code">Atharva Patil</a>, P4inz Interactive Labs, India
   &nbsp;&bull;&nbsp; <a href="https://github.com/p4inz-code/kanvaz/blob/main/LICENSE">MIT License</a>
   &nbsp;&bull;&nbsp; <a href="https://github.com/p4inz-code/kanvaz/blob/main/docs/TECHNICAL_OVERVIEW.md">Technical overview</a>
+  &nbsp;&bull;&nbsp; <a href="{{ '/guide/more-by-p4inz.html' | relative_url }}">More by P4inz</a>
 </footer>
