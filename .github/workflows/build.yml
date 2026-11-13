@@ -276,7 +276,7 @@ jobs:
         run: |
           cd dist
           shopt -s nullglob
-          files=(*.exe *.dmg *.AppImage)
+          files=(*.exe *.dmg *.AppImage *.zip)
           if [ ${#files[@]} -eq 0 ]; then
             echo "No installer files found in dist/"
             ls -la

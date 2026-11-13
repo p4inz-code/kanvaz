@@ -41,6 +41,9 @@ var KanvazApp = (function() {
       document.addEventListener('copy', function(e) {
         handleCopy(e);
       });
+      document.addEventListener('cut', function(e) {
+        handleCut(e);
+      });
 
       /* Recovery check */
       KanvazBridge.on('recovery-available', function() {
@@ -1210,6 +1213,22 @@ var KanvazApp = (function() {
     e.clipboardData.setData('text/plain', marker);
     e.preventDefault();
     KanvazUI.toast('Copied');
+  }
+
+  /* Ctrl+X on the board: copy the selected cards, then remove them. One undo brings them back. */
+  function handleCut(e) {
+    var el = document.activeElement;
+    var tag = el && el.tagName;
+    if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT' || (el && el.isContentEditable)) return;
+    var sel = window.getSelection && window.getSelection();
+    if (sel && String(sel).length) return;
+    if (typeof KanvazCards === 'undefined' || !KanvazCards.copySelected) return;
+    var marker = KanvazCards.copySelected();
+    if (!marker || !e.clipboardData) return;
+    e.clipboardData.setData('text/plain', marker);
+    e.preventDefault();
+    KanvazCards.deleteSelected();
+    KanvazUI.toast('Cut. Press Ctrl+V to paste.');
   }
 
   function handlePaste(e) {

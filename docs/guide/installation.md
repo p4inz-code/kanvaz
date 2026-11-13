@@ -16,6 +16,7 @@ Kanvaz needs no account, no sign-in, and makes no network call on first launch. 
 |---|---|---|
 | Windows | `Kanvaz-Setup-<version>.exe` | The installer. Recommended: Start Menu shortcut, "Open with" registration for supported files, and update checks. |
 | | `Kanvaz-<version>.exe` | Portable build. Run it from anywhere, nothing is installed. |
+| | `Kanvaz-<version>-win.zip` | The unpacked app. Unzip it anywhere and run `Kanvaz.exe`. Nothing is installed and nothing is unpacked into a temporary folder when it starts, so it is the best choice if your antivirus objects to the portable `.exe`. |
 | macOS, Apple Silicon (M1 and newer) | `Kanvaz-<version>-arm64.dmg` | Open it and drag Kanvaz into Applications. |
 | macOS, Intel | `Kanvaz-<version>.dmg` | Same steps. There is no `-x64` in this name. |
 | Linux | `Kanvaz-<version>.AppImage` | `chmod +x` it and run it. No install step. |

@@ -213,19 +213,19 @@ Windows (installer and portable):
 ```bash
 npm run build:win
 ```
-Output: `dist/Kanvaz-Setup-9.8.5.exe` and `dist/Kanvaz-9.8.5.exe`
+Output: `dist/Kanvaz-Setup-9.8.6.exe`, `dist/Kanvaz-9.8.6.exe` (portable) and `dist/Kanvaz-9.8.6-win.zip` (the unpacked app, no installer)
 
 macOS:
 ```bash
 npm run build:mac
 ```
-Output: `dist/Kanvaz-9.8.5-arm64.dmg` (Apple Silicon) and `dist/Kanvaz-9.8.5.dmg` (Intel, no `-x64` suffix because electron-builder only tags the non-default arch). Both come from one command.
+Output: `dist/Kanvaz-9.8.6-arm64.dmg` (Apple Silicon) and `dist/Kanvaz-9.8.6.dmg` (Intel, no `-x64` suffix because electron-builder only tags the non-default arch). Both come from one command.
 
 Linux:
 ```bash
 npm run build:linux
 ```
-Output: `dist/Kanvaz-9.8.5.AppImage`
+Output: `dist/Kanvaz-9.8.6.AppImage`
 
 </details>
 

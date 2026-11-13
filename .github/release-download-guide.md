@@ -4,7 +4,7 @@
 
 | Platform | Download this | Skip these |
 |---|---|---|
-| **Windows** | `Kanvaz-Setup-<version>.exe` — the installer (recommended: auto-updates, Start Menu shortcut, "Open with" registration). Or `Kanvaz-<version>.exe` — the **portable** build, no install, no auto-update, run it from anywhere. | `*.blockmap`, `latest.yml` |
+| **Windows** | `Kanvaz-Setup-<version>.exe` — the installer (recommended: auto-updates, Start Menu shortcut, "Open with" registration). Or `Kanvaz-<version>.exe` — the **portable** build, no install, no auto-update, run it from anywhere. Or `Kanvaz-<version>-win.zip` — the unpacked app: unzip it and start Kanvaz from the folder; it never unpacks itself into Temp, so it suits locked-down machines and antivirus that dislikes the portable build. | `*.blockmap`, `latest.yml` |
 | **macOS (Apple Silicon)** | `Kanvaz-<version>-arm64.dmg` — M1/M2/M3/M4 Macs. Open it, drag Kanvaz into Applications. Unsigned (see the README's Gatekeeper note: right-click → Open the first time). | `latest-mac.yml` |
 | **macOS (Intel)** | `Kanvaz-<version>.dmg` — pre-2020 or Intel-based Macs (no `-x64` in the filename — electron-builder only suffixes the non-default arch). Same install/Gatekeeper steps as above. Not sure which you have? Apple menu → About This Mac: "Apple" chip = Apple Silicon, "Intel" chip = Intel. | `latest-mac.yml` |
 | **Linux** | `Kanvaz-<version>.AppImage` — `chmod +x` it and run; no install step. | `latest-linux.yml` |

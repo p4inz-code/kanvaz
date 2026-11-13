@@ -4,6 +4,14 @@ All notable changes to Kanvaz are documented here.
 
 ## [Unreleased]
 
+## [9.8.6] — 2026-11-13 — Cut with Ctrl+X, and a plain zip download
+
+### Added
+- **Cut cards with `Ctrl+X`.** Copy and paste arrived in 9.8.5. Cut now removes the selected cards and keeps a copy to paste on this board or another. One undo brings them back, and `Ctrl+X` inside a note still cuts text as usual. Asked for in issue 19.
+- **A plain zip of the Windows app (`Kanvaz-<version>-win.zip`).** Unzip it anywhere and run `Kanvaz.exe`. Unlike the portable `.exe`, it does not unpack itself into a temporary folder every time it starts, which is the behavior some antivirus programs, Windows Defender's machine-learning check among them, mistake for something harmful. Prompted by a Defender warning reported in issue 18. The zip has a SHA-256 in `SHA256SUMS-windows-latest.txt` like the other downloads.
+
+
+
 ## [9.8.5] — 2026-11-13 — Copy and paste cards, sharper zoom, steadier hover, more PureRef files import
 
 ### Added
