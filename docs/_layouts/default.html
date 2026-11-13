@@ -21,7 +21,7 @@
   <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Kanvaz","item":"{{ '/' | absolute_url }}"},{"@type":"ListItem","position":2,"name":"Guide","item":"{{ '/guide/' | absolute_url }}"}{% if page.url != '/guide/' %},{"@type":"ListItem","position":3,"name":{{ page.title | jsonify }},"item":"{{ page.url | absolute_url }}"}{% endif %}]},{"@type":"TechArticle","headline":{{ page.title | default: 'Kanvaz Guide' | jsonify }},"description":{{ pdesc | jsonify }},"inLanguage":"en","mainEntityOfPage":"{{ page.url | absolute_url }}","image":"https://github.com/p4inz-code/kanvaz/blob/main/assets/banner.png?raw=true","author":{"@type":"Person","name":"{{ site.data.studio.person }}","url":"{{ site.data.studio.portfolio }}"},"publisher":{"@type":"Organization","name":"P4inz Interactive Labs","url":"{{ site.data.studio.portfolio }}"}}]}</script>
   <link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
   <link rel="icon" type="image/png" href="{{ '/assets/img/icon.png' | relative_url }}">
-  <link rel="stylesheet" href="{{ '/assets/css/guide.css' | relative_url }}">
+  <link rel="stylesheet" href="{{ '/assets/css/guide.css' | relative_url }}?v={{ site.time | date: '%s' }}">
   <script>
     /* set the theme before first paint so there is no flash */
     try { var t = localStorage.getItem('kanvaz-guide-theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
@@ -115,7 +115,7 @@
   </aside>
 </div>
 
-<script src="{{ '/assets/js/guide.js' | relative_url }}" defer></script>
+<script src="{{ '/assets/js/guide.js' | relative_url }}?v={{ site.time | date: '%s' }}" defer></script>
 <div class="sm" id="sm" hidden>
   <div class="sm-box" role="dialog" aria-modal="true" aria-label="Search the guide">
     <input id="sm-input" type="search" placeholder="Search the guide: shortcuts, MoodLock, .pur, always on top..." autocomplete="off" spellcheck="false">

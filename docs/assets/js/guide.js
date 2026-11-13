@@ -313,3 +313,80 @@
     btn.hidden = true;
   });
 })();
+
+/* home page motion: liquid button origin, magnetic pull, print tilt, hero drift, number count-up */
+(function () {
+  if (!document.body.classList.contains('landing')) return;
+  var fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  var calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* where the liquid starts: the point where the pointer entered, then it follows */
+  [].slice.call(document.querySelectorAll('.lp-btn')).forEach(function (b) {
+    function at(e) { var r = b.getBoundingClientRect(); b.style.setProperty('--mx', (e.clientX - r.left) + 'px'); b.style.setProperty('--my', (e.clientY - r.top) + 'px'); }
+    b.addEventListener('pointerenter', at);
+    b.addEventListener('pointermove', at);
+  });
+
+  /* count the ledger numbers up when they come into view */
+  var nums = [].slice.call(document.querySelectorAll('.lp-ledger b')).filter(function (b) { return /^\d+$/.test(b.textContent.trim()); });
+  if (nums.length && 'IntersectionObserver' in window && !calm) {
+    var seen = new IntersectionObserver(function (es) {
+      es.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        seen.unobserve(e.target);
+        var el = e.target, end = parseInt(el.textContent, 10), t0 = null;
+        el.textContent = '0';
+        function step(t) {
+          if (t0 === null) t0 = t;
+          var p = Math.min(1, (t - t0) / 1100), eased = 1 - Math.pow(1 - p, 3);
+          el.textContent = String(Math.round(end * eased));
+          if (p < 1) requestAnimationFrame(step); else el.textContent = String(end);
+        }
+        requestAnimationFrame(step);
+      });
+    }, { threshold: 0.6 });
+    nums.forEach(function (n) { seen.observe(n); });
+  }
+
+  if (!fine || calm) return;
+
+  /* magnetic pull: buttons, links and pills lean toward the pointer when it is near */
+  var pullers = [].slice.call(document.querySelectorAll('.lp-btn, .lp-link, .lp-tour, .star-btn')).map(function (el) { return { el: el, x: 0, y: 0 }; });
+  var last = null, ticking = false;
+  function update() {
+    ticking = false;
+    if (!last) return;
+    pullers.forEach(function (p) {
+      var r = p.el.getBoundingClientRect();
+      if (r.bottom < -100 || r.top > innerHeight + 100) return;
+      var cx = r.left + r.width / 2 - p.x, cy = r.top + r.height / 2 - p.y;
+      var dx = last.clientX - cx, dy = last.clientY - cy, dist = Math.sqrt(dx * dx + dy * dy);
+      var reach = Math.max(r.width, r.height) * 0.7 + 46, tx = 0, ty = 0;
+      if (dist < reach) { var pull = 1 - dist / reach; tx = dx * pull * 0.32; ty = dy * pull * 0.32; }
+      if (Math.abs(tx - p.x) > 0.2 || Math.abs(ty - p.y) > 0.2) { p.x = tx; p.y = ty; p.el.style.translate = tx.toFixed(1) + 'px ' + ty.toFixed(1) + 'px'; }
+    });
+  }
+  document.addEventListener('pointermove', function (e) { last = e; if (!ticking) { ticking = true; requestAnimationFrame(update); } }, { passive: true });
+  document.addEventListener('pointerleave', function () { last = { clientX: -9999, clientY: -9999 }; update(); });
+
+  /* prints tilt toward the pointer and catch the light */
+  [].slice.call(document.querySelectorAll('.lp-row .print, .p-mini')).forEach(function (pr) {
+    pr.addEventListener('pointermove', function (e) {
+      var r = pr.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
+      pr.classList.add('tilting');
+      pr.style.setProperty('--rx', (-y * 5).toFixed(2) + 'deg');
+      pr.style.setProperty('--ry', (x * 6).toFixed(2) + 'deg');
+    });
+    pr.addEventListener('pointerleave', function () { pr.classList.remove('tilting'); pr.style.removeProperty('--rx'); pr.style.removeProperty('--ry'); });
+  });
+
+  /* the hero prints drift a little against the pointer */
+  var art = document.querySelector('.lp-hero-art');
+  if (art) {
+    var raf = 0, px = 0, py = 0;
+    window.addEventListener('pointermove', function (e) {
+      px = e.clientX / innerWidth - 0.5; py = e.clientY / innerHeight - 0.5;
+      if (!raf) raf = requestAnimationFrame(function () { raf = 0; art.style.setProperty('--px', px.toFixed(3)); art.style.setProperty('--py', py.toFixed(3)); });
+    }, { passive: true });
+  }
+})();

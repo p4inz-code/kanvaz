@@ -16,12 +16,13 @@
   <link rel="canonical" href="{{ site.url }}{{ site.baseurl }}/">
   <link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
   <link rel="icon" type="image/png" href="{{ '/assets/img/icon.png' | relative_url }}">
-  <link rel="stylesheet" href="{{ '/assets/css/guide.css' | relative_url }}">
+  <link rel="stylesheet" href="{{ '/assets/css/guide.css' | relative_url }}?v={{ site.time | date: '%s' }}">
   <script>
     try { var t = localStorage.getItem('kanvaz-guide-theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
   </script>
 </head>
 <body class="landing">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><filter id="goo" color-interpolation-filters="sRGB"><feGaussianBlur in="SourceGraphic" stdDeviation="7" result="b"/><feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -8" result="g"/><feComposite in="SourceGraphic" in2="g" operator="atop"/></filter></defs></svg>
 <header class="topbar">
   <a class="brand" href="{{ '/' | relative_url }}">
     <img src="{{ '/assets/img/icon.png' | relative_url }}" alt="" width="28" height="28">
@@ -55,7 +56,7 @@
   </div>
 </div>
 <script>window.KZ_SEARCH="{{ '/search.json' | relative_url }}";</script>
-<script src="{{ '/assets/js/guide.js' | relative_url }}"></script>
+<script src="{{ '/assets/js/guide.js' | relative_url }}?v={{ site.time | date: '%s' }}"></script>
 <script>
   /* label the main download button for the visitor's system */
   (function () {

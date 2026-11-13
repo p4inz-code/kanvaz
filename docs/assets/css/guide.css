@@ -382,16 +382,16 @@ body.landing .land { max-width: 1140px; padding: 0 24px 56px; }
 
 /* the prints: screenshots pinned like a reference wall */
 .print { display: block; margin: 0; padding: 8px 8px 0; background: var(--paper); border-radius: 4px; position: relative; color: #5a5476;
-  box-shadow: 0 1px 2px rgba(20, 16, 50, .2), 0 18px 40px -6px rgba(20, 16, 50, .35); transition: transform .35s cubic-bezier(.2, .7, .2, 1), box-shadow .35s; }
+  box-shadow: 0 1px 2px rgba(20, 16, 50, .2), 0 18px 40px -6px rgba(20, 16, 50, .35); }
 a.print { padding: 8px; }
 .print img { display: block; width: 100%; height: auto; border-radius: 2px; }
 .print figcaption { font: 600 .68rem/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; padding: 10px 2px 11px; }
 .print::before { content: ""; position: absolute; top: -11px; left: 50%; width: 86px; height: 22px; transform: translateX(-50%) rotate(-2.5deg); background: var(--tape); border-left: 1px dashed rgba(255, 255, 255, .45); border-right: 1px dashed rgba(255, 255, 255, .45); z-index: 3; }
 .lp-hero-art { position: relative; padding-bottom: 44px; }
-.p-a { width: 90%; transform: rotate(-1.6deg); }
-.p-b { position: absolute; width: 54%; right: 0; bottom: 0; transform: rotate(2.6deg); z-index: 2; }
-.lp-hero-art:hover .p-a { transform: rotate(-.6deg); }
-.lp-hero-art:hover .p-b { transform: rotate(1.4deg) translateY(-4px); }
+.p-a { width: 90%; --r: -1.6deg; }
+.p-b { position: absolute; width: 54%; right: 0; bottom: 0; --r: 2.6deg; z-index: 2; }
+.lp-hero-art:hover .p-a { --r: -.6deg; }
+.lp-hero-art:hover .p-b { --r: 1.4deg; }
 .lp-hero-wire { position: absolute; inset: 8% 4% 6% 8%; width: 88%; height: 86%; z-index: 4; pointer-events: none; overflow: visible; }
 .lp-hero-wire path { fill: none; stroke: var(--accent); stroke-width: 2; stroke-dasharray: 2 7; stroke-linecap: round; vector-effect: non-scaling-stroke; opacity: .9; }
 .lp-tour { position: absolute; left: 6px; bottom: 6px; z-index: 5; border: 1px solid var(--line); background: var(--bg); color: var(--text); font: 600 .74rem/1 var(--mono); letter-spacing: .06em; padding: 10px 14px; border-radius: 99px; cursor: pointer; box-shadow: var(--shadow); }
@@ -414,9 +414,9 @@ a.print { padding: 8px; }
 .lp-row { display: grid; grid-template-columns: 1.25fr 1fr; gap: 60px; align-items: center; margin: 0 0 72px; }
 .lp-row.flip { grid-template-columns: 1fr 1.25fr; }
 .lp-row.flip .print { order: 2; }
-.lp-row .print { transform: rotate(-1.2deg); }
-.lp-row.flip .print { transform: rotate(1.2deg); }
-.lp-row .print:hover { transform: rotate(0) translateY(-5px); }
+.lp-row .print { --r: -1.2deg; }
+.lp-row.flip .print { --r: 1.2deg; }
+.lp-row .print:hover { --r: 0deg; translate: 0 -5px; }
 .lp-row .print img { aspect-ratio: 16 / 10; object-fit: cover; object-position: top left; }
 .lp-num { display: block; font: 600 .8rem/1 var(--mono); color: var(--accent); margin-bottom: 12px; }
 .lp-row h3 { font: 600 clamp(1.55rem, 2.7vw, 2.1rem)/1.15 var(--serif); letter-spacing: -.01em; margin: 0 0 10px; }
@@ -439,8 +439,8 @@ a.print { padding: 8px; }
 .lp-ticks li { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 15px 2px; border-bottom: 1px solid var(--line); color: var(--text-2); font-size: .94rem; text-align: right; }
 .lp-ticks b { color: var(--text); font: 600 1.12rem var(--serif); text-align: left; }
 .lp-mini-sec { grid-template-columns: .9fr 1.1fr; }
-.p-mini { transform: rotate(-2deg); max-width: 430px; justify-self: center; }
-.p-mini:hover { transform: rotate(0) translateY(-5px); }
+.p-mini { --r: -2deg; max-width: 430px; justify-self: center; }
+.p-mini:hover { --r: 0deg; translate: 0 -5px; }
 .lp-sep { color: var(--text-3); margin: 0 .4em; }
 .lp-fine-print { color: var(--text-3); font-size: .86rem; max-width: 70ch; margin: 14px 0 0; }
 
@@ -493,3 +493,68 @@ a.print { padding: 8px; }
   .lp-btn { padding: 14px 22px; }
 }
 @media (prefers-reduced-motion: reduce) { .print, .lp-btn, .lp-mini img, .lp-link span { transition: none; } }
+
+/* ============ landing v2.1: premium motion. Flat buttons, liquid fill, shine, magnetic pull ============ */
+.print { transform: perspective(1100px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) rotate(var(--r, 0deg)); transition: transform .5s cubic-bezier(.2, .7, .2, 1), translate .5s cubic-bezier(.2, .7, .2, 1), box-shadow .35s; will-change: transform; }
+.print.tilting { transition: transform .12s linear, translate .5s cubic-bezier(.2, .7, .2, 1), box-shadow .35s; }
+.print::after { content: ""; position: absolute; inset: 8px; border-radius: 2px; pointer-events: none; z-index: 2;
+  background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, .42) 49%, transparent 60%) no-repeat; background-size: 280% 100%; background-position: 135% 0; transition: background-position 1s cubic-bezier(.2, .7, .2, 1); }
+.print:hover::after { background-position: -35% 0; }
+
+/* hero prints drift gently against the pointer */
+.lp-hero-art .p-a { translate: calc(var(--px, 0) * -8px) calc(var(--py, 0) * -6px); }
+.lp-hero-art .p-b { translate: calc(var(--px, 0) * 12px) calc(var(--py, 0) * 9px); }
+.lp-hero-wire { translate: calc(var(--px, 0) * 4px) calc(var(--py, 0) * 3px); }
+
+/* buttons: solid fill, no gradient. A liquid blob grows from the pointer, a soft bar of light sweeps across. */
+.lp-btn { --btn-bg: #7c5cfc; --btn-fg: #fff; --btn-liq: #ebe6ff; --btn-liq-fg: #2a1a78;
+  position: relative; overflow: hidden; isolation: isolate; background: var(--btn-bg); color: var(--btn-fg); box-shadow: 0 10px 24px -10px color-mix(in srgb, var(--btn-bg) 80%, transparent);
+  transition: translate .2s cubic-bezier(.2, .8, .2, 1), box-shadow .25s; will-change: translate; }
+:root[data-theme="dark"] .lp-btn { --btn-bg: #a58bff; --btn-fg: #17122d; --btn-liq: #f4f1ff; --btn-liq-fg: #2a1a78; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .lp-btn { --btn-bg: #a58bff; --btn-fg: #17122d; --btn-liq: #f4f1ff; --btn-liq-fg: #2a1a78; } }
+.lp-btn, .lp-btn:hover { color: var(--btn-fg); }
+.lp-btn:hover { transform: none; box-shadow: 0 16px 30px -10px color-mix(in srgb, var(--btn-bg) 85%, transparent); }
+.lp-btn-label { position: relative; z-index: 2; transition: color .35s ease; }
+.lp-btn:hover .lp-btn-label, .lp-btn:focus-visible .lp-btn-label { color: var(--btn-liq-fg); }
+.lp-liq { position: absolute; inset: 0; z-index: 1; filter: url(#goo); pointer-events: none; }
+.lp-liq i { position: absolute; left: var(--mx, 50%); top: var(--my, 50%); aspect-ratio: 1; border-radius: 50%; background: var(--btn-liq); translate: -50% -50%; scale: 0;
+  transition: scale .75s cubic-bezier(.2, .8, .2, 1), left .35s ease-out, top .35s ease-out; }
+.lp-liq i:nth-child(1) { width: 230%; transition-delay: 0s, 0s, 0s; }
+.lp-liq i:nth-child(2) { width: 190%; transition-delay: .05s, .04s, .04s; }
+.lp-liq i:nth-child(3) { width: 150%; transition-delay: .1s, .09s, .09s; }
+.lp-btn:hover .lp-liq i, .lp-btn:focus-visible .lp-liq i { scale: 1; }
+.lp-btn::after { content: ""; position: absolute; top: -30%; bottom: -30%; left: -50%; width: 30%; z-index: 3; pointer-events: none; background: rgba(255, 255, 255, .5); filter: blur(9px); transform: skewX(-22deg); opacity: 0; }
+.lp-btn:hover::after { animation: lp-shine .85s cubic-bezier(.3, .6, .3, 1); }
+@keyframes lp-shine { 0% { left: -50%; opacity: 0; } 15% { opacity: 1; } 100% { left: 130%; opacity: 0; } }
+.lp-pinned .lp-btn { --btn-bg: #3f27c8; --btn-fg: #fff; --btn-liq: #1c1633; --btn-liq-fg: #fff; }
+:root[data-theme="dark"] .lp-pinned .lp-btn { --btn-bg: #3f27c8; --btn-fg: #fff; --btn-liq: #1c1633; --btn-liq-fg: #fff; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .lp-pinned .lp-btn { --btn-bg: #3f27c8; --btn-fg: #fff; --btn-liq: #1c1633; --btn-liq-fg: #fff; } }
+
+/* quiet links and pills get the magnetic pull and a drawn underline */
+.lp-link, .lp-tour, .star-btn { transition: translate .2s cubic-bezier(.2, .8, .2, 1), color .2s, border-color .2s; }
+.lp-link { position: relative; }
+.lp-link::after { content: ""; position: absolute; left: 0; right: 0; bottom: -3px; height: 2px; background: currentColor; transform: scaleX(0); transform-origin: left; transition: transform .35s cubic-bezier(.2, .8, .2, 1); }
+.lp-link:hover { text-decoration: none; }
+.lp-link:hover::after { transform: scaleX(1); }
+
+/* a calm entrance */
+@media (prefers-reduced-motion: no-preference) {
+  .lp-hero-text > * { animation: lp-rise .9s cubic-bezier(.2, .7, .2, 1) both; }
+  .lp-hero-text > :nth-child(1) { animation-delay: .05s; }
+  .lp-hero-text > :nth-child(2) { animation-delay: .14s; }
+  .lp-hero-text > :nth-child(3) { animation-delay: .24s; }
+  .lp-hero-text > :nth-child(4) { animation-delay: .34s; }
+  .lp-hero-text > :nth-child(5) { animation-delay: .42s; }
+  .lp-hero-text > :nth-child(6) { animation-delay: .6s; }
+  .lp-hero-art .p-a { animation: lp-drop 1.05s cubic-bezier(.2, .8, .2, 1) .15s both; }
+  .lp-hero-art .p-b { animation: lp-drop 1.05s cubic-bezier(.2, .8, .2, 1) .42s both; }
+  .lp-hero-wire { animation: lp-fade 1.4s ease .9s both; }
+  .lp-tour { animation: lp-fade .8s ease 1.1s both; }
+  @keyframes lp-rise { from { opacity: 0; translate: 0 20px; } to { opacity: 1; } }
+  @keyframes lp-drop { from { opacity: 0; translate: 0 34px; scale: .96; } to { opacity: 1; scale: 1; } }
+  @keyframes lp-fade { from { opacity: 0; } to { opacity: 1; } }
+  .lp-trio .lp-mini:nth-child(2) { transition-delay: .06s; }
+  .lp-trio .lp-mini:nth-child(3) { transition-delay: .12s; }
+}
+@media (hover: none) { .print::after, .lp-btn::after { display: none; } }
+@media (prefers-reduced-motion: reduce) { .lp-liq i, .lp-btn-label { transition: none; } .lp-btn:hover::after { animation: none; } .print::after { display: none; } }
