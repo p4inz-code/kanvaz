@@ -6,7 +6,7 @@ description: "The complete guide to Kanvaz: install, canvas, references, plugins
 
 <div class="hero" markdown="1">
 
-<p class="lp-kicker">User guide <span>/</span> 35 pages <span>/</span> press / to search</p>
+<p class="lp-kicker">User guide <span>/</span> 34 pages <span>/</span> press / to search</p>
 
 # Kanvaz Guide
 
