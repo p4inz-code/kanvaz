@@ -387,14 +387,14 @@ a.print { padding: 8px; }
 .print img { display: block; width: 100%; height: auto; border-radius: 2px; }
 .print figcaption { font: 600 .68rem/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; padding: 10px 2px 11px; }
 .print::before { content: ""; position: absolute; top: -11px; left: 50%; width: 86px; height: 22px; transform: translateX(-50%) rotate(-2.5deg); background: var(--tape); border-left: 1px dashed rgba(255, 255, 255, .45); border-right: 1px dashed rgba(255, 255, 255, .45); z-index: 3; }
-.lp-hero-art { position: relative; padding-bottom: 44px; }
+.lp-hero-art { position: relative; padding-bottom: 72px; }
 .p-a { width: 90%; --r: -1.6deg; }
 .p-b { position: absolute; width: 54%; right: 0; bottom: 0; --r: 2.6deg; z-index: 2; }
 .lp-hero-art:hover .p-a { --r: -.6deg; }
 .lp-hero-art:hover .p-b { --r: 1.4deg; }
 .lp-hero-wire { position: absolute; inset: 8% 4% 6% 8%; width: 88%; height: 86%; z-index: 4; pointer-events: none; overflow: visible; }
 .lp-hero-wire path { fill: none; stroke: var(--accent); stroke-width: 2; stroke-dasharray: 2 7; stroke-linecap: round; vector-effect: non-scaling-stroke; opacity: .9; }
-.lp-tour { position: absolute; left: 6px; bottom: 6px; z-index: 5; border: 1px solid var(--line); background: var(--bg); color: var(--text); font: 600 .74rem/1 var(--mono); letter-spacing: .06em; padding: 10px 14px; border-radius: 99px; cursor: pointer; box-shadow: var(--shadow); }
+.lp-tour { position: absolute; left: 4px; bottom: 8px; z-index: 5; border: 1px solid var(--line); background: var(--bg); color: var(--text); font: 600 .74rem/1 var(--mono); letter-spacing: .06em; padding: 10px 14px; border-radius: 99px; cursor: pointer; box-shadow: var(--shadow); }
 .lp-tour:hover { border-color: var(--accent); color: var(--accent); }
 .lp-tour[hidden] { display: none; }
 

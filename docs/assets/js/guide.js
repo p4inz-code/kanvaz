@@ -362,7 +362,7 @@
       var cx = r.left + r.width / 2 - p.x, cy = r.top + r.height / 2 - p.y;
       var dx = last.clientX - cx, dy = last.clientY - cy, dist = Math.sqrt(dx * dx + dy * dy);
       var reach = Math.max(r.width, r.height) * 0.7 + 46, tx = 0, ty = 0;
-      if (dist < reach) { var pull = 1 - dist / reach; tx = dx * pull * 0.32; ty = dy * pull * 0.32; }
+      if (dist < reach) { var pull = 1 - dist / reach; tx = Math.max(-9, Math.min(9, dx * pull * 0.24)); ty = Math.max(-7, Math.min(7, dy * pull * 0.24)); }
       if (Math.abs(tx - p.x) > 0.2 || Math.abs(ty - p.y) > 0.2) { p.x = tx; p.y = ty; p.el.style.translate = tx.toFixed(1) + 'px ' + ty.toFixed(1) + 'px'; }
     });
   }
