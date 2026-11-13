@@ -14,7 +14,8 @@ var IGNORE = [
   /linkedin\.com/,
   /discord\.gg/,
   /discord\.com/,
-  /buymeacoffee\.com/
+  /buymeacoffee\.com/,
+  /npmjs\.com/
 ];
 function ignored(u) { return IGNORE.some(function(r) { return r.test(u); }); }
 
