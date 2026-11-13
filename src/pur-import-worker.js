@@ -23,7 +23,7 @@ parentPort.once('message', function(data) {
        copy: wraps the same underlying memory, doesn't duplicate it. */
     var buffer = Buffer.isBuffer(data) ? data : Buffer.from(data.buffer, data.byteOffset, data.byteLength);
     var parsed = purImport.parsePurFile(buffer);
-    parentPort.postMessage({ ok: true, images: parsed.images, count: parsed.count });
+    parentPort.postMessage({ ok: true, images: parsed.images, count: parsed.count, laidOutAsGrid: !!parsed.laidOutAsGrid, skippedGaps: parsed.skippedGaps || 0 });
   } catch (e) {
     parentPort.postMessage({ ok: false, error: e.message });
   }

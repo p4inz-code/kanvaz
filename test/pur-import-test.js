@@ -131,20 +131,16 @@ check('completed in well under the O(n²) time (' + elapsedMs + 'ms < 400ms)', e
    signature forces the raw-4-byte-gap scanner to try building far more
    entries than any real board would ever need — this is the shape a
    misaligned/corrupted parse produces in the field. */
-console.log('\nTest C — pathological gap fails fast with a clear error, not a hang');
+console.log('\nTest C — a huge gap of unknown data is skipped, not fatal, and never hangs');
 var junk = Buffer.alloc(250000, 1); /* /4 = 62500 entries, past MAX_TRACKED_ENTRIES (50000); no zero bytes -> never accidentally matches PNG_HEAD */
 var pathBuf = Buffer.concat([Buffer.alloc(HEADER_SIZE), junk, PNG_HEAD, PNG_FOOT]);
-var threw = false;
 var t1 = Date.now();
-try {
-  purImport.parsePurFile(pathBuf);
-} catch (e) {
-  threw = true;
-  check('error message mentions the file, not a stack trace leak', /corrupted|unsupported/i.test(e.message));
-}
+var threw = false, pathRes = null;
+try { pathRes = purImport.parsePurFile(pathBuf); } catch (e) { threw = true; }
 var elapsed2 = Date.now() - t1;
-check('threw a controlled error instead of hanging', threw);
-check('failed fast (' + elapsed2 + 'ms), did not grind', elapsed2 < 1000);
+check('did not throw E006 on a file with a long unknown gap', !threw);
+check('reports that it skipped an oversized gap', pathRes && pathRes.skippedGaps >= 1);
+check('finished fast (' + elapsed2 + 'ms), did not grind', elapsed2 < 1000);
 
 /* ── Test D: the real worker_thread boundary, not just the pure function ──
    main.js no longer calls parsePurFile() directly — it spawns

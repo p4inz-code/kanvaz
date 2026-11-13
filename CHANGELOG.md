@@ -4,6 +4,20 @@ All notable changes to Kanvaz are documented here.
 
 ## [Unreleased]
 
+## [9.8.5] — 2026-11-13 — Copy and paste cards, sharper zoom, steadier hover, more PureRef files import
+
+### Added
+- **Copy and paste cards (`Ctrl+C`, `Ctrl+V`).** Copy any selection (images, notes, text, links, files, 3D and more) and paste it on the same board or another one. Each paste lands a little offset from the last, and pasted cards are independent copies. Copying something else afterwards, such as a picture from a browser, pastes that instead. Reported in issue 19.
+- **A clear message after a PureRef import that could not read the layout.** If a `.pur` file's images come in without their saved positions, Kanvaz now says they are arranged in a grid instead of staying silent. Reported in issue 18.
+
+### Fixed
+- **`Ctrl+D` did nothing on a note or text card you had just clicked.** Clicking a text card puts the cursor in its text box, and the shortcut was switched off while typing. It now duplicates the card from inside its text box too. Issue 19.
+- **Images and note text stayed soft after zooming in until you moved the pointer over them.** The board's drawing layer was pinned at the zoom it was first drawn at. It is now released a moment after you stop zooming, so everything is redrawn sharp. Issue 18.
+- **A selected card flickered when the pointer crossed its top or bottom edge, most visibly at low zoom.** Hovering lifted the card by 2 pixels, which moved its edge out from under the pointer and switched the hover off and on again. The lift is gone and the shadow remains. Issue 18.
+- **A `.pur` file failed with E006 "too many entries".** The importer counted every 4 bytes of data it did not recognize between or after the images as an entry, and a long enough stretch tripped a safety limit that refused the whole file. Kanvaz now skips such a stretch and imports the images it can find. This is the likely cause of the failure in issue 18, but the reporter's file has not been tested, so if a board still fails to import, please attach it to the issue.
+
+
+
 ## [9.8.4] — 2026-11-10 — Electron 45, dependency updates, a refreshed guide site
 
 ### Security

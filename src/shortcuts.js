@@ -177,6 +177,18 @@ var KanvazShortcuts = (function() {
        hijacked into board-level undo/redo/select-all while the user is
        typing in a note. Ctrl+S/Ctrl+Shift+S/Ctrl+O/Ctrl+F have no
        native textarea meaning, so those stay above as "always fire". */
+    /* Ctrl+D inside a note or any card's text box duplicates that card. Typing in a text box does not use
+       Ctrl+D, and plain-clicking a text card puts the cursor in it, which is why duplicate seemed to work only
+       on cards with no text box (video, images) until you selected the card another way. */
+    if (inText && ctrl && !shift && keyLower === 'd' && activeEl && activeEl.closest) {
+      var host = activeEl.closest('.card');
+      if (host && host.id && typeof KanvazCards !== 'undefined' && KanvazCards.getAll()[host.id]) {
+        e.preventDefault();
+        KanvazCards.duplicateCard(host.id);
+        return;
+      }
+    }
+
     if (inText) return;
 
     /* Quick search — / is the vim/Blender convention for instant search */

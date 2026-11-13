@@ -263,6 +263,7 @@ function parsePurFile(buffer) {
   }
 
   var hitItemMarker = false;
+  var gapRefs = 0, skippedGaps = 0;   /* 4-byte entries read between images, and how many oversized gaps were skipped */
   imageScan:
   while (r.remaining() > 12) {
     var next = findNextImage(r.pos);
@@ -292,8 +293,13 @@ function parsePurFile(buffer) {
           break imageScan;
         }
       }
-      if (images.length > MAX_TRACKED_ENTRIES) {
-        throw new Error('This .pur file looks corrupted or uses an unsupported format variant (too many entries to import safely)');
+      if (++gapRefs > MAX_TRACKED_ENTRIES) {
+        /* A gap this long is not a list of transform ids. It is data this parser does not understand
+           (an image format it does not know, or a newer PureRef layout). Skip the gap and keep scanning
+           for the next image rather than refusing the whole file. */
+        skippedGaps++;
+        r.pos = headIdx;
+        break;
       }
       var dupBuf = r.readSlice(4);
       images.push({ absStart: r.pos - 4, absEnd: r.pos, pngBuf: dupBuf, isDup: true });
@@ -312,9 +318,7 @@ function parsePurFile(buffer) {
     var typeCheck = r.peekUInt32BE(8);
     if (typeCheck === GRAPHICS_IMAGE_ITEM || typeCheck === GRAPHICS_TEXT_ITEM) break;
     if (r.remaining() < 4) break;
-    if (images.length > MAX_TRACKED_ENTRIES) {
-      throw new Error('This .pur file looks corrupted or uses an unsupported format variant (too many entries to import safely)');
-    }
+    if (++gapRefs > MAX_TRACKED_ENTRIES) { skippedGaps++; break; }   /* unknown data after the last image: stop, keep what was found */
     var dupBuf2 = r.readSlice(4);
     images.push({ absStart: r.pos - 4, absEnd: r.pos, pngBuf: dupBuf2, isDup: true });
   }
@@ -414,6 +418,7 @@ function parsePurFile(buffer) {
 
   /* ── Build result: only real images with transforms ── */
   var results = [];
+  var hasLinked = false;
   for (var ri = 0; ri < images.length; ri++) {
     var im = images[ri];
     if (im.isDup || !im.transforms || im.transforms.length === 0) continue;
@@ -458,6 +463,7 @@ function parsePurFile(buffer) {
      PureRef's own internal UI thumbnails are consistently tiny
      compared to actual embedded photos — a real user-placed image is
      essentially never that small. */
+  hasLinked = results.length > 0;
   if (results.length === 0) {
     var GRID_COLS = 4, GRID_CELL = 320, GRID_GAP = 24, MIN_FALLBACK_BYTES = 2048;
     var col = 0, row = 0;
@@ -481,7 +487,7 @@ function parsePurFile(buffer) {
   /* Sort by z-layer so cards stack correctly */
   results.sort(function(a, b) { return a.zLayer - b.zLayer; });
 
-  return { images: results, count: results.length };
+  return { images: results, count: results.length, skippedGaps: skippedGaps, laidOutAsGrid: results.length > 0 && !hasLinked };
 }
 
 

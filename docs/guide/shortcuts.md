@@ -69,6 +69,7 @@ noted below.
 | Shift+Arrow | Nudge 10px |
 | Delete / Backspace | Delete card |
 | Ctrl+D | Duplicate |
+| Ctrl+C, Ctrl+V | Copy the selected cards and paste them (works across boards) |
 | Ctrl+G | Group selected cards (2+) |
 | Ctrl+Shift+G | Ungroup |
 | `P` | Pin/unpin |

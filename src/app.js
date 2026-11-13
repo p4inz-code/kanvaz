@@ -37,6 +37,11 @@ var KanvazApp = (function() {
         handlePaste(e);
       });
 
+      /* Copy cards (Ctrl+C) */
+      document.addEventListener('copy', function(e) {
+        handleCopy(e);
+      });
+
       /* Recovery check */
       KanvazBridge.on('recovery-available', function() {
         showRecoveryDialog();
@@ -1192,9 +1197,35 @@ var KanvazApp = (function() {
     }
   }
 
+  /* Ctrl+C on the board (not in a text field) copies the selected cards. */
+  function handleCopy(e) {
+    var el = document.activeElement;
+    var tag = el && el.tagName;
+    if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT' || (el && el.isContentEditable)) return;
+    var sel = window.getSelection && window.getSelection();
+    if (sel && String(sel).length) return;   /* real text is selected somewhere: leave the normal copy alone */
+    if (typeof KanvazCards === 'undefined' || !KanvazCards.copySelected) return;
+    var marker = KanvazCards.copySelected();
+    if (!marker || !e.clipboardData) return;
+    e.clipboardData.setData('text/plain', marker);
+    e.preventDefault();
+    KanvazUI.toast('Copied');
+  }
+
   function handlePaste(e) {
     var items = e.clipboardData && e.clipboardData.items;
     if (!items) return;
+
+    /* Cards copied with Ctrl+C come back first, unless the clipboard was replaced since. */
+    var el0 = document.activeElement;
+    var tag0 = el0 && el0.tagName;
+    if (!(tag0 === 'TEXTAREA' || tag0 === 'INPUT' || tag0 === 'SELECT' || (el0 && el0.isContentEditable)) &&
+        typeof KanvazCards !== 'undefined' && KanvazCards.isCardClipboardMarker &&
+        KanvazCards.isCardClipboardMarker(e.clipboardData.getData('text/plain'))) {
+      e.preventDefault();
+      KanvazCards.pasteCards();
+      return;
+    }
 
     /* Collect image items first so we know the real count up front —
        the previous approach read document.querySelectorAll('.card').length
@@ -1946,6 +1977,7 @@ var KanvazApp = (function() {
           return;
         }
         placePurImages(result.images);
+      notePurLayout(result);
       }).catch(function(e) {
         KanvazErrors.handle('LOAD_FAIL', e);
       });
@@ -1972,9 +2004,20 @@ var KanvazApp = (function() {
         return;
       }
       placePurImages(result.images);
+      notePurLayout(result);
     }).catch(function(e) {
       KanvazErrors.handle('LOAD_FAIL', e);
     });
+  }
+
+  /* Say so when the file could not be read exactly: the images came in, but not where PureRef had them. */
+  function notePurLayout(result) {
+    if (!result) return;
+    if (result.laidOutAsGrid) {
+      KanvazUI.toast('Imported ' + result.count + ' image' + (result.count === 1 ? '' : 's') + '. This .pur file uses a layout Kanvaz cannot read yet, so they are arranged in a grid.', 'warning');
+    } else if (result.skippedGaps) {
+      KanvazUI.toast('Imported ' + result.count + ' images. Some data in the file was skipped because Kanvaz did not recognize it.', 'warning');
+    }
   }
 
   function placePurImages(images) {

@@ -1654,6 +1654,7 @@ var KanvazUI_Extended = (function() {
           ['Shift+Arrow','Nudge 10px'],
           ['Delete',     'Delete card'],
           ['Ctrl+D',     'Duplicate'],
+          ['Ctrl+C / Ctrl+V', 'Copy and paste cards'],
           ['Ctrl+G',     'Group selected cards (2+)'],
           ['Ctrl+Shift+G', 'Ungroup'],
           ['P',          'Pin / unpin'],

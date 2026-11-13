@@ -44,7 +44,7 @@ here as cards.
 - Click a card to select it; Ctrl+click or drag a box
   (Ctrl+drag) to select several
 - Drag to move; arrow keys nudge 1px, Shift+arrow nudges 10px
-- Ctrl+D duplicates the selection; Delete removes it
+- Ctrl+D duplicates the selection, and Ctrl+C then Ctrl+V copies it (also onto another board); Delete removes it
 - Ctrl+G groups 2+ selected cards, Ctrl+Shift+G ungroups
 - Right-click a selection for Align and Distribute. The same
   operations exposed to the [MCP Bridge](mcp-bridge.html) as

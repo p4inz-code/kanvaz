@@ -1269,7 +1269,7 @@ body.presentation-mode-active #side-panel {
   top: 0;
   left: 0;
   transform-origin: 0 0;
-  will-change: transform;
+  /* will-change is set from canvas.js only while the view is moving, so the board is redrawn sharp at rest */
 }
 
 /* Grid overlay */
@@ -1570,7 +1570,6 @@ body.presentation-mode-active #side-panel {
   overflow: hidden;
   cursor: default;
   user-select: none;
-  will-change: transform;
   min-width: 80px;
   min-height: 80px;
   container-type: inline-size;
@@ -1586,8 +1585,11 @@ body.presentation-mode-active #side-panel {
    radius) — this is the hover half of that; translateY needs the
    transition declared above on .card itself since this rule only sets
    the end state. */
+/* No lift on hover: moving the card 2px up put its bottom edge out from under the pointer, which turned the
+   hover off, which dropped the card back, which turned it on again. That is the flicker on selected cards
+   at low zoom. The hover shadow above is enough feedback. */
 .card:hover {
-  transform: translateY(-2px);
+  transform: none;
 }
 
 /* Entrance animation — plays once when a card's DOM element is first

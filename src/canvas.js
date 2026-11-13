@@ -134,9 +134,16 @@ var KanvazCanvas = (function() {
 
   /* ── Transform ── */
 
+  var sharpenTimer = null;
   function applyTransform() {
     clampTranslate();
     world.style.transform = 'translate(' + tx + 'px, ' + ty + 'px) scale(' + scale + ')';
+    /* Keep the board on its own layer while the view moves (smooth), then drop it a moment after the last change
+       so the browser re-rasterizes at the real zoom. A layer promoted with will-change keeps the pixels it was
+       first drawn with, which is why images and note text stayed soft after zooming in until the pointer touched them. */
+    world.style.willChange = 'transform';
+    if (sharpenTimer) clearTimeout(sharpenTimer);
+    sharpenTimer = setTimeout(function() { sharpenTimer = null; world.style.willChange = 'auto'; }, 160);
 
     /* Throttle grid redraws — one per animation frame */
     if (!gridRafId) {

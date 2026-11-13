@@ -5918,6 +5918,60 @@ var KanvazCards = (function() {
      more than one duplicates the whole set behind one history push and
      selects the new copies (mirrors what a single Ctrl+D does — the
      result of the action becomes the new selection). */
+  /* ── Copy and paste cards (Ctrl+C, Ctrl+V) ──
+     Copy keeps a deep copy of the selected cards, in memory, and puts a marker on the system clipboard.
+     Paste only brings the cards back when the clipboard still holds that marker, so copying something else
+     afterwards (a picture from a browser, text) pastes that instead. Pasted cards are independent copies,
+     never shared-card instances, and arrive a little offset from the originals so they are easy to spot.
+     Works across boards, because the copy lives in memory rather than on a board. */
+  var cardClipboard = null;
+  var CARD_CLIP_MARKER = 'kanvaz-cards:';
+  var cardClipSerial = 0;
+  var cardClipMarker = '';
+
+  function copySelected() {
+    var ids = getSelectedIds();
+    if (!ids.length) return null;
+    var copies = [];
+    for (var i = 0; i < ids.length; i++) {
+      var src = cards[ids[i]];
+      if (!src) continue;
+      var c;
+      try { c = JSON.parse(JSON.stringify(src)); }
+      catch (e) { c = {}; for (var k in src) { if (Object.prototype.hasOwnProperty.call(src, k)) c[k] = src[k]; } c.pluginData = null; }
+      copies.push(c);
+    }
+    if (!copies.length) return null;
+    cardClipSerial++;
+    cardClipMarker = CARD_CLIP_MARKER + Date.now().toString(36) + '-' + cardClipSerial;
+    cardClipboard = { cards: copies, pastes: 0, marker: cardClipMarker };
+    return cardClipMarker;
+  }
+
+  /* true if the pasted marker is ours, so the caller knows to skip the picture paste */
+  function isCardClipboardMarker(text) {
+    return !!(cardClipboard && typeof text === 'string' && text === cardClipboard.marker);
+  }
+
+  function pasteCards() {
+    if (!cardClipboard || !cardClipboard.cards.length) return 0;
+    cardClipboard.pastes++;
+    var step = 24 * cardClipboard.pastes;
+    var newIds = [];
+    for (var i = 0; i < cardClipboard.cards.length; i++) {
+      var d = JSON.parse(JSON.stringify(cardClipboard.cards[i]));
+      var nid = createCardFromSerialized(d, (d.x || 0) + step, (d.y || 0) + step);
+      if (nid) newIds.push(nid);
+    }
+    if (!newIds.length) return 0;
+    if (newIds.length === 1) selectCard(newIds[0]); else setMultiSelection(newIds);
+    updateCount();
+    KanvazApp.markDirty();
+    KanvazHistory.push();
+    KanvazUI.toast(newIds.length === 1 ? 'Pasted' : 'Pasted ' + newIds.length + ' cards');
+    return newIds.length;
+  }
+
   function duplicateSelected() {
     var ids = getSelectedIds();
     if (!ids.length) return;
@@ -7470,6 +7524,9 @@ var KanvazCards = (function() {
     deleteMultiple:    deleteMultiple,
     duplicateCard:     duplicateCard,
     duplicateSelected: duplicateSelected,
+    copySelected:      copySelected,
+    pasteCards:        pasteCards,
+    isCardClipboardMarker: isCardClipboardMarker,
     createCardFromSerialized: createCardFromSerialized,
     shareCardToBoard:  shareCardToBoard,
     unlinkSharedCard:  unlinkSharedCard,
