@@ -21,6 +21,17 @@ Kanvaz is unsigned, so both systems warn the first time. It is expected.
 
 Details: [Installation & updates](installation.html#the-first-launch-unsigned-app-warnings).
 
+### Windows Defender or my antivirus flags Kanvaz
+
+Some antivirus programs, Windows Defender included, occasionally flag the portable `.exe`. The name often ends in `!ml`, for example `Program:Win32/Bearfoos.AE!ml`. That suffix means a machine-learning guess, not a match to known malware. The portable build unpacks itself into a temporary folder every time it starts, and Kanvaz is not code-signed, which is what these checks are wary of. Scans of the published files with an up-to-date Defender found nothing, so this looks like a false positive, but your antivirus may still disagree.
+
+Here is what helps:
+
+- Check that your download is the file that was published. In PowerShell, run `Get-FileHash .\Kanvaz-<version>.exe` and compare the result with `SHA256SUMS-windows-latest.txt` on the release page.
+- Use the Setup installer, or the zip (`Kanvaz-<version>-win.zip`, from version 9.8.6): unzip it and start Kanvaz from the folder. The zip does not unpack into a temporary folder.
+- Only choose "Allow on device" if the checksum matches.
+- If it keeps happening, report the file to your antivirus vendor as a false positive. For Defender, the form is at [microsoft.com/wdsi/filesubmission](https://www.microsoft.com/wdsi/filesubmission). Please also tell us in an [issue](https://github.com/p4inz-code/kanvaz/issues/new) so we can follow up.
+
 ### Which file do I download?
 
 See the table in [Installation & updates](installation.html#which-file-do-i-download). In short: Windows `Kanvaz-Setup-<version>.exe`, Apple Silicon `…-arm64.dmg`, Intel Mac `….dmg` (no `-x64` in the name), Linux `.AppImage`.
@@ -99,6 +110,14 @@ Embedded media is checked with a hash when a board is saved and opened. If one a
 ### Can I open a PureRef file?
 
 Yes: Import → PureRef file (`.pur`). Every card lands at its saved position and scale. See [Import & Export](import-export.html).
+
+### My PureRef file shows an error, or the images came in as a grid
+
+Kanvaz reads the images in a `.pur` file and, when it can, their saved positions and scale.
+
+- If it cannot read the saved layout, the images still import, arranged in a grid, and Kanvaz tells you so.
+- If a long stretch of data in the file is not recognized, Kanvaz skips it and imports the images it can find. Before version 9.8.5, a file like that was refused with error E006, "looks corrupted or uses an unsupported format variant (too many entries to import safely)".
+- If a board still will not import, please attach it (or a copy with images you are happy to share) to an [issue](https://github.com/p4inz-code/kanvaz/issues/new) and we will look at it.
 
 ## Media and previews
 

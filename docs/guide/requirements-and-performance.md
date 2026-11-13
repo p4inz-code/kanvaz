@@ -35,7 +35,7 @@ Kanvaz is a desktop app only. There is no web or mobile version.
 2. Hide what you are not using. The eye icon in the Layers panel (`Shift+L`) hides a card from the canvas, so there is less on screen to manage.
 3. Split big boards. One `.kanvaz` file can hold several boards, each with its own view. Put separate projects on separate boards instead of one huge canvas.
 4. Use file references for huge files. A file-reference card points at the original PDF or image instead of embedding a copy, which keeps the board file small.
-5. Mind the 3D limit. 3D model cards accept files up to 150 MB.
+5. Mind the 3D limit. 3D model cards accept files up to 250 MB.
 6. Convert video that will not play. MKV and AVI may not play because of codec limits. MP4 (H.264) and WebM always do.
 7. Pause what you are not watching. A playing video or audio card keeps working in the background.
 

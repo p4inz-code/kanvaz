@@ -5,6 +5,8 @@ All notable changes to Kanvaz are documented here.
 ## [Unreleased]
 
 ### Improved
+- **The whole guide now shares the home page's look.** Screenshots on every page are pinned prints, the "Start here" cards are a ruled list, previous and next read like book pages, the support block is a pinned note, and every button has the same flat, liquid-fill style. There is also a friendly 404 page.
+- **Guide facts corrected and brought up to date.** The 3D model limit is 250 MB (two pages still said 150 MB), copy, cut and paste are documented, the connections row now says 7 types plus plain, Kanvaz Mini's page covers 0.2.0 (palette, guides, PNG export), and Troubleshooting has new entries for antivirus warnings on the portable build and for PureRef files that import as a grid or fail.
 - **A redesigned guide home page.** It now looks like a reference board: screenshots pinned like prints with tape, a dotted wire joining them, editorial headlines and numbered feature rows instead of a grid of identical cards. It works on desktop, tablet and phone. Buttons are flat and solid, with a liquid fill that grows from the pointer, a soft sweep of light on hover and a gentle magnetic pull. Screenshots tilt toward the pointer, and numbers count up as you scroll. Motion is switched off for people who ask for reduced motion and on touch screens. The guide's headings use a serif typeface to match.
 
 ## [9.8.6] — 2026-11-13 — Cut with Ctrl+X, and a plain zip download

@@ -28,6 +28,7 @@
   </script>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><filter id="goo" color-interpolation-filters="sRGB"><feGaussianBlur in="SourceGraphic" stdDeviation="7" result="b"/><feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -8" result="g"/><feComposite in="SourceGraphic" in2="g" operator="atop"/></filter></defs></svg>
 {% assign all_pages = "" | split: "" %}
 {% for group in site.data.guide_nav %}{% for item in group.items %}{% assign all_pages = all_pages | push: item %}{% endfor %}{% endfor %}
 {% assign cur = -1 %}

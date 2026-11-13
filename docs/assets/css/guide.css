@@ -558,3 +558,86 @@ a.print { padding: 8px; }
 }
 @media (hover: none) { .print::after, .lp-btn::after { display: none; } }
 @media (prefers-reduced-motion: reduce) { .lp-liq i, .lp-btn-label { transition: none; } .lp-btn:hover::after { animation: none; } .print::after { display: none; } }
+
+/* ============ guide v2: the same pinboard language on every page ============ */
+body:not(.landing) { background-image: radial-gradient(color-mix(in srgb, var(--text) 8%, transparent) 1px, transparent 1.4px); background-size: 26px 26px; }
+.nav-title, .toc-title { font-family: var(--mono); letter-spacing: .12em; }
+
+/* guide home hero: no box, no glow */
+.hero { border: 0; background: none; padding: 6px 0 10px; overflow: visible; margin-bottom: 1.4rem; }
+.hero::before { display: none; }
+.hero h1 { font: 600 clamp(2.4rem, 5vw, 3.6rem)/1.04 var(--serif); letter-spacing: -.025em; margin: 0 0 .35em; border: 0; }
+.hero p { font-size: 1.1rem; max-width: 56ch; }
+.hero .lp-kicker { margin-bottom: 18px; }
+.hero > p:has(> .btn), .hero .btn { margin-top: 4px; }
+
+/* every .btn becomes a flat button with the liquid fill (markup added by guide.js) */
+.btn { position: relative; }
+.btn.lp-btn { padding: 11px 20px; border-radius: 10px; font-weight: 700; margin-right: 10px; margin-bottom: 6px; border: 1px solid transparent; }
+.btn.lp-btn, .btn.lp-btn:hover { color: var(--btn-fg) !important; filter: none; }
+.btn.lp-btn.ghost { background: transparent; --btn-bg: transparent; --btn-fg: var(--text); --btn-liq: var(--text); --btn-liq-fg: var(--bg); border-color: var(--line); box-shadow: none; }
+.btn.lp-btn.ghost:hover { border-color: var(--text); box-shadow: none; }
+.btn.lp-btn.ghost::after { background: rgba(255, 255, 255, .28); }
+
+/* "Start here" cards become a ruled list */
+.cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 44px; border-top: 1px solid var(--line); margin-bottom: 2rem; }
+.cards a { display: block; position: relative; padding: 18px 34px 18px 2px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; box-shadow: none; transform: none; }
+.cards a:hover { border-color: var(--line); box-shadow: none; transform: none; }
+.cards a::after { content: "\2192"; position: absolute; inset: auto 4px auto auto; top: 50%; translate: 0 -50%; background: none; opacity: .45; color: var(--accent); font-size: 1.1rem; transition: translate .2s, opacity .2s; }
+.cards a:hover::after { opacity: 1; translate: 6px -50%; }
+.cards b { font: 600 1.18rem var(--serif); margin-bottom: 2px; }
+.cards a:hover b { color: var(--accent); }
+
+/* figures and gallery are prints */
+.doc figure.print { margin: 1.9rem 0 2.3rem; --r: -.5deg; max-width: 100%; }
+.shot-pair figure.print:nth-child(1) { --r: -.8deg; }
+.shot-pair figure.print:nth-child(2) { --r: .8deg; }
+.doc figure.print img { border: 0; border-radius: 2px; box-shadow: none; cursor: zoom-in; }
+.doc figure.print img:hover { transform: none; box-shadow: none; }
+.doc figure.print figcaption { text-align: left; margin: 0; padding: 10px 2px 11px; font: 600 .68rem/1.3 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: #5a5476; }
+.gallery { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 26px 22px; margin: 1.6rem 0 2.2rem; }
+.gallery a.print { display: block; aspect-ratio: auto; overflow: visible; border: 0; padding: 8px 8px 0; background: var(--paper); border-radius: 4px; }
+.gallery a.print:nth-child(odd) { --r: -1deg; }
+.gallery a.print:nth-child(even) { --r: .9deg; }
+.gallery a.print:hover { --r: 0deg; translate: 0 -4px; }
+.gallery a.print img { height: auto; aspect-ratio: 16 / 10; object-fit: cover; object-position: top left; border-radius: 2px; transform: none; }
+.gallery a.print:hover img { transform: none; }
+.gallery a.print span { position: static; display: block; padding: 10px 2px 11px; background: none; color: #5a5476; font: 600 .68rem/1.2 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+
+/* previous and next, set like a book */
+.pager { gap: 0 44px; border-top: 1px solid var(--line); max-width: 780px; }
+.pager a { border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; padding: 20px 2px; font: 600 1.2rem var(--serif); color: var(--text); transition: color .2s; }
+.pager a:hover { border-color: var(--line); color: var(--accent); text-decoration: none; }
+.pager a span { font: 600 .68rem/1 var(--mono); letter-spacing: .14em; color: var(--text-3); margin-bottom: 8px; }
+.pager .prev span::before { content: "\2190  "; }
+.pager .next span::after { content: "  \2192"; }
+
+/* the support block, pinned like the home page note */
+.support { position: relative; margin-top: 2.6rem; padding: 28px 30px; background: #ece6ff; color: #1c1633; border: 0; border-radius: 4px; transform: rotate(-.4deg);
+  box-shadow: 0 2px 3px rgba(20, 16, 50, .2), 0 24px 46px -10px rgba(20, 16, 50, .4); max-width: 780px; }
+.support::before { content: ""; position: absolute; top: -11px; left: 50%; width: 88px; height: 22px; transform: translateX(-50%) rotate(2deg); background: rgba(124, 92, 252, .4); border-left: 1px dashed rgba(255, 255, 255, .5); border-right: 1px dashed rgba(255, 255, 255, .5); }
+.support-text b { font: 600 1.25rem var(--serif); color: #1c1633; margin-bottom: 4px; }
+.support-text span { color: #3b3358; }
+.support .btn.lp-btn { --btn-bg: #3f27c8; --btn-fg: #fff; --btn-liq: #1c1633; --btn-liq-fg: #fff; padding: 9px 16px; font-size: .9rem; }
+.support .btn.lp-btn.ghost { --btn-bg: transparent; --btn-fg: #1c1633; --btn-liq: #1c1633; --btn-liq-fg: #fff; border-color: rgba(28, 22, 51, .35); }
+.support .btn.lp-btn.ghost:hover { border-color: #1c1633; }
+
+/* More by P4inz */
+.p-links a { border-radius: 6px; background: none; }
+.proj-card { border-radius: 6px; box-shadow: none; background: none; transition: border-color .2s; }
+.proj-card:hover { border-color: var(--accent); }
+.proj-card h3 { font: 600 1.25rem var(--serif); }
+.chips button { font-family: var(--mono); font-size: .74rem; letter-spacing: .04em; }
+
+/* the 404 page */
+.nf { max-width: 640px; margin: 0 auto; padding: 14vh 0 8vh; }
+.nf h1 { font: 600 clamp(2.4rem, 6vw, 3.8rem)/1.04 var(--serif); letter-spacing: -.025em; margin: 0 0 18px; }
+.nf p { color: var(--text-2); font-size: 1.1rem; margin: 0 0 26px; }
+.nf .lp-link { margin-left: 12px; }
+
+@media (max-width: 760px) {
+  .cards { grid-template-columns: 1fr; }
+  .pager { grid-template-columns: 1fr; }
+  .support { padding: 24px 20px; }
+}
+@media (prefers-reduced-motion: reduce) { .cards a::after { transition: none; } }

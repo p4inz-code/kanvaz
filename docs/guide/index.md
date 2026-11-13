@@ -6,6 +6,8 @@ description: "The complete guide to Kanvaz: install, canvas, references, plugins
 
 <div class="hero" markdown="1">
 
+<p class="lp-kicker">User guide <span>/</span> 35 pages <span>/</span> press / to search</p>
+
 # Kanvaz Guide
 
 A free, offline reference board for artists. This guide covers everything: installing, the canvas, importing and organizing references, working beside other apps, plugins, and fixing problems.
@@ -17,7 +19,7 @@ A free, offline reference board for artists. This guide covers everything: insta
 
 <figure class="shot"><img src="https://raw.githubusercontent.com/p4inz-code/kanvaz/main/docs/media/kanvaz-walkthrough.gif" alt="A walkthrough of Kanvaz: home screen, canvas, Map View and themes"><figcaption>Kanvaz in about 15 seconds: home screen, canvas, Map View, dark and light themes.</figcaption></figure>
 
-*Verified against Kanvaz v9.8.2.*
+*Updated for Kanvaz v9.8.6. Each page names the version it was last checked against.*
 
 ## Start here
 
@@ -34,12 +36,12 @@ A free, offline reference board for artists. This guide covers everything: insta
 ## A look inside
 
 <div class="gallery" markdown="0">
-<a href="{{ '/guide/features.html' | relative_url }}"><img src="assets/showcase-dark.png" alt="A Kanvaz board in the dark theme" loading="lazy"><span>Boards, dark and light</span></a>
-<a href="{{ '/guide/task-tracker.html' | relative_url }}"><img src="assets/task-tracker.png" alt="The Task Tracker panel" loading="lazy"><span>Task Tracker</span></a>
-<a href="{{ '/guide/board-view.html' | relative_url }}"><img src="assets/annotate.png" alt="Annotating an image card" loading="lazy"><span>Annotate</span></a>
-<a href="{{ '/guide/import-export.html' | relative_url }}"><img src="assets/export.png" alt="The Export as dialog" loading="lazy"><span>Export</span></a>
-<a href="{{ '/guide/working-with-other-apps.html' | relative_url }}"><img src="assets/moodlock-on.png" alt="MoodLock showing only the reference" loading="lazy"><span>MoodLock</span></a>
-<a href="{{ '/guide/quick-start.html' | relative_url }}"><img src="assets/home.png" alt="The Home Screen" loading="lazy"><span>Home Screen</span></a>
+<a class="print" href="{{ '/guide/features.html' | relative_url }}"><img src="assets/showcase-dark.png" alt="A Kanvaz board in the dark theme" loading="lazy"><span>Boards, dark and light</span></a>
+<a class="print" href="{{ '/guide/task-tracker.html' | relative_url }}"><img src="assets/task-tracker.png" alt="The Task Tracker panel" loading="lazy"><span>Task Tracker</span></a>
+<a class="print" href="{{ '/guide/board-view.html' | relative_url }}"><img src="assets/annotate.png" alt="Annotating an image card" loading="lazy"><span>Annotate</span></a>
+<a class="print" href="{{ '/guide/import-export.html' | relative_url }}"><img src="assets/export.png" alt="The Export as dialog" loading="lazy"><span>Export</span></a>
+<a class="print" href="{{ '/guide/working-with-other-apps.html' | relative_url }}"><img src="assets/moodlock-on.png" alt="MoodLock showing only the reference" loading="lazy"><span>MoodLock</span></a>
+<a class="print" href="{{ '/guide/quick-start.html' | relative_url }}"><img src="assets/home.png" alt="The Home Screen" loading="lazy"><span>Home Screen</span></a>
 </div>
 
 ## What you get

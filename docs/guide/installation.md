@@ -32,7 +32,7 @@ Kanvaz is not code-signed (certificates cost money and this app is free). Both w
 <div class="tabs" data-tabs>
 <section data-tab="Windows" markdown="1">
 
-SmartScreen shows "Windows protected your PC." Click More info, then Run anyway.
+SmartScreen shows "Windows protected your PC." Click More info, then Run anyway. If your antivirus flags the portable `.exe` instead, use the installer or the zip, and see [Windows Defender or my antivirus flags Kanvaz](troubleshooting.html#windows-defender-or-my-antivirus-flags-kanvaz).
 
 </section>
 <section data-tab="macOS" markdown="1">

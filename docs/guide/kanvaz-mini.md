@@ -6,7 +6,7 @@ description: "The smaller version of Kanvaz for quick setups: a tiny always-on-t
 
 # Kanvaz Mini
 
-*Kanvaz Mini 0.1.0 is out. Download it from its own repository: [github.com/p4inz-code/kanvaz-mini](https://github.com/p4inz-code/kanvaz-mini/releases/latest).*
+*Kanvaz Mini 0.2.0 is out. Download it from its own repository: [github.com/p4inz-code/kanvaz-mini](https://github.com/p4inz-code/kanvaz-mini/releases/latest).*
 
 Kanvaz Mini is a smaller version of Kanvaz for people who want a quick setup. It is a tiny window that stays on top of your work and holds a handful of reference images. You drop images in and carry on drawing. There is nothing to configure and nothing to learn.
 
@@ -36,6 +36,9 @@ If you outgrow Mini, drag the same images into Kanvaz. Your files stay where the
 - `A` arranges everything into a tidy wall of rows. `G` turns images to grayscale for a value check. Both act on the selection, or on everything when nothing is selected.
 - A click-through tracing mode (`Ctrl+Alt+T`) lets you draw on the app underneath. Set the window opacity with `Ctrl+[` and `Ctrl+]`.
 - Arrow keys step through your references one at a time when nothing is selected.
+- `E` shows the main colors of the selected pictures (or of the whole board). Click a swatch to copy its hex code.
+- `T` draws composition guides over the board: rule of thirds, center cross or golden ratio.
+- `Ctrl+E` exports the whole board as one PNG.
 - Opens PureRef `.pur` boards with each image at its saved position and scale.
 - Saves a board as one `.kmini` file with the images inside. Your last session comes back when you reopen the app.
 
@@ -73,6 +76,8 @@ Press `Ctrl+Alt+T` and Mini ignores the mouse, so your clicks go to the app unde
 | `H`, `V` | Flip left to right, top to bottom |
 | `G` | Grayscale on and off |
 | `A` | Arrange into rows |
+| `E` | Palette of the selection, or of the whole board. Click a color to copy it |
+| `T` | Cycle composition guides: thirds, center, golden ratio, off |
 | `Delete` | Remove the selection |
 | `Ctrl+Z`, `Ctrl+Y` | Undo, redo |
 | `Ctrl+A`, `Ctrl+D`, `Ctrl+N` | Select all, duplicate, new board |
@@ -81,6 +86,7 @@ Press `Ctrl+Alt+T` and Mini ignores the mouse, so your clicks go to the app unde
 | `P` | Keep on top on or off |
 | `Ctrl+Alt+T` | Click-through tracing mode |
 | `Ctrl+S` | Save |
+| `Ctrl+E` | Export the board as a PNG |
 
 ## Limits
 

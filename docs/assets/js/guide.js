@@ -316,7 +316,14 @@
 
 /* home page motion: liquid button origin, magnetic pull, print tilt, hero drift, number count-up */
 (function () {
-  if (!document.body.classList.contains('landing')) return;
+  /* upgrade every plain .btn into a flat button with the liquid fill, and pin the guide's screenshots as prints */
+  [].slice.call(document.querySelectorAll('.btn:not(.lp-btn)')).forEach(function (b) {
+    var label = document.createElement('span'); label.className = 'lp-btn-label';
+    while (b.firstChild) label.appendChild(b.firstChild);
+    var liq = document.createElement('span'); liq.className = 'lp-liq'; liq.setAttribute('aria-hidden', 'true'); liq.innerHTML = '<i></i><i></i><i></i>';
+    b.appendChild(liq); b.appendChild(label); b.classList.add('lp-btn');
+  });
+  [].slice.call(document.querySelectorAll('.doc figure.shot')).forEach(function (f) { f.classList.add('print'); });
   var fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
   var calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -370,7 +377,7 @@
   document.addEventListener('pointerleave', function () { last = { clientX: -9999, clientY: -9999 }; update(); });
 
   /* prints tilt toward the pointer and catch the light */
-  [].slice.call(document.querySelectorAll('.lp-row .print, .p-mini')).forEach(function (pr) {
+  [].slice.call(document.querySelectorAll('.lp-row .print, .p-mini, .doc figure.print, .gallery a.print')).forEach(function (pr) {
     pr.addEventListener('pointermove', function (e) {
       var r = pr.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
       pr.classList.add('tilting');
