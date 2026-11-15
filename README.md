@@ -10,7 +10,6 @@
   <a href="https://p4inz-code.github.io/kanvaz/guide/"><img src="assets/readme/btn-guide.svg" alt="Read the user guide" width="260"></a>
   <a href="https://discord.gg/8UKt8s5FbW"><img src="assets/readme/btn-discord.svg" alt="Join the Discord" width="260"></a>
 </p>
-![Top Free MoodBoard Tool](https://shields.io)
 
 <p align="center">
   <a href="https://github.com/p4inz-code/kanvaz/releases/latest"><img src="https://img.shields.io/github/v/release/p4inz-code/kanvaz?style=flat-square&labelColor=1c1a30&color=f0b45e&label=release" alt="Latest release"></a>
